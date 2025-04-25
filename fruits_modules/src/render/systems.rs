@@ -46,7 +46,7 @@ pub fn create_camera_uniform_buffer(
         let buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("Camera Buffer"),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            contents: unsafe { (&Matrix4x4::<f32>::IDENTITY.into_array()).align_to::<u8>().1 },
+            contents: unsafe { (&Matrix4x4::<f32>::IDENTITY.as_array()).align_to::<u8>().1 },
         });
 
         let group = render_state.device().create_bind_group(&BindGroupDescriptor {
@@ -79,7 +79,7 @@ pub fn create_instance_buffer(
         let buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("Instance Buffer"),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            contents: unsafe { (&Matrix4x4::<f32>::IDENTITY.into_array()).align_to::<u8>().1 },
+            contents: unsafe { (&Matrix4x4::<f32>::IDENTITY.as_array()).align_to::<u8>().1 },
         });
 
         buffer
@@ -101,7 +101,11 @@ pub fn update_camera_uniform_buffer(
 
     let (transform, camera) = query.iter().next().unwrap();
 
-    let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far);
+    let window_size = render_state.size().lock().unwrap();
+
+    let aspect = window_size.width as f32 / window_size.height as f32;
+
+    let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
 
     let transform_matrix = fruits_math::into_matrix4x4_with_pos(transform.scale_rotation, transform.position).inverse().unwrap();
 

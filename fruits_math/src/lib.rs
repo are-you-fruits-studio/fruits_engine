@@ -60,7 +60,7 @@ pub fn into_matrix4x4_with_pos<T: Number>(mat: Matrix3x3<T>, pos: Vec3<T>) -> Ma
     )
 }
 
-pub fn perspective_proj_matrix(fov: f32, near: f32, far: f32) -> Matrix4x4<f32> {
+pub fn perspective_proj_matrix(fov: f32, near: f32, far: f32, aspect: f32) -> Matrix4x4<f32> {
     // todo
     // let s = -1_f32 / ((fov / 2_f32).tan());
 
@@ -75,7 +75,7 @@ pub fn perspective_proj_matrix(fov: f32, near: f32, far: f32) -> Matrix4x4<f32> 
     let s = 1_f32 / ((fov / 2_f32).tan());
 
     Matrix4x4::<f32>::from_array([
-        [s, 0_f32, 0_f32, 0_f32],
+        [(s / aspect), 0_f32, 0_f32, 0_f32],
         [0_f32, s, 0_f32, 0_f32],
         [0_f32, 0_f32, (far / (far - near)), 1_f32],
         [0_f32, 0_f32, ((-far * near) / (far - near)), 0_f32],

@@ -74,6 +74,7 @@ impl<T: Number> Matrix3x3<T> {
     }
 
     pub const fn into_array(self) -> [[T; 3]; 3] { self.data }
+    pub const fn as_array(&self) -> &[[T; 3]; 3] { &self.data }
 
     pub const fn col_0(&self) -> [T; 3] { self.data[0] }
     pub const fn col_1(&self) -> [T; 3] { self.data[1] }

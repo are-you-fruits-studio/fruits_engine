@@ -1,225 +1,201 @@
-use crate::TerminalSerializer;
+use std::marker::PhantomData;
 
+use crate::{*, json_reflection::JsonValue};
+
+// todo: overflow check
+
+#[derive(Copy, Clone, Default)]
 pub struct StringSerializer;
-impl TerminalSerializer<String> for StringSerializer {
-    fn serialize(&self, value: String) -> String {
-        format!("\"{value}\"")
+impl Serializer for StringSerializer {
+    type Deserialized = String;
+
+    fn serialize(&self, _ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
+        Ok(JsonValue::String(value.clone()))
     }
-    
-    fn deserialize(&self, data: &str) -> Option<String> {
-        if data.len() < 2 {
-            return None;
+
+    fn deserialize(&self, _ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
+        if let JsonValue::String(value) = value {
+            Ok(value.clone())
+        } else{
+            Err(DeserializationError::InvalidInput)
         }
-
-        let mut chars = data.chars();
-
-        if chars.next().unwrap() != '"' {
-            return None;
-        }
-
-        if chars.last().unwrap() != '"' {
-            return None;
-        }
-
-        // todo
-        let content = &data[1..data.len() - 1];
-        Some(String::from(content))
     }
 }
 
+#[derive(Copy, Clone, Default)]
 pub struct StrSerializer;
-impl TerminalSerializer<&'static str> for StrSerializer {
-    fn serialize(&self, value: &'static str) -> String {
-        format!("\"{value}\"")
+impl Serializer for StrSerializer {
+    type Deserialized = &'static str;
+
+    fn serialize(&self, _ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
+        Ok(JsonValue::String(String::from(*value)))
     }
-    
-    fn deserialize(&self, _data: &str) -> Option<&'static str> {
+
+    fn deserialize(&self, _ctx: &DeserializerContext, _value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
         // todo: unsupported.
-        None
+        Err(DeserializationError::InvalidInput)
     }
 }
 
-pub struct BoolSerializer;
-impl TerminalSerializer<bool> for BoolSerializer {
-    fn serialize(&self, value: bool) -> String {
-        value.to_string()
+macro_rules! primitive_terminal_serializer {
+    ($name: ident, $type: ident, $json_type: ident, $convert_type: ident) => {
+        #[derive(Copy, Clone, Default)]
+        pub struct $name;
+        impl Serializer for $name {
+            type Deserialized = $type;
+
+            fn serialize(&self, _ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
+                Ok(JsonValue::$json_type(*value as $convert_type))
+            }
+        
+            fn deserialize(&self, _ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
+                if let JsonValue::$json_type(value) = value {
+                    Ok(*value as Self::Deserialized)
+                } else{
+                    Err(DeserializationError::InvalidInput)
+                }
+            }
+        }
+    };
+}
+
+primitive_terminal_serializer!(BoolSerializer, bool, Bool, bool);
+primitive_terminal_serializer!(USizeSerializer, usize, Int, i64);
+primitive_terminal_serializer!(ISizeSerializer, isize, Int, i64);
+primitive_terminal_serializer!(U8Serializer, u8, Int, i64);
+primitive_terminal_serializer!(I8Serializer, i8, Int, i64);
+primitive_terminal_serializer!(U16Serializer, u16, Int, i64);
+primitive_terminal_serializer!(I16Serializer, i16, Int, i64);
+primitive_terminal_serializer!(U32Serializer, u32, Int, i64);
+primitive_terminal_serializer!(I32Serializer, i32, Int, i64);
+primitive_terminal_serializer!(U64Serializer, u64, Int, i64);
+primitive_terminal_serializer!(I64Serializer, i64, Int, i64);
+primitive_terminal_serializer!(U128Serializer, u128, Int, i64);
+primitive_terminal_serializer!(I128Serializer, i128, Int, i64);
+primitive_terminal_serializer!(F32Serializer, f32, Float, f64);
+primitive_terminal_serializer!(F64Serializer, f64, Float, f64);
+
+#[derive(Copy, Clone)]
+pub struct VecSerializer<T>(PhantomData<T>);
+impl<T> Default for VecSerializer<T> {
+    fn default() -> Self {
+        Self(Default::default())
     }
+}
+impl<T: 'static> Serializer for VecSerializer<T> {
+    type Deserialized = Vec<T>;
+
+    fn serialize(&self, ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
+        let mut results = Vec::new();
     
-    fn deserialize(&self, data: &str) -> Option<bool> {
-        data.parse().ok()
-    }
-}
-
-pub struct USizeSerializer;
-impl TerminalSerializer<usize> for USizeSerializer {
-    fn serialize(&self, value: usize) -> String {
-        value.to_string()
-    }
+        for item in value {
+            results.push(ctx.serialize(item)?);
+        }
     
-    fn deserialize(&self, data: &str) -> Option<usize> {
-        data.parse().ok()
+        Ok(JsonValue::Array(results))
+    }
+
+    fn deserialize(&self, ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
+        let JsonValue::Array(json_array) = value else {
+            return Err(DeserializationError::InvalidInput);
+        };
+
+        let mut results = Vec::new();
+
+        for item in json_array {
+            results.push(ctx.deserialize(item)?);
+        }
+
+        Ok(results)
     }
 }
 
-pub struct ISizeSerializer;
-impl TerminalSerializer<isize> for ISizeSerializer {
-    fn serialize(&self, value: isize) -> String {
-        value.to_string()
+#[derive(Copy, Clone)]
+pub struct BoxedSliceSerializer<T>(PhantomData<Option<T>>);
+impl<T> Default for BoxedSliceSerializer<T> {
+    fn default() -> Self {
+        Self(Default::default())
     }
+}
+impl<T: 'static> Serializer for BoxedSliceSerializer<T> {
+    type Deserialized = Box<[T]>;
+
+    fn serialize(&self, ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
+        let mut results = Vec::new();
     
-    fn deserialize(&self, data: &str) -> Option<isize> {
-        data.parse().ok()
-    }
-}
-
-pub struct U8Serializer;
-impl TerminalSerializer<u8> for U8Serializer {
-    fn serialize(&self, value: u8) -> String {
-        value.to_string()
-    }
+        for item in value {
+            results.push(ctx.serialize(item)?);
+        }
     
-    fn deserialize(&self, data: &str) -> Option<u8> {
-        data.parse().ok()
+        Ok(JsonValue::Array(results))
+    }
+
+    fn deserialize(&self, ctx: &DeserializerContext, data: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
+        let JsonValue::Array(json_array) = data else {
+            return Err(DeserializationError::InvalidInput);
+        };
+
+        let mut results = Vec::new();
+
+        for item in json_array {
+            results.push(ctx.deserialize(item)?);
+        }
+
+        Ok(results.into_boxed_slice())
     }
 }
 
-pub struct I8Serializer;
-impl TerminalSerializer<i8> for I8Serializer {
-    fn serialize(&self, value: i8) -> String {
-        value.to_string()
+#[derive(Copy, Clone)]
+pub struct OptionSerializer<T>(PhantomData<T>);
+impl<T> Default for OptionSerializer<T> {
+    fn default() -> Self {
+        Self(Default::default())
     }
-    
-    fn deserialize(&self, data: &str) -> Option<i8> {
-        data.parse().ok()
+}
+impl<T: 'static> Serializer for OptionSerializer<T> {
+    type Deserialized = Option<T>;
+
+    fn serialize(&self, ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
+        let Some(value) = value else {
+            return Ok(JsonValue::Null);
+        };
+        ctx.serialize(value)
+    }
+
+    fn deserialize(&self, ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
+        if let JsonValue::Null = value {
+            return Ok(None);
+        }
+        Ok(Some(ctx.deserialize(value)?))
     }
 }
 
-pub struct U16Serializer;
-impl TerminalSerializer<u16> for U16Serializer {
-    fn serialize(&self, value: u16) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<u16> {
-        data.parse().ok()
-    }
+pub fn register_default_terminals(global: &mut crate::GlobalSerializer) {
+    register_self_and_related_default_terminals(global, StringSerializer);
+    register_self_and_related_default_terminals(global, StrSerializer);
+    register_self_and_related_default_terminals(global, BoolSerializer);
+    register_self_and_related_default_terminals(global, USizeSerializer);
+    register_self_and_related_default_terminals(global, ISizeSerializer);
+    register_self_and_related_default_terminals(global, U8Serializer);
+    register_self_and_related_default_terminals(global, I8Serializer);
+    register_self_and_related_default_terminals(global, U16Serializer);
+    register_self_and_related_default_terminals(global, I16Serializer);
+    register_self_and_related_default_terminals(global, U32Serializer);
+    register_self_and_related_default_terminals(global, I32Serializer);
+    register_self_and_related_default_terminals(global, U64Serializer);
+    register_self_and_related_default_terminals(global, I64Serializer);
+    register_self_and_related_default_terminals(global, U128Serializer);
+    register_self_and_related_default_terminals(global, I128Serializer);
+    register_self_and_related_default_terminals(global, F32Serializer);
+    register_self_and_related_default_terminals(global, F64Serializer);
 }
 
-pub struct I16Serializer;
-impl TerminalSerializer<i16> for I16Serializer {
-    fn serialize(&self, value: i16) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<i16> {
-        data.parse().ok()
-    }
-}
-
-pub struct U32Serializer;
-impl TerminalSerializer<u32> for U32Serializer {
-    fn serialize(&self, value: u32) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<u32> {
-        data.parse().ok()
-    }
-}
-
-pub struct I32Serializer;
-impl TerminalSerializer<i32> for I32Serializer {
-    fn serialize(&self, value: i32) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<i32> {
-        data.parse().ok()
-    }
-}
-
-pub struct U64Serializer;
-impl TerminalSerializer<u64> for U64Serializer {
-    fn serialize(&self, value: u64) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<u64> {
-        data.parse().ok()
-    }
-}
-
-pub struct I64Serializer;
-impl TerminalSerializer<i64> for I64Serializer {
-    fn serialize(&self, value: i64) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<i64> {
-        data.parse().ok()
-    }
-}
-
-pub struct U128Serializer;
-impl TerminalSerializer<u128> for U128Serializer {
-    fn serialize(&self, value: u128) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<u128> {
-        data.parse().ok()
-    }
-}
-
-pub struct I128Serializer;
-impl TerminalSerializer<i128> for I128Serializer {
-    fn serialize(&self, value: i128) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<i128> {
-        data.parse().ok()
-    }
-}
-
-pub struct F32Serializer;
-impl TerminalSerializer<f32> for F32Serializer {
-    fn serialize(&self, value: f32) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<f32> {
-        data.parse().ok()
-    }
-}
-
-pub struct F64Serializer;
-impl TerminalSerializer<f64> for F64Serializer {
-    fn serialize(&self, value: f64) -> String {
-        value.to_string()
-    }
-    
-    fn deserialize(&self, data: &str) -> Option<f64> {
-        data.parse().ok()
-    }
-}
-
-pub fn register_default_terminals(serializer: &mut crate::GlobalSerializer) {
-    serializer.register_terminal(StringSerializer);
-    serializer.register_terminal(StrSerializer);
-    serializer.register_terminal(BoolSerializer);
-    serializer.register_terminal(USizeSerializer);
-    serializer.register_terminal(ISizeSerializer);
-    serializer.register_terminal(U8Serializer);
-    serializer.register_terminal(I8Serializer);
-    serializer.register_terminal(U16Serializer);
-    serializer.register_terminal(I16Serializer);
-    serializer.register_terminal(U32Serializer);
-    serializer.register_terminal(I32Serializer);
-    serializer.register_terminal(U64Serializer);
-    serializer.register_terminal(I64Serializer);
-    serializer.register_terminal(U128Serializer);
-    serializer.register_terminal(I128Serializer);
-    serializer.register_terminal(F32Serializer);
-    serializer.register_terminal(F64Serializer);
+pub fn register_self_and_related_default_terminals<S: 'static + Serializer>(
+    global: &mut crate::GlobalSerializer,
+    serializer: S,
+) {
+    global.register(serializer);
+    global.register(VecSerializer::<S::Deserialized>::default());
+    global.register(BoxedSliceSerializer::<S::Deserialized>::default());
+    global.register(OptionSerializer::<S::Deserialized>::default());
 }

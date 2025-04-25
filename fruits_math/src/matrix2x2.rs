@@ -28,6 +28,7 @@ impl<T: Number> Matrix2x2<T> {
     }
 
     pub const fn into_array(self) -> [[T; 2]; 2] { self.data }
+    pub const fn as_array(&self) -> &[[T; 2]; 2] { &self.data }
 
     pub const fn col_0(&self) -> [T; 2] { self.data[0] }
     pub const fn col_1(&self) -> [T; 2] { self.data[1] }

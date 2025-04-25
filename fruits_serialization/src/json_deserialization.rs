@@ -1,177 +1,262 @@
-use std::collections::HashMap;
+use crate::json_reflection::{JsonObject, JsonValue};
 
-// Serialized (String)
-// Reflection (Collections of terminal-values/other-collections)
-// Deserialized (<T>)
+const NULL_CHARS: &[char] = &['n', 'u', 'l', 'l'];
 
-pub fn convert(json: &str) -> HashMap<String, String> {
-    use State as State;
-
-    let mut converter = JsonStringToJsonFieldsConverter {
-        fields: HashMap::new(),
-        state: State::None,
-    };
-    
-    for (i, c) in json.chars().enumerate() {
-        converter.state = converter.handle_char(c, i);
-    }
-
-    if converter.state != State::None {
-        panic!("Invalid JSON.");
-    }
-
-    converter.fields
+enum InsideObjectState {
+    BetweenFields,
+    FieldName(String),
+    FieldBeforeColon(String),
+    FieldAfterValue,
 }
 
-struct JsonStringToJsonFieldsConverter {
-    fields: HashMap<String, String>,
-    state: State,
+enum InsideArrayState {
+    Element,
+    Colon,
 }
 
-impl JsonStringToJsonFieldsConverter {
-    fn handle_char(&mut self, c: char, i: usize) -> State {
-        
-        // todo: escape characters
-        // todo: arrays
+enum State {
+    None,
+    InsideNull { matching_chars: usize },
+    InsideBool { result: bool, compared_chars: &'static [char], matching_chars: usize },
+    InsideNumber { buf: String, contains_dot: bool },
+    InsideString { buf: String },
+    InsideObject(JsonObject, InsideObjectState),
+    InsideArray(Vec<JsonValue>, InsideArrayState),
+}
 
-        match &mut self.state {
-            State::None => {
-                if c.is_whitespace() {
-                    return State::None;
-                }
+// todo: return some info about errors
+impl JsonValue {
+    pub fn parse(chars: &mut impl Iterator<Item = char>) -> JsonValue {
+        to_json_peekable(&mut chars.peekable())
+    }
+}
 
-                if c == '{' {
-                    return State::InsideObject;
-                }
+fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&mut I>) -> JsonValue {
+    let mut state = State::None;
 
-                panic!("Invalid JSON. '{}' at {}", c, i);
-            },
-            State::InsideObject => {
-                if c.is_whitespace() {
-                    return State::InsideObject;
-                }
+    loop {
+        state = 'm: {
+            match state {
+                State::None => {
+                    let Some(c) = chars.next() else {
+                        panic!("invalid JSON");
+                    };
 
-                if c == '"' {
-                    return State::FieldName(String::new());
-                }
-                
-                if c == '}' {
-                    return State::None;
-                }
-
-                panic!("Invalid JSON.");
-            }
-            State::FieldName(field_name) => {
-                if c == '"' {
-                    return State::FieldBeforeColon(std::mem::take(field_name));
-                }
-
-                field_name.push(c);
-
-                State::FieldName(std::mem::take(field_name))
-            },
-            State::FieldBeforeColon(field_name) => {
-                if c.is_whitespace() {
-                    return State::FieldBeforeColon(std::mem::take(field_name));
-                }
-
-                if c == ':' {
-                    return State::FieldAfterColon(std::mem::take(field_name));
-                }
-
-                panic!("Invalid JSON.");
-            }
-            State::FieldAfterColon(field_name) => {
-                if c.is_whitespace() {
-                    return State::FieldAfterColon(std::mem::take(field_name));
-                }
-
-                return State::FieldValue {
-                    field_name: std::mem::take(field_name),
-                    field_value: String::from(c),
-                    braces_count: if c == '{' { 1 } else { 0 },
-                    brackets_count: if c == '[' { 1 } else { 0 },
-                    is_string_literal: c == '"',
-                };
-            },
-            State::FieldValue {
-                field_name,
-                field_value,
-                braces_count,
-                brackets_count,
-                is_string_literal,
-            } => {
-                if c == '"' {
-                    *is_string_literal = !*is_string_literal;
-                }
-
-                if !*is_string_literal {
-                    match c {
-                        '{' => *braces_count += 1,
-                        '}' => *braces_count -= 1,
-                        '[' => *brackets_count += 1,
-                        ']' => *brackets_count -= 1,
-                        _ => (),
-                    }
-                }
-
-                if !*is_string_literal && *braces_count == 0 && *brackets_count == 0 && (c.is_whitespace() || c == ',') {
                     if c.is_whitespace() {
-                        return State::FieldAfterValue(std::mem::take(field_name), std::mem::take(field_value));
+                        break 'm state;
                     }
-                    if c == ',' {
-                        self.fields.insert(std::mem::take(field_name), std::mem::take(field_value));
-                        return State::InsideObject;
+
+                    if c == 'n' {
+                        break 'm State::InsideNull { matching_chars: 1 };
                     }
-                    if c == '}' {
-                        return State::None;
+
+                    if c == 't' {
+                        break 'm State::InsideBool { result: true, compared_chars: &['t', 'r', 'u', 'e'], matching_chars: 1 };
+                    }
+
+                    if c == 'f' {
+                        break 'm State::InsideBool { result: false, compared_chars: &['f', 'a', 'l', 's', 'e'], matching_chars: 1 };
+                    }
+
+                    if c.is_ascii_digit() || c == '.' {
+                        let mut buf = String::new();
+
+                        buf.push(c);
+
+                        break 'm State::InsideNumber { buf, contains_dot: c == '.' };
+                    }
+
+                    if c == '"' {
+                        break 'm State::InsideString { buf: String::new() };
+                    }
+
+                    if c == '{' {
+                        break 'm State::InsideObject(JsonObject::new(), InsideObjectState::BetweenFields);
+                    }
+
+                    if c == '[' {
+                        break 'm State::InsideArray(Vec::new(), InsideArrayState::Element);
+                    }
+
+                    panic!("invalid JSON");
+                },
+                State::InsideNull { matching_chars } => {
+                    let Some(c) = chars.next() else {
+                        panic!("invalid JSON");
+                    };
+
+                    if matching_chars >= (NULL_CHARS.len() - 1) {
+                        return JsonValue::Null;
+                    }
+
+                    if c == NULL_CHARS[matching_chars] {
+                        break 'm State::InsideNull { matching_chars: matching_chars + 1 };
+                    }
+
+                    panic!("invalid JSON");
+                },
+                State::InsideBool { result, compared_chars, matching_chars } => {
+                    let Some(c) = chars.next() else {
+                        panic!("invalid JSON");
+                    };
+
+                    if matching_chars >= (NULL_CHARS.len() - 1) {
+                        return JsonValue::Bool(result);
+                    }
+                    
+                    if c == compared_chars[matching_chars] {
+                        break 'm State::InsideBool { result, compared_chars, matching_chars: matching_chars + 1 };
+                    }
+
+                    panic!("invalid JSON");
+                },
+                State::InsideNumber { mut buf, mut contains_dot } => {
+                    let Some(c) = chars.next() else {
+                        panic!("invalid JSON");
+                    };
+                    
+                    if c.is_ascii_digit() {
+                        buf.push(c);
+                    } else if c == '.' && !contains_dot {
+                        buf.push(c);
+                        contains_dot = true;
+                    } else {
+                        panic!("invalid JSON");
+                    }
+
+                    let should_exit = chars.peek().map(|nc| !nc.is_ascii_digit() && *nc != '.').unwrap_or(true);
+
+                    if should_exit {
+                        if contains_dot {
+                            return JsonValue::Float(buf.parse().unwrap())
+                        } else {
+                            return JsonValue::Int(buf.parse().unwrap())
+                        }
+                    } else {
+                        break 'm State::InsideNumber { buf, contains_dot };
+                    }
+                },
+                State::InsideString { mut buf } => {
+                    let Some(c) = chars.next() else {
+                        panic!("invalid JSON");
+                    };
+                    
+                    if c == '"' {
+                        return JsonValue::String(buf);
+                    }
+
+                    buf.push(c);
+                    break 'm State::InsideString { buf };
+                },
+                State::InsideObject(mut json_object, inside_object_state) => {
+                    match inside_object_state {
+                        InsideObjectState::BetweenFields => {
+                            let Some(c) = chars.next() else {
+                                panic!("invalid JSON");
+                            };
+                            
+                            if c.is_whitespace() {
+                                break 'm State::InsideObject(json_object, inside_object_state);
+                            }
+
+                            if c == '}' {
+                                return JsonValue::Object(JsonObject::new());
+                            }
+
+                            if c == '"' {
+                                break 'm State::InsideObject(json_object, InsideObjectState::FieldName(String::new()));
+                            }
+
+                            panic!("invalid JSON");
+                        },
+                        InsideObjectState::FieldName(mut name) => {
+                            let Some(c) = chars.next() else {
+                                panic!("invalid JSON");
+                            };
+                            
+                            if c == '"' {
+                                break 'm State::InsideObject(json_object, InsideObjectState::FieldBeforeColon(name));
+                            }
+
+                            name.push(c);
+
+                            break 'm State::InsideObject(json_object, InsideObjectState::FieldName(name));
+                        },
+                        InsideObjectState::FieldBeforeColon(name) => {
+                            let Some(c) = chars.next() else {
+                                panic!("invalid JSON");
+                            };
+                            
+                            if c.is_whitespace() {
+                                break 'm State::InsideObject(json_object, InsideObjectState::FieldBeforeColon(name));
+                            }
+
+                            if c == ':' {
+                                // todo: remove recursion.
+                                json_object.push_field(name, to_json_peekable(chars)).ok().unwrap_or_else(|| panic!("invalid JSON"));
+                                break 'm State::InsideObject(json_object, InsideObjectState::FieldAfterValue);
+                            }
+
+                            panic!("invalid JSON");
+                        },
+                        InsideObjectState::FieldAfterValue => {
+                            let Some(c) = chars.next() else {
+                                panic!("invalid JSON");
+                            };
+                            
+                            if c.is_whitespace() {
+                                break 'm State::InsideObject(json_object, inside_object_state);
+                            }
+
+                            if c == ',' {
+                                break 'm State::InsideObject(json_object, InsideObjectState::BetweenFields);
+                            }
+
+                            if c == '}' {
+                                return json_object.into();
+                            }
+
+                            panic!("invalid JSON");
+                        },
+                    }
+                },
+                State::InsideArray(mut json_array, inside_array_state) => {
+                    match inside_array_state {
+                        InsideArrayState::Element => {
+                            let Some(&nc) = chars.peek() else {
+                                panic!("invalid JSON");
+                            };
+
+                            if nc == ']' {
+                                chars.next();
+                                return JsonValue::Array(json_array);
+                            }
+                            // todo: remove recursion.
+                            json_array.push(to_json_peekable(chars));
+                            break 'm State::InsideArray(json_array, InsideArrayState::Colon);
+                        },
+                        InsideArrayState::Colon => {
+                            let Some(c) = chars.next() else {
+                                panic!("invalid JSON");
+                            };
+
+                            if c.is_whitespace() {
+                                break 'm State::InsideArray(json_array, inside_array_state)
+                            }
+
+                            if c == ',' {
+                                break 'm State::InsideArray(json_array, InsideArrayState::Element);
+                            }
+
+                            if c == ']' {
+                                return JsonValue::Array(json_array);
+                            }
+
+                            panic!("invalid JSON");
+                        },
                     }
                 }
-
-                field_value.push(c);
-
-                return State::FieldValue {
-                    field_name: std::mem::take(field_name),
-                    field_value: std::mem::take(field_value),
-                    braces_count: *braces_count,
-                    brackets_count: *brackets_count,
-                    is_string_literal: *is_string_literal,
-                };
-            },
-            State::FieldAfterValue(field_name, field_value) => {
-                if c.is_whitespace() {
-                    return State::FieldAfterValue(std::mem::take(field_name), std::mem::take(field_value));
-                }
-
-                if c == ',' {
-                    self.fields.insert(std::mem::take(field_name), std::mem::take(field_value));
-                    return State::InsideObject;
-                }
-
-                if c == '}' {
-                    return State::None;
-                }
-
-                panic!("Invalid JSON.");
             }
         }
     }
-}
-
-#[derive(PartialEq, Eq)]
-enum State {
-    None,
-    InsideObject,
-    FieldName(String),
-    FieldBeforeColon(String),
-    FieldAfterColon(String),
-    FieldValue {
-        field_name: String,
-        field_value: String,
-        braces_count: usize,
-        brackets_count: usize,
-        is_string_literal: bool,
-    },
-    FieldAfterValue(String, String),
-    // todo: array
 }

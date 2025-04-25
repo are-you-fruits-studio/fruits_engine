@@ -3,6 +3,12 @@ use wgpu::{BindGroupLayout, Device, RenderPipeline, SurfaceConfiguration};
 
 use super::{mesh::StandardVertex, shader::Shader, StandardInstance};
 
+pub struct StandardMaterialNew {
+    pub color: [f32; 3],
+    pub texture: (),
+    pub emission: [f32; 3],
+}
+
 pub struct Material {
     render_pipeline: RenderPipeline,
 }

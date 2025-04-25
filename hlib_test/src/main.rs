@@ -3,8 +3,8 @@ mod test_json;
 use fruits_prelude::*;
 
 fn main() {
-    //test_json();
-    test_fruits_prelude();
+    test_json::test_serialization();
+    //test_fruits_prelude();
 }
 
 #[derive(Resource)]

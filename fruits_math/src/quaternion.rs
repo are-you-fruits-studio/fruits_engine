@@ -174,7 +174,7 @@ impl<N: Number> Quat<N> {
 
     pub const fn from_array(a: [N; 4]) -> Self {
         let [x, y, z, w] = a;
-        Self {x, y, z, w }
+        Self { x, y, z, w }
     }
 
     pub fn normalized(&self) -> Self {
@@ -190,7 +190,6 @@ impl<N: Number> Mul for Quat<N> {
     type Output = Quat<N>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        // todo: invalid
         Self::Output {
             w: rhs.w * self.w - rhs.x * self.x - rhs.y * self.y - rhs.z * self.z,
             x: rhs.w * self.x + rhs.x * self.w - rhs.y * self.z + rhs.z * self.y,

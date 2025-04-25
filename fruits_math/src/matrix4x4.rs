@@ -18,6 +18,7 @@ impl<T: Number> Matrix4x4<T> {
     }
 
     pub const fn into_array(self) -> [[T; 4]; 4] { self.data }
+    pub const fn as_array(&self) -> &[[T; 4]; 4] { &self.data }
 
     pub const fn col_0(&self) -> [T; 4] { self.data[0] }
     pub const fn col_1(&self) -> [T; 4] { self.data[1] }

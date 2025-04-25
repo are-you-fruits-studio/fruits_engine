@@ -37,11 +37,11 @@ fn setup(
         account
     }).ok().unwrap();
     object.push_field("nicknames", {
-        let mut nicknames = JsonArray::new();
-        nicknames.elements_mut().push(String::from("superhot").into());
-        nicknames.elements_mut().push(String::from("noobs_killer").into());
-        nicknames.elements_mut().push(String::from("password-rememberer").into());
-        nicknames.elements_mut().push(String::from("bestplay3r").into());
+        let mut nicknames = Vec::<JsonValue>::new();
+        nicknames.push(String::from("superhot").into());
+        nicknames.push(String::from("noobs_killer").into());
+        nicknames.push(String::from("password-rememberer").into());
+        nicknames.push(String::from("bestplay3r").into());
         nicknames
     }).ok().unwrap();
 
@@ -77,13 +77,15 @@ fn spawn_field(
         }
     } else if let JsonValue::Array(array) = value {
         spawn_node_with_text(parent, asset_server, name, "", indent);
-        for element in array.elements().iter() {
+        for element in array {
             spawn_field(parent, asset_server, "", element, indent + 1);
         }
     } else if let JsonValue::String(string) = value {
         spawn_node_with_text(parent, asset_server, name, string, indent);
     } else {
-        spawn_node_with_text(parent, asset_server, name, &value.to_json(&mut JsonIndentation::Default), indent);
+        let mut serialized_value = String::new();
+        value.write(&mut serialized_value, None).unwrap();
+        spawn_node_with_text(parent, asset_server, name, &serialized_value, indent);
     }
 }
 
