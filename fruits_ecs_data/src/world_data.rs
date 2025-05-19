@@ -1,5 +1,26 @@
+use std::sync::Arc;
+
 use fruits_ecs_component::WorldEntitiesComponents;
-use fruits_ecs_resource::ResourcesHolder;
+
+use crate::ResourcesHolder;
+
+//
+
+pub struct WorldDataNew {
+    resources: ResourcesHolder,
+}
+
+#[derive(Clone)]
+pub struct WorldDataRefNew {
+    data: Arc<WorldDataNew>,
+}
+impl WorldDataRefNew {
+    pub fn resources(&self) -> &ResourcesHolder {
+        &self.data.resources
+    }
+}
+
+//
 
 pub struct WorldData {
     resources: ResourcesHolder,
@@ -16,10 +37,6 @@ impl WorldData {
 
     pub fn resources(&self) -> &ResourcesHolder {
         &self.resources
-    }
-
-    pub fn resources_mut(&mut self) -> &mut ResourcesHolder {
-        &mut self.resources
     }
 
     pub fn entities_components(&self) -> &WorldEntitiesComponents {

@@ -3,9 +3,9 @@ use std::sync::Arc;
 use fruits_ecs_schedule::Schedule;
 use fruits_ecs_world::{World, WorldBuilder};
 use wgpu::*;
-use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::{ElementState, KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{Key, NamedKey}, window::WindowAttributes};
+use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, MouseButton, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{Key, KeyCode, NamedKey, PhysicalKey}, window::{WindowAttributes, WindowId}};
 
-use crate::{render_app_state::RenderAppState, RenderStateResource};
+use crate::{render_app_state::RenderAppState, InputResource, RenderStateResource};
 
 enum EventLoopHandlerState {
     Created(WorldBuilder),
@@ -46,7 +46,8 @@ impl ApplicationHandler for EventLoopHandler {
 
         let state = Arc::new(create_render_app_state(event_loop));
 
-        world.data_mut().resources_mut().insert(RenderStateResource::new(Arc::clone(&state)));
+        world.data().resources().insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
+        world.data().resources().insert(InputResource::new()).ok().unwrap();
         let world = world.build();
         world.execute_iteration(Schedule::Start);
 
@@ -56,10 +57,31 @@ impl ApplicationHandler for EventLoopHandler {
         };
     }
 
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        let EventLoopHandlerState::Polling { state, world} = &mut self.0 else {
+            return;
+        };
+        
+        match event {
+            // DeviceEvent::MouseMotion { delta } => {
+            //     let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+
+            //     input.mouse.position[0] += delta.0;
+            //     input.mouse.position[1] += delta.1;
+            // },
+            _ => (),
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        window_id: WindowId,
         event: WindowEvent,
     ) {
         let EventLoopHandlerState::Polling { state, world} = &mut self.0 else {
@@ -74,16 +96,50 @@ impl ApplicationHandler for EventLoopHandler {
             WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
                 event: KeyEvent {
                     state: ElementState::Pressed,
-                    logical_key: Key::Named(NamedKey::Escape),
+                    physical_key: PhysicalKey::Code(KeyCode::Escape),
                     ..
                 },
                 ..
             } => event_loop.exit(),
+            WindowEvent::CursorMoved { position, .. } => {
+                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+
+                input.mouse.position = [position.x, position.y];
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+
+                match state {
+                    ElementState::Pressed => input.mouse.press(button),
+                    ElementState::Released => input.mouse.release(button),
+                }
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.repeat {
+                    return;
+                }
+
+                let PhysicalKey::Code(key_code) = event.physical_key else {
+                    return;
+                };
+
+                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+
+                match event.state {
+                    ElementState::Pressed => input.keyboard.press(key_code),
+                    ElementState::Released => input.keyboard.release(key_code),
+                }
+            },
             WindowEvent::Resized(physical_size) => {
                 resize(&*state, physical_size);
             }
             WindowEvent::RedrawRequested => {
                 world.execute_iteration(Schedule::Update);
+
+                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+                input.keyboard.clear_frame();
+                input.mouse.clear_frame();
+
                 state.window().request_redraw();
             }
             WindowEvent::Destroyed => {

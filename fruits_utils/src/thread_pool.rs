@@ -1,14 +1,11 @@
 use std::{
-    sync::{
+    any::Any, sync::{
         mpsc::{
-            Sender,
-            self,
-            Receiver
+            self, Receiver, Sender
         },
         Arc,
         Mutex
-    },
-    thread,
+    }, thread::{self, JoinHandle}
 };
 
 type DefaultJob = Box<dyn FnOnce() + Send>;
@@ -28,11 +25,41 @@ enum Message<J: Job> {
     TerminateRequest,
 }
 
+struct Worker<J: Job = DefaultJob> {
+    pub id: usize,
+    pub message_receiver: Arc<Mutex<Receiver<Message<J>>>>,
+    pub err_container: Arc<Mutex<Option<Box<dyn Any + Send + 'static>>>>
+}
+
+impl<J: Job> Worker<J> {
+    fn run(self) -> JoinHandle<()> {
+        thread::spawn(move || {
+            let result = std::panic::catch_unwind(||{
+                loop {
+                    let message = {
+                        self.message_receiver.lock().unwrap().recv().unwrap()
+                    };
+
+                    match message {
+                        Message::TerminateRequest => break,
+                        Message::JobRequest(job) => job.execute(),
+                    }
+                }
+            });
+
+            if let Err(err) = result {
+                *self.err_container.lock().unwrap() = Some(err);
+            }
+        })
+    }
+}
+
 // todo: 'static?
 pub struct ThreadPool<J: Job = DefaultJob>
 {
-    threads: Box<[Option<thread::JoinHandle<()>>]>,
-    message_sender: Sender<Message<J>>
+    threads: Vec<JoinHandle<()>>,
+    message_sender: Sender<Message<J>>,
+    err_container: Arc<Mutex<Option<Box<dyn Any + Send + 'static>>>>,
 }
 
 impl<J: Job> ThreadPool<J> {
@@ -41,17 +68,25 @@ impl<J: Job> ThreadPool<J> {
 
         let mut threads = Vec::with_capacity(threads_count);
 
-        let (sender, receiver) = mpsc::channel();
+        let (message_sender, message_receiver) = mpsc::channel();
 
-        let receiver = Arc::new(Mutex::new(receiver)); 
+        let message_receiver = Arc::new(Mutex::new(message_receiver));
+        let err_container = Arc::new(Mutex::new(None));
 
         for id in 0..threads_count {
-            threads.push(Some(ThreadPool::run_worker(id, Arc::clone(&receiver))));
+            let worker = Worker {
+                id,
+                message_receiver: Arc::clone(&message_receiver),
+                err_container: Arc::clone(&err_container),
+            };
+            
+            threads.push(worker.run());
         }
         
         Self {
-            threads: threads.into_boxed_slice(),
-            message_sender: sender,
+            threads,
+            message_sender,
+            err_container,
         }
     }
 
@@ -59,19 +94,22 @@ impl<J: Job> ThreadPool<J> {
         self.message_sender.send(Message::JobRequest(job)).unwrap();
     }
 
-    fn run_worker(_id: usize, message_receiver: Arc<Mutex<Receiver<Message<J>>>>) -> thread::JoinHandle<()> {
-        thread::spawn(move || {
-            loop {
-                let message = {
-                    message_receiver.lock().unwrap().recv().unwrap()
-                };
+    pub fn panic_if_err(&self) {
+        let err = {
+            self.err_container.lock().unwrap().take()
+        };
 
-                match message {
-                    Message::TerminateRequest => break,
-                    Message::JobRequest(job) => job.execute(),
-                }
-            }
-        })
+        if let Some(err) = err {
+            let msg = match err.downcast_ref::<&'static str>() {
+                Some(s) => *s,
+                None => match err.downcast_ref::<String>() {
+                    Some(s) => &s[..],
+                    None => "Box<dyn Any>",
+                },
+            };
+            
+            panic!("ThreadPool worker error: {}", msg);
+        }
     }
 }
 
@@ -81,8 +119,8 @@ impl<J: Job> Drop for ThreadPool<J> {
             self.message_sender.send(Message::TerminateRequest).unwrap();
         }
 
-        for thread in self.threads.iter_mut() {
-            thread.take().unwrap().join().unwrap();
+        while let Some(join_handle) = self.threads.pop() {
+            join_handle.join().unwrap();
         }
     }
 }

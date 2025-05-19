@@ -76,6 +76,8 @@ impl ScheduleBehavior {
                 //
 
                 self.thread_pool.push_job(Box::new(job));
+            } else {
+                self.thread_pool.panic_if_err();
             }
         }
     }

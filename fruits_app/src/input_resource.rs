@@ -1,0 +1,120 @@
+use std::collections::HashSet;
+use fruits_ecs_macros::Resource;
+use fruits_ecs_data::Resource;
+pub use winit::event::MouseButton;
+pub use winit::keyboard::KeyCode;
+
+#[derive(Resource)]
+pub struct InputResource {
+    pub keyboard: KeyboardInputStorage,
+    pub mouse: MouseInputStorage,
+}
+
+impl InputResource {
+    pub fn new() -> Self {
+        Self {
+            keyboard: KeyboardInputStorage::new(),
+            mouse: MouseInputStorage::new(),
+        }
+    }
+}
+
+pub struct KeyboardInputStorage {
+    pressed: HashSet<KeyCode>,
+    frame_pressed: HashSet<KeyCode>,
+    frame_released: HashSet<KeyCode>,
+}
+
+impl KeyboardInputStorage {
+    pub fn new() -> Self {
+        Self {
+            pressed: HashSet::new(),
+            frame_pressed: HashSet::new(),
+            frame_released: HashSet::new(),
+        }
+    }
+    
+    pub fn is_pressed(&self, k: KeyCode) -> bool {
+        self.pressed.contains(&k)
+    }
+    
+    pub fn is_just_pressed(&self, k: KeyCode) -> bool {
+        self.frame_pressed.contains(&k)
+    }
+    
+    pub fn is_just_released(&self, k: KeyCode) -> bool {
+        self.frame_released.contains(&k)
+    }
+    
+    pub fn press(&mut self, k: KeyCode) {
+        self.pressed.insert(k);
+        self.frame_pressed.insert(k);
+    }
+    
+    pub fn release(&mut self, k: KeyCode) {
+        self.pressed.remove(&k);
+        self.frame_released.insert(k);
+    }
+    
+    pub fn clear(&mut self) {
+        self.pressed.clear();
+        self.frame_pressed.clear();
+        self.frame_released.clear();
+    }
+
+    pub fn clear_frame(&mut self) {
+        self.frame_pressed.clear();
+        self.frame_released.clear();
+    }
+}
+
+pub struct MouseInputStorage {
+    pressed: HashSet<MouseButton>,
+    frame_pressed: HashSet<MouseButton>,
+    frame_released: HashSet<MouseButton>,
+    pub position: [f64; 2],
+}
+
+impl MouseInputStorage {
+    pub fn new() -> Self {
+        Self {
+            pressed: HashSet::new(),
+            frame_pressed: HashSet::new(),
+            frame_released: HashSet::new(),
+            position: [0.0; 2],
+        }
+    }
+    
+    pub fn is_pressed(&self, k: MouseButton) -> bool {
+        self.pressed.contains(&k)
+    }
+    
+    pub fn is_just_pressed(&self, k: MouseButton) -> bool {
+        self.frame_pressed.contains(&k)
+    }
+    
+    pub fn is_just_released(&self, k: MouseButton) -> bool {
+        self.frame_released.contains(&k)
+    }
+
+    pub fn press(&mut self, k: MouseButton) {
+        self.pressed.insert(k);
+        self.frame_pressed.insert(k);
+    }
+    
+    pub fn release(&mut self, k: MouseButton) {
+        self.pressed.remove(&k);
+        self.frame_released.insert(k);
+    }
+
+    pub fn clear(&mut self) {
+        self.pressed.clear();
+        self.frame_pressed.clear();
+        self.frame_released.clear();
+    }
+
+    pub fn clear_frame(&mut self) {
+        self.frame_pressed.clear();
+        self.frame_released.clear();
+    }
+}

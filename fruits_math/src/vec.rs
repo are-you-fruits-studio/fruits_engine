@@ -23,8 +23,8 @@ macro_rules! add_all {
 }
 
 macro_rules! and_all {
-    ($x: tt) => (true);
-    ($x: tt, $($xs: tt),+) => ($x & and_all!($($xs),+));
+    () => (true);
+    ($($xs: expr),+) => ($($xs) & +);
 }
 
 macro_rules! vec_impl {

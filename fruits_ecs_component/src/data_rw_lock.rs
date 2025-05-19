@@ -37,7 +37,7 @@ impl DataRwLock {
     pub fn lock_by_usage(&self, usage: &DataUsage) -> Option<Box<[DataRwLockGuard]>> {
         match usage {
             DataUsage::PerType(usage) => self.lock_by_type_usage(usage),
-            DataUsage::GlobalMutable => self.global().map(|g| std::iter::once(DataRwLockGuard::Global(g)).collect::<Box<_>>()),
+            DataUsage::GlobalMutable => self.global().map(|g| Box::new([DataRwLockGuard::Global(g)]) as _),
         }
     }
 

@@ -8,4 +8,3 @@ crate-type = ["lib"]
 
 [dependencies]
 fruits_ecs_component = { path = "../fruits_ecs_component" }
-fruits_ecs_resource = { path = "../fruits_ecs_resource" }

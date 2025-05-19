@@ -15,7 +15,7 @@ fn main() {
 
     let data = app.ecs_mut().data_mut();
 
-    data.resources_mut().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 });
+    data.resources().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 });
 
 
     let systems = app.ecs_mut().behavior_mut();
@@ -66,8 +66,8 @@ struct BoidSettings {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    world.resources_mut().insert(AssetStorageResource::<Material>::new());
-    world.resources_mut().insert(AssetStorageResource::<Mesh>::new());
+    world.resources().insert(AssetStorageResource::<Material>::new());
+    world.resources().insert(AssetStorageResource::<Mesh>::new());
 
     let (material, mesh) = {
         let camera_group_layout = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
@@ -109,8 +109,8 @@ fn init(mut world: ExclusiveWorldAccess) {
         (material, mesh)
     };
 
-    let material = world.resources_mut().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = world.resources().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
+    let mesh = world.resources().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
     for _ in 0..100 {
         let entity = world.entities_components_mut().create_entity();
@@ -212,7 +212,7 @@ fn rotate_boids_by_velocity(
 ) {
     for (transform, velocity, _) in query.iter_mut() {
         let angle = f32::atan2(velocity.0.x, velocity.0.y);
-        transform.scale_rotation = fruits_math::Matrix3x3::rotation_z(angle)
+        transform.scale_rotation = fruits_math::Matrix3x3::rotation_z(-angle)
     }
 }
 

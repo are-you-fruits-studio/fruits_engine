@@ -8,7 +8,7 @@ use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 pub fn adjust_component_sets(
     mut world: ExclusiveWorldAccess,
 ) {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     enum Change {
         ParentAdd,
         ParentRemove,

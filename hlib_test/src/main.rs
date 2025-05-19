@@ -16,7 +16,7 @@ fn test_fruits_prelude() {
     let ecs = app.ecs_mut();
     let data = ecs.data_mut();
     
-    data.resources_mut().insert(SomeResource);
+    data.resources().insert(SomeResource);
     data.entities_components_mut().create_entity();
     
     let behavior = ecs.behavior_mut();

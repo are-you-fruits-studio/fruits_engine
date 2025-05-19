@@ -20,9 +20,13 @@ unsafe impl<'a, C: Component> ArchetypeIteratorItem for &'a C {
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
 
         unsafe {
-            let memory_ref = archetype.get_memory(&item_location);
+            let memory = archetype.get_memory(&item_location);
 
-            &*(memory_ref.0 as *const C)
+            if memory.1 > std::mem::size_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            &*(memory.0 as *const C)
         }
     }
     
@@ -39,9 +43,13 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
 
         unsafe {
-            let memory_ref = archetype.get_memory(&item_location);
+            let memory = archetype.get_memory(&item_location);
 
-            &mut *(memory_ref.0 as *mut C)
+            if memory.1 > std::mem::size_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            &mut *(memory.0 as *mut C)
         }
     }
     
@@ -58,9 +66,13 @@ unsafe impl ArchetypeIteratorItem for Entity {
         let item_location = layout.entity_memory_physical_location(entity_index);
 
         unsafe {
-            let memory_ref = archetype.get_memory(&item_location);
+            let memory = archetype.get_memory(&item_location);
 
-            *(memory_ref.0 as *const Entity)
+            if memory.1 > std::mem::size_of::<Entity>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            *(memory.0 as *const Entity)
         }
     }
     
@@ -158,7 +170,7 @@ pub struct Archetype {
 impl Archetype {
     pub fn new_from_components(components_set: UniqueComponentsSet) -> Self {
         Self {
-            layout: Arc::new(ArchetypeLayout::new_from_components(components_set)),
+            layout: Arc::new(ArchetypeLayout::from_components(components_set)),
             archetype: UnsafeArchetype::new(),
             alive_entities_count: 0,
         }
@@ -194,49 +206,26 @@ impl Archetype {
         
         let entity = unsafe {
             let memory = self.archetype.get_memory(&physical_location);
+            
+            if memory.1 > std::mem::size_of::<Entity>() {
+                panic!("fruits: invalid memory layout");
+            }
+
             *(memory.0 as *const Entity)
         };
 
         Some(entity)
     }
 
-    unsafe fn get_entity_ref_unchecked(&self, entity_index: usize) -> &Entity {
-        let physical_location = self.layout.entity_memory_physical_location(entity_index);
-        
-        let memory = self.archetype.get_memory(&physical_location);
-        &*(memory.0 as *const Entity)
-    }
-
-    unsafe fn get_entity_mut_unchecked(&self, entity_index: usize) -> &mut Entity {
-        let physical_location = self.layout.entity_memory_physical_location(entity_index);
-        
-        let memory = self.archetype.get_memory(&physical_location);
-        &mut *(memory.0 as *mut Entity)
-    }
-
     pub fn get_component_ref<C: Component>(&self, entity_index: usize) -> Option<&C> {
-        unsafe {
-            self.get_component_ptr::<C>(entity_index).map(|p| &*(p as *const C))
-        }
-    }
-
-    unsafe fn get_component_ptr<C: Component>(&self, entity_index: usize) -> Option<*mut ()> {
-        if entity_index >= self.alive_entities_count {
-            return None;
-        }
-
-        let component_type = TypeId::of::<C>();
-
-        if !self.layout.components().contains_key(&component_type) {
-            return None;
-        }
-
-        let physical_location = self.layout.component_memory_physical_location(entity_index, &component_type);
-        
-        Some(self.archetype.get_memory(&physical_location).0)
+        unsafe { self.get_component_ptr::<C>(entity_index).map(|p| &*p) }
     }
 
     pub fn get_component_mut<C: Component>(&self, entity_index: usize) -> Option<&mut C> {
+        unsafe { self.get_component_ptr::<C>(entity_index).map(|p| &mut *p) }
+    }
+
+    fn get_component_ptr<C: Component>(&self, entity_index: usize) -> Option<*mut C> {
         if entity_index >= self.alive_entities_count {
             return None;
         }
@@ -251,7 +240,12 @@ impl Archetype {
         
         let component = unsafe {
             let memory = self.archetype.get_memory(&physical_location);
-            &mut *(memory.0 as *mut C)
+
+            if memory.1 > std::mem::size_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            memory.0 as *mut C
         };
 
         Some(component)
@@ -263,8 +257,10 @@ impl Archetype {
 
         let chunk_index = self.layout.chunk_index(entity_in_archetype_index);
 
-        if chunk_index >= self.archetype.chunks_count() {
-            unsafe { self.archetype.push_chunk() };
+        unsafe {
+            if chunk_index >= self.archetype.chunks_count() {
+                self.archetype.push_chunk();
+            }
         }
 
         self.alive_entities_count += 1;
@@ -278,8 +274,13 @@ impl Archetype {
         let entity_location = self.layout.entity_memory_physical_location(entity_in_archetype_index);
 
         unsafe {
-            let entity_mem = self.archetype.get_memory(&entity_location);
-            *(entity_mem.0 as *mut Entity) = entity;
+            let memory = self.archetype.get_memory(&entity_location);
+            
+            if memory.1 > std::mem::size_of::<Entity>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            *(memory.0 as *mut Entity) = entity;
         }
     }
 
@@ -293,6 +294,7 @@ impl Archetype {
             let location = self.layout.component_memory_physical_location(entity_index, item_layout.type_info.id());
             unsafe {
                 let memory = self.archetype.get_memory(&location);
+                
                 item_layout.type_info.drop(memory.0)
             }
         }
@@ -317,6 +319,11 @@ impl Archetype {
                 unsafe {
                     let src_mem = self.archetype.get_memory(&src_location);
                     let dst_mem = self.archetype.get_memory(&dst_location);
+                    
+            if src_mem.1 != dst_mem.1 {
+                panic!("fruits: invalid memory layout");
+            }
+
                     std::ptr::copy_nonoverlapping(src_mem.0 as *mut u8, dst_mem.0 as *mut u8, dst_mem.1)
                 }
             }
@@ -325,8 +332,13 @@ impl Archetype {
         let last_entity_location = self.layout.entity_memory_physical_location(last_index);
 
         let last_entity = unsafe {
-            let last_enity_memory = self.archetype.get_memory(&last_entity_location).0;
-            *(last_enity_memory as *const Entity)
+            let last_enity_memory = self.archetype.get_memory(&last_entity_location);
+            
+            if last_enity_memory.1 != std::mem::size_of::<Entity>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            *(last_enity_memory.0 as *const Entity)
         };
 
         self.alive_entities_count -= 1;
@@ -349,6 +361,11 @@ impl Archetype {
             unsafe {
                 let src_mem = src.archetype.get_memory(&src_location);
                 let dst_mem = dst.archetype.get_memory(&dst_location);
+
+                if src_mem.1 != dst_mem.1 {
+                    panic!("fruits: invalid memory layout");
+                }
+
                 std::ptr::copy_nonoverlapping(src_mem.0 as *mut u8, dst_mem.0 as *mut u8, dst_mem.1);
             }
         }
@@ -357,7 +374,18 @@ impl Archetype {
 
         unsafe {
             let added_mem = dst.archetype.get_memory(&added_component_location);
-            *(added_mem.0 as *mut C) = component;
+            
+            if added_mem.1 != std::mem::size_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            let mem_align = 1 << (added_mem.0 as usize).trailing_zeros();
+
+            if mem_align < std::mem::align_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            (added_mem.0 as *mut C).write(component);
         }
         
         Ok(src.erase_entity(src_entity_index).unwrap())
@@ -367,8 +395,8 @@ impl Archetype {
         componens_layout
             .components()
             .keys()
-            .map(move |t| memory_layout.component_memory_physical_location(entity_in_archetype_index.clone(), &t.clone()))
-            .chain(std::iter::once(memory_layout.entity_memory_physical_location(entity_in_archetype_index.clone())))
+            .map(move |t| memory_layout.component_memory_physical_location(entity_in_archetype_index, t))
+            .chain(std::iter::once(memory_layout.entity_memory_physical_location(entity_in_archetype_index)))
     }
 
     /// Returns the last entity from src archetype before the movement.
@@ -386,6 +414,11 @@ impl Archetype {
             unsafe {
                 let src_mem = src.archetype.get_memory(&src_location);
                 let dst_mem = dst.archetype.get_memory(&dst_location);
+                
+                if src_mem.1 != dst_mem.1 {
+                    panic!("fruits: invalid memory layout");
+                }
+
                 std::ptr::copy_nonoverlapping(src_mem.0 as *mut u8, dst_mem.0 as *mut u8, dst_mem.1)
             }
         }

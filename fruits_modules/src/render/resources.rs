@@ -1,4 +1,4 @@
-use fruits_ecs_resource::Resource;
+use fruits_ecs_data::Resource;
 use fruits_ecs_macros::Resource;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, SurfaceTexture};
 

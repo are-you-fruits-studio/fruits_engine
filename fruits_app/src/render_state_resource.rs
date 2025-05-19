@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
-use fruits_ecs_resource::Resource;
 use fruits_ecs_macros::Resource;
+use fruits_ecs_data::Resource;
 
 use crate::render_app_state::RenderAppState;
 

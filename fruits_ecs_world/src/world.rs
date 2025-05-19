@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use fruits_ecs_data::WorldData;
 use fruits_ecs_schedule::{Schedule, WorldBehavior};
@@ -18,5 +18,9 @@ impl World {
 
     pub fn execute_iteration(&self, schedule: Schedule) {
         self.behavior.get(schedule).execute_iteration(&self.data);
+    }
+
+    pub fn data(&self) -> RwLockReadGuard<WorldData> {
+        self.data.read().unwrap()
     }
 }

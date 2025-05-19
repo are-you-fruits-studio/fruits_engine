@@ -31,7 +31,7 @@ pub fn create_camera_uniform_bind_group_layout(
         })
     };
 
-    world.resources_mut().insert(CameraUniformBufferGroupLayoutResource::new(layout));
+    world.resources().insert(CameraUniformBufferGroupLayoutResource::new(layout));
 }
 
 pub fn create_camera_uniform_buffer(
@@ -63,7 +63,7 @@ pub fn create_camera_uniform_buffer(
         (buffer, group)
     };
 
-    world.resources_mut().insert(CameraUniformBufferResource {
+    world.resources().insert(CameraUniformBufferResource {
         buffer,
         group,
     });
@@ -85,7 +85,7 @@ pub fn create_instance_buffer(
         buffer
     };
 
-    world.resources_mut().insert(InstanceBufferResource {
+    world.resources().insert(InstanceBufferResource {
         buffer,
     });
 }

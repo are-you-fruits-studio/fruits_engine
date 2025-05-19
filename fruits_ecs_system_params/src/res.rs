@@ -1,16 +1,14 @@
-use std::{
-    any::TypeId, ops::Deref, sync::RwLockReadGuard
-};
+use std::{any::TypeId, marker::PhantomData, ops::Deref};
 
-use fruits_ecs_data::WorldData;
+use fruits_ecs_data::ResourceReadGuard;
 use fruits_ecs_data_usage::*;
 
-use fruits_ecs_resource::Resource;
+use fruits_ecs_data::Resource;
 use fruits_ecs_system::{SystemInput, SystemParam};
-use fruits_utils::mapped_guard::{MappedGuard, RwLockReadGuarding};
 
 pub struct Res<'w, R: Resource> {
-    resource: MappedGuard<'w, RwLockReadGuarding, WorldData, RwLockReadGuard<'w, R>>,
+    resource: ResourceReadGuard<R>,
+    _phantom: PhantomData<&'w R>,
 }
 
 impl<'w, R: Resource> Deref for Res<'w, R> {
@@ -29,13 +27,9 @@ unsafe impl<'a, R: Resource> SystemParam for Res<'a, R> {
     }
 
     fn new<'d>(input: SystemInput<'d>) -> Option<Self::Item<'d>> {
-        let guard = input.world_data.try_read().ok()?;
-
-        // todo: remove MappedRwLockGuard
         Some(Res {
-            resource: MappedGuard::<'_, _, WorldData, _>::try_map_from(guard, |w| {
-                w.resources().get::<R>()
-            })?,
+            resource: input.world_data.try_read().ok()?.resources().get::<R>()?,
+            _phantom: Default::default(),
         })
     }
 }

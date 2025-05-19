@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use fruits_prelude::*;
-use fruits_math::{Matrix, Matrix3x3, Quat, Vec3};
+use fruits_math::{Matrix, Matrix3x3, Quat, Vec2, Vec3};
 use fruits_modules::{asset::*, render::*, transform::*};
 
 fn main() {
@@ -21,6 +21,7 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Update).add_system(move_cube_new);
     world.behavior_mut().get_mut(Schedule::Update).add_system(rotate_cube);
     world.behavior_mut().get_mut(Schedule::Update).add_system(log_fps);
+    world.behavior_mut().get_mut(Schedule::Update).add_system(log_input);
     //world.behavior_mut().get_mut(Schedule::Update).add_system(log_entities);
 
     world.behavior_mut().get_mut(Schedule::Start).order_systems(init_resources, init_mesh_material);
@@ -67,18 +68,22 @@ struct FpsResource {
 }
 
 fn init_resources(mut world: ExclusiveWorldAccess) {
-    world.resources_mut().insert(SampleResource { });
-    world.resources_mut().insert(FpsResource { last_measure_seconds: 0, count: 0 });
-    world.resources_mut().insert(TimeResource { time: 0.0_f32, start: None });
+    world.resources().insert(SampleResource { });
+    world.resources().insert(FpsResource { last_measure_seconds: 0, count: 0 });
+    world.resources().insert(TimeResource { time: 0.0_f32, start: None });
 
-    world.resources_mut().insert(AssetStorageResource::<Mesh>::new());
-    world.resources_mut().insert(AssetStorageResource::<Material>::new());
+    world.resources().insert(AssetStorageResource::<Mesh>::new());
+    world.resources().insert(AssetStorageResource::<Material>::new());
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     let (material, mesh) = {
-        let camera_group_layout = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
+        let Some(camera_group_layout) = world.resources().get::<CameraUniformBufferGroupLayoutResource>() else {
+            return;
+        };
+        let Some(render_state) = world.resources().get::<RenderStateResource>() else {
+            return;
+        };
 
         let device = render_state.device();
         let surface_config = &*render_state.surface_config().lock().unwrap();
@@ -133,8 +138,8 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
         (material, mesh)
     };
 
-    let material = world.resources_mut().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = world.resources().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
+    let mesh = world.resources().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
     for _ in 0..3 {
         let mut parent_transform = LocalTransform::IDENTITY;
@@ -214,6 +219,23 @@ fn log_fps(
 
         fps.count = 0;
     }
+}
+
+fn log_input(
+    input: Res<InputResource>,
+) {
+    let mut v = Vec2::with_all(0.0_f32);
+
+    if input.keyboard.is_pressed(KeyCode::KeyW) { v += Vec2::new(0.0, 1.0); }
+    if input.keyboard.is_pressed(KeyCode::KeyA) { v += Vec2::new(-1.0, 0.0); }
+    if input.keyboard.is_pressed(KeyCode::KeyS) { v += Vec2::new(0.0, -1.0); }
+    if input.keyboard.is_pressed(KeyCode::KeyD) { v += Vec2::new(1.0, 0.0); }
+
+    if v != Vec2::with_all(0.0) {
+        println!("move {:?}", v);
+    }
+
+    println!("look {:?}", input.mouse.position);
 }
 
 fn log_entities(

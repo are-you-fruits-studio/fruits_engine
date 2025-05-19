@@ -38,6 +38,8 @@ impl<T> VersionCollection<T> {
                 data: MaybeUninit::new(data),
                 version,
             };
+            
+            self.count += 1;
 
             return VersionIndex {
                 index,

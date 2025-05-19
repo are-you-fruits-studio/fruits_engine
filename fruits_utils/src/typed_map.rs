@@ -87,19 +87,40 @@ impl<Strategy: TypedMapStrategy> TypedMap<Strategy> {
 }
 
 impl TypedMap<strategies::DefaultStrategy> {
-    pub fn insert<T: 'static + Any>(&mut self, v: T) {
+    pub fn insert<T: 'static + Any>(&mut self, v: T) -> Result<(), T> {
+        let type_id = TypeId::of::<T>();
+
+        if self.data.contains_key(&type_id) {
+            return Err(v);
+        }
+
         self.data.insert(TypeId::of::<T>(), Box::new(v));
+        Ok(())
     }
 }
 
 impl TypedMap<strategies::SendSyncStrategy> {
-    pub fn insert<T: 'static + Any + Send + Sync>(&mut self, v: T) {
+    pub fn insert<T: 'static + Any + Send + Sync>(&mut self, v: T) -> Result<(), T> {
+        let type_id = TypeId::of::<T>();
+
+        if self.data.contains_key(&type_id) {
+            return Err(v);
+        }
+
         self.data.insert(TypeId::of::<T>(), Box::new(v));
+        Ok(())
     }
 }
 
 impl TypedMap<strategies::SendStrategy> {
-    pub fn insert<T: 'static + Any + Send>(&mut self, v: T) {
+    pub fn insert<T: 'static + Any + Send>(&mut self, v: T) -> Result<(), T> {
+        let type_id = TypeId::of::<T>();
+
+        if self.data.contains_key(&type_id) {
+            return Err(v);
+        }
+
         self.data.insert(TypeId::of::<T>(), Box::new(v));
+        Ok(())
     }
 }
