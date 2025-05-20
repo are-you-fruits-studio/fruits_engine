@@ -20,7 +20,7 @@ where {
         self.system_with_marker.fill_data_usage(usage)
     }
 
-    fn execute<'d>(&self, data: SystemInput<'d>) {
+    fn execute<'e>(&self, data: &'e SystemInput<'e>) {
         self.system_with_marker.execute(data)
     }
 

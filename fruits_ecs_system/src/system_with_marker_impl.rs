@@ -21,7 +21,7 @@ macro_rules! system_with_marker_impl {
                 $($P::fill_data_usage(_usage));*;
             }
         
-            fn execute<'d>(&self, _data: SystemInput<'d>) {
+            fn execute<'e>(&self, _data: &'e SystemInput<'e>) {
                 self(
                     $($P::new(_data).unwrap_or_else(|| panic!(
                         "System cannot obtain its parameters. System: {}. Parameter: {}.",

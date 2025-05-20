@@ -7,4 +7,3 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-fruits_utils = { path = "../fruits_utils" }

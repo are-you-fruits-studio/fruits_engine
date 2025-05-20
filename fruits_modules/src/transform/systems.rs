@@ -19,7 +19,7 @@ pub fn adjust_component_sets(
 
     let mut changes = Vec::new();
 
-    let entities_components = world.entities_components();
+    let entities_components = world.entities_components_mut();
     for e in entities_components.query::<Entity>().iter() {
         // +-Parent +-Child +Global
 
@@ -53,14 +53,13 @@ pub fn adjust_component_sets(
         }
     }
 
-    let entities_components = world.entities_components_mut();
     for (e, change) in changes {
         match change {
-            Change::ChildAdd => { entities_components.add_component(e, ChildComponent { parent: Entity::EMPTY }); },
-            Change::ChildRemove => { entities_components.remove_component::<ChildComponent>(e); },
-            Change::ParentAdd => { entities_components.add_component(e, ParentComponent { children: Vec::new() }); },
-            Change::ParentRemove => { entities_components.remove_component::<ParentComponent>(e); },
-            Change::GlobalAdd => { entities_components.add_component(e, GlobalTransform::IDENTITY); },
+            Change::ChildAdd => { entities_components.add_component(e, ChildComponent { parent: Entity::EMPTY }).ok().unwrap(); },
+            Change::ChildRemove => { entities_components.remove_component::<ChildComponent>(e).unwrap(); },
+            Change::ParentAdd => { entities_components.add_component(e, ParentComponent { children: Vec::new() }).ok().unwrap(); },
+            Change::ParentRemove => { entities_components.remove_component::<ParentComponent>(e).unwrap(); },
+            Change::GlobalAdd => { entities_components.add_component(e, GlobalTransform::IDENTITY).ok().unwrap(); },
         }
     }
 }

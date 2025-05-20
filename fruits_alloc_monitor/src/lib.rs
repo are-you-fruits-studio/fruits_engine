@@ -12,18 +12,22 @@ struct AllocMonitor;
 
 unsafe impl GlobalAlloc for AllocMonitor {
     unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
-        {
-            ALLOCATED.fetch_add(layout.size(), Ordering::Relaxed);
-        }
+        // Safety. AllocMonitor is just a wrapper.
+        // Without it all the allocator calls would be called on the System allocator.
+        let result = unsafe { System.alloc(layout) };
 
-        System.alloc(layout)
+        ALLOCATED.fetch_add(layout.size(), Ordering::Relaxed);
+
+        result
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: std::alloc::Layout) {
-        {
-            ALLOCATED.fetch_sub(layout.size(), Ordering::Relaxed);
-        }
+        // Safety. AllocMonitor is just a wrapper.
+        // Without it all the allocator calls would be called on the System allocator.
+        let result = unsafe { System.dealloc(ptr, layout) };
+        
+        ALLOCATED.fetch_sub(layout.size(), Ordering::Relaxed);
 
-        System.dealloc(ptr, layout)
+        result
     }
 }

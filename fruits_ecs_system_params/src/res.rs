@@ -6,12 +6,12 @@ use fruits_ecs_data_usage::*;
 use fruits_ecs_data::Resource;
 use fruits_ecs_system::{SystemInput, SystemParam};
 
-pub struct Res<'w, R: Resource> {
+pub struct Res<'e, R: Resource> {
     resource: ResourceReadGuard<R>,
-    _phantom: PhantomData<&'w R>,
+    _phantom: PhantomData<&'e R>,
 }
 
-impl<'w, R: Resource> Deref for Res<'w, R> {
+impl<'e, R: Resource> Deref for Res<'e, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
@@ -19,16 +19,16 @@ impl<'w, R: Resource> Deref for Res<'w, R> {
     }
 }
 
-unsafe impl<'a, R: Resource> SystemParam for Res<'a, R> {
-    type Item<'d> = Res<'d, R>;
+unsafe impl<'e, R: Resource> SystemParam for Res<'e, R> {
+    type Item<'b> = Res<'b, R>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
         usage.add(DataUsageEntry::new_readonly(TypeId::of::<R>()));
     }
 
-    fn new<'d>(input: SystemInput<'d>) -> Option<Self::Item<'d>> {
+    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
         Some(Res {
-            resource: input.world_data.try_read().ok()?.resources().get::<R>()?,
+            resource: input.world_data.resources().get()?,
             _phantom: Default::default(),
         })
     }

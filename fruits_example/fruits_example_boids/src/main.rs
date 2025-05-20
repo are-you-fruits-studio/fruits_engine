@@ -13,9 +13,9 @@ fn main() {
 
     fruits_modules::render::add_module_to(app.ecs_mut());
 
-    let data = app.ecs_mut().data_mut();
+    let data = app.ecs_mut().data();
 
-    data.resources().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 });
+    data.resources().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
 
 
     let systems = app.ecs_mut().behavior_mut();
@@ -66,8 +66,8 @@ struct BoidSettings {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    world.resources().insert(AssetStorageResource::<Material>::new());
-    world.resources().insert(AssetStorageResource::<Mesh>::new());
+    world.resources().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
+    world.resources().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
 
     let (material, mesh) = {
         let camera_group_layout = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
@@ -112,35 +112,37 @@ fn init(mut world: ExclusiveWorldAccess) {
     let material = world.resources().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
     let mesh = world.resources().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
-    for _ in 0..100 {
-        let entity = world.entities_components_mut().create_entity();
+    let ec = world.entities_components_mut();
 
-        world.entities_components_mut().add_component(entity, RenderMeshComponent { mesh: mesh.clone() });
-        world.entities_components_mut().add_component(entity, RenderMaterialComponent { material: material.clone() });
-        world.entities_components_mut().add_component(entity, Boid { target_direction: Vec3::with_all(0.0) });
-        world.entities_components_mut().add_component(entity, BoidTarget { });
-        world.entities_components_mut().add_component(entity, Motor { acceleration_direction: Vec3::with_all(0.0), strength: 0.01 });
-        world.entities_components_mut().add_component(entity, Velocity(Vec3::with_all(0.0)));
-        world.entities_components_mut().add_component(entity, GlobalTransform {
+    for _ in 0..100 {
+        let entity = ec.create_entity();
+
+        ec.add_component(entity, RenderMeshComponent { mesh: mesh.clone() }).ok().unwrap();
+        ec.add_component(entity, RenderMaterialComponent { material: material.clone() }).ok().unwrap();
+        ec.add_component(entity, Boid { target_direction: Vec3::with_all(0.0) }).ok().unwrap();
+        ec.add_component(entity, BoidTarget { }).ok().unwrap();
+        ec.add_component(entity, Motor { acceleration_direction: Vec3::with_all(0.0), strength: 0.01 }).ok().unwrap();
+        ec.add_component(entity, Velocity(Vec3::with_all(0.0))).ok().unwrap();
+        ec.add_component(entity, GlobalTransform {
             scale_rotation: Matrix3x3::IDENTITY,
             position: Vec3::new(rand::random::<f32>(), rand::random::<f32>(), 0.0),
-        });
+        }).ok().unwrap();
 
         
     }
 
     {
-        let camera_entity = world.entities_components_mut().create_entity();
+        let camera_entity = ec.create_entity();
 
-        world.entities_components_mut().add_component(camera_entity, GlobalTransform {
+        ec.add_component(camera_entity, GlobalTransform {
             scale_rotation: Matrix::IDENTITY,
             position: Vec3::new(0.0_f32, 0.0_f32, -5.0f32),
-        });
-        world.entities_components_mut().add_component(camera_entity, CameraComponent {
+        }).ok().unwrap();
+        ec.add_component(camera_entity, CameraComponent {
             near: 0.1_f32,
             far: 1_000_f32,
             fov: 90_f32.to_radians(),
-        });
+        }).ok().unwrap();
     }
 }
 

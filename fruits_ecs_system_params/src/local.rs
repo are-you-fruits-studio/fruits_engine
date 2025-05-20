@@ -1,14 +1,15 @@
-use std::{any::TypeId, ops::{Deref, DerefMut}};
+use std::{any::TypeId, marker::PhantomData, ops::{Deref, DerefMut}};
 
 use fruits_ecs_data_usage::*;
 use fruits_ecs_system::{SystemInput, SystemParam};
-use fruits_ecs_system_resource::{SystemResource, SystemResourcesHolderGuard};
+use fruits_ecs_system_resource::{SystemResource, SystemResourceGuard};
 
-pub struct Local<'d, S: SystemResource> {
-    data: SystemResourcesHolderGuard<'d, S>,
+pub struct Local<'e, S: SystemResource> {
+    data: SystemResourceGuard<S>,
+    _phantom: PhantomData<&'e mut S>,
 }
 
-impl<'d, S: SystemResource> Deref for Local<'d, S> {
+impl<'e, S: SystemResource> Deref for Local<'e, S> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
@@ -16,22 +17,23 @@ impl<'d, S: SystemResource> Deref for Local<'d, S> {
     }
 }
 
-impl<'d, S: SystemResource> DerefMut for Local<'d, S> {
+impl<'e, S: SystemResource> DerefMut for Local<'e, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.data
     }
 }
 
-unsafe impl<'a, S: SystemResource> SystemParam for Local<'a, S> {
-    type Item<'d> = Local<'d, S>;
+unsafe impl<'e, S: SystemResource> SystemParam for Local<'e, S> {
+    type Item<'b> = Local<'b, S>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
         usage.add(DataUsageEntry::new_mutable(TypeId::of::<S>()));
     }
 
-    fn new<'d>(input: SystemInput<'d>) -> Option<Self::Item<'d>> {
+    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
         Some(Local {
-            data: input.system_data.get_or_create::<S>()?,
+            data: input.system_data.get_or_create::<S>(),
+            _phantom: Default::default(),
         })
     }
 }

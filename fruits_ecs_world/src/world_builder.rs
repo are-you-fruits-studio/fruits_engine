@@ -1,11 +1,11 @@
 use fruits_ecs_schedule::WorldBehaviorBuilder;
 
-use fruits_ecs_data::WorldData;
+use fruits_ecs_data::WorldDataRef;
 
 use crate::world::World;
 
 pub struct WorldBuilder {
-    data: WorldData,
+    data: WorldDataRef,
     behavior: WorldBehaviorBuilder,
 }
 
@@ -13,7 +13,7 @@ impl WorldBuilder {
     pub fn new() -> Self {
         Self {
             behavior: WorldBehaviorBuilder::new(),
-            data: WorldData::new(),
+            data: WorldDataRef::new(),
         }
     }
 
@@ -25,12 +25,8 @@ impl WorldBuilder {
         &mut self.behavior
     }
 
-    pub fn data(&self) -> &WorldData {
+    pub fn data(&self) -> &WorldDataRef {
         &self.data
-    }
-
-    pub fn data_mut(&mut self) -> &mut WorldData {
-        &mut self.data
     }
 
     pub fn build(self) -> World {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use fruits_ecs_schedule::Schedule;
 use fruits_ecs_world::{World, WorldBuilder};
 use wgpu::*;
-use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, MouseButton, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{Key, KeyCode, NamedKey, PhysicalKey}, window::{WindowAttributes, WindowId}};
+use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{WindowAttributes, WindowId}};
 
 use crate::{render_app_state::RenderAppState, InputResource, RenderStateResource};
 
@@ -40,7 +40,7 @@ impl EventLoopHandler {
 
 impl ApplicationHandler for EventLoopHandler {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let Some(mut world) = self.0.try_start_creating() else {
+        let Some(world) = self.0.try_start_creating() else {
             return;
         };
 
@@ -59,15 +59,16 @@ impl ApplicationHandler for EventLoopHandler {
 
     fn device_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
-        device_id: DeviceId,
+        _event_loop: &ActiveEventLoop,
+        _device_id: DeviceId,
         event: DeviceEvent,
     ) {
-        let EventLoopHandlerState::Polling { state, world} = &mut self.0 else {
+        let EventLoopHandlerState::Polling { .. } = &mut self.0 else {
             return;
         };
         
         match event {
+            // todo
             // DeviceEvent::MouseMotion { delta } => {
             //     let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
 

@@ -1,6 +1,6 @@
-use std::{any::{Any, TypeId}, collections::{HashMap, HashSet}, sync::{Arc, Mutex, RwLock}};
+use std::{any::{Any, TypeId}, collections::{HashMap, HashSet}, sync::{Arc, Mutex}};
 
-use fruits_ecs_data::WorldData;
+use fruits_ecs_data::WorldDataRef;
 use fruits_ecs_system::{SystemInput, SystemWithMarker};
 use fruits_utils::thread_pool::ThreadPool;
 use fruits_ecs_system::System;
@@ -34,7 +34,7 @@ impl ScheduleBehavior {
         }
     }
 
-    pub fn execute_iteration(&self, data: &Arc<RwLock<WorldData>>) {
+    pub fn execute_iteration(&self, data: &WorldDataRef) {
         let iter = Arc::new(Mutex::new(self.execution_graph.iter()));
 
         loop {
@@ -49,10 +49,7 @@ impl ScheduleBehavior {
             };
 
             if let Some(system_index) = system_index {
-
-                //
-
-                let data = Arc::clone(data);
+                let data = data.clone();
                 let iter = Arc::clone(&iter);
                 let systems = Arc::clone(&self.systems);
                 let system_datas = Arc::clone(&self.system_datas);
@@ -62,18 +59,16 @@ impl ScheduleBehavior {
                     let system_data = &system_datas[system_index];
 
                     let input = SystemInput {
-                        world_data: &*data,
+                        world_data: data.clone(),
                         system_data: &mut *system_data.try_lock().ok().unwrap(),
                     };
     
-                    system.execute(input);
+                    system.execute(&input);
                     
                     {
                         iter.lock().unwrap().end(system_index);
                     }
                 };
-
-                //
 
                 self.thread_pool.push_job(Box::new(job));
             } else {

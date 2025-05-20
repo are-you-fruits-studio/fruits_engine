@@ -1,17 +1,18 @@
 use std::{
-    any::TypeId, collections::HashMap, sync::Mutex
+    any::TypeId, collections::HashMap, sync::{Arc, Mutex}
 };
 
 use fruits_ecs_data_usage::{DataUsage, PerTypeDataUsage};
 
-pub struct DataRwLock {
-    state: Mutex<LockState>
+#[derive(Clone)]
+pub struct DataRwLockRef {
+    state: Arc<Mutex<LockState>>
 }
 
-impl DataRwLock {
+impl DataRwLockRef {
     pub fn new() -> Self {
         Self {
-            state: Mutex::new(LockState::ByType(HashMap::new())),
+            state: Arc::new(Mutex::new(LockState::ByType(HashMap::new()))),
         }
     }
 
@@ -57,10 +58,10 @@ enum DataRwLockEntryState {
     Write,
 }
 
-pub enum DataRwLockGuard<'a> {
-    Read(DataRwLockReadGuard<'a>),
-    Write(DataRwLockWriteGuard<'a>),
-    Global(DataRwLockGlobalGuard<'a>),
+pub enum DataRwLockGuard {
+    Read(DataRwLockReadGuard),
+    Write(DataRwLockWriteGuard),
+    Global(DataRwLockGlobalGuard),
 }
 
 enum LockState {
@@ -68,13 +69,13 @@ enum LockState {
     Global,
 }
 
-pub struct DataRwLockReadGuard<'a> {
+pub struct DataRwLockReadGuard {
     type_id: TypeId,
-    lock: &'a DataRwLock,
+    lock: DataRwLockRef,
 }
 
-impl<'a> DataRwLockReadGuard<'a> {
-    fn new(lock: &'a DataRwLock, type_id: TypeId) -> Option<Self> {
+impl DataRwLockReadGuard {
+    fn new(lock: &DataRwLockRef, type_id: TypeId) -> Option<Self> {
         let mut state = lock.state.lock().unwrap();
 
         let LockState::ByType(locks) = &mut *state else {
@@ -91,7 +92,7 @@ impl<'a> DataRwLockReadGuard<'a> {
                 
                 Some(Self {
                     type_id,
-                    lock,
+                    lock: lock.clone(),
                 })
             },
             None => {
@@ -99,14 +100,14 @@ impl<'a> DataRwLockReadGuard<'a> {
 
                 Some(Self {
                     type_id,
-                    lock,
+                    lock: lock.clone(),
                 })
             },
         }
     }
 }
 
-impl<'a> Drop for DataRwLockReadGuard<'a> {
+impl Drop for DataRwLockReadGuard {
     fn drop(&mut self) {
         let mut state = self.lock.state.lock().unwrap();
         
@@ -127,13 +128,13 @@ impl<'a> Drop for DataRwLockReadGuard<'a> {
     }
 }
 
-pub struct DataRwLockWriteGuard<'a> {
+pub struct DataRwLockWriteGuard {
     type_id: TypeId,
-    lock: &'a DataRwLock,
+    lock: DataRwLockRef,
 }
 
-impl<'a> DataRwLockWriteGuard<'a> {
-    fn new(lock: &'a DataRwLock, type_id: TypeId) -> Option<Self> {
+impl DataRwLockWriteGuard {
+    fn new(lock: &DataRwLockRef, type_id: TypeId) -> Option<Self> {
         let mut state = lock.state.lock().unwrap();
 
         let LockState::ByType(locks) = &mut *state else {
@@ -148,12 +149,12 @@ impl<'a> DataRwLockWriteGuard<'a> {
 
         Some(Self {
             type_id,
-            lock,
+            lock: lock.clone(),
         })
     }
 }
 
-impl<'a> Drop for DataRwLockWriteGuard<'a> {
+impl Drop for DataRwLockWriteGuard {
     fn drop(&mut self) {
         let mut state = self.lock.state.lock().unwrap();
         
@@ -165,12 +166,12 @@ impl<'a> Drop for DataRwLockWriteGuard<'a> {
     }
 }
 
-pub struct DataRwLockGlobalGuard<'a> {
-    lock: &'a DataRwLock,
+pub struct DataRwLockGlobalGuard {
+    lock: DataRwLockRef,
 }
 
-impl<'a> DataRwLockGlobalGuard<'a> {
-    fn new(lock: &'a DataRwLock) -> Option<Self> {
+impl DataRwLockGlobalGuard {
+    fn new(lock: &DataRwLockRef) -> Option<Self> {
         let mut state = lock.state.lock().unwrap();
 
         let LockState::ByType(locks) = &*state else {
@@ -184,12 +185,12 @@ impl<'a> DataRwLockGlobalGuard<'a> {
         *state = LockState::Global;
 
         Some(Self {
-            lock: &lock,
+            lock: lock.clone(),
         })
     }
 }
 
-impl<'a> Drop for DataRwLockGlobalGuard<'a> {
+impl Drop for DataRwLockGlobalGuard {
     fn drop(&mut self) {
         let mut state = self.lock.state.lock().unwrap();
         *state = LockState::ByType(HashMap::new());

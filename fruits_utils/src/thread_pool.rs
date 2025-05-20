@@ -26,7 +26,7 @@ enum Message<J: Job> {
 }
 
 struct Worker<J: Job = DefaultJob> {
-    pub id: usize,
+    pub _id: usize,
     pub message_receiver: Arc<Mutex<Receiver<Message<J>>>>,
     pub err_container: Arc<Mutex<Option<Box<dyn Any + Send + 'static>>>>
 }
@@ -75,7 +75,7 @@ impl<J: Job> ThreadPool<J> {
 
         for id in 0..threads_count {
             let worker = Worker {
-                id,
+                _id: id,
                 message_receiver: Arc::clone(&message_receiver),
                 err_container: Arc::clone(&err_container),
             };
@@ -107,7 +107,7 @@ impl<J: Job> ThreadPool<J> {
                     None => "Box<dyn Any>",
                 },
             };
-            
+
             panic!("ThreadPool worker error: {}", msg);
         }
     }

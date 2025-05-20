@@ -1,49 +1,33 @@
 use std::sync::Arc;
 
-use fruits_ecs_component::WorldEntitiesComponents;
+use fruits_ecs_component::EntitiesComponentsHolderRef;
 
 use crate::ResourcesHolder;
 
-//
-
-pub struct WorldDataNew {
+struct WorldData {
     resources: ResourcesHolder,
+    entities_components: EntitiesComponentsHolderRef,
 }
 
 #[derive(Clone)]
-pub struct WorldDataRefNew {
-    data: Arc<WorldDataNew>,
+pub struct WorldDataRef {
+    data: Arc<WorldData>,
 }
-impl WorldDataRefNew {
-    pub fn resources(&self) -> &ResourcesHolder {
-        &self.data.resources
-    }
-}
-
-//
-
-pub struct WorldData {
-    resources: ResourcesHolder,
-    entities_components: WorldEntitiesComponents,
-}
-
-impl WorldData {
+impl WorldDataRef {
     pub fn new() -> Self {
         Self {
-            resources: ResourcesHolder::new(),
-            entities_components: WorldEntitiesComponents::new(),
+            data: Arc::new(WorldData {
+                resources: ResourcesHolder::new(),
+                entities_components: EntitiesComponentsHolderRef::new(),
+            }),
         }
     }
 
     pub fn resources(&self) -> &ResourcesHolder {
-        &self.resources
+        &self.data.resources
     }
 
-    pub fn entities_components(&self) -> &WorldEntitiesComponents {
-        &self.entities_components
-    }
-
-    pub fn entities_components_mut(&mut self) -> &mut WorldEntitiesComponents {
-        &mut self.entities_components
+    pub fn entities_components(&self) -> &EntitiesComponentsHolderRef {
+        &self.data.entities_components
     }
 }

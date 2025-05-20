@@ -10,8 +10,6 @@ use super::{
     }
 };
 
-// todo (critical): account for alignment (now it only works safe on Intel CPU)
-
 #[derive(Copy, Clone, Debug)]
 pub struct ArchetypeItemLayout {
     pub type_info: TypeInfo,
@@ -61,28 +59,6 @@ impl ArchetypeLayout {
 
         (CHUNK_SIZE - padding_sum) / size_sum
     }
-
-    // pub fn new_from_components(components_set: UniqueComponentsSet) -> Self {
-    //     let mut components = HashMap::new();
-
-    //     let mut offset = std::mem::size_of::<Entity>();
-
-    //     for (order, (&id, &type_info)) in components_set.component_infos().iter().enumerate() {
-    //         components.insert(id, ArchetypeItemLayout {
-    //             offset,
-    //             type_info,
-    //             order: order + 1,
-    //         });
-
-    //         offset += type_info.size();
-    //     }
-
-    //     Self {
-    //         components_set,
-    //         components,
-    //         entity_size: offset,
-    //     }
-    // }
 
     pub fn components_set(&self) -> &UniqueComponentsSet {
         &self.components_set
@@ -151,7 +127,6 @@ impl ArchetypeLayout {
         self.memory_physical_location(entity_in_archetype_index, &item_layout)
     }
 
-    // todo (critical): doesn't account for alignment.
     fn memory_physical_location(&self, entity_in_archetype_index: usize, item_layout: &ArchetypeItemLayout) -> ArchetypeItemPhysicalLocation {
         let entity_in_chunk_index = self.entity_in_chunk_index(entity_in_archetype_index);
         let memory_size = item_layout.type_info.size();

@@ -1,49 +1,41 @@
-use std::{ops::{Deref, DerefMut}, sync::RwLockWriteGuard};
-
-use fruits_ecs_data::WorldData;
+use fruits_ecs_component::EntitiesComponentsUniqueGuard;
+use fruits_ecs_data::ResourcesHolder;
 use fruits_ecs_data_usage::*;
 use fruits_ecs_system::{SystemInput, SystemParam};
 
-pub struct ExclusiveWorldAccess<'d> {
-    world: RwLockWriteGuard<'d, WorldData>,
+pub struct ExclusiveWorldAccess<'w> {
+    resources: &'w ResourcesHolder,
+    entities_components: EntitiesComponentsUniqueGuard,
 }
 
-impl<'d> ExclusiveWorldAccess<'d> {
-    pub fn world(&self) -> &WorldData {
-        &*self.world
+impl<'w> ExclusiveWorldAccess<'w> {
+    pub fn resources(&self) -> &ResourcesHolder {
+        &self.resources
     }
 
-    pub fn world_mut(&mut self) -> &mut WorldData {
-        &mut *self.world
+    pub fn entities_components(&self) -> &EntitiesComponentsUniqueGuard {
+        &self.entities_components
     }
-}
 
-impl<'d> Deref for ExclusiveWorldAccess<'d> {
-    type Target = WorldData;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.world
-    }
-}
-
-impl<'d> DerefMut for ExclusiveWorldAccess<'d> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.world
+    pub fn entities_components_mut(&mut self) -> &mut EntitiesComponentsUniqueGuard {
+        &mut self.entities_components
     }
 }
 
 unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
-    type Item<'d> = ExclusiveWorldAccess<'d>;
+    type Item<'e> = ExclusiveWorldAccess<'e>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
         usage.add_all_mut();
     }
 
-    fn new<'d>(input: SystemInput<'d>) -> Option<Self::Item<'d>> {
-        let guard = input.world_data.try_write().ok()?;
+    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
+        let resources = input.world_data.resources();
+        let entities_components = input.world_data.entities_components().unique()?;
 
         Some(ExclusiveWorldAccess {
-            world: guard,
+            resources,
+            entities_components
         })
     }
 }

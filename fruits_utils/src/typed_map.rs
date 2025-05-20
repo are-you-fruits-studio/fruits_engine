@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use strategies::TypedMapStrategy;
 
 pub mod strategies {
-    use std::{any::Any, ops::Deref};
+    use std::any::Any;
 
     trait Sealed { }
 

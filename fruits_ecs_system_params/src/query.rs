@@ -1,11 +1,9 @@
-use std::any::TypeId;
+use std::{any::TypeId, marker::PhantomData};
 
-use fruits_ecs_component::{ArchetypeIteratorItem, Component, Entity, WorldEntitiesComponentsQuery};
-use fruits_ecs_data::WorldData;
+use fruits_ecs_component::{ArchetypeIteratorItem, Component, Entity, EntitiesComponentsQueryGuard};
 use fruits_ecs_data_usage::*;
 
 use fruits_ecs_system::{SystemInput, SystemParam};
-use fruits_utils::mapped_guard::{MappedGuard, RwLockReadGuarding};
 
 pub unsafe trait WorldQueryIterParam {
     fn component_type() -> TypeId;
@@ -22,13 +20,14 @@ unsafe impl<P: Component> WorldQueryIterParam for &mut P {
     fn is_mutable() -> bool { true }
 }
 
-pub struct WorldQuery<'w, A: ArchetypeIteratorItem> {
-    query: MappedGuard::<'w, RwLockReadGuarding, WorldData, WorldEntitiesComponentsQuery<'w, A>>,
+pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
+    query: EntitiesComponentsQueryGuard<A>,
+    _phantom: PhantomData<&'e A>,
 }
 
 // todo: unsafe to sealed trait
-unsafe impl<'w, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'w, A> {
-    type Item<'a> = WorldQuery<'a, A::Item<'a>>;
+unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
+    type Item<'b> = WorldQuery<'b, A::Item<'b>>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
         if let DataUsage::PerType(per_type) = usage {
@@ -36,25 +35,24 @@ unsafe impl<'w, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'w, A> {
         }
     }
 
-    fn new<'d>(input: SystemInput<'d>) -> Option<Self::Item<'d>> {
-        let guard = input.world_data.try_read().ok()?;
+    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
+        let query = input.world_data.entities_components().query::<A::Item<'a>>()?;
 
-        let mapped_entities_components = MappedGuard::<'d, RwLockReadGuarding, WorldData, _>::map_from(guard, |w| w.entities_components());
-
-        Some(Self::Item::<'d> {
-            query: mapped_entities_components.map_into(|e| e.query::<A::Item<'d>>()),
+        Some(WorldQuery {
+            query,
+            _phantom: Default::default(),
         })
     }
 }
 
-impl<'w, A: ArchetypeIteratorItem> WorldQuery<'w, A> {
-    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'w>> + 'r
-        where 'w: 'r
+impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
+    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'e>> + 'r
+        where 'e: 'r
     {
         self.query.iter()
     }
-    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'w>> + 'r
-        where 'w: 'r
+    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'e>> + 'r
+        where 'e: 'r
     {
         self.query.iter_mut()
     }
@@ -67,11 +65,15 @@ impl<'w, A: ArchetypeIteratorItem> WorldQuery<'w, A> {
         self.query.is_empty()
     }
 
-    pub fn get(&self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'w>> {
+    pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'e>>
+        where 'e: 'r
+    {
         self.query.get(entity)
     }
 
-    pub fn get_mut(&mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'w>> {
+    pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'e>>
+        where 'e: 'r
+    {
         self.query.get_mut(entity)
     }
 }

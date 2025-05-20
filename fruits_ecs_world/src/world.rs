@@ -1,17 +1,17 @@
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use fruits_ecs_data::WorldData;
+use fruits_ecs_data::WorldDataRef;
 use fruits_ecs_schedule::{Schedule, WorldBehavior};
 
 pub struct World {
-    data: Arc<RwLock<WorldData>>,
+    data: WorldDataRef,
     behavior: WorldBehavior,
 }
 
 impl World {
-    pub fn new(data: WorldData, behavior: WorldBehavior) -> Self {
+    pub fn new(data: WorldDataRef, behavior: WorldBehavior) -> Self {
         Self {
-            data: Arc::new(RwLock::new(data)),
+            data,
             behavior,
         }
     }
@@ -20,7 +20,7 @@ impl World {
         self.behavior.get(schedule).execute_iteration(&self.data);
     }
 
-    pub fn data(&self) -> RwLockReadGuard<WorldData> {
-        self.data.read().unwrap()
+    pub fn data(&self) -> &WorldDataRef {
+        &self.data
     }
 }

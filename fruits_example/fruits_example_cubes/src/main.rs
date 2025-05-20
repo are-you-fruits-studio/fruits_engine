@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use fruits_prelude::*;
-use fruits_math::{Matrix, Matrix3x3, Quat, Vec2, Vec3};
+use fruits_math::{Matrix, Quat, Vec2, Vec3};
 use fruits_modules::{asset::*, render::*, transform::*};
 
 fn main() {
@@ -27,19 +27,21 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Start).order_systems(init_resources, init_mesh_material);
     world.behavior_mut().get_mut(Schedule::Start).order_systems(create_camera_uniform_bind_group_layout, init_mesh_material);
 
-    let entity = world.data_mut().entities_components_mut().create_entity();
+    let mut ec = world.data().entities_components().unique().unwrap();
 
-    world.data_mut().entities_components_mut().add_component(entity, GlobalTransform {
+    let entity = ec.create_entity();
+
+    ec.add_component(entity, GlobalTransform {
         scale_rotation: Matrix::IDENTITY,
         position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
-    });
-    world.data_mut().entities_components_mut().add_component(entity, CameraComponent {
+    }).ok().unwrap();
+    ec.add_component(entity, CameraComponent {
         near: 0.1_f32,
         far: 1_000_f32,
         fov: 90_f32.to_radians(),
-    });
+    }).ok().unwrap();
 
-    dbg!(world.data_mut().entities_components_mut().entities_count());
+    dbg!(ec.entities_count());
 
     println!("start");
     app.run();
@@ -67,13 +69,13 @@ struct FpsResource {
     pub count: usize,
 }
 
-fn init_resources(mut world: ExclusiveWorldAccess) {
-    world.resources().insert(SampleResource { });
-    world.resources().insert(FpsResource { last_measure_seconds: 0, count: 0 });
-    world.resources().insert(TimeResource { time: 0.0_f32, start: None });
+fn init_resources(world: ExclusiveWorldAccess) {
+    world.resources().insert(SampleResource { }).ok().unwrap();
+    world.resources().insert(FpsResource { last_measure_seconds: 0, count: 0 }).ok().unwrap();
+    world.resources().insert(TimeResource { time: 0.0_f32, start: None }).ok().unwrap();
 
-    world.resources().insert(AssetStorageResource::<Mesh>::new());
-    world.resources().insert(AssetStorageResource::<Material>::new());
+    world.resources().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
+    world.resources().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
@@ -146,17 +148,19 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
         parent_transform.scale.x *= 0.1;
 
-        let parent = world.entities_components_mut().create_entity();
-        world.entities_components_mut().add_component(parent, parent_transform);
+        let ec = world.entities_components_mut();
 
-        let entity = world.entities_components_mut().create_entity();
+        let parent = ec.create_entity();
+        ec.add_component(parent, parent_transform).ok().unwrap();
 
-        world.entities_components_mut().add_component(entity, RenderMeshComponent { mesh: mesh.clone() });
-        world.entities_components_mut().add_component(entity, RenderMaterialComponent { material: material.clone() });
-        world.entities_components_mut().add_component(entity, LocalTransform::IDENTITY);
-        world.entities_components_mut().add_component(entity, ChildComponent { parent });
-        world.entities_components_mut().add_component(entity, RotatingCubeComponent);
-        world.entities_components_mut().add_component(entity, MovingCubeComponent);
+        let entity = ec.create_entity();
+
+        ec.add_component(entity, RenderMeshComponent { mesh: mesh.clone() }).ok().unwrap();
+        ec.add_component(entity, RenderMaterialComponent { material: material.clone() }).ok().unwrap();
+        ec.add_component(entity, LocalTransform::IDENTITY).ok().unwrap();
+        ec.add_component(entity, ChildComponent { parent }).ok().unwrap();
+        ec.add_component(entity, RotatingCubeComponent).ok().unwrap();
+        ec.add_component(entity, MovingCubeComponent).ok().unwrap();
     }
 }
 

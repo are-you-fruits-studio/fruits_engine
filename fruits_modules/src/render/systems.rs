@@ -8,7 +8,7 @@ use crate::{asset::AssetStorageResource, transform::GlobalTransform};
 use super::{assets::{Material, Mesh}, components::{CameraComponent, RenderMaterialComponent, RenderMeshComponent}, resources::{CameraUniformBufferGroupLayoutResource, CameraUniformBufferResource, InstanceBufferResource, SurfaceTextureResource}};
 
 pub fn create_camera_uniform_bind_group_layout(
-    mut world: ExclusiveWorldAccess,
+    world: ExclusiveWorldAccess,
 ) {
     let layout = {
         let render_state = world.resources().get::<RenderStateResource>().unwrap();
@@ -31,11 +31,11 @@ pub fn create_camera_uniform_bind_group_layout(
         })
     };
 
-    world.resources().insert(CameraUniformBufferGroupLayoutResource::new(layout));
+    world.resources().insert(CameraUniformBufferGroupLayoutResource::new(layout)).ok().unwrap();
 }
 
 pub fn create_camera_uniform_buffer(
-    mut world: ExclusiveWorldAccess,
+    world: ExclusiveWorldAccess,
 ) {
     let (buffer, group) = {
         let layout_resource = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
@@ -66,11 +66,11 @@ pub fn create_camera_uniform_buffer(
     world.resources().insert(CameraUniformBufferResource {
         buffer,
         group,
-    });
+    }).ok().unwrap();
 }
 
 pub fn create_instance_buffer(
-    mut world: ExclusiveWorldAccess,
+    world: ExclusiveWorldAccess,
 ) {
     let buffer = {
         let render_state = world.resources().get::<RenderStateResource>().unwrap();
@@ -87,7 +87,7 @@ pub fn create_instance_buffer(
 
     world.resources().insert(InstanceBufferResource {
         buffer,
-    });
+    }).ok().unwrap();
 }
 
 pub fn update_camera_uniform_buffer(

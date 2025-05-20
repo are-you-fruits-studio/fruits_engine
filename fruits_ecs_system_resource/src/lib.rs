@@ -1,61 +1,66 @@
-use std::{ops::{Deref, DerefMut}, sync::{Arc, Mutex, RwLock, RwLockWriteGuard}};
-
-use fruits_utils::typed_map::{strategies::SendStrategy, TypedMap};
+use std::{any::{Any, TypeId}, collections::HashMap, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
 
 pub trait SystemResource : 'static + Send + Sync + Default { }
 
 pub struct SystemResourcesHolder {
-    data: Mutex<TypedMap<SendStrategy>>,
+    resources: Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
 }
 
 impl SystemResourcesHolder {
     pub fn new() -> Self {
         Self {
-            data: Mutex::new(TypedMap::new()),
+            resources: Mutex::new(HashMap::new()),
         }
     }
 
-    pub fn get_or_create<S: SystemResource>(&self) -> Option<SystemResourcesHolderGuard<S>> {
-        let data = &mut self.data.lock().unwrap();
+    pub fn get_or_create<S: SystemResource>(&self) -> SystemResourceGuard<S> {
+        let mut resources = self.resources.lock().unwrap();
+
+        let type_id = TypeId::of::<S>();
+
+        let res = resources.get(&type_id).cloned().unwrap_or_else(|| {
+            let res = Arc::new(Mutex::new(S::default()));
+            resources.insert(type_id, Arc::clone(&res) as _);
+            res
+        });
         
-        if !data.contains::<Arc<RwLock<S>>>() {
-            data.insert(Arc::new(RwLock::new(S::default())));
+        return SystemResourceGuard::<S>::new(res).unwrap();
+    }
+}
+
+pub struct SystemResourceGuard<S: SystemResource> {
+    res: Option<Arc<dyn Any + Send + Sync>>,
+    guard: Option<MutexGuard<'static, S>>,
+}
+impl<S: SystemResource> SystemResourceGuard<S> {
+    fn new(res: Arc<dyn Any + Send + Sync>) -> Option<Self> {
+        let guard = res.downcast_ref::<Mutex<S>>()?.lock().unwrap();
+        // Safety. Safe if guard is dropped first.
+        unsafe {
+            let guard = std::mem::transmute::<_, MutexGuard<'static, S>>(guard);
+
+            Some(Self {
+                res: Some(res),
+                guard: Some(guard),
+            })
         }
-
-        let state = data.get_ref::<Arc<RwLock<S>>>().unwrap();
-
-        SystemResourcesHolderGuard::new(Arc::clone(state))
     }
 }
-
-pub struct SystemResourcesHolderGuard<'a, S: SystemResource> {
-    _guard: Arc<RwLock<S>>,
-    _lock: RwLockWriteGuard<'a, S>,
-}
-
-impl<'a, S: SystemResource> SystemResourcesHolderGuard<'a, S> {
-    fn new(guard: Arc<RwLock<S>>) -> Option<Self> {
-        let ptr = &*guard as *const RwLock<S>;
-        // safe because lock will live as long as the guard and guard will leave as long as the SystemStatesHolderGuard lives.
-        let lock: RwLockWriteGuard<'_, S> = unsafe{ &*ptr }.try_write().ok()?;
-
-        Some(Self {
-            _guard: guard,
-            _lock: lock,
-        })
-    }
-}
-
-impl<'a, S: SystemResource> Deref for SystemResourcesHolderGuard<'a, S> {
+impl<S: SystemResource> Deref for SystemResourceGuard<S> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
-        &self._lock
+        self.guard.as_ref().unwrap()
     }
 }
-
-impl<'a, S: SystemResource> DerefMut for SystemResourcesHolderGuard<'a, S> {
+impl<S: SystemResource> DerefMut for SystemResourceGuard<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self._lock
+        self.guard.as_mut().unwrap()
+    }
+}
+impl<S: SystemResource> Drop for SystemResourceGuard<S> {
+    fn drop(&mut self) {
+        self.guard.take();
+        self.res.take();
     }
 }

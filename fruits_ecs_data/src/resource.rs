@@ -6,6 +6,40 @@ use std::{
 
 pub trait Resource : 'static + Send + Sync { }
 
+pub struct ResourcesHolder {
+    resources: Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
+}
+impl ResourcesHolder {
+    pub fn new() -> Self {
+        Self {
+            resources: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn insert<R: Resource + Any + Send + Sync>(&self, r: R) -> Result<(), R> {
+        let mut resources = self.resources.lock().unwrap();
+
+        let type_id = TypeId::of::<R>();
+
+        if resources.contains_key(&type_id) {
+            return Err(r);
+        }
+
+        resources.insert(type_id, Arc::new(RwLock::new(r))).map_or(Ok(()), Err).unwrap();
+        Ok(())
+    }
+    pub fn get<R: Resource>(&self) -> Option<ResourceReadGuard<R>> {
+        let resources = self.resources.lock().unwrap();
+
+        Some(ResourceReadGuard::<R>::new(Arc::clone(resources.get(&TypeId::of::<R>())?)).unwrap())
+    }
+    pub fn get_mut<R: Resource>(&self) -> Option<ResourceWriteGuard<R>> {
+        let resources = self.resources.lock().unwrap();
+
+        Some(ResourceWriteGuard::<R>::new(Arc::clone(resources.get(&TypeId::of::<R>())?)).unwrap())
+    }
+}
+
 pub struct ResourceReadGuard<R: Resource> {
     res: Option<Arc<dyn Any + Send + Sync>>,
     guard: Option<RwLockReadGuard<'static, R>>,
@@ -72,40 +106,5 @@ impl<R: Resource> Drop for ResourceWriteGuard<R> {
     fn drop(&mut self) {
         self.guard.take();
         self.res.take();
-    }
-}
-
-pub struct ResourcesHolder {
-    resources: Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
-}
-
-impl ResourcesHolder {
-    pub fn new() -> Self {
-        Self {
-            resources: Mutex::new(HashMap::new()),
-        }
-    }
-
-    pub fn insert<R: Resource + Any + Send + Sync>(&self, r: R) -> Result<(), R> {
-        let mut resources = self.resources.lock().unwrap();
-
-        let type_id = TypeId::of::<R>();
-
-        if resources.contains_key(&type_id) {
-            return Err(r);
-        }
-
-        resources.insert(type_id, Arc::new(RwLock::new(r))).map_or(Ok(()), Err).unwrap();
-        Ok(())
-    }
-    pub fn get<R: Resource>(&self) -> Option<ResourceReadGuard<R>> {
-        let resources = self.resources.lock().unwrap();
-
-        ResourceReadGuard::<R>::new(Arc::clone(resources.get(&TypeId::of::<R>())?))
-    }
-    pub fn get_mut<R: Resource>(&self) -> Option<ResourceWriteGuard<R>> {
-        let resources = self.resources.lock().unwrap();
-
-        ResourceWriteGuard::<R>::new(Arc::clone(resources.get(&TypeId::of::<R>())?))
     }
 }

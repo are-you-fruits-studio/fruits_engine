@@ -1,6 +1,4 @@
-use std::{alloc::Layout, cell::UnsafeCell, sync::{LazyLock, Mutex}};
-
-use crate::ArchetypeLayout;
+use std::{alloc::Layout, sync::{LazyLock, Mutex}};
 
 pub const CHUNK_SIZE: usize = 1024 * 12;
 
@@ -9,7 +7,6 @@ pub fn chunk_layout() -> Layout {
 
     *CHUNK_LAYOUT
 }
-//
 
 pub struct ChunkNew(*mut u8);
 
@@ -38,21 +35,6 @@ impl Drop for ChunkNew {
     }
 }
 
-pub struct ArchetypeNew {
-    chunks: Vec<ChunkNew>,
-    layout: ArchetypeLayout,
-}
-// todo: finish
-// impl ArchetypeNew {
-//     pub fn new() -> Self {
-//         Self {
-//             chunks: Vec::new(),
-//         }
-//     }
-// }
-
-//
-
 #[derive(Copy, Clone, Debug)]
 pub struct ArchetypeItemPhysicalLocation {
     pub chunk_index: usize,
@@ -75,14 +57,14 @@ impl UnsafeArchetype {
         }
     }
 
-    // Safety. Memory is deallocated automatically, but there's no lifetime-checks.
+    /// Safety. Memory is deallocated automatically, but there's no lifetime-checks.
     pub unsafe fn get_memory(&self, location: &ArchetypeItemPhysicalLocation) -> (*mut u8, usize) {
         let chunk = &self.chunks.lock().unwrap()[location.chunk_index];
 
         // Safety. Safe, because all the offsets are precalculated.
         unsafe {
             let chunk_ptr = chunk.get();
-            
+
             let mut memory_ptr = chunk_ptr.add(location.memory_offset);
 
             memory_ptr = memory_ptr.add(memory_ptr.align_offset(location.memory_align));
@@ -102,12 +84,12 @@ impl UnsafeArchetype {
         self.chunks.lock().unwrap().len()
     }
 
-    // Safety. Structural changes can only be made when no references to chunks exist.
+    /// Safety. Structural changes can only be made when no references to chunks exist.
     pub unsafe fn push_chunk(&mut self) {
         self.chunks.lock().unwrap().push(ChunkNew::new());
     }
 
-    // Safety. Structural changes can only be made when no references to chunks exist.
+    /// Safety. Structural changes can only be made when no references to chunks exist.
     pub unsafe fn pop_chunk(&mut self) {
         self.chunks.lock().unwrap().pop();
     }

@@ -14,7 +14,7 @@ use fruits_ecs_world::WorldBuilder;
 use fruits_ecs_schedule::Schedule;
 
 pub fn add_module_to(world: &mut WorldBuilder) {
-    world.data_mut().resources().insert(SurfaceTextureResource { texture: None, });
+    world.data().resources().insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
     
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_camera_uniform_buffer);
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_camera_uniform_bind_group_layout);

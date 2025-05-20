@@ -167,6 +167,7 @@ pub struct Archetype {
     alive_entities_count: usize,
 }
 
+// todo: make unsafe
 impl Archetype {
     pub fn new_from_components(components_set: UniqueComponentsSet) -> Self {
         Self {
@@ -217,15 +218,8 @@ impl Archetype {
         Some(entity)
     }
 
-    pub fn get_component_ref<C: Component>(&self, entity_index: usize) -> Option<&C> {
-        unsafe { self.get_component_ptr::<C>(entity_index).map(|p| &*p) }
-    }
-
-    pub fn get_component_mut<C: Component>(&self, entity_index: usize) -> Option<&mut C> {
-        unsafe { self.get_component_ptr::<C>(entity_index).map(|p| &mut *p) }
-    }
-
-    fn get_component_ptr<C: Component>(&self, entity_index: usize) -> Option<*mut C> {
+    /// Safety. Memory is automatically deallocated. Needs manual life-time-management.
+    pub unsafe fn get_component_ptr<C: Component>(&self, entity_index: usize) -> Option<*mut C> {
         if entity_index >= self.alive_entities_count {
             return None;
         }
@@ -347,7 +341,8 @@ impl Archetype {
     }
 
     /// Returns the last entity from src archetype before the movement.
-    pub fn add_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: usize, component: C) -> Result<Entity, C> {
+    /// Safety. Memory is automatically deallocated. Needs manual lifetime-management.
+    pub unsafe fn add_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: usize, component: C) -> Result<Entity, C> {
         if !ArchetypeLayout::is_component_the_only_difference(&dst.layout, &src.layout, &TypeId::of::<C>()) {
             return Err(component);
         }
@@ -400,7 +395,7 @@ impl Archetype {
     }
 
     /// Returns the last entity from src archetype before the movement.
-    pub fn remove_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: usize) -> Option<(Entity, C)> {
+    pub unsafe fn remove_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: usize) -> Option<(Entity, C)> {
         if !ArchetypeLayout::is_component_the_only_difference(&src.layout, &dst.layout, &TypeId::of::<C>()) {
             return None;
         }
@@ -423,9 +418,12 @@ impl Archetype {
             }
         }
 
-        let component_ref = src.get_component_ref::<C>(src_entity_index).unwrap();
+        // Safety: Managed by caller. 
+        let component = unsafe {
+            let component_ptr = src.get_component_ptr::<C>(src_entity_index).unwrap();
 
-        let component = unsafe { std::mem::transmute_copy(component_ref) };
+            component_ptr.read()
+        };
 
         Some((src.erase_entity(src_entity_index).unwrap(), component))
     }
