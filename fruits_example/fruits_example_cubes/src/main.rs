@@ -27,21 +27,23 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Start).order_systems(init_resources, init_mesh_material);
     world.behavior_mut().get_mut(Schedule::Start).order_systems(create_camera_uniform_bind_group_layout, init_mesh_material);
 
-    let mut ec = world.data().entities_components().unique().unwrap();
+    {
+        let mut ec = world.data().entities_components().unique().unwrap();
 
-    let entity = ec.create_entity();
+        let entity = ec.create_entity();
 
-    ec.add_component(entity, GlobalTransform {
-        scale_rotation: Matrix::IDENTITY,
-        position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
-    }).ok().unwrap();
-    ec.add_component(entity, CameraComponent {
-        near: 0.1_f32,
-        far: 1_000_f32,
-        fov: 90_f32.to_radians(),
-    }).ok().unwrap();
+        ec.add_component(entity, GlobalTransform {
+            scale_rotation: Matrix::IDENTITY,
+            position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
+        }).ok().unwrap();
+        ec.add_component(entity, CameraComponent {
+            near: 0.1_f32,
+            far: 1_000_f32,
+            fov: 90_f32.to_radians(),
+        }).ok().unwrap();
 
-    dbg!(ec.entities_count());
+        dbg!(ec.entities_count());
+    }
 
     println!("start");
     app.run();

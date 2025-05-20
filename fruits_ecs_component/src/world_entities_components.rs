@@ -2,7 +2,7 @@ use std::{any::TypeId, cell::UnsafeCell, marker::PhantomData, sync::Arc};
 
 use fruits_ecs_data_usage::PerTypeDataUsage;
 
-use crate::DataRwLockGlobalGuard;
+use crate::{DataRwLockGlobalGuard, DataRwLockReadGuard};
 
 use super::{
     archetype::{Archetype, ArchetypeIteratorItem}, component::{Component, WorldArchetypes}, data_rw_lock::{DataRwLockRef, DataRwLockGuard},
@@ -239,11 +239,11 @@ impl EntitiesComponentsUniqueGuard {
 
 pub struct EntitiesGuard {
     data: Arc<UnsafeCell<EntitiesComponentsHolder>>,
-    _guard: DataRwLockGuard,
+    _guard: DataRwLockReadGuard,
 }
 impl EntitiesGuard {
     pub fn new(ec_ref: &EntitiesComponentsHolderRef) -> Option<Self> {
-        ec_ref.locks.lock(TypeId::of::<Entity>(), false).map(|g| Self {
+        ec_ref.locks.read(TypeId::of::<Entity>()).map(|g| Self {
             data: Arc::clone(&ec_ref.data),
             _guard: g,
         })
