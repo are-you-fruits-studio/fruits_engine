@@ -77,9 +77,6 @@ fn init_resources(mut world: ExclusiveWorldAccess) {
     world.resources.insert(SampleResource { }).ok().unwrap();
     world.resources.insert(FpsResource { last_measure_seconds: 0, count: 0 }).ok().unwrap();
     world.resources.insert(TimeResource { time: 0.0_f32, start: None }).ok().unwrap();
-
-    world.resources.insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
-    world.resources.insert(AssetStorageResource::<Material>::new()).ok().unwrap();
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {

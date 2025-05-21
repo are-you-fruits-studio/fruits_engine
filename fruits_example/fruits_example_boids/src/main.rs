@@ -66,9 +66,6 @@ struct BoidSettings {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    world.resources.insert(AssetStorageResource::<Material>::new()).ok().unwrap();
-    world.resources.insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
-
     let (material, mesh) = {
         let camera_group_layout = &*world.resources.get::<CameraUniformBufferGroupLayoutResource>().unwrap();
         let render_state = world.resources.get::<RenderStateResource>().unwrap();
