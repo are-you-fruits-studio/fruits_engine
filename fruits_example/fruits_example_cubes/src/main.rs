@@ -28,7 +28,9 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Start).order_systems(create_camera_uniform_bind_group_layout, init_mesh_material);
 
     {
-        let mut ec = world.data().entities_components.unique().unwrap();
+        let mut world_data = world.data();
+
+        let mut ec = world_data.entities_components.unique();
 
         let entity = ec.create_entity();
 
@@ -150,7 +152,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
         parent_transform.scale.x *= 0.1;
 
-        let mut ec = world.entities_components.unique().unwrap();
+        let mut ec = world.entities_components.unique();
 
         let parent = ec.create_entity();
         ec.add_component(parent, parent_transform).ok().unwrap();

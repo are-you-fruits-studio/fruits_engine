@@ -13,7 +13,7 @@ fn main() {
 fn update_system(
     mut w: ExclusiveWorldAccess
 ) {
-    let mut ec = w.entities_components.unique().unwrap();
+    let mut ec = w.entities_components.unique();
 
     let e = ec.create_entity();
 

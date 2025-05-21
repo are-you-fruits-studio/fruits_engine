@@ -1,12 +1,12 @@
 use std::{cell::UnsafeCell, mem::ManuallyDrop, ops::{Deref, DerefMut}, sync::Mutex};
 
-use fruits_ecs_component::EntitiesComponentsHolderRef;
+use fruits_ecs_component::EntitiesComponentsHolder;
 
 use crate::ResourcesLftHolder;
 
 pub struct WorldDataStorage {
     pub resources: ResourcesLftHolder,
-    pub entities_components: EntitiesComponentsHolderRef,
+    pub entities_components: EntitiesComponentsHolder,
 }
 
 #[derive(Default)]
@@ -29,7 +29,7 @@ impl WorldData {
         Self {
             data: UnsafeCell::new(WorldDataStorage {
                 resources: ResourcesLftHolder::new(),
-                entities_components: EntitiesComponentsHolderRef::new(),
+                entities_components: EntitiesComponentsHolder::new(),
             }),
             lock: Mutex::new(WorldDataLockState::default()),
         }

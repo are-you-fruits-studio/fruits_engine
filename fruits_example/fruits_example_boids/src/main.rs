@@ -112,7 +112,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     let material = world.resources.get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
     let mesh = world.resources.get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
-    let ec = &mut world.entities_components.unique().unwrap();
+    let ec = &mut world.entities_components.unique();
 
     for _ in 0..100 {
         let entity = ec.create_entity();

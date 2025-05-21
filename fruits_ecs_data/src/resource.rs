@@ -116,12 +116,8 @@ pub struct ResourcesLftHolder {
 }
 impl ResourcesLftHolder {
     pub fn new() -> Self {
-        Self::from_lifetimeless(ResourcesHolder::new())
-    }
-
-    pub fn from_lifetimeless(resources: ResourcesHolder) -> Self {
         Self {
-            resources,
+            resources: ResourcesHolder::new()
         }
     }
 

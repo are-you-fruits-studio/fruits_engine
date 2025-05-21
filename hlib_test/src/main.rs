@@ -19,8 +19,8 @@ fn test_fruits_prelude() {
         {
             let mut data = ecs.data();
             
-            data.resources.insert(SomeResource);
-            data.entities_components.unique().unwrap().create_entity();
+            data.resources.insert(SomeResource).ok().unwrap();
+            data.entities_components.unique().create_entity();
         }
         
         let behavior = ecs.behavior_mut();

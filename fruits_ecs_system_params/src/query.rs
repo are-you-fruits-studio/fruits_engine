@@ -1,6 +1,7 @@
-use std::{any::TypeId, marker::PhantomData};
+use std::any::TypeId;
 
 use fruits_ecs_component::{ArchetypeIteratorItem, Component, Entity, EntitiesComponentsQueryGuard};
+use fruits_ecs_data::WorldDataSystemSharedRef;
 use fruits_ecs_data_usage::*;
 
 use fruits_ecs_system::{SystemInput, SystemParam};
@@ -21,8 +22,9 @@ unsafe impl<P: Component> WorldQueryIterParam for &mut P {
 }
 
 pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
-    query: EntitiesComponentsQueryGuard<A>,
-    _phantom: PhantomData<&'e A>,
+    query: EntitiesComponentsQueryGuard<'e, A>,
+    // todo
+    world_data: WorldDataSystemSharedRef<'e>,
 }
 
 // todo: unsafe to sealed trait
@@ -36,13 +38,12 @@ unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
     }
 
     fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        let world_data = input.world_data.try_into_system_shared()?;
-
-        let query = world_data.entities_components.query::<A::Item<'a>>()?;
+        let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared()?;
 
         Some(WorldQuery {
-            query,
-            _phantom: Default::default(),
+            // Safety. Not self-referential. WorldDataSystemSharedRef stores a pointer to the entities data.
+            query: unsafe { std::mem::transmute::<_, EntitiesComponentsQueryGuard<'a, _>>(world_data.entities_components.query::<A::Item<'a>>()?) },
+            world_data: world_data,
         })
     }
 }

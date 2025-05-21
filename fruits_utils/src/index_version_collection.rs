@@ -16,7 +16,7 @@ pub struct VersionIndex {
     pub version: usize,
 }
 
-pub struct DataWithVersion<T> {
+struct DataWithVersion<T> {
     pub version: usize,
     pub data: MaybeUninit<T>,
 }
