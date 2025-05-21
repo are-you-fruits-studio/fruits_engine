@@ -27,12 +27,12 @@ unsafe impl<'e, R: Resource> SystemParam for Res<'e, R> {
         usage.add(DataUsageEntry::new_readonly(TypeId::of::<R>()));
     }
 
-    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        let world_ref = input.world_data.try_into_system_shared()?;
+    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+        let world_ref = input.world_data.try_into_system_shared().ok_or("World locked.")?;
 
-        Some(Res {
+        Ok(Res {
             // Safety. Not self-referential. Resources are stored on Heap (via HashMap).
-            resource: unsafe { std::mem::transmute::<_, ResourceLftReadGuard<'a, R>>(world_ref.resources.get::<R>()?) },
+            resource: unsafe { std::mem::transmute::<_, ResourceLftReadGuard<'a, R>>(world_ref.resources.get::<R>().ok_or("Resource missing.")?) },
             guard: world_ref,
         })
     }

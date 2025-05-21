@@ -27,27 +27,6 @@ pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
     world_data: WorldDataSystemSharedRef<'e>,
 }
 
-// todo: unsafe to sealed trait
-unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
-    type Item<'b> = WorldQuery<'b, A::Item<'b>>;
-
-    fn fill_data_usage(usage: &mut DataUsage) {
-        if let DataUsage::PerType(per_type) = usage {
-            A::fill_usage(per_type);
-        }
-    }
-
-    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared()?;
-
-        Some(WorldQuery {
-            // Safety. Not self-referential. WorldDataSystemSharedRef stores a pointer to the entities data.
-            query: unsafe { std::mem::transmute::<_, EntitiesComponentsQueryGuard<'a, _>>(world_data.entities_components.query::<A::Item<'a>>()?) },
-            world_data: world_data,
-        })
-    }
-}
-
 impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
     pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'e>> + 'r
         where 'e: 'r
@@ -78,5 +57,26 @@ impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
         where 'e: 'r
     {
         self.query.get_mut(entity)
+    }
+}
+
+// todo: unsafe to sealed trait
+unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
+    type Item<'b> = WorldQuery<'b, A::Item<'b>>;
+
+    fn fill_data_usage(usage: &mut DataUsage) {
+        if let DataUsage::PerType(per_type) = usage {
+            A::fill_usage(per_type);
+        }
+    }
+
+    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+        let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared().ok_or("World locked.")?;
+
+        Ok(WorldQuery {
+            // Safety. Not self-referential. WorldDataSystemSharedRef stores a pointer to the entities data.
+            query: unsafe { std::mem::transmute::<_, EntitiesComponentsQueryGuard<'a, _>>(world_data.entities_components.query::<A::Item<'a>>().ok_or("Components locked.")?) },
+            world_data: world_data,
+        })
     }
 }

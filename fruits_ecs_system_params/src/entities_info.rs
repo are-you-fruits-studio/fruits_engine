@@ -31,12 +31,12 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
         });
     }
 
-    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared()?;
+    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+        let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared().ok_or("World locked.")?;
 
-        Some(EntitiesInfo {
+        Ok(EntitiesInfo {
             // Safety. Not self-referential. WorldDataSystemSharedRef stores a pointer to the entities data.
-            guard: unsafe { std::mem::transmute::<_, EntitiesGuard<'a>>(world_data.entities_components.entities()?) },
+            guard: unsafe { std::mem::transmute::<_, EntitiesGuard<'a>>(world_data.entities_components.entities().ok_or("Entities locked.")?) },
             world_data: world_data,
         })
     }

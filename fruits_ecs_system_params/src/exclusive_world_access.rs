@@ -28,9 +28,9 @@ unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
         usage.add_all_mut();
     }
 
-    fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        Some(ExclusiveWorldAccess {
-            world_ref: input.world_data.try_into_system_unique()?,
+    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+        Ok(ExclusiveWorldAccess {
+            world_ref: input.world_data.try_into_system_unique().ok_or("World locked.")?,
         })
     }
 }

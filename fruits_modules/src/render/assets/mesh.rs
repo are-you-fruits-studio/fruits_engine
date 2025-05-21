@@ -37,7 +37,7 @@ impl Mesh {
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: unsafe { vertices.align_to::<u8>().1 },
+                contents: fruits_utils::mem::as_bytes(vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             }
         );
@@ -45,7 +45,7 @@ impl Mesh {
         let index_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: unsafe { indices.align_to::<u8>().1 },
+                contents: fruits_utils::mem::as_bytes(indices),
                 usage: wgpu::BufferUsages::INDEX,
             }
         );

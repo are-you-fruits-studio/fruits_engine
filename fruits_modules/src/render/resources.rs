@@ -1,6 +1,7 @@
 use fruits_ecs_data::Resource;
 use fruits_ecs_macros::Resource;
-use wgpu::{BindGroup, BindGroupLayout, Buffer, SurfaceTexture};
+use fruits_math::Vec2;
+use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, SurfaceTexture};
 
 #[derive(Resource)]
 pub struct SurfaceTextureResource {
@@ -33,4 +34,16 @@ impl CameraUniformBufferGroupLayoutResource {
 #[derive(Resource)]
 pub struct InstanceBufferResource {
     pub buffer: Buffer,
+}
+
+#[derive(Resource)]
+pub struct GizmosResource {
+    pub lines: Vec<[Vec2<f32>; 2]>,
+}
+
+#[derive(Resource)]
+pub struct GizmosRenderResource {
+    pub vertex_buffer: Buffer,
+    pub pipeline: RenderPipeline,
+    pub bind_group: BindGroup,
 }
