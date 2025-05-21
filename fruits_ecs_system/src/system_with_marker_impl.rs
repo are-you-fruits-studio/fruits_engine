@@ -21,13 +21,9 @@ macro_rules! system_with_marker_impl {
                 $($P::fill_data_usage(_usage));*;
             }
         
-            fn execute<'e>(&self, _data: &'e SystemInput<'e>) {
+            fn execute<'e>(&self, _data: &SystemInput<'e>) {
                 self(
-                    $($P::new(_data).unwrap_or_else(|| panic!(
-                        "System cannot obtain its parameters. System: {}. Parameter: {}.",
-                        std::any::type_name::<F>(),
-                        std::any::type_name::<$P>(),
-                    ))),*
+                    $(get_param_or_panic::<F, $P>(_data),)*
                 );
             }
 
@@ -40,6 +36,18 @@ macro_rules! system_with_marker_impl {
             }
         }
     };
+}
+
+fn panic_cannot_obtain_param<F, P>() -> ! {
+    panic!(
+        "System cannot obtain its parameters. System: {}. Parameter: {}.",
+        std::any::type_name::<F>(),
+        std::any::type_name::<P>(),
+    )
+}
+
+fn get_param_or_panic<'e, F, P: SystemParam>(data: &'e SystemInput<'e>) -> P::Item<'e> {
+    P::new(data).unwrap_or_else(|| panic_cannot_obtain_param::<F, P>())
 }
 
 system_with_marker_impl!();

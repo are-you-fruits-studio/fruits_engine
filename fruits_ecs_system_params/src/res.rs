@@ -1,14 +1,15 @@
-use std::{any::TypeId, marker::PhantomData, ops::Deref};
+use std::{any::TypeId, ops::Deref};
 
-use fruits_ecs_data::ResourceReadGuard;
+use fruits_ecs_data::{ResourceLftReadGuard, WorldDataSystemSharedRef};
 use fruits_ecs_data_usage::*;
 
 use fruits_ecs_data::Resource;
 use fruits_ecs_system::{SystemInput, SystemParam};
 
 pub struct Res<'e, R: Resource> {
-    resource: ResourceReadGuard<R>,
-    _phantom: PhantomData<&'e R>,
+    resource: ResourceLftReadGuard<'e, R>,
+    // todo
+    guard: WorldDataSystemSharedRef<'e>,
 }
 
 impl<'e, R: Resource> Deref for Res<'e, R> {
@@ -27,9 +28,12 @@ unsafe impl<'e, R: Resource> SystemParam for Res<'e, R> {
     }
 
     fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
+        let world_ref = input.world_data.try_into_system_shared()?;
+
         Some(Res {
-            resource: input.world_data.resources().get()?,
-            _phantom: Default::default(),
+            // Safety. Not self-referential. Resources are stored on Heap (via HashMap).
+            resource: unsafe { std::mem::transmute::<_, ResourceLftReadGuard<'a, R>>(world_ref.resources.get::<R>()?) },
+            guard: world_ref,
         })
     }
 }

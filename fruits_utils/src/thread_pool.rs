@@ -1,5 +1,5 @@
 use std::{
-    any::Any, sync::{
+    any::Any, marker::PhantomData, sync::{
         mpsc::{
             self, Receiver, Sender
         },
@@ -55,8 +55,7 @@ impl<J: Job> Worker<J> {
 }
 
 // todo: 'static?
-pub struct ThreadPool<J: Job = DefaultJob>
-{
+pub struct ThreadPool<J: Job = DefaultJob> {
     threads: Vec<JoinHandle<()>>,
     message_sender: Sender<Message<J>>,
     err_container: Arc<Mutex<Option<Box<dyn Any + Send + 'static>>>>,
@@ -122,5 +121,26 @@ impl<J: Job> Drop for ThreadPool<J> {
         while let Some(join_handle) = self.threads.pop() {
             join_handle.join().unwrap();
         }
+    }
+}
+
+pub struct Pool<T> {
+    free: Vec<T>,
+    factory: Box<dyn Fn() -> T>,
+}
+impl<T> Pool<T> {
+    pub fn new(factory: Box<dyn Fn() -> T>) -> Self {
+        Self {
+            free: Vec::new(),
+            factory,
+        }
+    }
+
+    pub fn take(&mut self) -> T {
+        self.free.pop().unwrap_or_else(|| (self.factory)())
+    }
+
+    pub fn store(&mut self, v: T) {
+        self.free.push(v);
     }
 }

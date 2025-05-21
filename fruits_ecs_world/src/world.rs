@@ -1,24 +1,24 @@
-use fruits_ecs_data::WorldDataRef;
+use fruits_ecs_data::WorldData;
 use fruits_ecs_schedule::{Schedule, WorldBehavior};
 
 pub struct World {
-    data: WorldDataRef,
+    data: WorldData,
     behavior: WorldBehavior,
 }
 
 impl World {
-    pub fn new(data: WorldDataRef, behavior: WorldBehavior) -> Self {
+    pub fn new(data: WorldData, behavior: WorldBehavior) -> Self {
         Self {
             data,
             behavior,
         }
     }
 
-    pub fn execute_iteration(&self, schedule: Schedule) {
-        self.behavior.get(schedule).execute_iteration(&self.data);
+    pub fn execute_iteration(&mut self, schedule: Schedule) {
+        self.behavior.get(schedule).execute_iteration(self.data.system_reserved());
     }
 
-    pub fn data(&self) -> &WorldDataRef {
-        &self.data
+    pub fn data(&mut self) -> &mut WorldData {
+        &mut self.data
     }
 }

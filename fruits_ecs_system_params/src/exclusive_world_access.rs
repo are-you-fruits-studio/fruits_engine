@@ -1,24 +1,23 @@
-use fruits_ecs_component::EntitiesComponentsUniqueGuard;
-use fruits_ecs_data::ResourcesHolder;
+use std::ops::{Deref, DerefMut};
+
+use fruits_ecs_data::{WorldDataStorage, WorldDataSystemUniqueRef};
 use fruits_ecs_data_usage::*;
 use fruits_ecs_system::{SystemInput, SystemParam};
 
 pub struct ExclusiveWorldAccess<'w> {
-    resources: &'w ResourcesHolder,
-    entities_components: EntitiesComponentsUniqueGuard,
+    world_ref: WorldDataSystemUniqueRef<'w>,
 }
 
-impl<'w> ExclusiveWorldAccess<'w> {
-    pub fn resources(&self) -> &ResourcesHolder {
-        &self.resources
-    }
+impl<'w> Deref for ExclusiveWorldAccess<'w> {
+    type Target = WorldDataStorage;
 
-    pub fn entities_components(&self) -> &EntitiesComponentsUniqueGuard {
-        &self.entities_components
+    fn deref(&self) -> &Self::Target {
+        &self.world_ref
     }
-
-    pub fn entities_components_mut(&mut self) -> &mut EntitiesComponentsUniqueGuard {
-        &mut self.entities_components
+}
+impl<'w> DerefMut for ExclusiveWorldAccess<'w> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.world_ref
     }
 }
 
@@ -30,12 +29,8 @@ unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
     }
 
     fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        let resources = input.world_data.resources();
-        let entities_components = input.world_data.entities_components().unique()?;
-
         Some(ExclusiveWorldAccess {
-            resources,
-            entities_components
+            world_ref: input.world_data.try_into_system_unique()?,
         })
     }
 }

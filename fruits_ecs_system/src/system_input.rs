@@ -1,8 +1,7 @@
-use fruits_ecs_data::WorldDataRef;
+use fruits_ecs_data::WorldDataSystemReservedRef;
 use fruits_ecs_system_resource::SystemResourcesHolder;
 
-#[derive(Clone)]
 pub struct SystemInput<'a> {
-    pub world_data: WorldDataRef,
+    pub world_data: WorldDataSystemReservedRef<'a>,
     pub system_data: &'a SystemResourcesHolder,
 }

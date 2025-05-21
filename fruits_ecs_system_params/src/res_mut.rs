@@ -1,14 +1,15 @@
-use std::{any::TypeId, marker::PhantomData, ops::{Deref, DerefMut}};
+use std::{any::TypeId, ops::{Deref, DerefMut}};
 
-use fruits_ecs_data::ResourceWriteGuard;
+use fruits_ecs_data::{ResourceLftWriteGuard, WorldDataSystemSharedRef};
 use fruits_ecs_data_usage::*;
 
 use fruits_ecs_data::Resource;
 use fruits_ecs_system::{SystemInput, SystemParam};
 
 pub struct ResMut<'e, R: Resource> {
-    resource: ResourceWriteGuard<R>,
-    _phantom: PhantomData<&'e mut R>,
+    resource: ResourceLftWriteGuard<'e, R>,
+    // todo
+    guard: WorldDataSystemSharedRef<'e>,
 }
 
 impl<'e, R: Resource> Deref for ResMut<'e, R> {
@@ -33,9 +34,12 @@ unsafe impl<'e, R: Resource> SystemParam for ResMut<'e, R> {
     }
 
     fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
+        let world_ref = input.world_data.try_into_system_shared()?;
+
         Some(ResMut {
-            resource: input.world_data.resources().get_mut()?,
-            _phantom: Default::default(),
+            // Safety. Not self-referential. Resources are stored on Heap (via HashMap).
+            resource: unsafe { std::mem::transmute::<_, ResourceLftWriteGuard<'a, R>>(world_ref.resources.get_mut::<R>()?) },
+            guard: world_ref,
         })
     }
 }

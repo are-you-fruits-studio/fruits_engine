@@ -1,6 +1,6 @@
 use std::{any::{Any, TypeId}, collections::{HashMap, HashSet}, sync::{Arc, Mutex}};
 
-use fruits_ecs_data::WorldDataRef;
+use fruits_ecs_data::WorldDataSystemReservedRef;
 use fruits_ecs_system::{SystemInput, SystemWithMarker};
 use fruits_utils::thread_pool::ThreadPool;
 use fruits_ecs_system::System;
@@ -34,7 +34,7 @@ impl ScheduleBehavior {
         }
     }
 
-    pub fn execute_iteration(&self, data: &WorldDataRef) {
+    pub fn execute_iteration(&self, data: WorldDataSystemReservedRef) {
         let iter = Arc::new(Mutex::new(self.execution_graph.iter()));
 
         loop {
@@ -59,7 +59,7 @@ impl ScheduleBehavior {
                     let system_data = &system_datas[system_index];
 
                     let input = SystemInput {
-                        world_data: data.clone(),
+                        world_data: data,
                         system_data: &mut *system_data.try_lock().ok().unwrap(),
                     };
     
@@ -70,7 +70,14 @@ impl ScheduleBehavior {
                     }
                 };
 
-                self.thread_pool.push_job(Box::new(job));
+                let job: Box<dyn FnOnce() + Send> = Box::new(job);
+
+                // Safety. Iteration blocks until all jobs end, so lifetimes are managed - no need for borrow-checker.
+                let job = unsafe {
+                    std::mem::transmute::<_, Box<dyn FnOnce() + Send + 'static>>(job)
+                };
+
+                self.thread_pool.push_job(job);
             } else {
                 self.thread_pool.panic_if_err();
             }

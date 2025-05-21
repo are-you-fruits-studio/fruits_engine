@@ -40,15 +40,15 @@ impl EventLoopHandler {
 
 impl ApplicationHandler for EventLoopHandler {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let Some(world) = self.0.try_start_creating() else {
+        let Some(mut world) = self.0.try_start_creating() else {
             return;
         };
 
         let state = Arc::new(create_render_app_state(event_loop));
 
-        world.data().resources().insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
-        world.data().resources().insert(InputResource::new()).ok().unwrap();
-        let world = world.build();
+        world.data().resources.insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
+        world.data().resources.insert(InputResource::new()).ok().unwrap();
+        let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 
         self.0 = EventLoopHandlerState::Polling {
@@ -103,12 +103,16 @@ impl ApplicationHandler for EventLoopHandler {
                 ..
             } => event_loop.exit(),
             WindowEvent::CursorMoved { position, .. } => {
-                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+                let world_data = world.data().unique();
+
+                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
 
                 input.mouse.position = [position.x, position.y];
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+                let world_data = world.data().unique();
+
+                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
 
                 match state {
                     ElementState::Pressed => input.mouse.press(button),
@@ -124,7 +128,9 @@ impl ApplicationHandler for EventLoopHandler {
                     return;
                 };
 
-                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+                let world_data = world.data().unique();
+
+                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
 
                 match event.state {
                     ElementState::Pressed => input.keyboard.press(key_code),
@@ -137,7 +143,8 @@ impl ApplicationHandler for EventLoopHandler {
             WindowEvent::RedrawRequested => {
                 world.execute_iteration(Schedule::Update);
 
-                let mut input = world.data().resources().get_mut::<InputResource>().unwrap();
+                let world_data = world.data().unique();
+                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();
 

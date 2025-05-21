@@ -13,11 +13,11 @@ fn main() {
 fn update_system(
     mut w: ExclusiveWorldAccess
 ) {
-    let ec = w.entities_components_mut();
+    let mut ec = w.entities_components.unique().unwrap();
 
     let e = ec.create_entity();
 
-    ec.add_component(e, MaliciousComponent(Vec::with_capacity(8)));
+    ec.add_component(e, MaliciousComponent(Vec::with_capacity(8))).ok().unwrap();
     //ec.add_component(e, LoudComponent::new());
 
     // ec.remove_component::<MaliciousComponent>(e);

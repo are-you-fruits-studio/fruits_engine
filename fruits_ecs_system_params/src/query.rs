@@ -36,7 +36,9 @@ unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
     }
 
     fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
-        let query = input.world_data.entities_components().query::<A::Item<'a>>()?;
+        let world_data = input.world_data.try_into_system_shared()?;
+
+        let query = world_data.entities_components.query::<A::Item<'a>>()?;
 
         Some(WorldQuery {
             query,

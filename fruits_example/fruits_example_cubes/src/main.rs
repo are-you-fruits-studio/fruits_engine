@@ -28,7 +28,7 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Start).order_systems(create_camera_uniform_bind_group_layout, init_mesh_material);
 
     {
-        let mut ec = world.data().entities_components().unique().unwrap();
+        let mut ec = world.data().entities_components.unique().unwrap();
 
         let entity = ec.create_entity();
 
@@ -71,21 +71,21 @@ struct FpsResource {
     pub count: usize,
 }
 
-fn init_resources(world: ExclusiveWorldAccess) {
-    world.resources().insert(SampleResource { }).ok().unwrap();
-    world.resources().insert(FpsResource { last_measure_seconds: 0, count: 0 }).ok().unwrap();
-    world.resources().insert(TimeResource { time: 0.0_f32, start: None }).ok().unwrap();
+fn init_resources(mut world: ExclusiveWorldAccess) {
+    world.resources.insert(SampleResource { }).ok().unwrap();
+    world.resources.insert(FpsResource { last_measure_seconds: 0, count: 0 }).ok().unwrap();
+    world.resources.insert(TimeResource { time: 0.0_f32, start: None }).ok().unwrap();
 
-    world.resources().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
-    world.resources().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
+    world.resources.insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
+    world.resources.insert(AssetStorageResource::<Material>::new()).ok().unwrap();
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     let (material, mesh) = {
-        let Some(camera_group_layout) = world.resources().get::<CameraUniformBufferGroupLayoutResource>() else {
+        let Some(camera_group_layout) = world.resources.get::<CameraUniformBufferGroupLayoutResource>() else {
             return;
         };
-        let Some(render_state) = world.resources().get::<RenderStateResource>() else {
+        let Some(render_state) = world.resources.get::<RenderStateResource>() else {
             return;
         };
 
@@ -142,15 +142,15 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
         (material, mesh)
     };
 
-    let material = world.resources().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = world.resources.get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
+    let mesh = world.resources.get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
     for _ in 0..3 {
         let mut parent_transform = LocalTransform::IDENTITY;
 
         parent_transform.scale.x *= 0.1;
 
-        let ec = world.entities_components_mut();
+        let mut ec = world.entities_components.unique().unwrap();
 
         let parent = ec.create_entity();
         ec.add_component(parent, parent_transform).ok().unwrap();

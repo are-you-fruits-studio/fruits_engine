@@ -19,7 +19,7 @@ pub fn adjust_component_sets(
 
     let mut changes = Vec::new();
 
-    let entities_components = world.entities_components_mut();
+    let mut entities_components = world.entities_components.unique().unwrap();
     for e in entities_components.query::<Entity>().iter() {
         // +-Parent +-Child +Global
 
@@ -98,16 +98,17 @@ pub fn update_parents_remove_invalid_children(
 pub fn update_parents_add_missing_children(
     mut world: ExclusiveWorldAccess,
 ) {
-    let children = world
-        .entities_components()
+    let mut ec = world.entities_components.unique().unwrap();
+
+    let children = ec
         .query::<(Entity, &ChildComponent)>()
         .iter()
         .map(|(e, c)| (e, c.parent))
-        .filter(|(_, pe)| world.entities_components().get_component::<ParentComponent>(*pe).is_some())
+        .filter(|(_, pe)| ec.get_component::<ParentComponent>(*pe).is_some())
         .collect::<Vec<_>>();
 
     for (child_entity, parent_entity) in children.into_iter() {
-        let parent = world.entities_components_mut().get_component_mut::<ParentComponent>(parent_entity).unwrap();
+        let parent = ec.get_component_mut::<ParentComponent>(parent_entity).unwrap();
 
         if !parent.children.contains(&child_entity) {
             parent.children.push(child_entity);
@@ -122,15 +123,16 @@ pub fn update_parents_destroy_empty_parents(
     mut world: ExclusiveWorldAccess,
 ) {
     let empty_parents = world
-        .entities_components()
+        .entities_components
         .query::<(Entity, &ParentComponent)>()
+        .unwrap()
         .iter()
         .filter(|(_, p)| p.children.len() == 0)
         .map(|(e, _)| e)
         .collect::<Vec<_>>();
 
     for parent in empty_parents {
-        world.entities_components_mut().remove_component::<ParentComponent>(parent);
+        world.entities_components.unique().unwrap().remove_component::<ParentComponent>(parent);
     }
 }
 
@@ -138,25 +140,25 @@ pub fn update_parents_destroy_empty_parents(
 pub fn calculate_global_transform(
     mut world: ExclusiveWorldAccess,
 ) {
-    let entities_components = world.entities_components_mut();
+    let mut ec = world.entities_components.unique().unwrap();
 
-    let mut transforms_to_calc = entities_components
+    let mut transforms_to_calc = ec
         .query::<(Entity, &GlobalTransform)>()
         .iter()
         .filter(|(e, _)| {
-            let Some(child_component) = entities_components.get_component::<ChildComponent>(*e) else {
+            let Some(child_component) = ec.get_component::<ChildComponent>(*e) else {
                 return true;
             };
 
-            !entities_components.contains_entity(child_component.parent)
+            !ec.contains_entity(child_component.parent)
         })
         .map(|(e, _)| e)
         .collect::<VecDeque<_>>();
 
     while let Some(transform) = transforms_to_calc.pop_front() {
-        let parent_global_transform = match entities_components.get_component::<ChildComponent>(transform) {
+        let parent_global_transform = match ec.get_component::<ChildComponent>(transform) {
             None => GlobalTransform::IDENTITY,
-            Some(child_component) => match entities_components.get_component::<GlobalTransform>(child_component.parent) {
+            Some(child_component) => match ec.get_component::<GlobalTransform>(child_component.parent) {
                 None => GlobalTransform::IDENTITY,
                 Some(&parent_global_transform) => parent_global_transform,
             }
@@ -164,17 +166,17 @@ pub fn calculate_global_transform(
 
         // todo: Check geometry operations
         // {
-        let Some(&local_transform) = entities_components.get_component::<LocalTransform>(transform) else {
+        let Some(&local_transform) = ec.get_component::<LocalTransform>(transform) else {
             continue;
         };
-        let Some(global_transform) = entities_components.get_component_mut::<GlobalTransform>(transform) else {
+        let Some(global_transform) = ec.get_component_mut::<GlobalTransform>(transform) else {
             continue;
         };
         global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
         global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * fruits_math::scale_matrix_3d(local_transform.scale));
         // }
 
-        let Some(children) = entities_components.get_component::<ParentComponent>(transform) else {
+        let Some(children) = ec.get_component::<ParentComponent>(transform) else {
             continue;
         };
 

@@ -5,8 +5,8 @@ mod system_with_marker_adapter;
 mod system_with_marker_impl;
 mod system_input;
 
-pub use crate::system::System;
-pub use crate::system_with_marker::SystemWithMarker;
-pub use crate::system_param::SystemParam;
-pub use crate::system_with_marker_adapter::SystemWithMarkerAdapter;
-pub use crate::system_input::SystemInput;
+pub use crate::system::*;
+pub use crate::system_with_marker::*;
+pub use crate::system_param::*;
+pub use crate::system_with_marker_adapter::*;
+pub use crate::system_input::*;

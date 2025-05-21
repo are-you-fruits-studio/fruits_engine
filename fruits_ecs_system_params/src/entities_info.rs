@@ -31,7 +31,7 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
 
     fn new<'a>(input: &'a SystemInput<'a>) -> Option<Self::Item<'a>> {
         Some(EntitiesInfo {
-            guard: input.world_data.entities_components().entities()?,
+            guard: input.world_data.try_into_system_shared()?.entities_components.entities()?,
             _phantom: Default::default(),
         })
     }

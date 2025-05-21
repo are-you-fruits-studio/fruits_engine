@@ -12,13 +12,13 @@ fn main() {
     let mut app = App::new();
 
     fruits_modules::render::add_module_to(app.ecs_mut());
+    
+    let ecs = app.ecs_mut();
+    
+    ecs.data().resources.insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
 
-    let data = app.ecs_mut().data();
 
-    data.resources().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
-
-
-    let systems = app.ecs_mut().behavior_mut();
+    let systems = ecs.behavior_mut();
 
     systems.get_mut(Schedule::Start).add_system(init);
 
@@ -66,12 +66,12 @@ struct BoidSettings {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    world.resources().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
-    world.resources().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
+    world.resources.insert(AssetStorageResource::<Material>::new()).ok().unwrap();
+    world.resources.insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
 
     let (material, mesh) = {
-        let camera_group_layout = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
+        let camera_group_layout = &*world.resources.get::<CameraUniformBufferGroupLayoutResource>().unwrap();
+        let render_state = world.resources.get::<RenderStateResource>().unwrap();
 
         let device = render_state.device();
         let surface_config = &*render_state.surface_config().lock().unwrap();
@@ -109,10 +109,10 @@ fn init(mut world: ExclusiveWorldAccess) {
         (material, mesh)
     };
 
-    let material = world.resources().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = world.resources.get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
+    let mesh = world.resources.get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
-    let ec = world.entities_components_mut();
+    let ec = &mut world.entities_components.unique().unwrap();
 
     for _ in 0..100 {
         let entity = ec.create_entity();
