@@ -1,7 +1,10 @@
+use std::collections::{hash_map::IterMut, HashMap};
+
 use fruits_ecs_data::Resource;
 use fruits_ecs_macros::Resource;
-use fruits_math::Vec2;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, SurfaceTexture};
+
+use super::{GizmoLine, GizmoSpace};
 
 #[derive(Resource)]
 pub struct SurfaceTextureResource {
@@ -38,12 +41,35 @@ pub struct InstanceBufferResource {
 
 #[derive(Resource)]
 pub struct GizmosResource {
-    pub lines: Vec<[Vec2<f32>; 2]>,
+    lines: HashMap<GizmoSpace, Vec<GizmoLine>>,
+}
+impl GizmosResource {
+    pub fn new() -> Self {
+        let mut lines = HashMap::new();
+
+        lines.insert(GizmoSpace::Viewport, Vec::new());
+        lines.insert(GizmoSpace::Screen, Vec::new());
+        lines.insert(GizmoSpace::World, Vec::new());
+
+        Self {
+            lines,
+        }
+    }
+
+    pub fn space(&mut self, space: GizmoSpace) -> &mut Vec<GizmoLine> {
+        self.lines.get_mut(&space).unwrap()
+    }
+
+    pub fn spaces(&mut self) -> IterMut<'_, GizmoSpace, Vec<GizmoLine>> {
+        self.lines.iter_mut()
+    }
 }
 
 #[derive(Resource)]
 pub struct GizmosRenderResource {
+    pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
+    pub color_buffer: Buffer,
     pub pipeline: RenderPipeline,
     pub bind_group: BindGroup,
 }

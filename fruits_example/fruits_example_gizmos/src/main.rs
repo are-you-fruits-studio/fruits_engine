@@ -1,5 +1,5 @@
-use fruits_math::Vec2;
-use fruits_modules::render::GizmosResource;
+use fruits_math::{Vec2, Vec3, Vec4};
+use fruits_modules::render::{GizmoLine, GizmoSpace, GizmosResource};
 use fruits_prelude::{App, ResMut, Schedule};
 
 fn main() {
@@ -15,5 +15,12 @@ fn main() {
 fn update_system(
     mut gizmos: ResMut<GizmosResource>,
 ) {
-    gizmos.lines.push([Vec2::new(-0.25, -0.25), Vec2::new(0.25, 0.25)]);
+    let color = Vec4::new(1.0, 0.0, 0.0, 1.0);
+
+    let lines = gizmos.space(GizmoSpace::Viewport);
+
+    lines.push(GizmoLine { start: Vec3::new(-0.5, -0.5, 0.0), end: Vec3::new(-0.5, 0.5, 0.0), color, });
+    lines.push(GizmoLine { start: Vec3::new(-0.5, 0.5, 0.0), end: Vec3::new(0.5, 0.5, 0.0), color, });
+    lines.push(GizmoLine { start: Vec3::new(0.5, 0.5, 0.0), end: Vec3::new(0.5, -0.5, 0.0), color, });
+    lines.push(GizmoLine { start: Vec3::new(0.5, -0.5, 0.0), end: Vec3::new(-0.5, -0.5, 0.0), color, });
 }

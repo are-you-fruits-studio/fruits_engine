@@ -1,9 +1,22 @@
+@group(0) @binding(0) var<storage, read> vertex: array<vec4<f32>>;
+@group(0) @binding(1) var<storage, read> color: array<vec4<f32>>;
+
+struct VertexOutput {
+    @builtin(position) pos: vec4<f32>,
+    @location(0) color: vec4<f32>,
+};
+
 @vertex
-fn vertex_main(@location(0) vertices: vec2<f32>) -> @builtin(position) vec4<f32> {
-    return vec4<f32>(vertices, 0.5, 1.0);
+fn vertex_main(@location(0) index: u32) -> VertexOutput {
+    var out: VertexOutput;
+
+    out.pos = vertex[index];
+    out.color = color[index / 2];
+
+    return out;
 }
 
 @fragment
-fn fragment_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 1.0, 1.0);
+fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return in.color;
 }

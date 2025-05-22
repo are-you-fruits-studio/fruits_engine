@@ -29,7 +29,7 @@ macro_rules! and_all {
 
 macro_rules! vec_impl {
     ($V: ident, $($I: ident),+) => {
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug, Hash)]
         #[repr(C)]
         pub struct $V<T: Number> {
             $(pub $I: T),+
