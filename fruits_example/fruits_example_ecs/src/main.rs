@@ -1,19 +1,20 @@
-use std::{hint::black_box, marker::PhantomData, sync::{LazyLock, Mutex}};
+use std::sync::{LazyLock, Mutex};
 
-use fruits_prelude::{App, Component, ExclusiveWorldAccess, Schedule};
+use fruits_prelude::{App, Component, ExclusiveWorldAccess, Res, Resource, Schedule};
 
 fn main() {
     let mut app = App::new();
 
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_system);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(create_and_destroy_entity);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(test_resource_existence);
 
     app.run();
 }
 
-fn update_system(
-    mut w: ExclusiveWorldAccess
+fn create_and_destroy_entity(
+    mut w: ExclusiveWorldAccess,
 ) {
-    let mut ec = w.entities_components.unique();
+    let ec = w.entities_components_mut();
 
     let e = ec.create_entity();
 
@@ -24,6 +25,15 @@ fn update_system(
 
     ec.destroy_entity(e);
 }
+
+fn test_resource_existence(
+    res: Res<SomeResource>,
+) {
+
+}
+
+#[derive(Resource)]
+struct SomeResource;
 
 #[derive(Component)]
 struct MaliciousComponent(Vec<u8>);

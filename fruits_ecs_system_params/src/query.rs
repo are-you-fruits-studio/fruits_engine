@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use fruits_ecs_component::{ArchetypeIteratorItem, Component, EntitiesComponentsQueryGuard, Entity, UnsafeQuery};
+use fruits_ecs_component::{ArchetypeIteratorItem, Component, Entity, SafeQuery};
 use fruits_ecs_data_usage::*;
 
 use fruits_ecs_system::{SystemInput, SystemParam};
@@ -21,42 +21,39 @@ unsafe impl<P: Component> WorldQueryIterParam for &mut P {
 }
 
 pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
-    q: UnsafeQuery<'e, A>,
-    query: EntitiesComponentsQueryGuard<'e, A>,
-    // todo
-    world_data: WorldDataSystemSharedRef<'e>,
+    q: SafeQuery<'e, A>,
 }
 
 impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
-    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'e>> + 'r
+    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'e: 'r
     {
-        self.query.iter()
+        self.q.iter()
     }
-    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'e>> + 'r
+    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'e: 'r
     {
-        self.query.iter_mut()
+        self.q.iter_mut()
     }
 
     pub fn len(&self) -> usize {
-        self.query.len()
+        self.q.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.query.is_empty()
+        self.q.is_empty()
     }
 
-    pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'e>>
+    pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
         where 'e: 'r
     {
-        self.query.get(entity)
+        self.q.get(entity)
     }
 
-    pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'e>>
+    pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
         where 'e: 'r
     {
-        self.query.get_mut(entity)
+        self.q.get_mut(entity)
     }
 }
 
@@ -71,13 +68,9 @@ unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
-        let s = input.world_data.entities_components().query::<A>();
-        let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared().ok_or("World locked.")?;
-
         Ok(WorldQuery {
-            // Safety. Not self-referential. WorldDataSystemSharedRef stores a pointer to the entities data.
-            query: unsafe { std::mem::transmute::<_, EntitiesComponentsQueryGuard<'a, _>>(world_data.entities_components.query::<A::Item<'a>>().ok_or("Components locked.")?) },
-            world_data: world_data,
+            // Safety. Managed by caller.
+            q: unsafe { input.world_data.entities_components().query::<A::Item<'_>>() },
         })
     }
 }

@@ -23,7 +23,7 @@ impl ResourceHolderUnsafe {
             return Err(r);
         }
 
-        self.resources.insert(type_id, Box::new(UnsafeCell::new(r))).unwrap();
+        self.resources.insert(type_id, Box::new(UnsafeCell::new(r))).map_or(Ok(()), Err).unwrap();
         Ok(())
     }
 

@@ -3,6 +3,8 @@ mod components;
 mod resources;
 mod systems;
 
+use crate::asset::AssetStorageResource;
+
 pub use self::{
     assets::*,
     components::*,
@@ -14,10 +16,11 @@ use fruits_ecs_world::WorldBuilder;
 use fruits_ecs_schedule::Schedule;
 
 pub fn add_module_to(world: &mut WorldBuilder) {
-    world.data().resources.insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
+    world.data().resources_mut().insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
+    world.data().resources_mut().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
+    world.data().resources_mut().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
+    world.data().resources_mut().insert(GizmosResource::new()).ok().unwrap();
     
-    world.behavior_mut().get_mut(Schedule::Start).add_system(create_asset_resources);
-    world.behavior_mut().get_mut(Schedule::Start).add_system(create_gizmos_resource);
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_camera_uniform_buffer);
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_camera_uniform_bind_group_layout);
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_instance_buffer);

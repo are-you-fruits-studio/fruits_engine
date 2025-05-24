@@ -1,5 +1,5 @@
 use std::{
-    any::Any, marker::PhantomData, sync::{
+    any::Any, sync::{
         mpsc::{
             self, Receiver, Sender
         },

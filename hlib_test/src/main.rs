@@ -17,10 +17,10 @@ fn test_fruits_prelude() {
         let ecs = app.ecs_mut();
 
         {
-            let mut data = ecs.data();
+            let data = ecs.data();
             
-            data.resources.insert(SomeResource).ok().unwrap();
-            data.entities_components.unique().create_entity();
+            data.resources_mut().insert(SomeResource).ok().unwrap();
+            data.entities_components_mut().create_entity();
         }
         
         let behavior = ecs.behavior_mut();

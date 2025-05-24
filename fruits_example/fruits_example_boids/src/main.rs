@@ -15,7 +15,7 @@ fn main() {
     
     let ecs = app.ecs_mut();
     
-    ecs.data().resources.insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
+    ecs.data().resources_mut().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
 
 
     let systems = ecs.behavior_mut();
@@ -67,8 +67,8 @@ struct BoidSettings {
 
 fn init(mut world: ExclusiveWorldAccess) {
     let (material, mesh) = {
-        let camera_group_layout = &*world.resources.get::<CameraUniformBufferGroupLayoutResource>().unwrap();
-        let render_state = world.resources.get::<RenderStateResource>().unwrap();
+        let camera_group_layout = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
+        let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
         let device = render_state.device();
         let surface_config = &*render_state.surface_config().lock().unwrap();
@@ -106,10 +106,10 @@ fn init(mut world: ExclusiveWorldAccess) {
         (material, mesh)
     };
 
-    let material = world.resources.get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources.get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = world.resources_mut().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
+    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
     
-    let ec = &mut world.entities_components.unique();
+    let ec = &mut world.entities_components_mut();
 
     for _ in 0..100 {
         let entity = ec.create_entity();

@@ -1,26 +1,17 @@
-use std::collections::HashMap;
-
 use fruits_app::RenderStateResource;
 use fruits_ecs_system_params::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Matrix, Matrix4x4, Vec2, Vec3, Vec4};
-use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StoreOp, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
+use fruits_math::{Matrix, Matrix4x4, Vec4};
+use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, ShaderStages, StoreOp, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
 
 use crate::{asset::AssetStorageResource, transform::GlobalTransform};
 
 use super::{assets::{Material, Mesh}, components::{CameraComponent, RenderMaterialComponent, RenderMeshComponent}, resources::{CameraUniformBufferGroupLayoutResource, CameraUniformBufferResource, InstanceBufferResource, SurfaceTextureResource}, GizmoSpace, GizmosRenderResource, GizmosResource};
 
-pub fn create_asset_resources(
-    mut world: ExclusiveWorldAccess,
-) {
-    world.resources.insert(AssetStorageResource::<Material>::new()).ok().unwrap();
-    world.resources.insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
-}
-
 pub fn create_camera_uniform_bind_group_layout(
     mut world: ExclusiveWorldAccess,
 ) {
     let layout = {
-        let render_state = world.resources.get::<RenderStateResource>().unwrap();
+        let render_state = world.resources().get::<RenderStateResource>().unwrap();
         let render_state = &*render_state;
 
         render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -40,16 +31,16 @@ pub fn create_camera_uniform_bind_group_layout(
         })
     };
 
-    world.resources.insert(CameraUniformBufferGroupLayoutResource::new(layout)).ok().unwrap();
+    world.resources_mut().insert(CameraUniformBufferGroupLayoutResource::new(layout)).ok().unwrap();
 }
 
 pub fn create_camera_uniform_buffer(
     mut world: ExclusiveWorldAccess,
 ) {
     let (buffer, group) = {
-        let layout_resource = &*world.resources.get::<CameraUniformBufferGroupLayoutResource>().unwrap();
+        let layout_resource = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
 
-        let render_state = world.resources.get::<RenderStateResource>().unwrap();
+        let render_state = world.resources().get::<RenderStateResource>().unwrap();
         let render_state = &*render_state;
 
         let buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
@@ -72,7 +63,7 @@ pub fn create_camera_uniform_buffer(
         (buffer, group)
     };
 
-    world.resources.insert(CameraUniformBufferResource {
+    world.resources_mut().insert(CameraUniformBufferResource {
         buffer,
         group,
     }).ok().unwrap();
@@ -82,7 +73,7 @@ pub fn create_instance_buffer(
     mut world: ExclusiveWorldAccess,
 ) {
     let buffer = {
-        let render_state = world.resources.get::<RenderStateResource>().unwrap();
+        let render_state = world.resources().get::<RenderStateResource>().unwrap();
         let render_state = &*render_state;
 
         let buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
@@ -94,7 +85,7 @@ pub fn create_instance_buffer(
         buffer
     };
 
-    world.resources.insert(InstanceBufferResource {
+    world.resources_mut().insert(InstanceBufferResource {
         buffer,
     }).ok().unwrap();
 }
@@ -102,7 +93,7 @@ pub fn create_instance_buffer(
 pub fn create_gizmos_render_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let render_state = &*world.resources.get::<RenderStateResource>().unwrap();
+    let render_state = &*world.resources().get::<RenderStateResource>().unwrap();
 
     let index_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Index Buffer"),
@@ -223,7 +214,7 @@ pub fn create_gizmos_render_resource(
         }
     });
 
-    world.resources.insert(GizmosRenderResource {
+    world.resources_mut().insert(GizmosRenderResource {
         index_buffer,
         vertex_buffer,
         color_buffer,
@@ -274,12 +265,6 @@ pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
     if let Some(texture) = surface_texture.texture.take() {
         texture.present();
     }
-}
-
-pub fn create_gizmos_resource(
-    mut world: ExclusiveWorldAccess,
-) {
-    world.resources.insert(GizmosResource::new()).ok().unwrap();
 }
 
 pub fn render_meshes_and_materials(

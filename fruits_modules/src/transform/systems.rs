@@ -19,7 +19,7 @@ pub fn adjust_component_sets(
 
     let mut changes = Vec::new();
 
-    let mut entities_components = world.entities_components.unique();
+    let entities_components = world.entities_components_mut();
     for e in entities_components.query::<Entity>().iter() {
         // +-Parent +-Child +Global
 
@@ -98,7 +98,7 @@ pub fn update_parents_remove_invalid_children(
 pub fn update_parents_add_missing_children(
     mut world: ExclusiveWorldAccess,
 ) {
-    let mut ec = world.entities_components.unique();
+    let ec = world.entities_components_mut();
 
     let children = ec
         .query::<(Entity, &ChildComponent)>()
@@ -123,16 +123,15 @@ pub fn update_parents_destroy_empty_parents(
     mut world: ExclusiveWorldAccess,
 ) {
     let empty_parents = world
-        .entities_components
+        .entities_components()
         .query::<(Entity, &ParentComponent)>()
-        .unwrap()
         .iter()
         .filter(|(_, p)| p.children.len() == 0)
         .map(|(e, _)| e)
         .collect::<Vec<_>>();
 
     for parent in empty_parents {
-        world.entities_components.unique().remove_component::<ParentComponent>(parent);
+        world.entities_components_mut().remove_component::<ParentComponent>(parent);
     }
 }
 
@@ -140,7 +139,7 @@ pub fn update_parents_destroy_empty_parents(
 pub fn calculate_global_transform(
     mut world: ExclusiveWorldAccess,
 ) {
-    let mut ec = world.entities_components.unique();
+    let ec = world.entities_components_mut();
 
     let mut transforms_to_calc = ec
         .query::<(Entity, &GlobalTransform)>()

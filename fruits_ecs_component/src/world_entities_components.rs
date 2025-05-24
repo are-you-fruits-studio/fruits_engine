@@ -20,8 +20,8 @@ impl EntitiesComponentsHolderUnsafe {
         }
     }
     
-    pub unsafe fn query<A: ArchetypeIteratorItem>(&self) -> UnsafeQuery<A> {
-        unsafe { UnsafeQuery::new(&self) }
+    pub unsafe fn query<A: ArchetypeIteratorItem>(&self) -> SafeQuery<A> {
+        SafeQuery::new(self)
     }
 
     pub fn entities_count(&self) -> usize {
@@ -180,12 +180,12 @@ impl EntitiesComponentsHolderSafe {
         }
     }
 
-    pub fn query<A: ArchetypeIteratorItem>(&self) -> SafeQuery<A> {
+    pub fn query<A: ArchetypeIteratorItem>(&self) -> SafeQuery<A::Item<'_>> {
         SafeQuery::new(&self.data)
     }
 
-    pub fn query_mut<A: ArchetypeIteratorItem>(&mut self) -> SafeQueryMut<A> {
-        SafeQueryMut::new(&mut self.data)
+    pub fn query_mut<A: ArchetypeIteratorItem>(&mut self) -> SafeQuery<A::ReadOnlyItem<'_>> {
+        SafeQuery::new(&mut self.data)
     }
 
     pub fn entities_count(&self) -> usize {
@@ -246,52 +246,14 @@ impl<'d, A: ArchetypeIteratorItem> SafeQuery<'d, A> {
         }
     }
 
-    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'d>> + 'r
-        where 'd: 'r
-    {
-        // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
-        unsafe { self.query.iter() }
-    }
-
-    pub fn len(&self) -> usize {
-        // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
-        unsafe { self.query.len() }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
-        unsafe { self.query.is_empty() }
-    }
-
-    pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> {
-        // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
-        unsafe { self.query.get(entity) }
-    }
-}
-
-pub struct SafeQueryMut<'d, A: ArchetypeIteratorItem> {
-    query: UnsafeQuery<'d, A>,
-}
-impl<'d, A: ArchetypeIteratorItem> SafeQueryMut<'d, A> {
-    fn new(data: &'d mut EntitiesComponentsHolderUnsafe) -> Self {
-        // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
-        let query = unsafe {
-            UnsafeQuery::<A>::new(data)
-        };
-
-        Self {
-            query,
-        }
-    }
-
-    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'d>> + 'r
+    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r,
     {
         // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
         unsafe { self.query.iter() }
     }
     
-    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'d>> + 'r
+    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r,
     {
         // Safety. Access is unique because of borrow-rules of EntitiesComponentsUniqueGuard references.
@@ -323,7 +285,7 @@ impl<'d, A: ArchetypeIteratorItem> SafeQueryMut<'d, A> {
     }
 }
 
-pub struct UnsafeQuery<'d, A: ArchetypeIteratorItem> {
+struct UnsafeQuery<'d, A: ArchetypeIteratorItem> {
     data: &'d EntitiesComponentsHolderUnsafe,
     archetype_indices: Box<[usize]>,
     _phantom: PhantomData<fn(A::Item<'static>) -> A::Item<'static>>,
@@ -339,20 +301,17 @@ impl<'d, A: ArchetypeIteratorItem> UnsafeQuery<'d, A> {
 
         components.remove(&TypeId::of::<Entity>());
 
-        // Safety. Managed by caller.
-        let entities_components = unsafe { &*data };
-
         if components.len() == 0 {
             return Self {
                 data: data,
-                archetype_indices: (0..entities_components.archetypes.all().len()).collect::<Box<_>>(),
+                archetype_indices: (0..data.archetypes.all().len()).collect::<Box<_>>(),
                 _phantom: Default::default(),
             };
         }
 
         let archetypes_with_rarest_component = components
             .keys()
-            .map(|c| entities_components.archetypes.ids_by_component(c))
+            .map(|c| data.archetypes.ids_by_component(c))
             .flatten()
             .min_by_key(|a| a.len());
 
@@ -368,7 +327,7 @@ impl<'d, A: ArchetypeIteratorItem> UnsafeQuery<'d, A> {
 
         for archetype in archetypes_with_rarest_component.iter() {
             let contains_all_components = components.keys().all(|c| {
-                let Some(archetypes_with_component) = entities_components.archetypes.ids_by_component(c) else {
+                let Some(archetypes_with_component) = data.archetypes.ids_by_component(c) else {
                     return false;
                 };
 
@@ -388,7 +347,7 @@ impl<'d, A: ArchetypeIteratorItem> UnsafeQuery<'d, A> {
     }
 
     /// Safety. No lifetime or locking is applied - needs to be managed by caller.
-    unsafe fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'d>> + 'r
+    unsafe fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r
     {
         self.archetype_indices.iter()
@@ -398,7 +357,7 @@ impl<'d, A: ArchetypeIteratorItem> UnsafeQuery<'d, A> {
     }
     
     /// Safety. No lifetime or locking is applied - needs to be managed by caller.
-    unsafe fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'d>> + 'r
+    unsafe fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r
     {
         self.archetype_indices.iter()
@@ -426,12 +385,12 @@ impl<'d, A: ArchetypeIteratorItem> UnsafeQuery<'d, A> {
     }
 
     /// Safety. No lifetime or locking is applied - needs to be managed by caller.
-    unsafe fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'d>>
+    unsafe fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
         where 'd: 'r,
     {
         if TypeId::of::<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'static>>() == TypeId::of::<Entity>() {
             let item = unsafe {
-                std::mem::transmute_copy::<_, <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'d>>(&entity)
+                std::mem::transmute_copy::<_, <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>(&entity)
             };
 
             return Some(item);
@@ -449,12 +408,12 @@ impl<'d, A: ArchetypeIteratorItem> UnsafeQuery<'d, A> {
     }
 
     /// Safety. No lifetime or locking is applied - needs to be managed by caller.
-    unsafe fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'d>>
+    unsafe fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
         where 'd: 'r,
     {
         if TypeId::of::<<A::Item<'static> as ArchetypeIteratorItem>::Item<'static>>() == TypeId::of::<Entity>() {
             let item = unsafe {
-                std::mem::transmute_copy::<_, <A::Item<'static> as ArchetypeIteratorItem>::Item<'d>>(&entity)
+                std::mem::transmute_copy::<_, <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>(&entity)
             };
 
             return Some(item);

@@ -1,5 +1,5 @@
 use std::{
-    cell::{Ref, RefMut}, marker::PhantomData, ops::{
+    cell::{Ref, RefMut}, ops::{
         Deref,
         DerefMut,
     }, sync::{
