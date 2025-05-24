@@ -20,10 +20,7 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
     type Item<'b> = EntitiesInfo<'b>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry {
-            data_type: TypeId::of::<Entity>(),
-            is_mutable: false,
-        });
+        usage.add(DataUsageEntry::new_static::<Entity>(DataUsageDetails{ is_mutable: false, is_required: true }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {

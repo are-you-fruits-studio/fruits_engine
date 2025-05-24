@@ -37,7 +37,7 @@ pub fn create_ordering_graph(ordered_systems: &[SystemInfo], explicit_ordering: 
 
         match data_usage {
             DataUsage::PerType(per_type_usage) => {
-                for (type_id, is_mutable) in per_type_usage.values().iter() {
+                for (type_id, DataUsageDetails { is_mutable, .. }) in per_type_usage.values().iter() {
                     if *is_mutable {
                         for &other_readonly_system_index in system_by_data_readonly.get(type_id).iter().map(|m| m.iter()).flatten() {
                             directions[other_readonly_system_index].insert(system_index);

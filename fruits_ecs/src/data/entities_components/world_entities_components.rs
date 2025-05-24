@@ -230,7 +230,7 @@ impl EntitiesComponentsHolder {
 
 pub struct EntitiesComponentsQuery<'d, A: ArchetypeIteratorItem> {
     data: &'d EntitiesComponentsHolderUnsafe,
-    archetype_indices: Box<[usize]>,
+    archetype_indices: Vec<usize>,
     _phantom: PhantomData<fn(A::Item<'static>) -> A::Item<'static>>,
 }
 impl<'d, A: ArchetypeIteratorItem> EntitiesComponentsQuery<'d, A> {
@@ -245,46 +245,65 @@ impl<'d, A: ArchetypeIteratorItem> EntitiesComponentsQuery<'d, A> {
         components.remove(&TypeId::of::<Entity>());
 
         if components.len() == 0 {
+            // Query is with entities only (should iterate all entities).
             return Self {
                 data: data,
-                archetype_indices: (0..data.archetypes.all().len()).collect::<Box<_>>(),
+                archetype_indices: (0..data.archetypes.all().len()).collect::<Vec<_>>(),
                 _phantom: Default::default(),
             };
         }
 
-        let archetypes_with_rarest_component = components
-            .keys()
-            .map(|c| data.archetypes.ids_by_component(c))
-            .flatten()
-            .min_by_key(|a| a.len());
+        let required_components = components.iter().filter(|(_, d)| d.is_required).map(|(t, _)| t);
 
-        let Some(archetypes_with_rarest_component) = archetypes_with_rarest_component else {
+        let mut archetypes_with_rarest_component = None;
+
+        for component in required_components.clone() {
+            let Some(archetypes_with_component) = data.archetypes.ids_by_component(component) else {
+                // Query is with some required component that no archetype has (should iterate none).
+                return Self {
+                    data: data,
+                    archetype_indices: Vec::new(),
+                    _phantom: Default::default(),
+                };
+            };
+
+            let Some(archetypes_with_rarest_component) = &mut archetypes_with_rarest_component else {
+                archetypes_with_rarest_component = Some((archetypes_with_component.len(), archetypes_with_component));
+                continue;
+            };
+
+            if archetypes_with_component.len() < archetypes_with_rarest_component.0 {
+                *archetypes_with_rarest_component = (archetypes_with_component.len(), archetypes_with_component);
+            }
+        }
+
+        let Some((_, archetypes_with_rarest_component)) = archetypes_with_rarest_component else {
+            // Query has optional components only (should iterate all entities).
             return Self {
                 data: data,
-                archetype_indices: Box::new([]),
+                archetype_indices: (0..data.archetypes.all().len()).collect::<Vec<_>>(),
                 _phantom: Default::default(),
             };
         };
 
         let mut suitable_archetypes = Vec::new();
 
-        for archetype in archetypes_with_rarest_component.iter() {
-            let contains_all_components = components.keys().all(|c| {
-                let Some(archetypes_with_component) = data.archetypes.ids_by_component(c) else {
-                    return false;
-                };
-
-                archetypes_with_component.contains(archetype)
+        for archetype_id in archetypes_with_rarest_component.iter() {
+            let archetype = data.archetypes.by_id_ref(*archetype_id).unwrap();
+            
+            let contains_all_components = required_components.clone().all(|c| {
+                archetype.contains_component_type(c)
             });
 
+            // Archetypes that are missing any required component are skipped.
             if contains_all_components {
-                suitable_archetypes.push(*archetype);
+                suitable_archetypes.push(*archetype_id);
             }
         }
 
         Self {
             data: data,
-            archetype_indices: suitable_archetypes.into_boxed_slice(),
+            archetype_indices: suitable_archetypes,
             _phantom: Default::default(),
         }
     }
@@ -292,18 +311,14 @@ impl<'d, A: ArchetypeIteratorItem> EntitiesComponentsQuery<'d, A> {
     pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r
     {
-        self.archetype_indices.iter()
-            .copied()
-            .map(|i| self.data.archetypes.by_id_ref(i).unwrap())
+        self.archetypes_iter()
             .flat_map(move |a| a.iter::<A::ReadOnlyItem<'static>>())
     }
     
     pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r
     {
-        self.archetype_indices.iter()
-            .copied()
-            .map(|i| self.data.archetypes.by_id_ref(i).unwrap())
+        self.archetypes_iter()
             .flat_map(move |a| a.iter::<A::Item<'static>>())
     }
 
@@ -345,7 +360,7 @@ impl<'d, A: ArchetypeIteratorItem> EntitiesComponentsQuery<'d, A> {
         ))
     }
 
-    fn archetypes_iter<'a>(&'a self) -> impl Iterator<Item = &'a Archetype> + 'a
+    fn archetypes_iter<'r>(&'r self) -> impl Iterator<Item = &'r Archetype> + 'r
     {
         self.archetype_indices.iter()
             .map(|i| self.data.archetypes.by_id_ref(*i).unwrap())

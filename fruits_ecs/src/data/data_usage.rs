@@ -37,46 +37,55 @@ fn panic_invalid_usage() -> ! {
     panic!("fruits: Invalid system DataUsage.");
 }
 
+pub struct DataUsageDetails {
+    pub is_mutable: bool,
+    pub is_required: bool,
+}
+
 pub struct DataUsageEntry {
     pub data_type: TypeId,
-    pub is_mutable: bool,
+    pub details: DataUsageDetails,
 }
 impl DataUsageEntry {
-    pub fn new(data_type: TypeId, is_mutable: bool) -> Self {
+    pub fn new(data_type: TypeId, details: DataUsageDetails) -> Self {
         Self {
             data_type,
-            is_mutable,
+            details,
         }
     }
-    pub fn new_mutable(type_id: TypeId) -> Self {
-        Self::new(type_id, true)
-    }
-    pub fn new_readonly(type_id: TypeId) -> Self {
-        Self::new(type_id, false)
+    pub fn new_static<T: ?Sized + 'static>(details: DataUsageDetails) -> Self {
+        Self::new(TypeId::of::<T>(), details)
     }
 }
 
 pub struct PerTypeDataUsage {
-    is_mutable: HashMap<TypeId, bool>
+    details: HashMap<TypeId, DataUsageDetails>
 }
 impl PerTypeDataUsage {
     pub fn new() -> Self {
         Self {
-            is_mutable: HashMap::new(),
+            details: HashMap::new(),
         }
     }
 
     pub fn add(&mut self, usage: DataUsageEntry) {
-        self.is_mutable.entry(usage.data_type)
-            .and_modify(|v| if *v && usage.is_mutable { panic_invalid_usage() })
-            .or_insert(usage.is_mutable);
+        let Some(value) = self.details.get_mut(&usage.data_type) else {
+            self.details.insert(usage.data_type, usage.details);
+            return;
+        };
+
+        if value.is_mutable || usage.details.is_mutable {
+            panic_invalid_usage();
+        }
+
+        value.is_required |= usage.details.is_required;
     }
 
-    pub fn values(&self) -> &HashMap<TypeId, bool> {
-        &self.is_mutable
+    pub fn values(&self) -> &HashMap<TypeId, DataUsageDetails> {
+        &self.details
     }
 
-    pub fn into_values(self) -> HashMap<TypeId, bool> {
-        self.is_mutable
+    pub fn into_values(self) -> HashMap<TypeId, DataUsageDetails> {
+        self.details
     }
 }

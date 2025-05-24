@@ -10,7 +10,7 @@ pub unsafe trait ArchetypeIteratorItem {
     fn fill_usage(usage: &mut PerTypeDataUsage);
 }
 
-unsafe impl<'a, C: Component> ArchetypeIteratorItem for &'a C {
+unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     type Item<'w> = &'w C;
     type ReadOnlyItem<'w> = &'w C;
     
@@ -29,7 +29,7 @@ unsafe impl<'a, C: Component> ArchetypeIteratorItem for &'a C {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_readonly(TypeId::of::<C>()));
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: false, is_required: true }));
     }
 }
 
@@ -52,7 +52,63 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_mutable(TypeId::of::<C>()));
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: true, is_required: true }));
+    }
+}
+
+unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
+    type Item<'w> = Option<&'w C>;
+    type ReadOnlyItem<'w> = Option<&'w C>;
+    
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+        // todo: optimize
+        if !layout.components().contains_key(&TypeId::of::<C>()) {
+            return None;
+        }
+
+        let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
+
+        unsafe {
+            let memory = archetype.get_memory(&item_location);
+
+            if memory.1 > std::mem::size_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            Some(&*(memory.0 as *const C))
+        }
+    }
+    
+    fn fill_usage(usage: &mut PerTypeDataUsage) {
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: false, is_required: false }));
+    }
+}
+
+unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
+    type Item<'w> = Option<&'w mut C>;
+    type ReadOnlyItem<'w> = Option<&'w C>;
+    
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+        // todo: optimize
+        if !layout.components().contains_key(&TypeId::of::<C>()) {
+            return None;
+        }
+
+        let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
+
+        unsafe {
+            let memory = archetype.get_memory(&item_location);
+
+            if memory.1 > std::mem::size_of::<C>() {
+                panic!("fruits: invalid memory layout");
+            }
+
+            Some(&mut *(memory.0 as *mut C))
+        }
+    }
+    
+    fn fill_usage(usage: &mut PerTypeDataUsage) {
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: true, is_required: false }));
     }
 }
 
@@ -75,7 +131,7 @@ unsafe impl ArchetypeIteratorItem for Entity {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_readonly(TypeId::of::<Entity>()));
+        usage.add(DataUsageEntry::new_static::<Entity>(DataUsageDetails{ is_mutable: false, is_required: true }));
     }
     
 }
@@ -175,8 +231,8 @@ impl Archetype {
         }
     }
 
-    pub fn contains_component_type<C: Component>(&self) -> bool {
-        self.layout.components().contains_key(&TypeId::of::<C>())
+    pub fn contains_component_type(&self, type_id: &TypeId) -> bool {
+        self.layout.components().contains_key(type_id)
     }
 
     pub fn components_set(&self) -> &UniqueComponentsSet {

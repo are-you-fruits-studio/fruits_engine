@@ -1,6 +1,6 @@
 use std::sync::{LazyLock, Mutex};
 
-use fruits_prelude::{App, Component, ExclusiveWorldAccess, Res, Resource, Schedule};
+use fruits_prelude::{App, Component, ExclusiveWorldAccess, Res, Resource, Schedule, WorldQuery};
 
 fn main() {
     let mut app = App::new();
@@ -9,6 +9,19 @@ fn main() {
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(create_and_destroy_entity);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(test_resource_existence);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(test_optionals);
+
+    let ec = app.ecs_mut().data_mut().entities_components_mut();
+
+    for i in 0..10 {
+        let e = ec.create_entity();
+
+        ec.add_component(e, SomeComponent1).ok().unwrap();
+
+        if i % 2 == 0 {
+            ec.add_component(e, SomeComponent2).ok().unwrap();
+        }
+    }
 
     app.run();
 }
@@ -34,8 +47,23 @@ fn test_resource_existence(
     dbg!(res.is_some());
 }
 
+fn test_optionals(
+    mut q: WorldQuery<(&SomeComponent1, Option<&mut SomeComponent2>)>,
+) {
+    dbg!(q.len());
+    for (c1, c2) in q.iter_mut() {
+        dbg!(c2.is_some());
+    }
+}
+
 #[derive(Resource)]
 struct SomeResource;
+
+#[derive(Component)]
+struct SomeComponent1;
+
+#[derive(Component)]
+struct SomeComponent2;
 
 #[derive(Component)]
 struct MaliciousComponent(Vec<u8>);

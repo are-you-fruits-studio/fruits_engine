@@ -24,7 +24,7 @@ unsafe impl<'e, R: Resource> SystemParam for ResMut<'e, R> {
     type Item<'b> = ResMut<'b, R>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_mutable(TypeId::of::<R>()));
+        usage.add(DataUsageEntry::new_static::<R>(DataUsageDetails{ is_mutable: true, is_required: true }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
@@ -39,7 +39,7 @@ unsafe impl<'e, R: Resource> SystemParam for Option<ResMut<'e, R>> {
     type Item<'b> = Option<ResMut<'b, R>>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_readonly(TypeId::of::<R>()));
+        usage.add(DataUsageEntry::new_static::<R>(DataUsageDetails{ is_mutable: true, is_required: false }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
