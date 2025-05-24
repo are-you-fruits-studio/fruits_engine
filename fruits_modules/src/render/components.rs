@@ -1,5 +1,4 @@
-use fruits_ecs_component::Component;
-use fruits_ecs_macros::Component;
+use fruits_ecs::Component;
 
 use crate::asset::AssetHandle;
 

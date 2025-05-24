@@ -1,5 +1,4 @@
-use fruits_ecs_component::{Component, Entity};
-use fruits_ecs_macros::Component;
+use fruits_ecs::{Component, Entity};
 use fruits_math::{Matrix, Matrix3x3, Quat, Vec3};
 
 #[derive(Component, Copy, Clone)]

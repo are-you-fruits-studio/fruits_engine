@@ -17,7 +17,7 @@ fn test_fruits_prelude() {
         let ecs = app.ecs_mut();
 
         {
-            let data = ecs.data();
+            let data = ecs.data_mut();
             
             data.resources_mut().insert(SomeResource).ok().unwrap();
             data.entities_components_mut().create_entity();

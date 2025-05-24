@@ -28,7 +28,7 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Start).order_systems(create_camera_uniform_bind_group_layout, init_mesh_material);
 
     
-    let world_data = world.data();
+    let world_data = world.data_mut();
 
     let ec = world_data.entities_components_mut();
 

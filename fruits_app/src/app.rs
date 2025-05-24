@@ -1,4 +1,4 @@
-use fruits_ecs_world::WorldBuilder;
+use fruits_ecs::WorldBuilder;
 use winit::event_loop::EventLoop;
 
 use crate::event_loop_handler::EventLoopHandler;

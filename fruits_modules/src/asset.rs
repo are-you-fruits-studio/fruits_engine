@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use fruits_ecs_data::Resource;
+use fruits_ecs::Resource;
 use fruits_utils::index_version_collection::{
     VersionCollection,
     VersionIndex,

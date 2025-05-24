@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use fruits_ecs_schedule::Schedule;
-use fruits_ecs_world::{World, WorldBuilder};
+use fruits_ecs::{Schedule, World, WorldBuilder};
 use wgpu::*;
 use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{WindowAttributes, WindowId}};
 
@@ -46,8 +45,8 @@ impl ApplicationHandler for EventLoopHandler {
 
         let state = Arc::new(create_render_app_state(event_loop));
 
-        world.data().resources_mut().insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
-        world.data().resources_mut().insert(InputResource::new()).ok().unwrap();
+        world.data_mut().resources_mut().insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
+        world.data_mut().resources_mut().insert(InputResource::new()).ok().unwrap();
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 

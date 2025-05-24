@@ -1,7 +1,6 @@
 use std::collections::{hash_map::IterMut, HashMap};
 
-use fruits_ecs_data::Resource;
-use fruits_ecs_macros::Resource;
+use fruits_ecs::Resource;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, SurfaceTexture};
 
 use super::{GizmoLine, GizmoSpace};

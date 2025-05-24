@@ -1,0 +1,11 @@
+[package]
+name = "fruits_ecs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+fruits_utils = { path = "../fruits_utils" }
+fruits_ecs_macros = { path = "../fruits_ecs_macros" }

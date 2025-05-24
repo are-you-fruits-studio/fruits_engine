@@ -15,7 +15,7 @@ fn main() {
     
     let ecs = app.ecs_mut();
     
-    ecs.data().resources_mut().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
+    ecs.data_mut().resources_mut().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
 
 
     let systems = ecs.behavior_mut();

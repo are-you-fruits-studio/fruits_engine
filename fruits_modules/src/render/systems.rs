@@ -1,5 +1,5 @@
 use fruits_app::RenderStateResource;
-use fruits_ecs_system_params::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
+use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
 use fruits_math::{Matrix, Matrix4x4, Vec4};
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, ShaderStages, StoreOp, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
 

@@ -1,6 +1,5 @@
 use std::collections::HashSet;
-use fruits_ecs_macros::Resource;
-use fruits_ecs_data::Resource;
+use fruits_ecs::Resource;
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 

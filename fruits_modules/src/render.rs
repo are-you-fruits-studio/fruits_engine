@@ -12,14 +12,13 @@ pub use self::{
     systems::*,
 };
 
-use fruits_ecs_world::WorldBuilder;
-use fruits_ecs_schedule::Schedule;
+use fruits_ecs::{Schedule, WorldBuilder};
 
 pub fn add_module_to(world: &mut WorldBuilder) {
-    world.data().resources_mut().insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
-    world.data().resources_mut().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
-    world.data().resources_mut().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
-    world.data().resources_mut().insert(GizmosResource::new()).ok().unwrap();
+    world.data_mut().resources_mut().insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
+    world.data_mut().resources_mut().insert(AssetStorageResource::<Material>::new()).ok().unwrap();
+    world.data_mut().resources_mut().insert(AssetStorageResource::<Mesh>::new()).ok().unwrap();
+    world.data_mut().resources_mut().insert(GizmosResource::new()).ok().unwrap();
     
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_camera_uniform_buffer);
     world.behavior_mut().get_mut(Schedule::Start).add_system(create_camera_uniform_bind_group_layout);

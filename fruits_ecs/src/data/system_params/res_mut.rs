@@ -1,0 +1,36 @@
+use std::{any::TypeId, ops::{Deref, DerefMut}};
+
+use crate::*;
+
+pub struct ResMut<'e, R: Resource> {
+    res: &'e mut R,
+}
+
+impl<'e, R: Resource> Deref for ResMut<'e, R> {
+    type Target = R;
+
+    fn deref(&self) -> &Self::Target {
+        &self.res
+    }
+}
+
+impl<'e, R: Resource> DerefMut for ResMut<'e, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.res
+    }
+}
+
+unsafe impl<'e, R: Resource> SystemParam for ResMut<'e, R> {
+    type Item<'b> = ResMut<'b, R>;
+
+    fn fill_data_usage(usage: &mut DataUsage) {
+        usage.add(DataUsageEntry::new_mutable(TypeId::of::<R>()));
+    }
+
+    unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+        Ok(ResMut {
+            // Safety. Managed by caller.
+            res: unsafe { &mut *input.world_data.resources().get::<R>().ok_or("Resource missing.")? },
+        })
+    }
+}

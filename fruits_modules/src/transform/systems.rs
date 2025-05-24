@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 
-use fruits_ecs_component::Entity;
-use fruits_ecs_system_params::{ExclusiveWorldAccess, WorldQuery};
+use fruits_ecs::{Entity, ExclusiveWorldAccess, WorldQuery};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 

@@ -6,8 +6,7 @@ pub use self::{
     systems::*,
 };
 
-use fruits_ecs_schedule::Schedule;
-use fruits_ecs_world::WorldBuilder;
+use fruits_ecs::{Schedule, WorldBuilder};
 
 pub fn add_module_to(world: &mut WorldBuilder) {
     let update = world.behavior_mut().get_mut(Schedule::Update);
