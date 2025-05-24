@@ -46,7 +46,12 @@ impl WorldDataUnsafe {
     }
 
     /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
-    pub unsafe fn as_safe(&self) -> &mut WorldData {
+    pub unsafe fn from_safe_mut(world: &mut WorldData) -> &mut Self {
+        &mut world.data
+    }
+
+    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    pub unsafe fn as_safe_mut(&self) -> &mut WorldData {
         // Safety. Transmute is safe, because of repr(transparent). Lifetimes safety is managed by caller
         unsafe { std::mem::transmute::<&mut WorldDataStorage, &mut WorldData>(&mut *self.data.get()) }
     }
@@ -67,27 +72,23 @@ impl WorldData {
         }
     }
 
-    pub fn resources(&self) -> &ResourceHolderSafe {
+    pub fn resources(&self) -> &ResourcesHolder {
         // Safety. Managed with lifetimes.
         unsafe { self.data.resources().as_safe() }
     }
 
-    pub fn resources_mut(&mut self) -> &mut ResourceHolderSafe {
+    pub fn resources_mut(&mut self) -> &mut ResourcesHolder {
         // Safety. Managed with lifetimes.
         unsafe { self.data.resources_mut().as_safe_mut() }
     }
 
-    pub fn entities_components(&self) -> &EntitiesComponentsHolderSafe {
+    pub fn entities_components(&self) -> &EntitiesComponentsHolder {
         // Safety. Managed with lifetimes.
         unsafe { self.data.entities_components().as_safe() }
     }
 
-    pub fn entities_components_mut(&mut self) -> &mut EntitiesComponentsHolderSafe {
+    pub fn entities_components_mut(&mut self) -> &mut EntitiesComponentsHolder {
         // Safety. Managed with lifetimes.
         unsafe { self.data.entities_components_mut().as_safe_mut() }
-    }
-
-    pub unsafe fn as_unsafe(&mut self) -> &mut WorldDataUnsafe {
-        &mut self.data
     }
 }

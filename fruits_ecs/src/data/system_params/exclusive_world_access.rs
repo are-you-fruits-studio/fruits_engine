@@ -29,7 +29,7 @@ unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(ExclusiveWorldAccess {
             // Safety. Managed by caller
-            world: unsafe { input.world_data.as_safe() },
+            world: unsafe { input.world_data.as_safe_mut() },
         })
     }
 }

@@ -30,7 +30,7 @@ impl ScheduleBehavior {
 
     pub fn execute_iteration(&self, data: &mut WorldData) {
         // Safety. No reference outlives this function.
-        let data = unsafe { &*data.as_unsafe() };
+        let data = unsafe {  &*&WorldDataUnsafe::from_safe_mut(data) };
 
         let iter = Arc::new(Mutex::new(self.execution_graph.iter()));
 

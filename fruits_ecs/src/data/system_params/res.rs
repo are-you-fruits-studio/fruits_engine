@@ -28,3 +28,18 @@ unsafe impl<'e, R: Resource> SystemParam for Res<'e, R> {
         })
     }
 }
+
+unsafe impl<'e, R: Resource> SystemParam for Option<Res<'e, R>> {
+    type Item<'b> = Option<Res<'b, R>>;
+
+    fn fill_data_usage(usage: &mut DataUsage) {
+        usage.add(DataUsageEntry::new_readonly(TypeId::of::<R>()));
+    }
+
+    unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+            // Safety. Managed by caller.
+        Ok(unsafe {
+            input.world_data.resources().get::<R>().map(|r| { Res { res: &*r }})
+        })
+    }
+}

@@ -5,6 +5,8 @@ use fruits_prelude::{App, Component, ExclusiveWorldAccess, Res, Resource, Schedu
 fn main() {
     let mut app = App::new();
 
+    //app.ecs_mut().data_mut().resources_mut().insert(SomeResource).ok().unwrap();
+
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(create_and_destroy_entity);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(test_resource_existence);
 
@@ -27,9 +29,9 @@ fn create_and_destroy_entity(
 }
 
 fn test_resource_existence(
-    res: Res<SomeResource>,
+    res: Option<Res<SomeResource>>,
 ) {
-
+    dbg!(res.is_some());
 }
 
 #[derive(Resource)]

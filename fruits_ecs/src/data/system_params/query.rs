@@ -18,7 +18,7 @@ unsafe impl<P: Component> WorldQueryIterParam for &mut P {
 }
 
 pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
-    q: SafeQuery<'e, A>,
+    q: EntitiesComponentsQuery<'e, A>,
 }
 
 impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
