@@ -46,8 +46,8 @@ impl ApplicationHandler for EventLoopHandler {
 
         let state = Arc::new(create_render_app_state(event_loop));
 
-        world.data().resources.insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
-        world.data().resources.insert(InputResource::new()).ok().unwrap();
+        world.data().resources_mut().insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
+        world.data().resources_mut().insert(InputResource::new()).ok().unwrap();
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 
@@ -103,16 +103,12 @@ impl ApplicationHandler for EventLoopHandler {
                 ..
             } => event_loop.exit(),
             WindowEvent::CursorMoved { position, .. } => {
-                let world_data = world.data().unique();
-
-                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
+                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
 
                 input.mouse.position = [position.x, position.y];
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                let world_data = world.data().unique();
-
-                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
+                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
 
                 match state {
                     ElementState::Pressed => input.mouse.press(button),
@@ -128,9 +124,9 @@ impl ApplicationHandler for EventLoopHandler {
                     return;
                 };
 
-                let world_data = world.data().unique();
+                let world_data = world.data();
 
-                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
+                let input = world_data.resources_mut().get_mut::<InputResource>().unwrap();
 
                 match event.state {
                     ElementState::Pressed => input.keyboard.press(key_code),
@@ -143,8 +139,8 @@ impl ApplicationHandler for EventLoopHandler {
             WindowEvent::RedrawRequested => {
                 world.execute_iteration(Schedule::Update);
 
-                let world_data = world.data().unique();
-                let mut input = world_data.resources.get_mut::<InputResource>().unwrap();
+                let world_data = world.data();
+                let input = world_data.resources_mut().get_mut::<InputResource>().unwrap();
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();
 

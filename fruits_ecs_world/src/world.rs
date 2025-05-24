@@ -15,7 +15,7 @@ impl World {
     }
 
     pub fn execute_iteration(&mut self, schedule: Schedule) {
-        self.behavior.get(schedule).execute_iteration(self.data.system_reserved());
+        self.behavior.get(schedule).execute_iteration(&mut self.data);
     }
 
     pub fn data(&mut self) -> &mut WorldData {

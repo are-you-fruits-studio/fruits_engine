@@ -20,8 +20,9 @@ where {
         self.system_with_marker.fill_data_usage(usage)
     }
 
-    fn execute<'e>(&self, data: &SystemInput<'e>) {
-        self.system_with_marker.execute(data)
+    unsafe fn execute<'e>(&self, data: &SystemInput<'e>) {
+        // Safety. Managed by caller.
+        unsafe { self.system_with_marker.execute(data) }
     }
 
     fn system_name(&self) -> &'static str {

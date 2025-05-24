@@ -30,7 +30,7 @@ unsafe impl<'e, S: SystemResource> SystemParam for Local<'e, S> {
         usage.add(DataUsageEntry::new_mutable(TypeId::of::<S>()));
     }
 
-    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+    unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(Local {
             data: input.system_data.get_or_create::<S>(),
             _phantom: Default::default(),

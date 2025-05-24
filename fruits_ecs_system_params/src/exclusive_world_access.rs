@@ -1,23 +1,23 @@
 use std::ops::{Deref, DerefMut};
 
-use fruits_ecs_data::{WorldDataStorage, WorldDataSystemUniqueRef};
+use fruits_ecs_data::WorldData;
 use fruits_ecs_data_usage::*;
 use fruits_ecs_system::{SystemInput, SystemParam};
 
 pub struct ExclusiveWorldAccess<'w> {
-    world_ref: WorldDataSystemUniqueRef<'w>,
+    world: &'w mut WorldData,
 }
 
 impl<'w> Deref for ExclusiveWorldAccess<'w> {
-    type Target = WorldDataStorage;
+    type Target = WorldData;
 
     fn deref(&self) -> &Self::Target {
-        &self.world_ref
+        &self.world
     }
 }
 impl<'w> DerefMut for ExclusiveWorldAccess<'w> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.world_ref
+        &mut self.world
     }
 }
 
@@ -28,9 +28,9 @@ unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
         usage.add_all_mut();
     }
 
-    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+    unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(ExclusiveWorldAccess {
-            world_ref: input.world_data.try_into_system_unique().ok_or("World locked.")?,
+            world: input.world_data.as_safe(),
         })
     }
 }

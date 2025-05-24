@@ -1,7 +1,6 @@
 use std::any::TypeId;
 
-use fruits_ecs_component::{ArchetypeIteratorItem, Component, Entity, EntitiesComponentsQueryGuard};
-use fruits_ecs_data::WorldDataSystemSharedRef;
+use fruits_ecs_component::{ArchetypeIteratorItem, Component, EntitiesComponentsQueryGuard, Entity, UnsafeQuery};
 use fruits_ecs_data_usage::*;
 
 use fruits_ecs_system::{SystemInput, SystemParam};
@@ -22,6 +21,7 @@ unsafe impl<P: Component> WorldQueryIterParam for &mut P {
 }
 
 pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
+    q: UnsafeQuery<'e, A>,
     query: EntitiesComponentsQueryGuard<'e, A>,
     // todo
     world_data: WorldDataSystemSharedRef<'e>,
@@ -70,7 +70,8 @@ unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
         }
     }
 
-    fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+    unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
+        let s = input.world_data.entities_components().query::<A>();
         let world_data: WorldDataSystemSharedRef<'a> = input.world_data.try_into_system_shared().ok_or("World locked.")?;
 
         Ok(WorldQuery {

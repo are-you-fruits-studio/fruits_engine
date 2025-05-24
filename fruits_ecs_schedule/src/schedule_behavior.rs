@@ -1,6 +1,6 @@
 use std::{any::{Any, TypeId}, collections::{HashMap, HashSet}, sync::{Arc, Mutex}};
 
-use fruits_ecs_data::WorldDataSystemReservedRef;
+use fruits_ecs_data::WorldData;
 use fruits_ecs_system::{SystemInput, SystemWithMarker};
 use fruits_utils::thread_pool::ThreadPool;
 use fruits_ecs_system::System;
@@ -34,7 +34,10 @@ impl ScheduleBehavior {
         }
     }
 
-    pub fn execute_iteration(&self, data: WorldDataSystemReservedRef) {
+    pub fn execute_iteration(&self, data: &mut WorldData) {
+        // Safety. No reference outlives this function.
+        let data = unsafe { &*data.as_unsafe() };
+
         let iter = Arc::new(Mutex::new(self.execution_graph.iter()));
 
         loop {
@@ -49,7 +52,6 @@ impl ScheduleBehavior {
             };
 
             if let Some(system_index) = system_index {
-                let data = data.clone();
                 let iter = Arc::clone(&iter);
                 let systems = Arc::clone(&self.systems);
                 let system_datas = Arc::clone(&self.system_datas);
@@ -63,7 +65,11 @@ impl ScheduleBehavior {
                         system_data: &mut *system_data.try_lock().ok().unwrap(),
                     };
     
-                    system.execute(&input);
+                    
+                    // Safety. Access is managed by OrderGraph and data usage.
+                    unsafe {
+                        system.execute(&input);
+                    }
                     
                     {
                         iter.lock().unwrap().end(system_index);
