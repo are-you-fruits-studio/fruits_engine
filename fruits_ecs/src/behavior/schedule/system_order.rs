@@ -16,7 +16,7 @@ pub fn create_ordering_graph(ordered_systems: &[SystemInfo], explicit_ordering: 
 
     let mut analyzed_systems = HashSet::<usize>::new();
 
-    let mut directions = std::iter::repeat_with(|| HashSet::<usize>::new()).take(ordered_systems.len()).collect::<Box<_>>();
+    let mut directions = vec![HashSet::<usize>::new(); ordered_systems.len()];
 
     for (previous_id, next_id) in explicit_ordering.iter() {
         let Some(&previous_index) = system_index_by_type.get(previous_id) else {
@@ -72,7 +72,7 @@ pub fn create_ordering_graph(ordered_systems: &[SystemInfo], explicit_ordering: 
         analyzed_systems.insert(system_index);
     }
 
-    let directions = directions.into_vec().into_iter().map(|v| v.into_iter().collect::<Box<_>>()).collect::<Box<_>>();
+    let directions = directions.into_iter().map(|v| v.into_iter().collect::<Vec<_>>()).collect::<Vec<_>>();
 
     OrderGraph::new(directions).unwrap()
 }

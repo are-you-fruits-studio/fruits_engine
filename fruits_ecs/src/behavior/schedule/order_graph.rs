@@ -1,16 +1,16 @@
 use std::collections::VecDeque;
 
 pub struct OrderGraph {
-    directions: Box<[Box<[usize]>]>,
-    directors_count: Box<[usize]>,
-    initial_nodes: Box<[usize]>,
+    directions: Vec<Vec<usize>>,
+    directors_count: Vec<usize>,
+    initial_nodes: Vec<usize>,
 }
 
 impl OrderGraph {
     pub fn new(
-        directions: Box<[Box<[usize]>]>,
+        directions: Vec<Vec<usize>>,
     ) -> Option<Self> {
-        let mut directors_count = std::iter::repeat(0_usize).take(directions.len()).collect::<Box<_>>();
+        let mut directors_count = vec![0_usize; directions.len()];
 
         for node in 0..directions.len() {
             for &directed_node in directions[node].iter() {
@@ -42,9 +42,9 @@ impl OrderGraph {
 }
 
 pub struct OrderGraphIterator {
-    directions: Box<[Box<[usize]>]>,
+    directions: Vec<Vec<usize>>,
     queue: VecDeque<usize>,
-    unvisited_directors_count: Box<[usize]>,
+    unvisited_directors_count: Vec<usize>,
     processing_count: usize,
 }
 

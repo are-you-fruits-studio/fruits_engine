@@ -32,12 +32,12 @@ fn main() {
     update_systems.add_system(restrict_boids);
     update_systems.add_system(rotate_boids_by_velocity);
 
-    update_systems.order_systems(accumulate_boid_separation, affect_motor_by_boid);
-    update_systems.order_systems(affect_motor_by_boid, apply_motor);
-    update_systems.order_systems(apply_motor, apply_damping);
-    update_systems.order_systems(apply_damping, apply_velocity);
-    update_systems.order_systems(apply_velocity, rotate_boids_by_velocity);
-    update_systems.order_systems(rotate_boids_by_velocity, restrict_boids);
+    update_systems.order(accumulate_boid_separation).before(affect_motor_by_boid);
+    update_systems.order(affect_motor_by_boid).before(apply_motor);
+    update_systems.order(apply_motor).before(apply_damping);
+    update_systems.order(apply_damping).before(apply_velocity);
+    update_systems.order(apply_velocity).before(rotate_boids_by_velocity);
+    update_systems.order(rotate_boids_by_velocity).before(restrict_boids);
 
     app.run();
 }

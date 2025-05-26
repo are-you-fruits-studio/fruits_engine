@@ -87,7 +87,8 @@ impl ScheduleBehavior {
 
 pub struct ScheduleBehaviorBuilder {
     systems: HashMap<TypeId, Arc<dyn System>>,
-    systems_ordering: HashSet<(TypeId, TypeId)>
+    systems_ordering: HashSet<(TypeId, TypeId)>,
+    system_groups: HashMap<&'static str, HashSet<TypeId>>,
 }
 
 impl ScheduleBehaviorBuilder {
@@ -95,6 +96,7 @@ impl ScheduleBehaviorBuilder {
         Self {
             systems: HashMap::new(),
             systems_ordering: HashSet::new(),
+            system_groups: HashMap::new(),
         }
     }
 
@@ -102,12 +104,14 @@ impl ScheduleBehaviorBuilder {
         self.systems.insert(system.type_id(), Arc::from(system.into_system_generic())).is_none()
     }
 
-    pub fn order_systems<M0: 'static, M1: 'static>(
-        &mut self,
-        previous_system: impl SystemWithMarker<M0> + Any,
-        next_system: impl SystemWithMarker<M1> + Any,
-    ) {
-        self.systems_ordering.insert((previous_system.type_id(), next_system.type_id()));
+    #[must_use]
+    pub fn order<M0: 'static>(&mut self, s: impl SystemWithMarker<M0> + Any) -> OrderHelper {
+        OrderHelper::from_system(self, s)
+    }
+
+    #[must_use]
+    pub fn group(&mut self, group: &'static str) -> GroupHelper {
+        GroupHelper::new(self, group)
     }
 
     pub fn build(self) -> ScheduleBehavior {
@@ -119,4 +123,51 @@ impl ScheduleBehaviorBuilder {
 
         ScheduleBehavior::new(systems, Arc::new(execution_graph))
     }
+}
+
+pub struct OrderHelper<'a> {
+    builder: &'a mut ScheduleBehaviorBuilder,
+    entry: TypeId,
+}
+
+impl<'a> OrderHelper<'a> {
+    fn from_system<M0: 'static>(builder: &'a mut ScheduleBehaviorBuilder, previous_system: impl SystemWithMarker<M0> + Any) -> Self {
+        Self {
+            builder,
+            entry: previous_system.type_id(),
+        }
+    }
+    // fn from_group(builder: &'a mut ScheduleBehaviorBuilder, group: &'static str) -> Self {
+    //     Self {
+    //         builder,
+    //         entry: OrderEntry::Group(group),
+    //     }
+    // }
+
+    pub fn before<M1: 'static>(self, s: impl SystemWithMarker<M1> + Any) {
+        self.builder.systems_ordering.insert((self.entry, s.type_id()));
+    }
+}
+
+pub struct GroupHelper<'a> {
+    builder: &'a mut ScheduleBehaviorBuilder,
+    group: &'static str,
+}
+
+impl<'a> GroupHelper<'a> {
+    fn new(builder: &'a mut ScheduleBehaviorBuilder, group: &'static str) -> Self {
+        Self {
+            builder,
+            group,
+        }
+    }
+
+    pub fn add_child<M1: 'static>(&mut self, s: impl SystemWithMarker<M1> + Any) {
+        self.builder.system_groups.entry(self.group).or_default().insert(s.type_id());
+    }
+}
+
+pub enum OrderEntry {
+    System(TypeId),
+    Group(&'static str),
 }
