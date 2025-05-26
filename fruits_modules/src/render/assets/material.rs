@@ -1,5 +1,7 @@
 
-use wgpu::{BindGroupLayout, Device, RenderPipeline, SurfaceConfiguration};
+use wgpu::{BindGroupLayout, DepthStencilState, Device, RenderPipeline, SurfaceConfiguration};
+
+use crate::render::DepthTextureResource;
 
 use super::{mesh::StandardVertex, shader::Shader, StandardInstance};
 
@@ -20,7 +22,13 @@ impl Material {
         }
     }
 
-    pub fn new(device: &Device, surface_config: &SurfaceConfiguration, shader: &Shader, bind_group_layouts: &[&BindGroupLayout]) -> Self {
+    pub fn new(
+        device: &Device,
+        surface_config: &SurfaceConfiguration,
+        shader: &Shader,
+        bind_group_layouts: &[&BindGroupLayout],
+        depth_res: &DepthTextureResource,
+    ) -> Self {
         let shader = shader.shader_module();
 
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -60,7 +68,13 @@ impl Material {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilState {
+                bias: Default::default(),
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: true,
+                format: depth_res.texture.format(),
+                stencil: Default::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,

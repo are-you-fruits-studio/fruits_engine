@@ -21,11 +21,11 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Update).add_system(move_cube_new);
     world.behavior_mut().get_mut(Schedule::Update).add_system(rotate_cube);
     world.behavior_mut().get_mut(Schedule::Update).add_system(log_fps);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(log_input);
     //world.behavior_mut().get_mut(Schedule::Update).add_system(log_entities);
 
     world.behavior_mut().get_mut(Schedule::Start).order_systems(init_resources, init_mesh_material);
     world.behavior_mut().get_mut(Schedule::Start).order_systems(create_camera_uniform_bind_group_layout, init_mesh_material);
+    world.behavior_mut().get_mut(Schedule::Start).order_systems(recreate_depth_texture_resource, init_mesh_material);
 
     
     let world_data = world.data_mut();
@@ -81,6 +81,8 @@ fn init_resources(mut world: ExclusiveWorldAccess) {
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     let (material, mesh) = {
+        let depth_res = world.resources().get::<DepthTextureResource>().unwrap();
+
         let Some(camera_group_layout) = world.resources().get::<CameraUniformBufferGroupLayoutResource>() else {
             return;
         };
@@ -98,7 +100,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
             camera_group_layout.layout(),
         ];
 
-        let material = Material::new(device, surface_config, &shader, &bind_group_layouts);
+        let material = Material::new(device, surface_config, &shader, &bind_group_layouts, depth_res);
 
         let mut vertices = [
             StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
@@ -147,7 +149,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     for _ in 0..3 {
         let mut parent_transform = LocalTransform::IDENTITY;
 
-        parent_transform.scale.x *= 0.1;
+        parent_transform.scale.x *= 0.7;
 
         let ec = world.entities_components_mut();
 
@@ -224,31 +226,4 @@ fn log_fps(
 
         fps.count = 0;
     }
-}
-
-fn log_input(
-    input: Res<InputResource>,
-) {
-    let mut v = Vec2::with_all(0.0_f32);
-
-    if input.keyboard.is_pressed(KeyCode::KeyW) { v += Vec2::new(0.0, 1.0); }
-    if input.keyboard.is_pressed(KeyCode::KeyA) { v += Vec2::new(-1.0, 0.0); }
-    if input.keyboard.is_pressed(KeyCode::KeyS) { v += Vec2::new(0.0, -1.0); }
-    if input.keyboard.is_pressed(KeyCode::KeyD) { v += Vec2::new(1.0, 0.0); }
-
-    if v != Vec2::with_all(0.0) {
-        println!("move {:?}", v);
-    }
-
-    println!("look {:?}", input.mouse.position);
-}
-
-fn log_entities(
-    q: WorldQuery<Entity>,
-) {
-    for e in q.iter() {
-        println!("{e:?}");
-    }
-
-    println!();
 }

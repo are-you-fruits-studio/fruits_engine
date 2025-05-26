@@ -67,7 +67,9 @@ struct BoidSettings {
 
 fn init(mut world: ExclusiveWorldAccess) {
     let (material, mesh) = {
-        let camera_group_layout = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
+        let depth_res = world.resources().get::<DepthTextureResource>().unwrap();
+        
+        let camera_group_layout = world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
         let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
         let device = render_state.device();
@@ -80,7 +82,7 @@ fn init(mut world: ExclusiveWorldAccess) {
             camera_group_layout.layout(),
         ];
 
-        let material = Material::new(device, surface_config, &shader, &bind_group_layouts);
+        let material = Material::new(device, surface_config, &shader, &bind_group_layouts, depth_res);
 
         let mut vertices = [
             StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },

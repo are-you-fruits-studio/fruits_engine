@@ -1,11 +1,11 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Matrix, Matrix3x3, Matrix4x4, Vec3, Vec4};
-use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, ShaderStages, StoreOp, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
+use fruits_math::{Matrix, Matrix3x3, Matrix4x4, Vec2, Vec3, Vec4};
+use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
 
 use crate::{asset::AssetStorageResource, transform::GlobalTransform};
 
-use super::{assets::{Material, Mesh}, components::{CameraComponent, RenderMaterialComponent, RenderMeshComponent}, resources::{CameraUniformBufferGroupLayoutResource, CameraUniformBufferResource, InstanceBufferResource, SurfaceTextureResource}, GizmoSpace, GizmosRenderResource, GizmosResource};
+use super::{assets::{Material, Mesh}, components::{CameraComponent, RenderMaterialComponent, RenderMeshComponent}, resources::{CameraUniformBufferGroupLayoutResource, CameraUniformBufferResource, InstanceBufferResource, SurfaceTextureResource}, DepthTextureResource, GizmoSpace, GizmosRenderResource, GizmosResource};
 
 pub fn create_camera_uniform_bind_group_layout(
     mut world: ExclusiveWorldAccess,
@@ -88,6 +88,71 @@ pub fn create_instance_buffer(
     world.resources_mut().insert(InstanceBufferResource {
         buffer,
     }).ok().unwrap();
+}
+
+pub fn recreate_depth_texture_resource(
+    mut world: ExclusiveWorldAccess,
+) {
+    let render_state = world.resources().get::<RenderStateResource>().unwrap();
+    let surface_config = render_state.surface_config();
+
+    let mut contains_depth = false;
+
+    if let Some(depth_res) = world.resources().get::<DepthTextureResource>() {
+        contains_depth = true;
+
+        let are_same_size = {
+            depth_res.texture.size().width == surface_config.width
+            && depth_res.texture.size().height == surface_config.height
+        };
+
+        if are_same_size {
+            return;
+        }
+    }
+
+    let texture = render_state.device().create_texture(&TextureDescriptor {
+        label: Some("Depth Buffer"),
+        size: Extent3d {
+            width: surface_config.width,
+            height: surface_config.height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Depth32Float,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+
+    let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Depth Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        compare: Some(wgpu::CompareFunction::LessEqual),
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    let depth_res = DepthTextureResource {
+        texture,
+        texture_view,
+        sampler,
+    };
+
+    if contains_depth {
+        *world.resources_mut().get_mut().unwrap() = depth_res;
+    } else {
+        world.resources_mut().insert(depth_res).ok().unwrap();
+    }
 }
 
 pub fn create_gizmos_render_resource(
@@ -288,12 +353,40 @@ pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
     }
 }
 
+pub fn clear_depth(
+    render_state: Res<RenderStateResource>,
+    depth_res: Res<DepthTextureResource>,
+) {
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Clear Depth Encoder"),
+    });
+
+    {
+        let mut _render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Clear Depth Pass"),
+            color_attachments: &[],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &depth_res.texture_view,
+                depth_ops: Some(Operations {
+                    load: LoadOp::Clear(1.0),
+                    store: StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            ..Default::default()
+        });
+    }
+    
+    render_state.queue().submit(std::iter::once(encoder.finish()));
+}
+
 pub fn render_meshes_and_materials(
     query: WorldQuery<(&GlobalTransform, &RenderMeshComponent, &RenderMaterialComponent)>,
     render_state: Res<RenderStateResource>,
     camera_buffer: Res<CameraUniformBufferResource>,
+    depth_res: Res<DepthTextureResource>,
     instance_buffer: Res<InstanceBufferResource>,
-    surface_texture: ResMut<SurfaceTextureResource>,
+    surface_texture: Res<SurfaceTextureResource>,
     meshes: Res<AssetStorageResource<Mesh>>,
     materials: Res<AssetStorageResource<Material>>,
 ) {
@@ -304,8 +397,6 @@ pub fn render_meshes_and_materials(
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
-
-    let render_state = &*render_state;
 
     for (transform, render_mesh, render_material) in query.iter() {
         let Some(mesh) = meshes.get(&render_mesh.mesh) else { continue; };
@@ -333,7 +424,14 @@ pub fn render_meshes_and_materials(
                         store: StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_res.texture_view,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Load,
+                        store: StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 ..Default::default()
             });
     

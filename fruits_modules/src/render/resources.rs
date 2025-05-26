@@ -1,7 +1,7 @@
 use std::collections::{hash_map::IterMut, HashMap};
 
 use fruits_ecs::Resource;
-use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, SurfaceTexture};
+use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
 use super::{GizmoLine, GizmoSpace};
 
@@ -72,4 +72,11 @@ pub struct GizmosRenderResource {
     pub transform_buffer: Buffer,
     pub pipeline: RenderPipeline,
     pub bind_group: BindGroup,
+}
+
+#[derive(Resource)]
+pub struct DepthTextureResource {
+    pub texture: Texture,
+    pub texture_view: TextureView,
+    pub sampler: Sampler,
 }
