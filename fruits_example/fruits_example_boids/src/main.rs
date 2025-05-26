@@ -71,7 +71,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
         let device = render_state.device();
-        let surface_config = &*render_state.surface_config().lock().unwrap();
+        let surface_config = render_state.surface_config();
 
         let shader_code = include_str!("./../../../src/shader.wgsl");
         let shader = Shader::new_wgsl(device, shader_code);

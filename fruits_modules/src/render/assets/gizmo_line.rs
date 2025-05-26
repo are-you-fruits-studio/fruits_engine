@@ -10,6 +10,6 @@ pub struct GizmoLine {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum GizmoSpace {
     Viewport,
-    Screen,
+    Window,
     World,
 }

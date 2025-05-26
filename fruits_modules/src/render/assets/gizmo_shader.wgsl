@@ -1,5 +1,6 @@
 @group(0) @binding(0) var<storage, read> vertex: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read> color: array<vec4<f32>>;
+@group(0) @binding(2) var<uniform> transform: mat4x4<f32>;
 
 struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
@@ -10,7 +11,7 @@ struct VertexOutput {
 fn vertex_main(@location(0) index: u32) -> VertexOutput {
     var out: VertexOutput;
 
-    out.pos = vertex[index];
+    out.pos = transform * vertex[index];
     out.color = color[index / 2];
 
     return out;

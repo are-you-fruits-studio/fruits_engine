@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use fruits_ecs::{Entity, ExclusiveWorldAccess, WorldQuery};
+use fruits_math::Matrix3x3;
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
@@ -171,7 +172,7 @@ pub fn calculate_global_transform(
             continue;
         };
         global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
-        global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * fruits_math::scale_matrix_3d(local_transform.scale));
+        global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Matrix3x3::scale(local_transform.scale));
         // }
 
         let Some(children) = ec.get_component::<ParentComponent>(transform) else {

@@ -1,6 +1,6 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Matrix, Matrix4x4, Vec4};
+use fruits_math::{Matrix, Matrix3x3, Matrix4x4, Vec3, Vec4};
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, ShaderStages, StoreOp, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
 
 use crate::{asset::AssetStorageResource, transform::GlobalTransform};
@@ -93,7 +93,7 @@ pub fn create_instance_buffer(
 pub fn create_gizmos_render_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let render_state = &*world.resources().get::<RenderStateResource>().unwrap();
+    let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
     let index_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Index Buffer"),
@@ -111,6 +111,12 @@ pub fn create_gizmos_render_resource(
         label: Some("Gizmos Color Buffer"),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         contents: fruits_utils::mem::as_bytes(Vec4::<f32>::with_all(0.0).as_array()),
+    });
+
+    let transform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Gizmos Transform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(Matrix4x4::<f32>::IDENTITY.as_array()),
     });
 
     let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -136,6 +142,16 @@ pub fn create_gizmos_render_resource(
                 },
                 visibility: ShaderStages::VERTEX,
             },
+            BindGroupLayoutEntry {
+                binding: 2,
+                count: None,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                visibility: ShaderStages::VERTEX,
+            },
         ],
     });
 
@@ -150,6 +166,10 @@ pub fn create_gizmos_render_resource(
             BindGroupEntry {
                 binding: 1,
                 resource: color_buffer.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 2,
+                resource: transform_buffer.as_entire_binding(),
             },
         ],
     });
@@ -188,7 +208,7 @@ pub fn create_gizmos_render_resource(
             module: &shader,
             entry_point: "fragment_main",
             targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config().lock().unwrap().format,
+                format: render_state.surface_config().format,
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -218,6 +238,7 @@ pub fn create_gizmos_render_resource(
         index_buffer,
         vertex_buffer,
         color_buffer,
+        transform_buffer,
         bind_group,
         pipeline,
     }).ok().unwrap();
@@ -238,13 +259,13 @@ pub fn update_camera_uniform_buffer(
 
     let (transform, camera) = query.iter().next().unwrap();
 
-    let window_size = render_state.size().lock().unwrap();
+    let window_size = render_state.size();
 
     let aspect = window_size.width as f32 / window_size.height as f32;
 
     let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
 
-    let transform_matrix = fruits_math::into_matrix4x4_with_pos(transform.scale_rotation, transform.position).inverse().unwrap();
+    let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position).inverse().unwrap();
 
     let matrix = projection_matrix * transform_matrix;
 
@@ -290,7 +311,7 @@ pub fn render_meshes_and_materials(
         let Some(mesh) = meshes.get(&render_mesh.mesh) else { continue; };
         let Some(material) = materials.get(&render_material.material) else { continue; };
 
-        let transform_matrix = fruits_math::into_matrix4x4_with_pos(transform.scale_rotation, transform.position);
+        let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position);
         let transform_matrix = transform_matrix.into_array();
         let transform_matrix = fruits_utils::mem::as_bytes(&transform_matrix);
 
@@ -331,9 +352,10 @@ pub fn render_meshes_and_materials(
 
 pub fn render_gizmos(
     mut gizmos: ResMut<GizmosResource>,
-    gizmos_render_res: ResMut<GizmosRenderResource>,
-    surface_texture: ResMut<SurfaceTextureResource>,
+    gizmos_render_res: Res<GizmosRenderResource>,
+    surface_texture: Res<SurfaceTextureResource>,
     render_state: Res<RenderStateResource>,
+    camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
@@ -341,14 +363,35 @@ pub fn render_gizmos(
 
     let render_state = &*render_state;
 
+    let window_size = render_state.size();
+
     for (space, lines) in gizmos.spaces() {
         if lines.len() == 0 {
             continue;
         }
 
-        let GizmoSpace::Viewport = space else {
-            todo!("Gizmo spaces other than Viewport are temporarily unsupported.");
+        let transform = match space {
+            GizmoSpace::Viewport => Matrix4x4::<f32>::IDENTITY,
+            GizmoSpace::Window => {
+                Matrix4x4::<f32>::offset(Vec3::new(-1.0, 1.0, 0.0))
+                * Matrix3x3::<f32>::scale(Vec3::new(2.0 / window_size.width as f32, -2.0 / window_size.height as f32, 1.0)).into_4x4()
+            },
+            GizmoSpace::World => {
+                let Some((transform, camera)) = camera_query.iter().next() else {
+                    continue;
+                };
+
+                let aspect = window_size.width as f32 / window_size.height as f32;
+
+                let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
+
+                let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position).inverse().unwrap();
+
+                projection_matrix * transform_matrix
+            },
         };
+
+        render_state.queue().write_buffer(&gizmos_render_res.transform_buffer, 0, fruits_utils::mem::as_bytes(transform.as_array()));
 
         while let Some(line) = lines.pop() {
             let vertex_data = [

@@ -2,6 +2,7 @@ mod assets;
 mod components;
 mod resources;
 mod systems;
+mod utils;
 
 use crate::asset::AssetStorageResource;
 

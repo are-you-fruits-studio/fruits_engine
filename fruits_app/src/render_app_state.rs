@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration};
 use winit::{dpi::PhysicalSize, window::Window};
@@ -7,9 +7,9 @@ pub struct RenderAppState {
     device: Device,
     queue: Queue,
     surface: Surface<'static>,
-    surface_config: Mutex<SurfaceConfiguration>,
+    surface_config: SurfaceConfiguration,
     window: Arc<Window>,
-    size: Mutex<PhysicalSize<u32>>,
+    size: PhysicalSize<u32>,
 }
 
 impl RenderAppState {
@@ -25,9 +25,9 @@ impl RenderAppState {
             device,
             queue,
             surface,
-            surface_config: Mutex::new(surface_config),
+            surface_config,
             window,
-            size: Mutex::new(size),
+            size,
         }
     }
 
@@ -43,16 +43,24 @@ impl RenderAppState {
         &self.surface
     }
 
-    pub fn surface_config(&self) -> &Mutex<SurfaceConfiguration> {
+    pub fn surface_config(&self) -> &SurfaceConfiguration {
         &self.surface_config
+    }
+
+    pub unsafe fn surface_config_mut(&mut self) -> &mut SurfaceConfiguration {
+        &mut self.surface_config
     }
 
     pub fn window(&self) -> &Window {
         &self.window
     }
 
-    pub fn size(&self) -> &Mutex<PhysicalSize<u32>> {
-        &self.size
+    pub fn size(&self) -> PhysicalSize<u32> {
+        self.size
+    }
+
+    pub unsafe fn size_mut(&mut self) -> &mut PhysicalSize<u32> {
+        &mut self.size
     }
 
 }

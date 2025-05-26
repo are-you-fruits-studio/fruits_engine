@@ -14,41 +14,6 @@ pub use num::*;
 pub use vec::*;
 pub use quaternion::*;
 
-pub const fn scale_matrix_2d<T: Number>(scale: Vec2<T>) -> Matrix2x2<T> {
-    Matrix2x2::<T>::from_array([
-        [scale.x, T::ZERO],
-        [T::ZERO, scale.y],
-    ])
-}
-
-pub const fn scale_matrix_3d<T: Number>(scale: Vec3<T>) -> Matrix3x3<T> {
-    Matrix3x3::<T>::from_array([
-        [scale.x, T::ZERO, T::ZERO],
-        [T::ZERO, scale.y, T::ZERO],
-        [T::ZERO, T::ZERO, scale.z],
-    ])
-}
-
-pub const fn scale_matrix_4d<T: Number>(scale: Vec4<T>) -> Matrix4x4<T> {
-    Matrix4x4::<T>::from_array([
-        [scale.x, T::ZERO, T::ZERO, T::ZERO],
-        [T::ZERO, scale.y, T::ZERO, T::ZERO],
-        [T::ZERO, T::ZERO, scale.z, T::ZERO],
-        [T::ZERO, T::ZERO, T::ZERO, scale.w],
-    ])
-}
-
-pub fn into_matrix4x4<T: Number>(mat: Matrix3x3<T>) -> Matrix4x4<T> {
-    Matrix4x4::from_array(
-        [
-            [*mat.get_0_0(), *mat.get_0_1(), *mat.get_0_2(), T::ZERO],
-            [*mat.get_1_0(), *mat.get_1_1(), *mat.get_1_2(), T::ZERO],
-            [*mat.get_2_0(), *mat.get_2_1(), *mat.get_2_2(), T::ZERO],
-            [T::ZERO, T::ZERO, T::ZERO, T::ONE],
-        ]
-    )
-}
-
 pub fn into_matrix4x4_with_pos<T: Number>(mat: Matrix3x3<T>, pos: Vec3<T>) -> Matrix4x4<T> {
     Matrix4x4::from_array(
         [

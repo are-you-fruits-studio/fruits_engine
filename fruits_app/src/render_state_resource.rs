@@ -1,22 +1,27 @@
-use std::{ops::Deref, sync::Arc};
+use std::ops::{Deref, DerefMut};
 
 use fruits_ecs::Resource;
 
 use crate::render_app_state::RenderAppState;
 
 #[derive(Resource)]
-pub struct RenderStateResource(Arc<RenderAppState>);
+pub struct RenderStateResource(RenderAppState);
 
 impl RenderStateResource {
-    pub fn new(state: Arc<RenderAppState>) -> Self {
+    pub fn new(state: RenderAppState) -> Self {
         Self(state)
     }
 }
 
 impl Deref for RenderStateResource {
-    type Target = Arc<RenderAppState>;
+    type Target = RenderAppState;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl DerefMut for RenderStateResource {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

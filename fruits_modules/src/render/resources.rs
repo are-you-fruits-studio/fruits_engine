@@ -47,7 +47,7 @@ impl GizmosResource {
         let mut lines = HashMap::new();
 
         lines.insert(GizmoSpace::Viewport, Vec::new());
-        lines.insert(GizmoSpace::Screen, Vec::new());
+        lines.insert(GizmoSpace::Window, Vec::new());
         lines.insert(GizmoSpace::World, Vec::new());
 
         Self {
@@ -69,6 +69,7 @@ pub struct GizmosRenderResource {
     pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
     pub color_buffer: Buffer,
+    pub transform_buffer: Buffer,
     pub pipeline: RenderPipeline,
     pub bind_group: BindGroup,
 }

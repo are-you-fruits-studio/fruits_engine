@@ -20,6 +20,24 @@ impl<T: Number> Matrix4x4<T> {
     pub const fn into_array(self) -> [[T; 4]; 4] { self.data }
     pub const fn as_array(&self) -> &[[T; 4]; 4] { &self.data }
 
+    pub const fn offset(offset: Vec3<T>) -> Matrix4x4<T> {
+        Matrix4x4::<T>::from_array([
+            [T::ONE, T::ZERO, T::ZERO, T::ZERO],
+            [T::ZERO, T::ONE, T::ZERO, T::ZERO],
+            [T::ZERO, T::ZERO, T::ONE, T::ZERO],
+            [offset.x, offset.y, offset.z, T::ONE],
+        ])
+    }
+
+    pub const fn scale(scale: Vec4<T>) -> Matrix4x4<T> {
+        Matrix4x4::<T>::from_array([
+            [scale.x, T::ZERO, T::ZERO, T::ZERO],
+            [T::ZERO, scale.y, T::ZERO, T::ZERO],
+            [T::ZERO, T::ZERO, scale.z, T::ZERO],
+            [T::ZERO, T::ZERO, T::ZERO, scale.w],
+        ])
+    }
+
     pub const fn col_0(&self) -> [T; 4] { self.data[0] }
     pub const fn col_1(&self) -> [T; 4] { self.data[1] }
     pub const fn col_2(&self) -> [T; 4] { self.data[2] }

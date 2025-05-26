@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fruits_ecs::{Schedule, World, WorldBuilder};
 use wgpu::*;
-use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{WindowAttributes, WindowId}};
+use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{WindowAttributes, WindowId}};
 
 use crate::{render_app_state::RenderAppState, InputResource, RenderStateResource};
 
@@ -10,7 +10,6 @@ enum EventLoopHandlerState {
     Created(WorldBuilder),
     Starting,
     Polling {
-        state: Arc<RenderAppState>,
         world: World,
     },
 }
@@ -43,15 +42,14 @@ impl ApplicationHandler for EventLoopHandler {
             return;
         };
 
-        let state = Arc::new(create_render_app_state(event_loop));
+        let state = create_render_app_state(event_loop);
 
-        world.data_mut().resources_mut().insert(RenderStateResource::new(Arc::clone(&state))).ok().unwrap();
+        world.data_mut().resources_mut().insert(RenderStateResource::new(state)).ok().unwrap();
         world.data_mut().resources_mut().insert(InputResource::new()).ok().unwrap();
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 
         self.0 = EventLoopHandlerState::Polling {
-            state,
             world,
         };
     }
@@ -84,11 +82,13 @@ impl ApplicationHandler for EventLoopHandler {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        let EventLoopHandlerState::Polling { state, world} = &mut self.0 else {
+        let EventLoopHandlerState::Polling { world} = &mut self.0 else {
             return;
         };
 
-        if window_id != state.window().id() {
+        let render_state = world.data().resources_mut().get_mut::<RenderStateResource>().unwrap();
+
+        if window_id != render_state.window().id() {
             return;
         }
 
@@ -132,18 +132,28 @@ impl ApplicationHandler for EventLoopHandler {
                     ElementState::Released => input.keyboard.release(key_code),
                 }
             },
-            WindowEvent::Resized(physical_size) => {
-                resize(&*state, physical_size);
+            WindowEvent::Resized(new_size) => {
+                if new_size.width <= 0 || new_size.height <= 0 {
+                    return;
+                }
+            
+                unsafe { *render_state.size_mut() = new_size };
+
+                let surface_config = unsafe { render_state.surface_config_mut() };
+                surface_config.width = new_size.width;
+                surface_config.height = new_size.height;
+                
+                render_state.surface().configure(&render_state.device(), render_state.surface_config());
             }
             WindowEvent::RedrawRequested => {
                 world.execute_iteration(Schedule::Update);
 
-                let world_data = world.data();
-                let input = world_data.resources_mut().get_mut::<InputResource>().unwrap();
+                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();
 
-                state.window().request_redraw();
+                let render_state = world.data().resources_mut().get_mut::<RenderStateResource>().unwrap();
+                render_state.window().request_redraw();
             }
             WindowEvent::Destroyed => {
                 // todo
@@ -151,20 +161,6 @@ impl ApplicationHandler for EventLoopHandler {
             _ => {}
         }
     }
-}
-
-fn resize(state: &RenderAppState, new_size: PhysicalSize<u32>) {
-    if new_size.width <= 0 || new_size.height <= 0 {
-        return;
-    }
-
-    let mut size = state.size().lock().unwrap();
-    let mut surface_config = state.surface_config().lock().unwrap();
-
-    *size = new_size;
-    surface_config.width = new_size.width;
-    surface_config.height = new_size.height;
-    state.surface().configure(&state.device(), &surface_config);
 }
 
 fn create_render_app_state(event_loop: &ActiveEventLoop) -> RenderAppState {

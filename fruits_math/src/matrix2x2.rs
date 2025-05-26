@@ -21,6 +21,20 @@ impl<T: Number> Matrix2x2<T> {
         ])
     }
 
+    pub const fn offset(offset: T) -> Matrix2x2<T> {
+        Matrix2x2::<T>::from_array([
+            [T::ONE, T::ZERO],
+            [offset, T::ZERO],
+        ])
+    }
+
+    pub const fn scale(scale: Vec2<T>) -> Matrix2x2<T> {
+        Matrix2x2::<T>::from_array([
+            [scale.x, T::ZERO],
+            [T::ZERO, scale.y],
+        ])
+    }
+
     pub const fn from_array(data: [[T; 2]; 2]) -> Self {
         Self {
             data,

@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut, Mul};
 
-use crate::{Matrix, Matrix2x2};
+use crate::{Matrix, Matrix2x2, Matrix4x4};
 
 use super::{num::Number, Vec2, Vec3};
 
@@ -30,6 +30,22 @@ impl<T: Number> Matrix3x3<T> {
     //         [],
     //     ])
     // }
+    
+    pub const fn offset(offset: Vec2<T>) -> Matrix3x3<T> {
+        Matrix3x3::<T>::from_array([
+            [T::ONE, T::ZERO, T::ZERO],
+            [T::ZERO, T::ONE, T::ZERO],
+            [offset.x, offset.y, T::ONE],
+        ])
+    }
+
+    pub const fn scale(scale: Vec3<T>) -> Matrix3x3<T> {
+        Matrix3x3::<T>::from_array([
+            [scale.x, T::ZERO, T::ZERO],
+            [T::ZERO, scale.y, T::ZERO],
+            [T::ZERO, T::ZERO, scale.z],
+        ])
+    }
 
     pub fn rotation_euler(euler: Vec3<T>) -> Self {
         // todo: optimize and allow for various axis order
@@ -64,6 +80,24 @@ impl<T: Number> Matrix3x3<T> {
             [*matrix.get_0_0(), *matrix.get_0_1(), T::ZERO],
             [*matrix.get_1_0(), *matrix.get_1_1(), T::ZERO],
             [T::ZERO, T::ZERO, T::ONE],
+        ])
+    }
+    
+    pub const fn into_4x4(self) -> Matrix4x4<T> {
+        Matrix4x4::from_array([
+            [*self.get_0_0(), *self.get_0_1(), *self.get_0_2(), T::ZERO],
+            [*self.get_1_0(), *self.get_1_1(), *self.get_1_2(), T::ZERO],
+            [*self.get_2_0(), *self.get_2_1(), *self.get_2_2(), T::ZERO],
+            [T::ZERO, T::ZERO, T::ZERO, T::ONE],
+        ])
+    }
+
+    pub const fn into_4x4_with_offset(self, offset: Vec3<T>) -> Matrix4x4<T> {
+        Matrix4x4::from_array([
+            [*self.get_0_0(), *self.get_0_1(), *self.get_0_2(), T::ZERO],
+            [*self.get_1_0(), *self.get_1_1(), *self.get_1_2(), T::ZERO],
+            [*self.get_2_0(), *self.get_2_1(), *self.get_2_2(), T::ZERO],
+            [offset.x, offset.y, offset.z, T::ONE],
         ])
     }
 
