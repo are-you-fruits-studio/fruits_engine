@@ -125,8 +125,8 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
     for i in 0..(vertices.len() / 3) {
         let offset = i * 3;
-        let vec1 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 1].position);
-        let vec2 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 2].position);
+        let vec1 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 2].position);
+        let vec2 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 1].position);
         let normal = vec1.cross(vec2).normalized_or_0();
 
         for j in 0..3 {

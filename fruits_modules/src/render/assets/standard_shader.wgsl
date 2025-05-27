@@ -61,13 +61,14 @@ fn map_instance_data(input: InstanceRawAttributes) -> InstanceAttributes {
 fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> VertexOutput {
     var out: VertexOutput;
 
-    var world_normal = vertex.normal;
-    world_normal = (instance.local_to_world * vec4<f32>(world_normal, 0.0)).xyz;
+    var world_normal = (instance.local_to_world * vec4<f32>(vertex.normal, 0.0)).xyz;
 
-    var lightness = dot(world_normal, vec3<f32>(0.0, 1.0, 0.0));
+    var lightness = dot(world_normal, normalize(vec3<f32>(1.0, 1.0, -1.0)));
+
+    lightness = clamp(lightness, 0.01, 1.0);
 
     out.clip_position = matrix_world_to_clip * instance.local_to_world * vec4<f32>(vertex.position, 1.0);
-    out.color = vertex.color * material_uniform.albedo_color;// * lightness;
+    out.color = vertex.color * material_uniform.albedo_color * lightness;
     
     return out;
 }
