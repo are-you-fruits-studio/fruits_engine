@@ -1,5 +1,3 @@
-use std::any::TypeId;
-
 use crate::*;
 
 pub struct EntitiesInfo<'e> {

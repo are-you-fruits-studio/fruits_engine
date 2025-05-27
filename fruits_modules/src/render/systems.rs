@@ -1,6 +1,6 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Matrix, Matrix3x3, Matrix4x4, Vec2, Vec3, Vec4};
+use fruits_math::{Matrix, Matrix3x3, Matrix4x4, Vec3, Vec4};
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
 
 use crate::{asset::AssetStorageResource, transform::GlobalTransform};
