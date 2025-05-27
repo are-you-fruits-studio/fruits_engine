@@ -1,41 +1,13 @@
 use std::collections::{hash_map::IterMut, HashMap};
 
 use fruits_ecs::Resource;
-use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
+use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, ShaderModule, SurfaceTexture, Texture, TextureView};
 
-use super::{GizmoLine, GizmoSpace};
+use super::{GizmoLine, GizmoSpace, StandardGlobalUniform};
 
 #[derive(Resource)]
 pub struct SurfaceTextureResource {
     pub texture: Option<SurfaceTexture>,
-}
-
-#[derive(Resource)]
-pub struct CameraUniformBufferResource {
-    pub buffer: Buffer,
-    pub group: BindGroup,
-}
-
-#[derive(Resource)]
-pub struct CameraUniformBufferGroupLayoutResource {
-    layout: BindGroupLayout,
-}
-
-impl CameraUniformBufferGroupLayoutResource {
-    pub fn new(layout: BindGroupLayout) -> Self {
-        Self {
-            layout,
-        }
-    }
-
-    pub fn layout(&self) -> &BindGroupLayout {
-        &self.layout
-    }
-}
-
-#[derive(Resource)]
-pub struct InstanceBufferResource {
-    pub buffer: Buffer,
 }
 
 #[derive(Resource)]
@@ -79,4 +51,15 @@ pub struct DepthTextureResource {
     pub texture: Texture,
     pub texture_view: TextureView,
     pub sampler: Sampler,
+}
+
+#[derive(Resource)]
+pub struct StandardRenderResource {
+    pub shader: ShaderModule,
+    pub pipeline_layout: PipelineLayout,
+    pub instance_buffer: Buffer,
+    pub uniform: StandardGlobalUniform,
+    pub uniform_buffer: Buffer,
+    pub uniform_bind_group: BindGroup,
+    pub material_uniform_bind_group_layout: BindGroupLayout,
 }

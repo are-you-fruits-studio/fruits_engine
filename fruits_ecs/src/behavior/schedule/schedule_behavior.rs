@@ -54,15 +54,17 @@ impl ScheduleBehavior {
                     let system = &systems[system_index];
                     let system_data = &system_datas[system_index];
 
-                    let input = SystemInput {
-                        world_data: data,
-                        system_data: &mut *system_data.try_lock().ok().unwrap(),
-                    };
-    
+                    {
+                        let input = SystemInput {
+                            world_data: data,
+                            system_data: &mut *system_data.try_lock().ok().unwrap(),
+                        };
                     
-                    // Safety. Access is managed by OrderGraph and data usage.
-                    unsafe {
-                        system.execute(&input);
+                        
+                        // Safety. Access is managed by OrderGraph and data usage.
+                        unsafe {
+                            system.execute(&input);
+                        }
                     }
                     
                     {
@@ -121,6 +123,23 @@ impl ScheduleBehaviorBuilder {
 
     pub fn build(self) -> ScheduleBehavior {
         let systems_ordering = flatten_ordering(&self.systems_ordering, &self.system_groups);
+
+        {
+            println!();
+            println!("REGISTERED SYSTEMS");
+            println!();
+            for ele in self.systems.values() {
+                println!("{}", ele.system_name());
+            }
+            println!();
+            println!("REGISTERED ORDERING");
+            println!();
+            for (min, max) in &systems_ordering {
+                let min_name = self.systems.get(min).map(|s| String::from(s.system_name())).unwrap_or_else(|| format!("{:?}", min));
+                let max_name = self.systems.get(max).map(|s| String::from(s.system_name())).unwrap_or_else(|| format!("{:?}", max));
+                println!("{} ------ {}", min_name, max_name);
+            }
+        }
 
         let systems = sort_systems_by_order(self.systems, &systems_ordering);
 

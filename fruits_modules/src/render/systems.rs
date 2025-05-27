@@ -5,88 +5,87 @@ use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescr
 
 use crate::{asset::AssetStorageResource, transform::GlobalTransform};
 
-use super::{assets::{Material, Mesh}, components::{CameraComponent, RenderMaterialComponent, RenderMeshComponent}, resources::{CameraUniformBufferGroupLayoutResource, CameraUniformBufferResource, InstanceBufferResource, SurfaceTextureResource}, DepthTextureResource, GizmoSpace, GizmosRenderResource, GizmosResource};
+use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmoSpace, GizmosRenderResource, GizmosResource, StandardRenderResource, StandardGlobalUniform};
 
-pub fn create_camera_uniform_bind_group_layout(
+pub fn create_standard_render_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let layout = {
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
-        let render_state = &*render_state;
+    let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
-        render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Camera bind group layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ]
-        })
-    };
-
-    world.resources_mut().insert(CameraUniformBufferGroupLayoutResource::new(layout)).ok().unwrap();
-}
-
-pub fn create_camera_uniform_buffer(
-    mut world: ExclusiveWorldAccess,
-) {
-    let (buffer, group) = {
-        let layout_resource = &*world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
-
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
-        let render_state = &*render_state;
-
-        let buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            contents: fruits_utils::mem::as_bytes(Matrix4x4::<f32>::IDENTITY.as_array()),
-        });
-
-        let group = render_state.device().create_bind_group(&BindGroupDescriptor {
-            label: Some("Camera bind group"),
-            layout: layout_resource.layout(),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
+    let global_uniform_bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Standard Global Uniform Bind Group Layout"),
+        entries: &[
+            BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
                 },
-            ],
-        });
+                count: None,
+            }
+        ]
+    });
+    
+    let material_uniform_bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Standard Material Uniform Bind Group Layout"),
+        entries: &[
+            BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }
+        ]
+    });
 
-        (buffer, group)
-    };
+    let uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Standard Global Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&[StandardGlobalUniform::default()]),
+    });
+    
+    let uniform_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Standard Global Uniform Bind Group"),
+        layout: &global_uniform_bind_group_layout,
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            },
+        ],
+    });
+    
+    let instance_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Instance Buffer"),
+        usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(Matrix4x4::<f32>::IDENTITY.as_array()),
+    });
 
-    world.resources_mut().insert(CameraUniformBufferResource {
-        buffer,
-        group,
-    }).ok().unwrap();
-}
+    let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Standard Material Pipeline Layout"),
+        bind_group_layouts: &[
+            &global_uniform_bind_group_layout,
+            &material_uniform_bind_group_layout,
+        ],
+        push_constant_ranges: &[],
+    });
+    
+    let shader = render_state.device().create_shader_module(include_wgsl!("./assets/standard_shader.wgsl"));
 
-pub fn create_instance_buffer(
-    mut world: ExclusiveWorldAccess,
-) {
-    let buffer = {
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
-        let render_state = &*render_state;
-
-        let buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            contents: fruits_utils::mem::as_bytes(Matrix4x4::<f32>::IDENTITY.as_array()),
-        });
-
-        buffer
-    };
-
-    world.resources_mut().insert(InstanceBufferResource {
-        buffer,
+    world.resources_mut().insert(StandardRenderResource {
+        shader,
+        pipeline_layout,
+        material_uniform_bind_group_layout,
+        uniform: StandardGlobalUniform::default(),
+        uniform_buffer,
+        uniform_bind_group,
+        instance_buffer,
     }).ok().unwrap();
 }
 
@@ -309,9 +308,9 @@ pub fn create_gizmos_render_resource(
     }).ok().unwrap();
 }
 
-pub fn update_camera_uniform_buffer(
+pub fn update_camera_uniform(
     render_state: Res<RenderStateResource>,
-    buffer: ResMut<CameraUniformBufferResource>,
+    mut standard_render_res: ResMut<StandardRenderResource>,
     query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
     if query.len() == 0 {
@@ -332,12 +331,7 @@ pub fn update_camera_uniform_buffer(
 
     let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position).inverse().unwrap();
 
-    let matrix = projection_matrix * transform_matrix;
-
-    let matrix = matrix.into_array();
-    let matrix = fruits_utils::mem::as_bytes(&matrix);
-
-    render_state.queue().write_buffer(&buffer.buffer, 0, matrix);
+    standard_render_res.uniform.world_to_clip = projection_matrix * transform_matrix;
 }
 
 pub fn request_surface_texture(
@@ -381,14 +375,13 @@ pub fn clear_depth(
 }
 
 pub fn render_meshes_and_materials(
-    query: WorldQuery<(&GlobalTransform, &RenderMeshComponent, &RenderMaterialComponent)>,
+    query: WorldQuery<(&GlobalTransform, &StandardMeshComponent, &StandardMaterialComponent)>,
     render_state: Res<RenderStateResource>,
-    camera_buffer: Res<CameraUniformBufferResource>,
+    standard_render_res: Res<StandardRenderResource>,
     depth_res: Res<DepthTextureResource>,
-    instance_buffer: Res<InstanceBufferResource>,
     surface_texture: Res<SurfaceTextureResource>,
-    meshes: Res<AssetStorageResource<Mesh>>,
-    materials: Res<AssetStorageResource<Material>>,
+    meshes: Res<AssetStorageResource<StandardMesh>>,
+    mut materials: ResMut<AssetStorageResource<StandardMaterial>>,
 ) {
     if query.len() == 0 {
         return;
@@ -398,15 +391,22 @@ pub fn render_meshes_and_materials(
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
 
+    render_state.queue().write_buffer(&standard_render_res.uniform_buffer, 0, fruits_utils::mem::as_bytes(&[standard_render_res.uniform]));
+    
     for (transform, render_mesh, render_material) in query.iter() {
         let Some(mesh) = meshes.get(&render_mesh.mesh) else { continue; };
-        let Some(material) = materials.get(&render_material.material) else { continue; };
+        let Some(material) = materials.get_mut(&render_material.material) else { continue; };
 
+        // todo: temp
+        material.uniform_mut().albedo_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
+
+        render_state.queue().write_buffer(material.uniform_buffer(), 0, fruits_utils::mem::as_bytes(&[*material.uniform()]));
+        
         let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position);
         let transform_matrix = transform_matrix.into_array();
         let transform_matrix = fruits_utils::mem::as_bytes(&transform_matrix);
 
-        render_state.queue().write_buffer(&instance_buffer.buffer, 0, transform_matrix);
+        render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, transform_matrix);
         render_state.queue().submit([]);
 
         let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
@@ -436,9 +436,10 @@ pub fn render_meshes_and_materials(
             });
     
             render_pass.set_pipeline(material.render_pipeline());
-            render_pass.set_bind_group(0, &camera_buffer.group, &[]);
+            render_pass.set_bind_group(0, &standard_render_res.uniform_bind_group, &[]);
+            render_pass.set_bind_group(1, material.uniform_bind_group(), &[]);
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
-            render_pass.set_vertex_buffer(1, instance_buffer.buffer.slice(..));
+            render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
             render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
             render_pass.draw_indexed(0..(mesh.indices_count() as u32), 0, 0..1);
         }

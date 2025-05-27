@@ -15,20 +15,9 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
         }
     }
 
-    pub fn insert_link(&mut self, source: T, destination: T) -> bool {
-        if !self.nodes.insert(source) && !self.nodes.insert(destination)
-        {
-            return false;
-        }
-        
-        if !self.forward.entry(source).or_default().insert(destination)
-        {
-            return false;
-        }
-
+    pub fn insert_link(&mut self, source: T, destination: T) {
+        self.forward.entry(source).or_default().insert(destination);
         self.backward.entry(destination).or_default().insert(source);
-
-        return true;
     }
 
     pub fn insert_node(&mut self, node: T) -> bool {

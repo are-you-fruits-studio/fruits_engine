@@ -79,71 +79,68 @@ fn init_resources(mut world: ExclusiveWorldAccess) {
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
-    let (material, mesh) = {
-        let depth_res = world.resources().get::<DepthTextureResource>().unwrap();
-
-        let Some(camera_group_layout) = world.resources().get::<CameraUniformBufferGroupLayoutResource>() else {
-            return;
-        };
-        let Some(render_state) = world.resources().get::<RenderStateResource>() else {
-            return;
-        };
-
-        let device = render_state.device();
-        let surface_config = render_state.surface_config();
-
-        let shader_code = include_str!("./../../../src/shader.wgsl");
-        let shader = Shader::new_wgsl(device, shader_code);
-
-        let bind_group_layouts = [
-            camera_group_layout.layout(),
-        ];
-
-        let material = Material::new(device, surface_config, &shader, &bind_group_layouts, depth_res);
-
-        let mut vertices = [
-            StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
-            StandardVertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0, 0.0], ..Default::default() },
-            StandardVertex { position: [0.0, 1.0, 0.0], color: [0.0, 1.0, 0.0, 0.0], ..Default::default() },
-            StandardVertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 0.0, 0.0], ..Default::default() },
-            StandardVertex { position: [0.0, 0.0, 1.0], color: [0.0, 0.0, 1.0, 0.0], ..Default::default() },
-            StandardVertex { position: [1.0, 0.0, 1.0], color: [1.0, 0.0, 1.0, 0.0], ..Default::default() },
-            StandardVertex { position: [0.0, 1.0, 1.0], color: [0.0, 1.0, 1.0, 0.0], ..Default::default() },
-            StandardVertex { position: [1.0, 1.0, 1.0], color: [1.0, 1.0, 1.0, 0.0], ..Default::default() },
-        ];
-
-        for vertex in vertices.iter_mut() {
-            for ele in vertex.position.iter_mut() {
-                *ele = *ele * 2.0 - 1.0;
-                *ele *= 0.2_f32;
-            }
-
-            //vertex.position[2] += 3.0_f32;
-            //vertex.position[0] += 1.0_f32;
-        }
-
-        let indices = [
-            0, 1, 3,
-            0, 3, 2,
-            0, 4, 5,
-            0, 5, 1,
-            0, 6, 4,
-            0, 2, 6,
-            1, 7, 3,
-            1, 5, 7,
-            2, 7, 6,
-            2, 3, 7,
-            4, 6, 7,
-            4, 7, 5,
-        ];
-
-        let mesh = Mesh::new(device, &vertices, &indices);
-
-        (material, mesh)
+    let Some(render_state) = world.resources().get::<RenderStateResource>() else {
+        return;
     };
 
-    let material = world.resources_mut().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = StandardMaterial::from_world(&*world);
+
+    let mut vertices = [
+        StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.0, 1.0, 0.0], color: [0.0, 1.0, 0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.0, 0.0, 1.0], color: [0.0, 0.0, 1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 0.0, 1.0], color: [1.0, 0.0, 1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.0, 1.0, 1.0], color: [0.0, 1.0, 1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 1.0, 1.0], color: [1.0, 1.0, 1.0, 0.0], ..Default::default() },
+    ];
+
+    for vertex in vertices.iter_mut() {
+        for ele in vertex.position.iter_mut() {
+            *ele = *ele * 2.0 - 1.0;
+            *ele *= 0.2_f32;
+        }
+
+        //vertex.position[2] += 3.0_f32;
+        //vertex.position[0] += 1.0_f32;
+    }
+
+    let indices = [
+        0, 1, 3,
+        0, 3, 2,
+        0, 4, 5,
+        0, 5, 1,
+        0, 6, 4,
+        0, 2, 6,
+        1, 7, 3,
+        1, 5, 7,
+        2, 7, 6,
+        2, 3, 7,
+        4, 6, 7,
+        4, 7, 5,
+    ];
+
+    let mut vertices = indices.iter().map(|i| vertices[*i]).collect::<Vec<_>>();
+
+    for i in 0..(vertices.len() / 3) {
+        let offset = i * 3;
+        let vec1 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 1].position);
+        let vec2 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 2].position);
+        let normal = vec1.cross(vec2).normalized_or_0();
+
+        for j in 0..3 {
+            vertices[offset + j].normal = normal.into_array();
+        }
+    }
+    
+    let indices = vertices.iter().enumerate().map(|(i, _)| i as u16).collect::<Vec<_>>();
+
+
+    let mesh = StandardMesh::new(render_state.device(), &vertices, &indices);
+
+    let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
+    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<StandardMesh>>().unwrap().insert(mesh);
     
     for _ in 0..3 {
         let mut parent_transform = LocalTransform::IDENTITY;
@@ -157,8 +154,8 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
         let entity = ec.create_entity();
 
-        ec.add_component(entity, RenderMeshComponent { mesh: mesh.clone() }).ok().unwrap();
-        ec.add_component(entity, RenderMaterialComponent { material: material.clone() }).ok().unwrap();
+        ec.add_component(entity, StandardMeshComponent { mesh: mesh.clone() }).ok().unwrap();
+        ec.add_component(entity, StandardMaterialComponent { material: material.clone() }).ok().unwrap();
         ec.add_component(entity, LocalTransform::IDENTITY).ok().unwrap();
         ec.add_component(entity, ChildComponent { parent }).ok().unwrap();
         ec.add_component(entity, RotatingCubeComponent).ok().unwrap();

@@ -21,6 +21,7 @@ fn main() {
     let systems = ecs.behavior_mut();
 
     systems.get_mut(Schedule::Start).add_system(init);
+    systems.get_mut(Schedule::Start).order_group(fruits_modules::render::SYSTEM_GROUP).before_system(init);
 
     let update_systems = systems.get_mut(Schedule::Update);
 
@@ -66,58 +67,41 @@ struct BoidSettings {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    let (material, mesh) = {
-        let depth_res = world.resources().get::<DepthTextureResource>().unwrap();
-        
-        let camera_group_layout = world.resources().get::<CameraUniformBufferGroupLayoutResource>().unwrap();
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
+    let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
-        let device = render_state.device();
-        let surface_config = render_state.surface_config();
+    let material = StandardMaterial::from_world(&*world);
 
-        let shader_code = include_str!("./../../../src/shader.wgsl");
-        let shader = Shader::new_wgsl(device, shader_code);
+    let mut vertices = [
+        StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.5, 1.0, 0.0], color: [0.2, 0.5, 1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
+    ];
 
-        let bind_group_layouts = [
-            camera_group_layout.layout(),
-        ];
+    for vertex in vertices.iter_mut() {
+        vertex.position[0] -= 0.5_f32;
+        vertex.position[1] -= 0.5_f32;
 
-        let material = Material::new(device, surface_config, &shader, &bind_group_layouts, depth_res);
-
-        let mut vertices = [
-            StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
-            StandardVertex { position: [0.5, 1.0, 0.0], color: [0.2, 0.5, 1.0, 0.0], ..Default::default() },
-            StandardVertex { position: [1.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
-        ];
-
-        for vertex in vertices.iter_mut() {
-            vertex.position[0] -= 0.5_f32;
-            vertex.position[1] -= 0.5_f32;
-
-            for dimention in vertex.position.iter_mut() {
-                *dimention *= 0.2_f32;
-            }
+        for dimention in vertex.position.iter_mut() {
+            *dimention *= 0.2_f32;
         }
+    }
 
-        let indices = [
-            0, 2, 1,
-        ];
+    let indices = [
+        0, 2, 1,
+    ];
 
-        let mesh = Mesh::new(device, &vertices, &indices);
+    let mesh = StandardMesh::new(render_state.device(), &vertices, &indices);
 
-        (material, mesh)
-    };
-
-    let material = world.resources_mut().get_mut::<AssetStorageResource::<Material>>().unwrap().insert(material);
-    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<Mesh>>().unwrap().insert(mesh);
+    let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
+    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<StandardMesh>>().unwrap().insert(mesh);
     
     let ec = &mut world.entities_components_mut();
 
     for _ in 0..100 {
         let entity = ec.create_entity();
 
-        ec.add_component(entity, RenderMeshComponent { mesh: mesh.clone() }).ok().unwrap();
-        ec.add_component(entity, RenderMaterialComponent { material: material.clone() }).ok().unwrap();
+        ec.add_component(entity, StandardMeshComponent { mesh: mesh.clone() }).ok().unwrap();
+        ec.add_component(entity, StandardMaterialComponent { material: material.clone() }).ok().unwrap();
         ec.add_component(entity, Boid { target_direction: Vec3::with_all(0.0) }).ok().unwrap();
         ec.add_component(entity, BoidTarget { }).ok().unwrap();
         ec.add_component(entity, Motor { acceleration_direction: Vec3::with_all(0.0), strength: 0.01 }).ok().unwrap();
@@ -126,8 +110,6 @@ fn init(mut world: ExclusiveWorldAccess) {
             scale_rotation: Matrix3x3::IDENTITY,
             position: Vec3::new(rand::random::<f32>(), rand::random::<f32>(), 0.0),
         }).ok().unwrap();
-
-        
     }
 
     {

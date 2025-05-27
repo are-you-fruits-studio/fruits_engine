@@ -56,6 +56,10 @@ impl<T> AssetStorageResource<T> {
         self.assets.get(handle.index)
     }
 
+    pub fn get_mut(&mut self, handle: &AssetHandle<T>) -> Option<&mut T> {
+        self.assets.get_mut(handle.index)
+    }
+
     pub fn remove(&mut self, handle: &AssetHandle<T>) -> Option<T> {
         self.assets.remove(handle.index)
     }

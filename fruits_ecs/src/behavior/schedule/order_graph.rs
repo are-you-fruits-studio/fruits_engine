@@ -53,7 +53,7 @@ impl OrderGraphIterator {
         let mut queue = VecDeque::new();
 
         for initial_node in graph.initial_nodes.iter() {
-            queue.push_back(*initial_node)
+            queue.push_back(*initial_node);
         }
 
         let unvisited_directors_count = graph.directors_count.clone();

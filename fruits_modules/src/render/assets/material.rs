@@ -1,47 +1,83 @@
 
-use wgpu::{BindGroupLayout, DepthStencilState, Device, RenderPipeline, SurfaceConfiguration};
+use fruits_app::RenderStateResource;
+use fruits_ecs::WorldData;
+use fruits_math::{Matrix, Matrix4x4, Vec4};
+use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, DepthStencilState, RenderPipeline, ShaderStages};
 
-use crate::render::DepthTextureResource;
+use crate::render::{DepthTextureResource, StandardRenderResource};
 
-use super::{mesh::StandardVertex, shader::Shader, StandardInstance};
+use super::{mesh::StandardVertex, StandardInstance};
 
+// todo
 pub struct StandardMaterialNew {
     pub color: [f32; 3],
     pub texture: (),
     pub emission: [f32; 3],
 }
 
-pub struct Material {
-    render_pipeline: RenderPipeline,
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct StandardGlobalUniform {
+    pub world_to_clip: Matrix4x4<f32>,
 }
 
-impl Material {
-    pub fn from_render_pipeline(render_pipeline: RenderPipeline) -> Self {
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct StandardMaterialUniform {
+    pub albedo_color: Vec4<f32>,
+}
+
+impl Default for StandardGlobalUniform {
+    fn default() -> Self {
         Self {
-            render_pipeline,
+            world_to_clip: Matrix4x4::IDENTITY,
         }
     }
+}
 
-    pub fn new(
-        device: &Device,
-        surface_config: &SurfaceConfiguration,
-        shader: &Shader,
-        bind_group_layouts: &[&BindGroupLayout],
-        depth_res: &DepthTextureResource,
-    ) -> Self {
-        let shader = shader.shader_module();
+impl Default for StandardMaterialUniform {
+    fn default() -> Self {
+        Self {
+            albedo_color: Vec4::with_all(1.0),
+        }
+    }
+}
 
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts,
-            push_constant_ranges: &[],
+pub struct StandardMaterial {
+    render_pipeline: RenderPipeline,
+    uniform: StandardMaterialUniform,
+    uniform_buffer: Buffer,
+    uniform_bind_group: BindGroup,
+}
+
+impl StandardMaterial {
+    pub fn from_world(world: &WorldData) -> Self {
+        let render_state = &**world.resources().get::<RenderStateResource>().unwrap();
+        let render_res = world.resources().get::<StandardRenderResource>().unwrap();
+        let depth_tex = world.resources().get::<DepthTextureResource>().unwrap();
+
+        let uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+            label: Some("Standard Material Uniform Buffer"),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            contents: fruits_utils::mem::as_bytes(&[StandardMaterialUniform::default()]),
         });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
+        let uniform_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+            label: Some("Standard Material Uniform Bind Group"),
+            layout: &render_res.material_uniform_bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+            ],
+        });
+
+        let render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Standard Material Render Pipeline"),
+            layout: Some(&render_res.pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: &render_res.shader,
                 entry_point: "vs_main",
                 buffers: &[
                     StandardVertex::desc(),
@@ -50,10 +86,10 @@ impl Material {
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
-                module: &shader,
+                module: &render_res.shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_config.format,
+                    format: render_state.surface_config().format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -72,7 +108,7 @@ impl Material {
                 bias: Default::default(),
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 depth_write_enabled: true,
-                format: depth_res.texture.format(),
+                format: depth_tex.texture.format(),
                 stencil: Default::default(),
             }),
             multisample: wgpu::MultisampleState {
@@ -85,11 +121,30 @@ impl Material {
         });
 
         Self {
-            render_pipeline
+            render_pipeline,
+            uniform: StandardMaterialUniform::default(),
+            uniform_buffer,
+            uniform_bind_group,
         }
     }
 
     pub fn render_pipeline(&self) -> &RenderPipeline {
         &self.render_pipeline
+    }
+
+    pub fn uniform(&self) -> &StandardMaterialUniform {
+        &self.uniform
+    }
+
+    pub fn uniform_mut(&mut self) -> &mut StandardMaterialUniform {
+        &mut self.uniform
+    }
+
+    pub fn uniform_buffer(&self) -> &Buffer {
+        &self.uniform_buffer
+    }
+
+    pub fn uniform_bind_group(&self) -> &BindGroup {
+        &self.uniform_bind_group
     }
 }

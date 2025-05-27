@@ -5,6 +5,7 @@ use wgpu::{
     ShaderSource
 };
 
+// todo: remove
 pub struct Shader {
     shader_module: ShaderModule,
 }

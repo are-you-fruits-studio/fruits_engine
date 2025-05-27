@@ -2,16 +2,16 @@ use fruits_ecs::Component;
 
 use crate::asset::AssetHandle;
 
-use super::assets::{Material, Mesh};
+use super::assets::{StandardMaterial, StandardMesh};
 
 #[derive(Component)]
-pub struct RenderMeshComponent {
-    pub mesh: AssetHandle<Mesh>,
+pub struct StandardMeshComponent {
+    pub mesh: AssetHandle<StandardMesh>,
 }
 
 #[derive(Component)]
-pub struct RenderMaterialComponent {
-    pub material: AssetHandle<Material>,
+pub struct StandardMaterialComponent {
+    pub material: AssetHandle<StandardMaterial>,
 }
 
 #[derive(Component)]

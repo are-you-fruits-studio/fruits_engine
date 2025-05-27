@@ -9,6 +9,14 @@ pub struct SystemInfo {
     pub system: Box<dyn System>,
 }
 
+impl std::fmt::Debug for SystemInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SystemInfo")
+            .field("type_id", &self.type_id)
+            .field("system", &self.system.system_name()).finish()
+    }
+}
+
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum OrderEntry {
     System(TypeId),
@@ -164,7 +172,7 @@ fn flatten_groups(
     for group in group_hierarchy.to_vec_rev() {
         let mut flat_group_children = HashSet::<TypeId>::new();
         
-        for &group_child in &groups[group] {
+        for &group_child in groups.get(group).iter().copied().flatten() {
             match group_child {
                 OrderEntry::System(child_handler) => _ = flat_group_children.insert(child_handler),
                 OrderEntry::Group(child_group) => {

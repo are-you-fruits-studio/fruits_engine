@@ -219,7 +219,7 @@ vec_impl!{Vec3, x, y, z}
 vec_impl!{Vec4, x, y, z, w}
 
 impl<T: Number> Vec3<T> {
-    fn cross(self, rhs: Self) -> Self {
+    pub fn cross(self, rhs: Self) -> Self {
         Self {
             x: self.y * rhs.z - self.z * rhs.y,
             y: self.z * rhs.x - self.x * rhs.z,

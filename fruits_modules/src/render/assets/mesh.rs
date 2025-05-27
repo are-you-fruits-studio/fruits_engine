@@ -26,13 +26,13 @@ impl StandardVertex {
     }
 }
 
-pub struct Mesh {
+pub struct StandardMesh {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     indices_count: usize,
 }
 
-impl Mesh {
+impl StandardMesh {
     pub fn new(device: &Device, vertices: &[StandardVertex], indices: &[u16]) -> Self {
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
