@@ -1,10 +1,18 @@
-use std::{any::TypeId, collections::{BTreeMap, HashMap, HashSet}, sync::Arc};
+use std::{any::TypeId, collections::{HashMap, HashSet}};
+
+use fruits_utils::graph::Graph;
 
 use crate::*;
 
 pub struct SystemInfo {
     pub type_id: TypeId,
-    pub system: Arc<dyn System>,
+    pub system: Box<dyn System>,
+}
+
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
+pub enum OrderEntry {
+    System(TypeId),
+    Group(&'static str),
 }
 
 pub fn create_ordering_graph(ordered_systems: &[SystemInfo], explicit_ordering: &HashSet<(TypeId, TypeId)>) -> OrderGraph {
@@ -77,90 +85,98 @@ pub fn create_ordering_graph(ordered_systems: &[SystemInfo], explicit_ordering: 
     OrderGraph::new(directions).unwrap()
 }
 
-pub fn sort_systems_by_order(systems: &HashMap<TypeId, Arc<dyn System>>, systems_ordering: &HashSet<(TypeId, TypeId)>) -> Box<[SystemInfo]> {
-    let order_by_type = index_ordering(systems_ordering);
+pub fn sort_systems_by_order(mut systems: HashMap<TypeId, Box<dyn System>>, systems_ordering: &HashSet<(TypeId, TypeId)>) -> Vec<SystemInfo> {
+    let mut graph = Graph::new();
 
-    let mut system_by_order = BTreeMap::new();
-    let mut unordered = Vec::new();
-
-    for (system_type, system) in systems.iter() {
-        let system_info = SystemInfo {
-            type_id: *system_type,
-            system: Arc::clone(system),
-        };
-
-        if let Some(index) = order_by_type.get(&system_type) {
-            system_by_order.insert(index, system_info);
-        } else {
-            unordered.push(system_info);
+    for (src, dst) in systems_ordering.iter() {
+        if systems.contains_key(src) && systems.contains_key(dst) {
+            graph.insert_link(*src, *dst);
         }
     }
 
-    system_by_order.into_values().chain(unordered.into_iter()).collect()
+    for ty in systems.keys() {
+        graph.insert_node(*ty);
+    }
+
+    graph.to_vec().into_iter().map(|t| {SystemInfo {
+        type_id: t,
+        system: systems.remove(&t).unwrap(),
+    }}).collect::<Vec<_>>()
 }
 
-fn index_ordering(ordering: &HashSet<(TypeId, TypeId)>) -> HashMap<TypeId, usize> {
-    let mut max_to_min = HashMap::<TypeId, Vec<TypeId>>::new();
+pub fn flatten_ordering(
+    ordering: &HashSet<(OrderEntry, OrderEntry)>,
+    groups: &HashMap<&'static str, HashSet<OrderEntry>>,
+) -> HashSet<(TypeId, TypeId)> {
+    let flat_groups = flatten_groups(groups);
 
-    for (min, max) in ordering.iter()
-    {
-        max_to_min.entry(*max).or_default().push(*min);
-    }
-    
-    let mut types_set = HashSet::<TypeId>::new();
-    let mut ordered_types = Vec::<TypeId>::new();
+    let mut graph_orderer = HashSet::new();
 
-    while max_to_min.len() != 0
-    {
-        let (min, max) = most_min(&max_to_min);
+    let mut single_value_min_buffer = HashSet::new();
+    let mut single_value_max_buffer = HashSet::new();
 
-        if types_set.insert(min)
-        {
-            ordered_types.push(min);
-        }
-
-        if let Some(mins) = max_to_min.get_mut(&max)
-        {
-            mins.remove(mins.iter().position(|m| *m == min).unwrap());
-            
-            if mins.len() == 0
-            {
-                if types_set.insert(max)
-                {
-                    ordered_types.push(max);
-                }
-
-                max_to_min.remove(&max);
+    for (min, max) in ordering {
+        let min_values = get_systems(*min, &flat_groups, &mut single_value_min_buffer);
+        let max_values = get_systems(*max, &flat_groups, &mut single_value_max_buffer);
+        
+        for &min_value in min_values {
+            for &max_value in max_values {
+                graph_orderer.insert((min_value, max_value));
             }
         }
     }
 
-    let mut orders = HashMap::<TypeId, usize>::new();
-
-    for (index, type_id) in ordered_types.into_iter().enumerate() {
-        orders.insert(type_id, index);
-    }
-    
-    orders
+    graph_orderer
 }
-
-fn most_min(max_to_min: &HashMap<TypeId, Vec<TypeId>>) -> (TypeId, TypeId)
+fn get_systems<'a>(
+    node: OrderEntry,
+    flat_groups: &'a HashMap<&'static str, HashSet<TypeId>>,
+    single_value_buffer: &'a mut HashSet<TypeId>,
+) -> &'a HashSet<TypeId>
 {
-    let mut visited = HashSet::<TypeId>::new();
-    
-    let (mut max, mut mins) = max_to_min.iter().next().unwrap();
-    
-    while visited.insert(*max)
-    {
-        let min = mins.iter().next().unwrap();
+    match node {
+        OrderEntry::Group(group) => &flat_groups[group],
+        OrderEntry::System(system) => {
+            single_value_buffer.clear();
+            single_value_buffer.insert(system);
+            single_value_buffer
+        }
+    }
+}
+fn flatten_groups(
+    groups: &HashMap<&'static str, HashSet<OrderEntry>>,
+) -> HashMap<&'static str, HashSet<TypeId>>
+{
+    let mut group_hierarchy = Graph::<&'static str>::new();
 
-        let Some(new_mins) = max_to_min.get(min) else {
-            return (*min, *max);
-        };
-
-        mins = new_mins;
-        max = min;
+    for (&parent_group, group_children) in groups.iter() {
+        group_hierarchy.insert_node(parent_group);
+        
+        for group_child in group_children {
+            if let OrderEntry::Group(child_group) = group_child {
+                group_hierarchy.insert_link(parent_group, child_group);
+            }
+        }
     }
 
-    panic!("The orderer contains circular dependencies. Cycle contains {} elements.", visited.len());
+    let mut flat_groups = HashMap::<&'static str, HashSet<TypeId>>::new();
+
+    for group in group_hierarchy.to_vec_rev() {
+        let mut flat_group_children = HashSet::<TypeId>::new();
+        
+        for &group_child in &groups[group] {
+            match group_child {
+                OrderEntry::System(child_handler) => _ = flat_group_children.insert(child_handler),
+                OrderEntry::Group(child_group) => {
+                    for &ele in &flat_groups[child_group] {
+                        flat_group_children.insert(ele);
+                    }
+                },
+            }
+        }
+
+        flat_groups.insert(group, flat_group_children);
+    }
+
+    flat_groups
 }

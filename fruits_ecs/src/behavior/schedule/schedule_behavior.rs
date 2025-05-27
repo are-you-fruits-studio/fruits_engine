@@ -5,14 +5,14 @@ use fruits_utils::thread_pool::ThreadPool;
 use crate::*;
 
 pub struct ScheduleBehavior {
-    systems: Arc<[Arc<dyn System>]>,
+    systems: Vec<Box<dyn System>>,
     system_datas: Arc<[Mutex<SystemResourcesHolder>]>,
     execution_graph: Arc<OrderGraph>,
     thread_pool: ThreadPool,
 }
 
 impl ScheduleBehavior {
-    pub fn new(systems: Arc<[Arc<dyn System>]>, execution_graph: Arc<OrderGraph>) -> Self {
+    pub fn new(systems: Vec<Box<dyn System>>, execution_graph: Arc<OrderGraph>) -> Self {
         Self {
             system_datas: systems.iter().map(|_| Mutex::new(SystemResourcesHolder::new())).collect::<Arc<_>>(),
             systems,
@@ -47,7 +47,7 @@ impl ScheduleBehavior {
 
             if let Some(system_index) = system_index {
                 let iter = Arc::clone(&iter);
-                let systems = Arc::clone(&self.systems);
+                let systems = &self.systems;
                 let system_datas = Arc::clone(&self.system_datas);
 
                 let job = move || {
@@ -74,7 +74,7 @@ impl ScheduleBehavior {
 
                 // Safety. Iteration blocks until all jobs end, so lifetimes are managed - no need for borrow-checker.
                 let job = unsafe {
-                    std::mem::transmute::<_, Box<dyn FnOnce() + Send + 'static>>(job)
+                    std::mem::transmute::<Box<dyn FnOnce() + Send>, Box<dyn FnOnce() + Send + 'static>>(job)
                 };
 
                 self.thread_pool.push_job(job);
@@ -86,9 +86,9 @@ impl ScheduleBehavior {
 }
 
 pub struct ScheduleBehaviorBuilder {
-    systems: HashMap<TypeId, Arc<dyn System>>,
-    systems_ordering: HashSet<(TypeId, TypeId)>,
-    system_groups: HashMap<&'static str, HashSet<TypeId>>,
+    systems: HashMap<TypeId, Box<dyn System>>,
+    systems_ordering: HashSet<(OrderEntry, OrderEntry)>,
+    system_groups: HashMap<&'static str, HashSet<OrderEntry>>,
 }
 
 impl ScheduleBehaviorBuilder {
@@ -101,12 +101,17 @@ impl ScheduleBehaviorBuilder {
     }
 
     pub fn add_system<M: 'static>(&mut self, system: impl SystemWithMarker<M> + Any) -> bool {
-        self.systems.insert(system.type_id(), Arc::from(system.into_system_generic())).is_none()
+        self.systems.insert(system.type_id(), system.into_system_generic()).is_none()
     }
 
     #[must_use]
-    pub fn order<M0: 'static>(&mut self, s: impl SystemWithMarker<M0> + Any) -> OrderHelper {
+    pub fn order_system<M0: 'static>(&mut self, s: impl SystemWithMarker<M0> + Any) -> OrderHelper {
         OrderHelper::from_system(self, s)
+    }
+
+    #[must_use]
+    pub fn order_group(&mut self, g: &'static str) -> OrderHelper {
+        OrderHelper::from_group(self, g)
     }
 
     #[must_use]
@@ -115,11 +120,13 @@ impl ScheduleBehaviorBuilder {
     }
 
     pub fn build(self) -> ScheduleBehavior {
-        let systems = sort_systems_by_order(&self.systems, &self.systems_ordering);
+        let systems_ordering = flatten_ordering(&self.systems_ordering, &self.system_groups);
 
-        let execution_graph = create_ordering_graph(&systems, &self.systems_ordering);
+        let systems = sort_systems_by_order(self.systems, &systems_ordering);
 
-        let systems = systems.iter().map(|s| Arc::clone(&s.system)).collect::<Arc<_>>();
+        let execution_graph = create_ordering_graph(&systems, &systems_ordering);
+
+        let systems = systems.into_iter().map(|s| s.system).collect::<Vec<_>>();
 
         ScheduleBehavior::new(systems, Arc::new(execution_graph))
     }
@@ -127,25 +134,29 @@ impl ScheduleBehaviorBuilder {
 
 pub struct OrderHelper<'a> {
     builder: &'a mut ScheduleBehaviorBuilder,
-    entry: TypeId,
+    entry: OrderEntry,
 }
 
 impl<'a> OrderHelper<'a> {
     fn from_system<M0: 'static>(builder: &'a mut ScheduleBehaviorBuilder, previous_system: impl SystemWithMarker<M0> + Any) -> Self {
         Self {
             builder,
-            entry: previous_system.type_id(),
+            entry: OrderEntry::System(previous_system.type_id()),
         }
     }
-    // fn from_group(builder: &'a mut ScheduleBehaviorBuilder, group: &'static str) -> Self {
-    //     Self {
-    //         builder,
-    //         entry: OrderEntry::Group(group),
-    //     }
-    // }
+    fn from_group(builder: &'a mut ScheduleBehaviorBuilder, group: &'static str) -> Self {
+        Self {
+            builder,
+            entry: OrderEntry::Group(group),
+        }
+    }
 
-    pub fn before<M1: 'static>(self, s: impl SystemWithMarker<M1> + Any) {
-        self.builder.systems_ordering.insert((self.entry, s.type_id()));
+    pub fn before_system<M1: 'static>(self, s: impl SystemWithMarker<M1> + Any) {
+        self.builder.systems_ordering.insert((self.entry, OrderEntry::System(s.type_id())));
+    }
+
+    pub fn before_group(self, g: &'static str) {
+        self.builder.systems_ordering.insert((self.entry, OrderEntry::Group(g)));
     }
 }
 
@@ -162,12 +173,14 @@ impl<'a> GroupHelper<'a> {
         }
     }
 
-    pub fn add_child<M1: 'static>(&mut self, s: impl SystemWithMarker<M1> + Any) {
-        self.builder.system_groups.entry(self.group).or_default().insert(s.type_id());
+    pub fn add_child_system<M1: 'static>(&mut self, s: impl SystemWithMarker<M1> + Any) -> &mut Self {
+        self.builder.system_groups.entry(self.group).or_default().insert(OrderEntry::System(s.type_id()));
+        self.builder.add_system(s);
+        self
     }
-}
 
-pub enum OrderEntry {
-    System(TypeId),
-    Group(&'static str),
+    pub fn add_child_group(&mut self, g: &'static str) -> &mut Self {
+        self.builder.system_groups.entry(self.group).or_default().insert(OrderEntry::Group(g));
+        self
+    }
 }

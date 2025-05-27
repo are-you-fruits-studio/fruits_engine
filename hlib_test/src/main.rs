@@ -29,7 +29,7 @@ fn test_fruits_prelude() {
         behavior.get_mut(Schedule::Update).add_system(some_early_system);
         behavior.get_mut(Schedule::Update).add_system(some_late_system);
 
-        behavior.get_mut(Schedule::Update).order(some_early_system).before(some_late_system);
+        behavior.get_mut(Schedule::Update).order_system(some_early_system).before_system(some_late_system);
     }
 
     app.run();

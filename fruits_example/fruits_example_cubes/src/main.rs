@@ -23,9 +23,8 @@ fn run_ecs_behavior_integration_test() {
     world.behavior_mut().get_mut(Schedule::Update).add_system(log_fps);
     //world.behavior_mut().get_mut(Schedule::Update).add_system(log_entities);
 
-    world.behavior_mut().get_mut(Schedule::Start).order(init_resources).before(init_mesh_material);
-    world.behavior_mut().get_mut(Schedule::Start).order(create_camera_uniform_bind_group_layout).before(init_mesh_material);
-    world.behavior_mut().get_mut(Schedule::Start).order(recreate_depth_texture_resource).before(init_mesh_material);
+    world.behavior_mut().get_mut(Schedule::Start).order_system(init_resources).before_system(init_mesh_material);
+    world.behavior_mut().get_mut(Schedule::Start).order_group(fruits_modules::render::SYSTEM_GROUP).before_system(init_mesh_material);
 
     
     let world_data = world.data_mut();
