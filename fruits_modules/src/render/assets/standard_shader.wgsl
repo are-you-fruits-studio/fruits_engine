@@ -31,11 +31,6 @@ struct VertexInput {
     local_to_world: mat4x4<f32>,
 }
 
-struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec4<f32>,
-};
-
 @vertex
 fn vs_main(vertex: VertexAttributes, instance_raw: InstanceRawAttributes) -> VertexOutput {
     var instance = map_instance_data(instance_raw);
@@ -57,6 +52,11 @@ fn map_instance_data(input: InstanceRawAttributes) -> InstanceAttributes {
 }
 
 //
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) color: vec4<f32>,
+};
 
 fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> VertexOutput {
     var out: VertexOutput;

@@ -124,23 +124,6 @@ impl ScheduleBehaviorBuilder {
     pub fn build(self) -> ScheduleBehavior {
         let systems_ordering = flatten_ordering(&self.systems_ordering, &self.system_groups);
 
-        {
-            println!();
-            println!("REGISTERED SYSTEMS");
-            println!();
-            for ele in self.systems.values() {
-                println!("{}", ele.system_name());
-            }
-            println!();
-            println!("REGISTERED ORDERING");
-            println!();
-            for (min, max) in &systems_ordering {
-                let min_name = self.systems.get(min).map(|s| String::from(s.system_name())).unwrap_or_else(|| format!("{:?}", min));
-                let max_name = self.systems.get(max).map(|s| String::from(s.system_name())).unwrap_or_else(|| format!("{:?}", max));
-                println!("{} ------ {}", min_name, max_name);
-            }
-        }
-
         let systems = sort_systems_by_order(self.systems, &systems_ordering);
 
         let execution_graph = create_ordering_graph(&systems, &systems_ordering);
