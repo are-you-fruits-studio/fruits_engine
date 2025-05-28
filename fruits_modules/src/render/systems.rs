@@ -1,6 +1,6 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Matrix, Matrix3x3, Matrix4x4, Vec3, Vec4};
+use fruits_math::{Mat3, Mat4, Vec3, Vec4};
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
 
 use crate::{asset::AssetStorageResource, transform::GlobalTransform};
@@ -17,7 +17,7 @@ pub fn create_standard_render_resource(
         entries: &[
             BindGroupLayoutEntry {
                 binding: 0,
-                visibility: ShaderStages::VERTEX,
+                visibility: ShaderStages::VERTEX_FRAGMENT,
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -33,7 +33,7 @@ pub fn create_standard_render_resource(
         entries: &[
             BindGroupLayoutEntry {
                 binding: 0,
-                visibility: ShaderStages::VERTEX,
+                visibility: ShaderStages::VERTEX_FRAGMENT,
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -64,7 +64,7 @@ pub fn create_standard_render_resource(
     let instance_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Instance Buffer"),
         usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(Matrix4x4::<f32>::IDENTITY.as_array()),
+        contents: fruits_utils::mem::as_bytes(Mat4::<f32>::IDENTITY.as_array()),
     });
 
     let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -180,7 +180,7 @@ pub fn create_gizmos_render_resource(
     let transform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Transform Buffer"),
         usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(Matrix4x4::<f32>::IDENTITY.as_array()),
+        contents: fruits_utils::mem::as_bytes(Mat4::<f32>::IDENTITY.as_array()),
     });
 
     let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -332,6 +332,7 @@ pub fn update_camera_uniform(
     let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position).inverse().unwrap();
 
     standard_render_res.uniform.world_to_clip = projection_matrix * transform_matrix;
+    standard_render_res.uniform.camera_position_world = transform.position;
 }
 
 pub fn request_surface_texture(
@@ -399,6 +400,8 @@ pub fn render_meshes_and_materials(
 
         // todo: temp
         material.uniform_mut().albedo_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
+        material.uniform_mut().metallic = 0.0;
+        material.uniform_mut().roughness = 0.2;
 
         render_state.queue().write_buffer(material.uniform_buffer(), 0, fruits_utils::mem::as_bytes(&[*material.uniform()]));
         
@@ -470,10 +473,10 @@ pub fn render_gizmos(
         }
 
         let transform = match space {
-            GizmoSpace::Viewport => Matrix4x4::<f32>::IDENTITY,
+            GizmoSpace::Viewport => Mat4::<f32>::IDENTITY,
             GizmoSpace::Window => {
-                Matrix4x4::<f32>::offset(Vec3::new(-1.0, 1.0, 0.0))
-                * Matrix3x3::<f32>::scale(Vec3::new(2.0 / window_size.width as f32, -2.0 / window_size.height as f32, 1.0)).into_4x4()
+                Mat4::<f32>::offset(Vec3::new(-1.0, 1.0, 0.0))
+                * Mat3::<f32>::scale(Vec3::new(2.0 / window_size.width as f32, -2.0 / window_size.height as f32, 1.0)).into_4x4()
             },
             GizmoSpace::World => {
                 let Some((transform, camera)) = camera_query.iter().next() else {

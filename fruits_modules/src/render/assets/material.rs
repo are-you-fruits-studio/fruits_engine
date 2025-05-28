@@ -1,8 +1,8 @@
 
 use fruits_app::RenderStateResource;
 use fruits_ecs::WorldData;
-use fruits_math::{Matrix, Matrix4x4, Vec4};
-use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, DepthStencilState, RenderPipeline, ShaderStages};
+use fruits_math::{Mat4, Vec3, Vec4};
+use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, Buffer, BufferUsages, DepthStencilState, RenderPipeline};
 
 use crate::render::{DepthTextureResource, StandardRenderResource};
 
@@ -18,19 +18,26 @@ pub struct StandardMaterialNew {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct StandardGlobalUniform {
-    pub world_to_clip: Matrix4x4<f32>,
+    pub world_to_clip: Mat4<f32>,
+    pub camera_position_world: Vec3<f32>,
+    pub _padding: f32,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct StandardMaterialUniform {
     pub albedo_color: Vec4<f32>,
+    pub metallic: f32,
+    pub roughness: f32,
+    pub _padding: [f32; 2],
 }
 
 impl Default for StandardGlobalUniform {
     fn default() -> Self {
         Self {
-            world_to_clip: Matrix4x4::IDENTITY,
+            world_to_clip: Mat4::IDENTITY,
+            camera_position_world: Vec3::with_all(0.0),
+            _padding: 0.0,
         }
     }
 }
@@ -38,7 +45,10 @@ impl Default for StandardGlobalUniform {
 impl Default for StandardMaterialUniform {
     fn default() -> Self {
         Self {
-            albedo_color: Vec4::with_all(1.0),
+            albedo_color: Vec4::with_all(0.5),
+            metallic: 0.5,
+            roughness: 0.5,
+            _padding: [0.0; 2],
         }
     }
 }

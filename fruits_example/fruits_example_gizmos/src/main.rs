@@ -1,4 +1,4 @@
-use fruits_math::{Matrix, Quat, Vec2, Vec3, Vec4};
+use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
 use fruits_modules::{render::{CameraComponent, GizmoLine, GizmoSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
 use fruits_prelude::*;
 
@@ -16,7 +16,7 @@ fn main() {
     let camera = ec.create_entity();
 
     ec.add_component(camera, GlobalTransform {
-        scale_rotation: Matrix::IDENTITY,
+        scale_rotation: Mat::IDENTITY,
         position: Vec3::new(0.0_f32, 0.0_f32, -2.0f32),
     }).ok().unwrap();
     ec.add_component(camera, CameraComponent {

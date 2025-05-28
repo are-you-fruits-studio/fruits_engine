@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use fruits_prelude::*;
-use fruits_math::{Matrix, Quat, Vec2, Vec3};
+use fruits_math::{Mat, Quat, Vec3};
 use fruits_modules::{asset::*, render::*, transform::*};
 
 fn main() {
@@ -34,7 +34,7 @@ fn run_ecs_behavior_integration_test() {
     let entity = ec.create_entity();
 
     ec.add_component(entity, GlobalTransform {
-        scale_rotation: Matrix::IDENTITY,
+        scale_rotation: Mat::IDENTITY,
         position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
     }).ok().unwrap();
     ec.add_component(entity, CameraComponent {
@@ -127,7 +127,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
         let offset = i * 3;
         let vec1 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 2].position);
         let vec2 = Vec3::from_array(vertices[offset].position) - Vec3::from_array(vertices[offset + 1].position);
-        let normal = vec1.cross(vec2).normalized_or_0();
+        let normal = vec1.cross(vec2).normalized();
 
         for j in 0..3 {
             vertices[offset + j].normal = normal.into_array();

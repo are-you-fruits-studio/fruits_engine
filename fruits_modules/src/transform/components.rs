@@ -1,16 +1,16 @@
 use fruits_ecs::{Component, Entity};
-use fruits_math::{Matrix, Matrix3x3, Quat, Vec3};
+use fruits_math::{Mat, Mat3, Quat, Vec3};
 
 #[derive(Component, Copy, Clone)]
 pub struct GlobalTransform {
     pub position: Vec3<f32>,
-    pub scale_rotation: Matrix3x3<f32>,
+    pub scale_rotation: Mat3<f32>,
 }
 
 impl GlobalTransform {
     pub const IDENTITY: GlobalTransform = GlobalTransform {
         position: Vec3::with_all(0.0),
-        scale_rotation: Matrix::IDENTITY,
+        scale_rotation: Mat::IDENTITY,
     };
 }
 

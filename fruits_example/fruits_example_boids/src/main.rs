@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use fruits_prelude::*;
-use fruits_math::{Matrix, Matrix3x3, Vec3};
+use fruits_math::{Mat, Mat3, Vec3};
 use fruits_modules::{
     asset::AssetStorageResource,
     render::*,
@@ -107,7 +107,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         ec.add_component(entity, Motor { acceleration_direction: Vec3::with_all(0.0), strength: 0.01 }).ok().unwrap();
         ec.add_component(entity, Velocity(Vec3::with_all(0.0))).ok().unwrap();
         ec.add_component(entity, GlobalTransform {
-            scale_rotation: Matrix3x3::IDENTITY,
+            scale_rotation: Mat3::IDENTITY,
             position: Vec3::new(rand::random::<f32>(), rand::random::<f32>(), 0.0),
         }).ok().unwrap();
     }
@@ -116,7 +116,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         let camera_entity = ec.create_entity();
 
         ec.add_component(camera_entity, GlobalTransform {
-            scale_rotation: Matrix::IDENTITY,
+            scale_rotation: Mat::IDENTITY,
             position: Vec3::new(0.0_f32, 0.0_f32, -5.0f32),
         }).ok().unwrap();
         ec.add_component(camera_entity, CameraComponent {
@@ -148,10 +148,10 @@ fn accumulate_boid_separation(
 
             let attraction_strength = distance as f32 - boid_settings.attraction_threshold;
 
-            sum += difference.normalized_or_0() * attraction_strength;
+            sum += difference.normalized() * attraction_strength;
         }
 
-        boid.target_direction += sum.normalized_or_0();
+        boid.target_direction += sum.normalized();
     }
 
     println!("{:>5} fps - {:>10.3} ms", (1.0 / timer.elapsed().as_secs_f64()) as u32, timer.elapsed().as_secs_f64() * 1000.0);
@@ -161,7 +161,7 @@ fn affect_motor_by_boid(
     mut query: WorldQuery<(&Boid, &mut Motor)>
 ) {
     for (boid, motor) in query.iter_mut() {
-        motor.acceleration_direction = (motor.acceleration_direction.normalized_or_0() + boid.target_direction).normalized_or_0();
+        motor.acceleration_direction = (motor.acceleration_direction.normalized() + boid.target_direction).normalized();
     }
 }
 
@@ -169,7 +169,7 @@ fn apply_motor(
     mut query: WorldQuery<(&Motor, &mut Velocity)>,
 ) {
     for (motor, velocity) in query.iter_mut() {
-        velocity.0 += motor.acceleration_direction.normalized_or_0() * motor.strength;
+        velocity.0 += motor.acceleration_direction.normalized() * motor.strength;
     }
 }
 
@@ -195,7 +195,7 @@ fn rotate_boids_by_velocity(
 ) {
     for (transform, velocity, _) in query.iter_mut() {
         let angle = f32::atan2(velocity.0.x, velocity.0.y);
-        transform.scale_rotation = fruits_math::Matrix3x3::rotation_z(-angle)
+        transform.scale_rotation = fruits_math::Mat3::rotation_z(-angle as f64)
     }
 }
 

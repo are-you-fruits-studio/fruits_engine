@@ -7,6 +7,7 @@ pub trait Number
     : Sized
     + Sealed
     + Copy
+    + Clone
     + PartialEq
     + PartialOrd
     + Add<Output = Self>

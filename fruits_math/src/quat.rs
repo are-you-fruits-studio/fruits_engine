@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-use crate::{Matrix3x3, Number, Vec3, Vec4};
+use crate::{Mat3, Number, Vec3, Vec4};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -15,7 +15,7 @@ impl<N: Number> Quat<N> {
     pub const IDENTITY: Self = Self::new(N::ZERO, N::ZERO, N::ZERO, N::ONE);
 
     // todo: check (maybe need transposing)
-    pub fn to_matrix(&self) -> Matrix3x3<N> {
+    pub fn to_matrix(&self) -> Mat3<N> {
         let Quat { x, y, z, w } = *self;
 
         let _1 = N::ONE;
@@ -31,7 +31,7 @@ impl<N: Number> Quat<N> {
         let yz2 = y * z * _2;
         let xw2 = x * w * _2;
 
-        Matrix3x3::from_array([
+        Mat3::from_array([
             [_1 - yy2 - zz2, xy2 + zw2, xz2 - yw2],
             [xy2 - zw2, _1 - xx2 - zz2, yz2 + xw2],
             [xz2 + yw2, yz2 - xw2, _1 - xx2 - yy2],
@@ -39,7 +39,7 @@ impl<N: Number> Quat<N> {
     }
 
     // todo: check (maybe need transposing)
-    pub fn from_matrix(m: Matrix3x3<N>) -> Self {
+    pub fn from_matrix(m: Mat3<N>) -> Self {
         let _1 = N::ONE;
         let _2 = _1 + _1;
         let _4 = _2 + _2;
@@ -179,10 +179,6 @@ impl<N: Number> Quat<N> {
 
     pub fn normalized(&self) -> Self {
         Self::from_array(*Vec4::from_array_ref(self.as_array()).normalized().as_array())
-    }
-
-    pub fn normalized_or_0(&self) -> Self {
-        Self::from_array(*Vec4::from_array_ref(self.as_array()).normalized_or_0().as_array())
     }
 }
 
