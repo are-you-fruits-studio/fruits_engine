@@ -1,7 +1,6 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash};
 
-pub struct Graph<T: Eq + Hash + Copy + Clone>
-{
+pub struct Graph<T: Eq + Hash + Copy + Clone> {
     forward: HashMap<T, HashSet<T>>,
     backward: HashMap<T, HashSet<T>>,
     nodes: HashSet<T>,
@@ -15,24 +14,32 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
         }
     }
 
-    pub fn insert_link(&mut self, source: T, destination: T) {
-        self.forward.entry(source).or_default().insert(destination);
-        self.backward.entry(destination).or_default().insert(source);
+    pub fn insert_edge(&mut self, src: T, dst: T) {
+        self.forward.entry(src).or_default().insert(dst);
+        self.backward.entry(dst).or_default().insert(src);
     }
 
     pub fn insert_node(&mut self, node: T) -> bool {
         return self.nodes.insert(node);
     }
 
+    pub fn edges_from(&self, node: &T) -> Option<&HashSet<T>> {
+        self.forward.get(node)
+    }
+
+    pub fn edges_to(&self, node: &T) -> Option<&HashSet<T>> {
+        self.backward.get(node)
+    }
+
     pub fn to_vec(&self) -> Vec<T> {
-        return Self::to_list_internal(&self.backward, &self.nodes);
+        return Self::to_vec_internal(&self.backward, &self.nodes);
     }
 
     pub fn to_vec_rev(&self) -> Vec<T> {
-        return Self::to_list_internal(&self.forward, &self.nodes);
+        return Self::to_vec_internal(&self.forward, &self.nodes);
     }
 
-    fn to_list_internal(inverted: &HashMap<T, HashSet<T>>, nodes: &HashSet<T>) -> Vec<T> {
+    fn to_vec_internal(inverted: &HashMap<T, HashSet<T>>, nodes: &HashSet<T>) -> Vec<T> {
         let mut max_to_min = inverted.clone();
 
         let mut ordered_set = HashSet::<T>::new();
@@ -69,14 +76,12 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
         return ordered;
     }
 
-    fn most_min(max_to_min: &HashMap<T, HashSet<T>>) -> (T, T)
-    {
+    fn most_min(max_to_min: &HashMap<T, HashSet<T>>) -> (T, T) {
         let mut visited = HashSet::<T>::new();
 
         let (mut max, mut mins) = max_to_min.iter().next().unwrap();
 
-        while visited.insert(*max)
-        {
+        while visited.insert(*max) {
             let min = mins.iter().next().unwrap();
 
             let Some(new_mins) = max_to_min.get(min) else {
@@ -87,6 +92,6 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
             max = min;
         }
 
-        panic!("The orderer contains circular dependencies. Cycle contains {} elements.", visited.len());
+        panic!("The Graph contains circular dependencies. Cycle contains {} elements.", visited.len());
     }
 }

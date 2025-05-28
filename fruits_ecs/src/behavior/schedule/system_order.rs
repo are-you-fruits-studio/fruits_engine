@@ -98,7 +98,7 @@ pub fn sort_systems_by_order(mut systems: HashMap<TypeId, Box<dyn System>>, syst
 
     for (src, dst) in systems_ordering.iter() {
         if systems.contains_key(src) && systems.contains_key(dst) {
-            graph.insert_link(*src, *dst);
+            graph.insert_edge(*src, *dst);
         }
     }
 
@@ -162,7 +162,7 @@ fn flatten_groups(
         
         for group_child in group_children {
             if let OrderEntry::Group(child_group) = group_child {
-                group_hierarchy.insert_link(parent_group, child_group);
+                group_hierarchy.insert_edge(parent_group, child_group);
             }
         }
     }
