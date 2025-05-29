@@ -1,115 +1,96 @@
+use std::collections::HashSet;
+
 use proc_macro::TokenStream;
 
 #[proc_macro]
 pub fn swizzling(_item: TokenStream) -> TokenStream {
-    "fn answer() -> u32 { 42 }".parse().unwrap()
+    let swizzlings = generate_vector_swizzling_impl(2, 2);
+
+    swizzlings.parse().unwrap()
 }
 
-const Parameters: &[&'static str] = &["x", "y", "z", "w"];
-const ZeroParameterName: &'static str = "n";
+const PARAMETERS: &[&'static str] = &["x", "y", "z", "w"];
+const ZERO_PARAMETER_NAME: &'static str = "n";
 
-//
-    public static class VectorsSwizzlingProvider
-    {
-        public static List<Source> GenerateSwizzlings()
-        {
-            var results = new List<Source>();
+// fn GenerateSwizzlings() -> Vec<Source> {
+//     let mut results = Vec::<Source>::new();
 
-            int[] counts = { 2, 3, 4 };
+//     let counts = [2, 3, 4];
 
-            foreach (var input in counts)
-            {
-                foreach (var output in counts)
-                {
-                    results.Add(new Source(
-                        name: $"SwizzlingVector{input}To{output}Extensions.g.cs",
-                        content: GenerateVectorSwizzling(input, output)));
-                }
-            }
+//     for input in counts {
+//         for output in counts
+//         {
+//             results.Add(new Source(
+//                 name: $"SwizzlingVector{input}To{output}Extensions.g.cs",
+//                 content: GenerateVectorSwizzling(input, output)));
+//         }
+//     }
 
-            return results;
-        }
-
-        private static string GenerateVectorSwizzling(int inputCount, int outputCount)
-        {
-            var result = new StringBuilder();
-
-            result.AppendLine("using UnityEngine;");
-            result.AppendLine("");
-            result.AppendLine("namespace AreYouFruits.VectorsSwizzling");
-            result.AppendLine("{");
-            result.AppendLine($"    public static class SwizzlingVector{inputCount}To{outputCount}Extensions");
-            result.AppendLine("    {");
-            
-            foreach (var s in GenerateVectorSwizzling(outputCount, Parameters.AsSpan().Slice(0, inputCount)))
-            {
-                result.AppendLine("        " + s);
-            }
-
-            result.AppendLine("    }");
-            result.AppendLine("}");
-            
-            return result.ToString();
-        }
-
-
-    }
+//     return results;
+// }
+        
+fn generate_vector_swizzling_impl(input_count: usize, output_count: usize) -> String
+{
+    let mut result = String::new();
+    result.push_str(&format!("impl<T: Number> Vec{input_count}<T> {{\n"));
     
-fn GenerateVectorSwizzling(outputParametersCount: usize, parameters: &[&str]) -> Vec<String> {
-    let swizzlingIndices = GenerateSwizzlingsWithZeros(outputParametersCount, parameters.len());
+    for s in generate_vector_swizzling(output_count, &PARAMETERS[0..input_count]) {
+        result.push_str(&format!("    {}\n", &s));
+    }
+    result.push_str("}\n");
+    
+    result
+}
+
+fn generate_vector_swizzling(output_parameters_count: usize, parameters: &[&str]) -> Vec<String> {
+    let swizzling_indices = generate_swizzlings_with_zeros(output_parameters_count, parameters.len());
 
     let lower = parameters.iter().map(|p| p.to_lowercase()).collect::<Vec<_>>();
-    let upper = parameters.iter().map(|p| p.to_uppercase()).collect::<Vec<_>>();
 
-    var results = new List<string>();
+    let mut results = Vec::<String>::new();
 
-    var zeroName = ZeroParameterName.ToUpper();
+    let zero_name = ZERO_PARAMETER_NAME;
 
-    foreach (var indices in swizzlingIndices)
-    {
-        if (indices.All(i => !i.HasValue))
-        {
+    for indices in swizzling_indices {
+        if indices.iter().all(|i| i.is_none()) {
             continue;
         }
         
-        var name = string.Join(string.Empty, indices.Select(i => i is { } j ? upper[j] : zeroName));
+        let name = indices.iter().map(|i| if let Some(j) = i { lower[*j].clone() } else { String::from(zero_name) }).collect::<Vec<_>>().join("");
     
-        var constructorArguments = string.Join(", ", indices.Select((i, position) => i is { } j ? $"v.{lower[j]}" : Parameters[position]));
+        let constructor_arguments = indices.iter().enumerate().map(|(position, i)| if let Some(j) = i { format!("self.{}", lower[*j]) } else { String::from(PARAMETERS[position]) }).collect::<Vec<_>>().join(", ");
 
-        var additionalParameters = ToAdditionalParameters(indices);
+        let additional_parameters = to_additional_parameters(indices);
         
-        results.Add($"public static Vector{outputParametersCount} {name}(this Vector{parameters.Length} v{additionalParameters}) => new({constructorArguments});");
+        results.push(format!("pub fn {name}(&self {additional_parameters}) -> Vec{output_parameters_count}<T> {{ Vec{output_parameters_count}::new({constructor_arguments}) }}"));
     }
 
     results
 }
 
-fn GenerateSwizzlingsWithZeros(outputParametersCount: usize, parametersCount: usize) -> HashSet<Vec<Option<usize>>> {
+fn generate_swizzlings_with_zeros(output_parameters_count: usize, parameters_count: usize) -> HashSet<Vec<Option<usize>>> {
     let mut result = HashSet::new();
 
-    for swizzlingsIndices in GenerateSwizzlingsIndices(outputParametersCount, parametersCount + 1)
-    {
-        result.insert(swizzlingsIndices.map(|i| i == parametersCount ? None : Some(i)).collect::<Vec<_>>());
+    for swizzlings_indices in generate_swizzlings_indices(output_parameters_count, parameters_count + 1) {
+        result.insert(swizzlings_indices.iter().map(|i| if *i == parameters_count { None } else { Some(*i) }).collect::<Vec<_>>());
     }
 
     result
 }
 
-fn GenerateSwizzlingsIndices(outputParametersCount: usize, parametersCount: usize) -> HashSet<Vec<usize>> {
-    let mut swizzlings = HashSet::new();
+fn generate_swizzlings_indices(output_parameters_count: usize, parameters_count: usize) -> Vec<Vec<usize>> {
+    let mut start_swizzling = Vec::new();
 
-    for (var i = 0; i < parametersCount; i++)
-    {
-        swizzlings.insert(new[] { i });
+    for i in 0..parameters_count {
+        start_swizzling.push(vec![i]);
     }
 
-    for i in 1..outputParametersCount {
-        for indices in swizzlings.iter().collect::<Vec<_>>() {
-            swizzlings.remove(indices);
+    let mut swizzlings = Vec::new();
 
-            for (var j = 0; j < parametersCount; j++)
-            {
-                swizzlings.insert(std::iter::once(j).chain(indices).collect::<Vec<_>>());
+    for _ in 1..output_parameters_count {
+        for indices in start_swizzling.iter() {
+            for j in 0..parameters_count {
+                swizzlings.push(std::iter::once(j).chain(indices.iter().copied()).collect::<Vec<_>>());
             }
         }
     }
@@ -117,14 +98,35 @@ fn GenerateSwizzlingsIndices(outputParametersCount: usize, parametersCount: usiz
     swizzlings
 }
 
-fn ToAdditionalParameters(indices: Vec<Option<int>>) -> String {
+// fn GenerateSwizzlingsIndices(outputParametersCount: usize, parametersCount: usize) -> HashSet<Vec<usize>> {
+//     let mut swizzlings = HashSet::new();
+
+//     for i in 0..parametersCount {
+//         swizzlings.insert(vec![i]);
+//     }
+
+//     for i in 1..outputParametersCount {
+//         let s = swizzlings.clone();
+//         for indices in s {
+//             swizzlings.remove(indices);
+
+//             for j in 0..parametersCount {
+//                 swizzlings.insert(std::iter::once(j).chain(indices.iter().copied()).collect::<Vec<_>>());
+//             }
+//         }
+//     }
+
+//     swizzlings
+// }
+
+fn to_additional_parameters(indices: Vec<Option<usize>>) -> String {
     let mut result = String::new();
 
     for position in 0..indices.len() {
         if indices[position].is_none() {
-            result.push_str(", float ");
-            result.push_str(Parameters[position]);
-            result.push_str(" = 0.0f");
+            result.push_str(", ");
+            result.push_str(PARAMETERS[position]);
+            result.push_str(": T");
         }
     }
     

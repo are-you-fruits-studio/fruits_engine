@@ -400,8 +400,8 @@ pub fn render_meshes_and_materials(
 
         // todo: temp
         material.uniform_mut().albedo_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
-        material.uniform_mut().metallic = 0.0;
-        material.uniform_mut().roughness = 0.2;
+        material.uniform_mut().metallic = 0.9;
+        material.uniform_mut().roughness = 0.01;
 
         render_state.queue().write_buffer(material.uniform_buffer(), 0, fruits_utils::mem::as_bytes(&[*material.uniform()]));
         
