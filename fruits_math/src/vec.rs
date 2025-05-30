@@ -14,21 +14,32 @@ macro_rules! vec_impl {
     ($V: ident, $($I: ident),+) => {
         #[derive(Copy, Clone, Debug, Hash, Default)]
         #[repr(C)]
-        pub struct $V<T: Number> {
+        pub struct $V<T> {
             $(pub $I: T),+
         }
 
-        impl<T: Number> $V<T> {
+        impl<T> $V<T> {
             #[inline]
             pub const fn new($($I: T),+) -> Self {
                 Self { $($I),+ }
             }
+        }
 
+        impl<T: Copy> $V<T> {
             #[inline]
             pub const fn with_all(v: T) -> Self {
                 Self { $($I: v),+ }
             }
+        }
 
+        impl<T: Clone> $V<T> {
+            #[inline]
+            pub fn with_all_cloned(v: &T) -> Self {
+                Self { $($I: v.clone()),+ }
+            }
+        }
+
+        impl<T: Number> $V<T> {
             #[inline]
             pub const fn as_array(&self) -> &[T; members_count!($($I),+)] {
                 unsafe { std::mem::transmute(self) }
@@ -113,8 +124,8 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Number> Add for $V<T> {
-            type Output = Self;
+        impl<T: Add> Add for $V<T> {
+            type Output = $V<<T as Add>::Output>;
         
             #[inline]
             fn add(self, rhs: Self) -> Self::Output {
@@ -124,15 +135,15 @@ macro_rules! vec_impl {
             }
         }
         
-        impl<T: Number> AddAssign for $V<T> {
+        impl<T: AddAssign> AddAssign for $V<T> {
             #[inline]
             fn add_assign(&mut self, rhs: Self) {
                 $(self.$I += rhs.$I);+
             }
         }
         
-        impl<T: Number> Sub for $V<T> {
-            type Output = Self;
+        impl<T: Sub> Sub for $V<T> {
+            type Output = $V<<T as Sub>::Output>;
         
             #[inline]
             fn sub(self, rhs: Self) -> Self::Output {
@@ -142,15 +153,15 @@ macro_rules! vec_impl {
             }
         }
         
-        impl<T: Number> SubAssign for $V<T> {
+        impl<T: SubAssign> SubAssign for $V<T> {
             #[inline]
             fn sub_assign(&mut self, rhs: Self) {
                 $(self.$I -= rhs.$I);+
             }
         }
 
-        impl<T: Number> Mul for $V<T> {
-            type Output = Self;
+        impl<T: Mul> Mul for $V<T> {
+            type Output = $V<<T as Mul>::Output>;
         
             #[inline]
             fn mul(self, rhs: Self) -> Self::Output {
@@ -160,8 +171,8 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Number> Mul<T> for $V<T> {
-            type Output = Self;
+        impl<T: Mul + Copy> Mul<T> for $V<T> {
+            type Output = $V<<T as Mul>::Output>;
         
             #[inline]
             fn mul(self, rhs: T) -> Self::Output {
@@ -171,22 +182,22 @@ macro_rules! vec_impl {
             }
         }
         
-        impl<T: Number> MulAssign for $V<T> {
+        impl<T: MulAssign> MulAssign for $V<T> {
             #[inline]
             fn mul_assign(&mut self, rhs: Self) {
                 $(self.$I *= rhs.$I);+
             }
         }
         
-        impl<T: Number> MulAssign<T> for $V<T> {
+        impl<T: MulAssign + Copy> MulAssign<T> for $V<T> {
             #[inline]
             fn mul_assign(&mut self, rhs: T) {
                 $(self.$I *= rhs);+
             }
         }
         
-        impl<T: Number> Div for $V<T> {
-            type Output = Self;
+        impl<T: Div> Div for $V<T> {
+            type Output = $V<<T as Div>::Output>;
         
             #[inline]
             fn div(self, rhs: Self) -> Self::Output {
@@ -196,8 +207,8 @@ macro_rules! vec_impl {
             }
         }
         
-        impl<T: Number> Div<T> for $V<T> {
-            type Output = Self;
+        impl<T: Div + Copy> Div<T> for $V<T> {
+            type Output = $V<<T as Div>::Output>;
         
             #[inline]
             fn div(self, rhs: T) -> Self::Output {
@@ -207,14 +218,14 @@ macro_rules! vec_impl {
             }
         }
         
-        impl<T: Number> DivAssign for $V<T> {
+        impl<T: DivAssign> DivAssign for $V<T> {
             #[inline]
             fn div_assign(&mut self, rhs: Self) {
                 $(self.$I /= rhs.$I);+
             }
         }
         
-        impl<T: Number> DivAssign<T> for $V<T> {
+        impl<T: DivAssign + Copy> DivAssign<T> for $V<T> {
             #[inline]
             fn div_assign(&mut self, rhs: T) {
                 $(self.$I /= rhs);+
@@ -243,96 +254,7 @@ vec_impl!{Vec2, x, y}
 vec_impl!{Vec3, x, y, z}
 vec_impl!{Vec4, x, y, z, w}
 
-fruits_swizzling::swizzling!();
-
-// impl<T: Number> Vec2<T> {
-//     pub const fn xx(&self) -> Vec2<T> { Vec2::<T>::new(self.x, self.x) }
-//     pub const fn xy(&self) -> Vec2<T> { Vec2::<T>::new(self.x, self.y) }
-//     pub const fn yx(&self) -> Vec2<T> { Vec2::<T>::new(self.y, self.x) }
-//     pub const fn yy(&self) -> Vec2<T> { Vec2::<T>::new(self.y, self.y) }
-    
-
-//     pub const fn xxx(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.x, self.x) }
-//     pub const fn xxy(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.x, self.y) }
-//     pub const fn xyx(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.y, self.x) }
-//     pub const fn xyy(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.y, self.y) }
-//     pub const fn yxx(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.x, self.x) }
-//     pub const fn yxy(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.x, self.y) }
-//     pub const fn yyx(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.y, self.x) }
-//     pub const fn yyy(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.y, self.y) }
-
-    
-//     pub const fn xxxx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.x) }
-//     pub const fn xxxy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.y) }
-//     pub const fn xxyx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.y, self.x) }
-//     pub const fn xxyy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.y, self.y) }
-//     pub const fn xyxx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.y, self.x, self.x) }
-//     pub const fn xyxy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.y, self.x, self.y) }
-//     pub const fn xyyx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.y, self.y, self.x) }
-//     pub const fn xyyy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.y, self.y, self.y) }
-//     pub const fn yxxx(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.x, self.x, self.x) }
-//     pub const fn yxxy(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.x, self.x, self.y) }
-//     pub const fn yxyx(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.x, self.y, self.x) }
-//     pub const fn yxyy(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.x, self.y, self.y) }
-//     pub const fn yyxx(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.y, self.x, self.x) }
-//     pub const fn yyxy(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.y, self.x, self.y) }
-//     pub const fn yyyx(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.y, self.y, self.x) }
-//     pub const fn yyyy(&self) -> Vec4<T> { Vec4::<T>::new(self.y, self.y, self.y, self.y) }
-// }
-
-// impl<T: Number> Vec3<T> {
-//     pub const fn xx(&self) -> Vec2<T> { Vec2::<T>::new(self.x, self.x) }
-//     pub const fn xy(&self) -> Vec2<T> { Vec2::<T>::new(self.x, self.y) }
-//     pub const fn xz(&self) -> Vec2<T> { Vec2::<T>::new(self.x, self.z) }
-//     pub const fn yx(&self) -> Vec2<T> { Vec2::<T>::new(self.y, self.x) }
-//     pub const fn yy(&self) -> Vec2<T> { Vec2::<T>::new(self.y, self.y) }
-//     pub const fn yz(&self) -> Vec2<T> { Vec2::<T>::new(self.y, self.z) }
-//     pub const fn zx(&self) -> Vec2<T> { Vec2::<T>::new(self.z, self.x) }
-//     pub const fn zy(&self) -> Vec2<T> { Vec2::<T>::new(self.z, self.y) }
-//     pub const fn zz(&self) -> Vec2<T> { Vec2::<T>::new(self.z, self.z) }
-    
-
-//     pub const fn xxx(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.x, self.x) }
-//     pub const fn xxy(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.x, self.y) }
-//     pub const fn xxz(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.x, self.z) }
-//     pub const fn xyx(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.y, self.x) }
-//     pub const fn xyy(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.y, self.y) }
-//     pub const fn xyz(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.y, self.z) }
-//     pub const fn xzx(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.z, self.x) }
-//     pub const fn xzy(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.z, self.y) }
-//     pub const fn xzz(&self) -> Vec3<T> { Vec3::<T>::new(self.x, self.z, self.z) }
-//     pub const fn yxx(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.x, self.x) }
-//     pub const fn yxy(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.x, self.y) }
-//     pub const fn yxz(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.x, self.z) }
-//     pub const fn yyx(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.y, self.x) }
-//     pub const fn yyy(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.y, self.y) }
-//     pub const fn yyz(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.y, self.z) }
-//     pub const fn yzx(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.z, self.x) }
-//     pub const fn yzy(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.z, self.y) }
-//     pub const fn yzz(&self) -> Vec3<T> { Vec3::<T>::new(self.y, self.z, self.z) }
-//     pub const fn zxx(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.x, self.x) }
-//     pub const fn zxy(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.x, self.y) }
-//     pub const fn zxz(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.x, self.z) }
-//     pub const fn zyx(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.y, self.x) }
-//     pub const fn zyy(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.y, self.y) }
-//     pub const fn zyz(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.y, self.z) }
-//     pub const fn zzx(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.z, self.x) }
-//     pub const fn zzy(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.z, self.y) }
-//     pub const fn zzz(&self) -> Vec3<T> { Vec3::<T>::new(self.z, self.z, self.z) }
-
-    
-//     pub const fn xxxx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.x) }
-//     pub const fn xxxy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.y) }
-//     pub const fn xxxz(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.z) }
-    
-//     pub const fn xxyx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.y, self.x) }
-//     pub const fn xxyy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.y, self.y) }
-//     pub const fn xxyz(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.y, self.z) }
-    
-//     pub const fn xxxx(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.x) }
-//     pub const fn xxxy(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.y) }
-//     pub const fn xxxz(&self) -> Vec4<T> { Vec4::<T>::new(self.x, self.x, self.x, self.z) }
-// }
+fruits_swizzling::swizzling!{}
 
 impl<T: Number> Vec3<T> {
     #[inline]
@@ -492,7 +414,5 @@ pub const fn swizzle<T: Number, const N: usize, const S: usize>(v: &[T; N], i: &
 
 //
 
-// todo: swizzling
-// todo: maybe unconstraint from Number trait
-// todo: VectorIndex for optimized consecutive lookup.
+// todo: maybe unconstraint from Number trait.
 // todo: const fn and inline where possible/needed.

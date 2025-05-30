@@ -1,38 +1,40 @@
-use std::collections::HashSet;
-
 use proc_macro::TokenStream;
+
+// todo: Separate <T: Copy> and <T> swizzling.
 
 #[proc_macro]
 pub fn swizzling(_item: TokenStream) -> TokenStream {
-    let swizzlings = generate_vector_swizzling_impl(2, 2);
+    let mut result = String::new();
 
-    swizzlings.parse().unwrap()
+    for swizzle in generate_swizzlings() {
+        result.push_str(&swizzle);
+        result.push('\n');
+    }
+
+    result.parse().unwrap()
 }
 
 const PARAMETERS: &[&'static str] = &["x", "y", "z", "w"];
 const ZERO_PARAMETER_NAME: &'static str = "n";
 
-// fn GenerateSwizzlings() -> Vec<Source> {
-//     let mut results = Vec::<Source>::new();
+fn generate_swizzlings() -> Vec<String> {
+    let mut results = Vec::new();
 
-//     let counts = [2, 3, 4];
+    let counts = [2, 3, 4];
 
-//     for input in counts {
-//         for output in counts
-//         {
-//             results.Add(new Source(
-//                 name: $"SwizzlingVector{input}To{output}Extensions.g.cs",
-//                 content: GenerateVectorSwizzling(input, output)));
-//         }
-//     }
+    for input in counts {
+        for output in counts {
+            results.push(generate_vector_swizzling_impl(input, output));
+        }
+    }
 
-//     return results;
-// }
+    return results;
+}
         
 fn generate_vector_swizzling_impl(input_count: usize, output_count: usize) -> String
 {
     let mut result = String::new();
-    result.push_str(&format!("impl<T: Number> Vec{input_count}<T> {{\n"));
+    result.push_str(&format!("impl<T: Copy> Vec{input_count}<T> {{\n"));
     
     for s in generate_vector_swizzling(output_count, &PARAMETERS[0..input_count]) {
         result.push_str(&format!("    {}\n", &s));
@@ -62,35 +64,36 @@ fn generate_vector_swizzling(output_parameters_count: usize, parameters: &[&str]
 
         let additional_parameters = to_additional_parameters(indices);
         
-        results.push(format!("pub fn {name}(&self {additional_parameters}) -> Vec{output_parameters_count}<T> {{ Vec{output_parameters_count}::new({constructor_arguments}) }}"));
+        results.push(format!("pub fn {name}(&self{additional_parameters}) -> Vec{output_parameters_count}<T> {{ Vec{output_parameters_count}::new({constructor_arguments}) }}"));
     }
 
     results
 }
 
-fn generate_swizzlings_with_zeros(output_parameters_count: usize, parameters_count: usize) -> HashSet<Vec<Option<usize>>> {
-    let mut result = HashSet::new();
+fn generate_swizzlings_with_zeros(output_parameters_count: usize, parameters_count: usize) -> Vec<Vec<Option<usize>>> {
+    let mut result = Vec::new();
 
     for swizzlings_indices in generate_swizzlings_indices(output_parameters_count, parameters_count + 1) {
-        result.insert(swizzlings_indices.iter().map(|i| if *i == parameters_count { None } else { Some(*i) }).collect::<Vec<_>>());
+        result.push(swizzlings_indices.iter().map(|i| if *i == parameters_count { None } else { Some(*i) }).collect::<Vec<_>>());
     }
 
     result
 }
 
 fn generate_swizzlings_indices(output_parameters_count: usize, parameters_count: usize) -> Vec<Vec<usize>> {
-    let mut start_swizzling = Vec::new();
-
-    for i in 0..parameters_count {
-        start_swizzling.push(vec![i]);
-    }
-
     let mut swizzlings = Vec::new();
 
+    for i in 0..parameters_count {
+        swizzlings.push(vec![i]);
+    }
+
     for _ in 1..output_parameters_count {
-        for indices in start_swizzling.iter() {
+        let last_swizzlings = swizzlings.clone();
+        swizzlings.clear();
+
+        for indices in last_swizzlings {
             for j in 0..parameters_count {
-                swizzlings.push(std::iter::once(j).chain(indices.iter().copied()).collect::<Vec<_>>());
+                swizzlings.push(indices.iter().copied().chain(std::iter::once(j)).collect::<Vec<_>>());
             }
         }
     }
