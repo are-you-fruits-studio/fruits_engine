@@ -14,7 +14,7 @@ pub use num::*;
 pub use vec::*;
 pub use quat::*;
 
-pub fn into_matrix4x4_with_pos<T: Number>(mat: Mat3<T>, pos: Vec3<T>) -> Mat4<T> {
+pub fn into_matrix4x4_with_pos<T: Primitive>(mat: Mat3<T>, pos: Vec3<T>) -> Mat4<T> {
     Mat4::from_array(
         [
             [mat[0][0], mat[0][1], mat[0][2], T::ZERO],
@@ -45,4 +45,12 @@ pub fn perspective_proj_matrix(fov: f32, near: f32, far: f32, aspect: f32) -> Ma
         [0_f32, 0_f32, (far / (far - near)), 1_f32],
         [0_f32, 0_f32, ((-far * near) / (far - near)), 0_f32],
     ])
+}
+
+pub fn lerp<T: Number>(a: T, b: T, t: T) -> T {
+    a + (b - a) * t
+}
+
+pub fn inv_lerp<T: Number>(a: T, b: T, x: T) -> T {
+    (x - a) / (b - a)
 }

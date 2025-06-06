@@ -473,7 +473,7 @@ pub fn render_gizmos(
         }
 
         let transform = match space {
-            GizmoSpace::Viewport => Mat4::<f32>::IDENTITY,
+            GizmoSpace::Clip => Mat4::<f32>::IDENTITY,
             GizmoSpace::Window => {
                 Mat4::<f32>::offset(Vec3::new(-1.0, 1.0, 0.0))
                 * Mat3::<f32>::scale(Vec3::new(2.0 / window_size.width as f32, -2.0 / window_size.height as f32, 1.0)).into_4x4()

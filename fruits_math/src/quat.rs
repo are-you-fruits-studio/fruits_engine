@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use crate::{Mat3, Number, Vec3, Vec4};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
 pub struct Quat<N: Number> {
     pub x: N,

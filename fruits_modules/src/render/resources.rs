@@ -18,7 +18,7 @@ impl GizmosResource {
     pub fn new() -> Self {
         let mut lines = HashMap::new();
 
-        lines.insert(GizmoSpace::Viewport, Vec::new());
+        lines.insert(GizmoSpace::Clip, Vec::new());
         lines.insert(GizmoSpace::Window, Vec::new());
         lines.insert(GizmoSpace::World, Vec::new());
 

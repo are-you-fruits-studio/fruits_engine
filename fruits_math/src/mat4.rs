@@ -1,12 +1,12 @@
 use std::ops::Mul;
 
-use crate::{Mat, Mat3};
+use crate::{Mat, Mat3, Primitive};
 
 use super::{num::Number, Vec3, Vec4};
 
 pub type Mat4<T> = Mat<4, T>;
 
-impl<T: Number> Mat4<T> {
+impl<T: Primitive> Mat4<T> {
     pub const fn offset(offset: Vec3<T>) -> Self {
         Self::from_array([
             [T::ONE, T::ZERO, T::ZERO, T::ZERO],
@@ -32,7 +32,9 @@ impl<T: Number> Mat4<T> {
             [self.ignored_element(x, y, 2, 0), self.ignored_element(x, y, 2, 1), self.ignored_element(x, y, 2, 2)],
         ])
     }
+}
 
+impl<T: Number> Mat4<T> {
     pub fn determinant(&self) -> T {
         let data = self.as_array();
 

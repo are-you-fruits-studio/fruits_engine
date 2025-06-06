@@ -1,32 +1,12 @@
 use std::ops::Mul;
 
-use crate::{Mat, Mat2, Mat4};
+use crate::{Mat, Mat2, Mat4, Primitive};
 
 use super::{num::Number, Vec2, Vec3};
 
 pub type Mat3<T> = Mat<3, T>;
 
-impl<T: Number> Mat3<T> {
-    // todo
-    // pub const fn from_euler(euler: Vec3<f64>) -> Self {
-    //     // todo: check axis order
-    //     let [c, b, a] = euler.into_array();
-
-    //     let sin_a = a.sin();
-    //     let sin_b = b.sin();
-    //     let sin_c = c.sin();
-
-    //     let cos_a = a.cos();
-    //     let cos_b = b.cos();
-    //     let cos_c = c.cos();
-
-    //     Self::from_array([
-    //         [],
-    //         [],
-    //         [],
-    //     ])
-    // }
-
+impl<T: Primitive> Mat3<T> {
     pub const fn offset(offset: Vec2<T>) -> Self {
         Self::from_array([
             [T::ONE, T::ZERO, T::ZERO],
@@ -40,42 +20,6 @@ impl<T: Number> Mat3<T> {
             [scale.x, T::ZERO, T::ZERO],
             [T::ZERO, scale.y, T::ZERO],
             [T::ZERO, T::ZERO, scale.z],
-        ])
-    }
-
-    pub fn rotation_euler(euler: Vec3<f64>) -> Self {
-        // todo: optimize and allow for various axis order
-
-        Self::rotation_y(euler.y) * Self::rotation_x(euler.x) * Self::rotation_z(euler.z)
-    }
-
-    pub fn rotation_x(angle: f64) -> Self {
-        let matrix = Mat2::from_rotation(angle);
-
-        Self::from_array([
-            [T::ONE, T::ZERO, T::ZERO],
-            [T::ZERO, *matrix.get(0, 0).unwrap(), *matrix.get(0, 1).unwrap()],
-            [T::ZERO, *matrix.get(1, 0).unwrap(), *matrix.get(1, 1).unwrap()],
-        ])
-    }
-
-    pub fn rotation_y(angle: f64) -> Self {
-        let matrix = Mat2::from_rotation(angle);
-
-        Self::from_array([
-            [*matrix.get(0, 0).unwrap(), T::ZERO, *matrix.get(1, 0).unwrap()],
-            [T::ZERO, T::ONE, T::ZERO],
-            [*matrix.get(0, 1).unwrap(), T::ZERO, *matrix.get(1, 1).unwrap()],
-        ])
-    }
-
-    pub fn rotation_z(angle: f64) -> Self {
-        let matrix = Mat2::from_rotation(angle);
-
-        Self::from_array([
-            [*matrix.get(0, 0).unwrap(), *matrix.get(0, 1).unwrap(), T::ZERO],
-            [*matrix.get(1, 0).unwrap(), *matrix.get(1, 1).unwrap(), T::ZERO],
-            [T::ZERO, T::ZERO, T::ONE],
         ])
     }
 
@@ -106,6 +50,64 @@ impl<T: Number> Mat3<T> {
             [self.ignored_element(x, y, 0, 0), self.ignored_element(x, y, 0, 1)],
             [self.ignored_element(x, y, 1, 0), self.ignored_element(x, y, 1, 1)],
         ])
+    }
+
+}
+impl<T: Number> Mat3<T> {
+    // todo
+    // pub const fn from_euler(euler: Vec3<f64>) -> Self {
+    //     // todo: check axis order
+    //     let [c, b, a] = euler.into_array();
+
+    //     let sin_a = a.sin();
+    //     let sin_b = b.sin();
+    //     let sin_c = c.sin();
+
+    //     let cos_a = a.cos();
+    //     let cos_b = b.cos();
+    //     let cos_c = c.cos();
+
+    //     Self::from_array([
+    //         [],
+    //         [],
+    //         [],
+    //     ])
+    // }
+
+    pub fn rotation_x(angle: f64) -> Self {
+        let matrix = Mat2::from_rotation(angle);
+
+        Self::from_array([
+            [T::ONE, T::ZERO, T::ZERO],
+            [T::ZERO, matrix[0][0], matrix[0][1]],
+            [T::ZERO, matrix[1][0], matrix[1][1]],
+        ])
+    }
+
+    pub fn rotation_y(angle: f64) -> Self {
+        let matrix = Mat2::from_rotation(angle);
+
+        Self::from_array([
+            [matrix[0][0], T::ZERO, matrix[1][0]],
+            [T::ZERO, T::ONE, T::ZERO],
+            [matrix[0][1], T::ZERO, matrix[1][1]],
+        ])
+    }
+
+    pub fn rotation_z(angle: f64) -> Self {
+        let matrix = Mat2::from_rotation(angle);
+
+        Self::from_array([
+            [matrix[0][0], matrix[0][1], T::ZERO],
+            [matrix[1][0], matrix[1][1], T::ZERO],
+            [T::ZERO, T::ZERO, T::ONE],
+        ])
+    }
+
+    pub fn rotation_euler(euler: Vec3<f64>) -> Self {
+        // todo: optimize and allow for various axis order
+
+        Self::rotation_y(euler.y) * Self::rotation_x(euler.x) * Self::rotation_z(euler.z)
     }
 
     pub fn determinant(&self) -> T {

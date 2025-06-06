@@ -1,22 +1,12 @@
 use std::ops::Mul;
 
-use crate::Mat;
+use crate::{Mat, Primitive};
 
 use super::{num::Number, Vec2};
 
 pub type Mat2<T> = Mat<2, T>;
 
-// 2x2
-
-impl<T: Number> Mat2<T> {
-    pub fn from_rotation(angle: f64) -> Self {
-        let (sin, cos) = angle.sin_cos();
-
-        Self::from_array([
-            [Number::from_f64(cos), Number::from_f64(sin)],
-            [Number::from_f64(-sin), Number::from_f64(cos)],
-        ])
-    }
+impl<T: Primitive> Mat2<T> {
     pub const fn offset(offset: T) -> Mat2<T> {
         Mat2::<T>::from_array([
             [T::ONE, T::ZERO],
@@ -31,17 +21,8 @@ impl<T: Number> Mat2<T> {
         ])
     }
 
-}
-
-impl<T: Number> Mat2<T> {
     pub const fn ignored(&self, x: usize, y: usize) -> T {
         self.ignored_element(x, y, 0, 0)
-    }
-
-    pub fn determinant(&self) -> T {
-        let data = self.as_array();
-
-        data[0][0] * data[1][1] - data[0][1] * data[1][0]
     }
 
     pub fn minors(&self) -> Mat2<T> {
@@ -49,6 +30,22 @@ impl<T: Number> Mat2<T> {
             [self.ignored(0, 0), self.ignored(0, 1)],
             [self.ignored(1, 0), self.ignored(1, 1)],
         ])
+    }
+}
+impl<T: Number> Mat2<T> {
+    pub fn from_rotation(angle: f64) -> Self {
+        let (sin, cos) = angle.sin_cos();
+
+        Self::from_array([
+            [T::from_f64(cos), T::from_f64(sin)],
+            [T::from_f64(-sin), T::from_f64(cos)],
+        ])
+    }
+
+    pub fn determinant(&self) -> T {
+        let data = self.as_array();
+
+        data[0][0] * data[1][1] - data[0][1] * data[1][0]
     }
 
     // todo: only for signed

@@ -1,8 +1,8 @@
 use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign, Neg
 };
 
-use super::num::Number;
+use super::num::{Number, Primitive};
 
 macro_rules! members_count {
     () => (0_usize);
@@ -39,7 +39,7 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Number> $V<T> {
+        impl<T: Primitive> $V<T> {
             #[inline]
             pub const fn as_array(&self) -> &[T; members_count!($($I),+)] {
                 unsafe { std::mem::transmute(self) }
@@ -76,16 +76,41 @@ macro_rules! vec_impl {
             }
             
             #[inline]
+            pub fn map<U: Primitive>(&self, f: impl Fn(T) -> U) -> $V<U> {
+                $V::<U>::from_array(self.as_array().map(f))
+            }
+
+            #[inline]
+            pub fn zip<U: Primitive, R: Primitive>(&self, rhs: &$V<U>, f: impl Fn(T, U) -> R) -> $V<R> {
+                $V::<R>::from_array(zip(self.as_array(), rhs.as_array(), f))
+            }
+        }
+
+        impl<T: Number> $V<T> {
+            #[inline]
+            pub fn sum(&self) -> T {
+                let mut sum = T::ZERO;
+
+                for i in self.as_array() {
+                    sum += *i;
+                }
+
+                sum
+            }
+
+            #[inline]
             pub fn dot(&self, rhs: &Self) -> T {
                 dot(self.as_array(), rhs.as_array())
             }
 
             #[inline]
-            pub fn length_sqrt(&self) -> T {
-                length_sqrt(self.as_array())
+            // todo: rename - magnitude?
+            pub fn length_sq(&self) -> T {
+                length_sq(self.as_array())
             }
 
             #[inline]
+            // todo: rename - magnitude?
             pub fn length(&self) -> f64 {
                 length(self.as_array())
             }
@@ -96,12 +121,24 @@ macro_rules! vec_impl {
             }
 
             #[inline]
-            pub fn map<U: Number>(&self, f: impl Fn(T) -> U) -> $V<U> {
-                $V::<U>::from_array(self.as_array().map(f))
+            pub fn lerp(&self, b: Self, t: T) -> Self {
+                Self::from_array(lerp_slice(self.as_array(), b.as_array(), t))
+            }
+        }
+        
+        impl $V<bool> {
+            #[inline]
+            pub const fn all(&self) -> bool {
+                all(self.as_array())
+            }
+
+            #[inline]
+            pub const fn any(&self) -> bool {
+                any(self.as_array())
             }
         }
 
-        impl<T: Number> PartialEq for $V<T> {
+        impl<T: Primitive> PartialEq for $V<T> {
             #[inline]
             fn eq(&self, rhs: &Self) -> bool {
                 self.as_array() == rhs.as_array()
@@ -110,52 +147,52 @@ macro_rules! vec_impl {
 
         impl<T: Number + Eq> Eq for $V<T> { }
 
-        impl<T: Number> Into<[T; members_count!($($I),+)]> for $V<T> {
+        impl<T: Primitive> Into<[T; members_count!($($I),+)]> for $V<T> {
             #[inline]
             fn into(self) -> [T; members_count!($($I),+)] {
                 self.into_array()
             }
         }
 
-        impl<T: Number> From<[T; members_count!($($I),+)]> for $V<T> {
+        impl<T: Primitive> From<[T; members_count!($($I),+)]> for $V<T> {
             #[inline]
             fn from(a: [T; members_count!($($I),+)]) -> Self {
                 Self::from_array(a)
             }
         }
 
-        impl<T: Add> Add for $V<T> {
-            type Output = $V<<T as Add>::Output>;
+        impl<T: Add<U>, U> Add<$V<U>> for $V<T> {
+            type Output = $V<<T as Add<U>>::Output>;
         
             #[inline]
-            fn add(self, rhs: Self) -> Self::Output {
+            fn add(self, rhs: $V<U>) -> Self::Output {
                 Self::Output {
                     $($I: self.$I + rhs.$I),+
                 }
             }
         }
-        
-        impl<T: AddAssign> AddAssign for $V<T> {
+
+        impl<T: AddAssign<U>, U> AddAssign<$V<U>> for $V<T> {
             #[inline]
-            fn add_assign(&mut self, rhs: Self) {
+            fn add_assign(&mut self, rhs: $V<U>) {
                 $(self.$I += rhs.$I);+
             }
         }
         
-        impl<T: Sub> Sub for $V<T> {
-            type Output = $V<<T as Sub>::Output>;
+        impl<T: Sub<U>, U> Sub<$V<U>> for $V<T> {
+            type Output = $V<<T as Sub<U>>::Output>;
         
             #[inline]
-            fn sub(self, rhs: Self) -> Self::Output {
+            fn sub(self, rhs: $V<U>) -> Self::Output {
                 Self::Output {
                     $($I: self.$I - rhs.$I),+
                 }
             }
         }
         
-        impl<T: SubAssign> SubAssign for $V<T> {
+        impl<T: SubAssign<U>, U> SubAssign<$V<U>> for $V<T> {
             #[inline]
-            fn sub_assign(&mut self, rhs: Self) {
+            fn sub_assign(&mut self, rhs: $V<U>) {
                 $(self.$I -= rhs.$I);+
             }
         }
@@ -231,8 +268,19 @@ macro_rules! vec_impl {
                 $(self.$I /= rhs);+
             }
         }
+        
+        impl<T: Neg> Neg for $V<T> {
+            type Output = $V<T::Output>;
+            
+            #[inline]
+            fn neg(self) -> Self::Output {
+                Self::Output {
+                    $($I: -self.$I),+
+                }
+            }
+        }
 
-        impl<T: Number> Index<usize> for $V<T> {
+        impl<T: Primitive> Index<usize> for $V<T> {
             type Output = T;
         
             #[inline]
@@ -241,7 +289,7 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Number> IndexMut<usize> for $V<T> {
+        impl<T: Primitive> IndexMut<usize> for $V<T> {
             #[inline]
             fn index_mut(&mut self, i: usize) -> &mut Self::Output {
                 &mut self.as_array_mut()[i]
@@ -263,6 +311,24 @@ impl<T: Number> Vec3<T> {
     }
 }
 
+impl<T: Primitive> Vec2<T> {
+    pub const X: Vec2<T> = Vec2::new(T::ONE, T::ZERO);
+    pub const Y: Vec2<T> = Vec2::new(T::ZERO, T::ONE);
+}
+
+impl<T: Primitive> Vec3<T> {
+    pub const X: Vec3<T> = Vec3::new(T::ONE, T::ZERO, T::ZERO);
+    pub const Y: Vec3<T> = Vec3::new(T::ZERO, T::ONE, T::ZERO);
+    pub const Z: Vec3<T> = Vec3::new(T::ZERO, T::ZERO, T::ONE);
+}
+
+impl<T: Primitive> Vec4<T> {
+    pub const X: Vec4<T> = Vec4::new(T::ONE, T::ZERO, T::ZERO, T::ZERO);
+    pub const Y: Vec4<T> = Vec4::new(T::ZERO, T::ONE, T::ZERO, T::ZERO);
+    pub const Z: Vec4<T> = Vec4::new(T::ZERO, T::ZERO, T::ONE, T::ZERO);
+    pub const W: Vec4<T> = Vec4::new(T::ZERO, T::ZERO, T::ZERO, T::ONE);
+}
+
 #[inline]
 pub fn dot<T: Number, const N: usize>(lhs: &[T; N], rhs: &[T; N]) -> T {
     let mut sum = T::ZERO;
@@ -274,12 +340,12 @@ pub fn dot<T: Number, const N: usize>(lhs: &[T; N], rhs: &[T; N]) -> T {
     sum
 }
 #[inline]
-pub fn length_sqrt<T: Number, const N: usize>(v: &[T; N]) -> T {
+pub fn length_sq<T: Number, const N: usize>(v: &[T; N]) -> T {
     dot(v, v)
 }
 #[inline]
 pub fn length<T: Number, const N: usize>(v: &[T; N]) -> f64 {
-    length_sqrt(v).into_f64().sqrt()
+    length_sq(v).into_f64().sqrt()
 }
 #[inline]
 pub fn normalized<T: Number, const N: usize>(v: &[T; N]) -> [T; N] {
@@ -386,6 +452,26 @@ pub fn div_by_assign<T: Number, const N: usize>(lhs: &mut [T; N], rhs: T) {
     }
 }
 #[inline]
+pub fn zip<T1: Primitive, T2: Primitive, R: Primitive, const N: usize>(lhs: &[T1; N], rhs: &[T2; N], f: impl Fn(T1, T2) -> R) -> [R; N] {
+    let mut result = [R::ZERO; N];
+
+    for i in 0..N {
+        result[i] = f(lhs[i], rhs[i]);
+    }
+
+    result
+}
+#[inline]
+pub fn lerp_slice<T: Number, const N: usize>(a: &[T; N], b: &[T; N], t: T) -> [T; N] {
+    let mut result = [T::ZERO; N];
+
+    for i in 0..N {
+        result[i] = crate::lerp(a[i], b[i], t);
+    }
+
+    result
+}
+#[inline]
 pub fn cross<T: Number>(lhs: &[T; 3], rhs: &[T; 3]) -> [T; 3] {
     [
         lhs[1] * rhs[2] - lhs[2] * rhs[1],
@@ -398,7 +484,7 @@ pub fn cross_2d<T: Number>(lhs: &[T; 2], rhs: &[T; 2]) -> T {
     lhs[0] * rhs[1] - lhs[1] * rhs[0]
 }
 #[inline]
-pub const fn swizzle<T: Number, const N: usize, const S: usize>(v: &[T; N], i: &[usize; N]) -> [T; S] {
+pub const fn swizzle<T: Primitive, const N: usize, const S: usize>(v: &[T; N], i: &[usize; N]) -> [T; S] {
     let mut result = [T::ZERO; S];
 
     let mut j  = 0;
@@ -411,7 +497,32 @@ pub const fn swizzle<T: Number, const N: usize, const S: usize>(v: &[T; N], i: &
 
     result
 }
+#[inline]
+pub const fn all<const N: usize>(v: &[bool; N]) -> bool {
+    let mut result = true;
+    let mut i = 0;
 
+    while i < N {
+        result &= v[i];
+
+        i += 1;
+    }
+
+    result
+}
+#[inline]
+pub const fn any<const N: usize>(v: &[bool; N]) -> bool {
+    let mut result = false;
+    let mut i = 0;
+
+    while i < N {
+        result |= v[i];
+
+        i += 1;
+    }
+
+    result
+}
 //
 
 // todo: maybe unconstraint from Number trait.

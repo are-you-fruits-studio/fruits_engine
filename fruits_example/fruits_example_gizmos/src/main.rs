@@ -57,7 +57,7 @@ fn update_system(
     mut gizmos: ResMut<GizmosResource>,
 ) {
 
-    let lines = gizmos.space(GizmoSpace::Viewport);
+    let lines = gizmos.space(GizmoSpace::Clip);
     let color = Vec4::new(1.0, 0.0, 0.0, 1.0);
 
     lines.push(GizmoLine { start: Vec3::new(-0.5, -0.5, 0.0), end: Vec3::new(-0.5, 0.5, 0.0), color, });
