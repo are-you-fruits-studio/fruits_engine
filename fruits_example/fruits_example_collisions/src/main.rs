@@ -69,8 +69,8 @@ fn update_system(
     }.into();
 
     let overlaps = collision::overlaps(
-        &sh1,
-        &sh2,
+        sh1,
+        sh2,
     );
 
     let lines = gizmos.space(GizmoSpace::World);

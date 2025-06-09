@@ -166,19 +166,19 @@ impl<T: Number> Mul for Mat3<T> {
     fn mul(self, rhs: Self) -> Self::Output {
         Self::from_array([
             [
-                Vec3::from(self.row(0)).dot(&Vec3::from(*rhs.col(0))),
-                Vec3::from(self.row(1)).dot(&Vec3::from(*rhs.col(0))),
-                Vec3::from(self.row(2)).dot(&Vec3::from(*rhs.col(0))),
+                Vec3::from(self.row(0)).dot(Vec3::from(*rhs.col(0))),
+                Vec3::from(self.row(1)).dot(Vec3::from(*rhs.col(0))),
+                Vec3::from(self.row(2)).dot(Vec3::from(*rhs.col(0))),
             ],
             [
-                Vec3::from(self.row(0)).dot(&Vec3::from(*rhs.col(1))),
-                Vec3::from(self.row(1)).dot(&Vec3::from(*rhs.col(1))),
-                Vec3::from(self.row(2)).dot(&Vec3::from(*rhs.col(1))),
+                Vec3::from(self.row(0)).dot(Vec3::from(*rhs.col(1))),
+                Vec3::from(self.row(1)).dot(Vec3::from(*rhs.col(1))),
+                Vec3::from(self.row(2)).dot(Vec3::from(*rhs.col(1))),
             ],
             [
-                Vec3::from(self.row(0)).dot(&Vec3::from(*rhs.col(2))),
-                Vec3::from(self.row(1)).dot(&Vec3::from(*rhs.col(2))),
-                Vec3::from(self.row(2)).dot(&Vec3::from(*rhs.col(2))),
+                Vec3::from(self.row(0)).dot(Vec3::from(*rhs.col(2))),
+                Vec3::from(self.row(1)).dot(Vec3::from(*rhs.col(2))),
+                Vec3::from(self.row(2)).dot(Vec3::from(*rhs.col(2))),
             ],
         ])
     }
@@ -189,9 +189,9 @@ impl<T: Number> Mul<Vec3<T>> for Mat3<T> {
 
     fn mul(self, rhs: Vec3<T>) -> Self::Output {
         Vec3::from_array([
-            Vec3::from(self.row(0)).dot(&rhs),
-            Vec3::from(self.row(1)).dot(&rhs),
-            Vec3::from(self.row(2)).dot(&rhs),
+            Vec3::from(self.row(0)).dot(rhs),
+            Vec3::from(self.row(1)).dot(rhs),
+            Vec3::from(self.row(2)).dot(rhs),
         ])
     }
 }

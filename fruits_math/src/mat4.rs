@@ -92,28 +92,28 @@ impl<T: Number> Mul for Mat4<T> {
     fn mul(self, rhs: Self) -> Self::Output {
         Self::from_array([
             [
-                Vec4::from(self.row(0)).dot(&Vec4::from(*rhs.col(0))),
-                Vec4::from(self.row(1)).dot(&Vec4::from(*rhs.col(0))),
-                Vec4::from(self.row(2)).dot(&Vec4::from(*rhs.col(0))),
-                Vec4::from(self.row(3)).dot(&Vec4::from(*rhs.col(0))),
+                Vec4::from(self.row(0)).dot(Vec4::from(*rhs.col(0))),
+                Vec4::from(self.row(1)).dot(Vec4::from(*rhs.col(0))),
+                Vec4::from(self.row(2)).dot(Vec4::from(*rhs.col(0))),
+                Vec4::from(self.row(3)).dot(Vec4::from(*rhs.col(0))),
             ],
             [
-                Vec4::from(self.row(0)).dot(&Vec4::from(*rhs.col(1))),
-                Vec4::from(self.row(1)).dot(&Vec4::from(*rhs.col(1))),
-                Vec4::from(self.row(2)).dot(&Vec4::from(*rhs.col(1))),
-                Vec4::from(self.row(3)).dot(&Vec4::from(*rhs.col(1))),
+                Vec4::from(self.row(0)).dot(Vec4::from(*rhs.col(1))),
+                Vec4::from(self.row(1)).dot(Vec4::from(*rhs.col(1))),
+                Vec4::from(self.row(2)).dot(Vec4::from(*rhs.col(1))),
+                Vec4::from(self.row(3)).dot(Vec4::from(*rhs.col(1))),
             ],
             [
-                Vec4::from(self.row(0)).dot(&Vec4::from(*rhs.col(2))),
-                Vec4::from(self.row(1)).dot(&Vec4::from(*rhs.col(2))),
-                Vec4::from(self.row(2)).dot(&Vec4::from(*rhs.col(2))),
-                Vec4::from(self.row(3)).dot(&Vec4::from(*rhs.col(2))),
+                Vec4::from(self.row(0)).dot(Vec4::from(*rhs.col(2))),
+                Vec4::from(self.row(1)).dot(Vec4::from(*rhs.col(2))),
+                Vec4::from(self.row(2)).dot(Vec4::from(*rhs.col(2))),
+                Vec4::from(self.row(3)).dot(Vec4::from(*rhs.col(2))),
             ],
             [
-                Vec4::from(self.row(0)).dot(&Vec4::from(*rhs.col(3))),
-                Vec4::from(self.row(1)).dot(&Vec4::from(*rhs.col(3))),
-                Vec4::from(self.row(2)).dot(&Vec4::from(*rhs.col(3))),
-                Vec4::from(self.row(3)).dot(&Vec4::from(*rhs.col(3))),
+                Vec4::from(self.row(0)).dot(Vec4::from(*rhs.col(3))),
+                Vec4::from(self.row(1)).dot(Vec4::from(*rhs.col(3))),
+                Vec4::from(self.row(2)).dot(Vec4::from(*rhs.col(3))),
+                Vec4::from(self.row(3)).dot(Vec4::from(*rhs.col(3))),
             ],
         ])
     }
@@ -124,10 +124,10 @@ impl<T: Number> Mul<Vec4<T>> for Mat4<T> {
 
     fn mul(self, rhs: Vec4<T>) -> Self::Output {
         Vec4::from_array([
-            Vec4::from(self.row(0)).dot(&rhs),
-            Vec4::from(self.row(1)).dot(&rhs),
-            Vec4::from(self.row(2)).dot(&rhs),
-            Vec4::from(self.row(3)).dot(&rhs),
+            Vec4::from(self.row(0)).dot(rhs),
+            Vec4::from(self.row(1)).dot(rhs),
+            Vec4::from(self.row(2)).dot(rhs),
+            Vec4::from(self.row(3)).dot(rhs),
         ])
     }
 }

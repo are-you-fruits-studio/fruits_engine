@@ -76,19 +76,19 @@ macro_rules! vec_impl {
             }
             
             #[inline]
-            pub fn map<U: Primitive>(&self, f: impl Fn(T) -> U) -> $V<U> {
+            pub fn map<U: Primitive>(self, f: impl Fn(T) -> U) -> $V<U> {
                 $V::<U>::from_array(self.as_array().map(f))
             }
 
             #[inline]
-            pub fn zip<U: Primitive, R: Primitive>(&self, rhs: &$V<U>, f: impl Fn(T, U) -> R) -> $V<R> {
+            pub fn zip<U: Primitive, R: Primitive>(self, rhs: $V<U>, f: impl Fn(T, U) -> R) -> $V<R> {
                 $V::<R>::from_array(zip(self.as_array(), rhs.as_array(), f))
             }
         }
 
         impl<T: Number> $V<T> {
             #[inline]
-            pub fn sum(&self) -> T {
+            pub fn sum(self) -> T {
                 let mut sum = T::ZERO;
 
                 for i in self.as_array() {
@@ -99,41 +99,47 @@ macro_rules! vec_impl {
             }
 
             #[inline]
-            pub fn dot(&self, rhs: &Self) -> T {
+            pub fn dot(self, rhs: Self) -> T {
                 dot(self.as_array(), rhs.as_array())
             }
 
             #[inline]
             // todo: rename - magnitude?
-            pub fn length_sq(&self) -> T {
+            pub fn length_sq(self) -> T {
                 length_sq(self.as_array())
             }
 
             #[inline]
             // todo: rename - magnitude?
-            pub fn length(&self) -> f64 {
+            pub fn length(self) -> f64 {
                 length(self.as_array())
             }
 
             #[inline]
-            pub fn normalized(&self) -> Self {
+            pub fn normalized(self) -> Self {
                 Self::from_array(normalized(self.as_array()))
             }
 
             #[inline]
-            pub fn lerp(&self, b: Self, t: T) -> Self {
+            pub fn lerp(self, b: Self, t: T) -> Self {
                 Self::from_array(lerp_slice(self.as_array(), b.as_array(), t))
+            }
+
+            #[inline]
+            pub fn inv_lerp(self, b: Self, x: Self) -> T {
+                let ab = b - self;
+                (ab.dot(x - self) / ab.length_sq())
             }
         }
         
         impl $V<bool> {
             #[inline]
-            pub const fn all(&self) -> bool {
+            pub const fn all(self) -> bool {
                 all(self.as_array())
             }
 
             #[inline]
-            pub const fn any(&self) -> bool {
+            pub const fn any(self) -> bool {
                 any(self.as_array())
             }
         }
@@ -307,7 +313,7 @@ fruits_swizzling::swizzling!{}
 impl<T: Number> Vec3<T> {
     #[inline]
     pub fn cross(self, rhs: Self) -> Self {
-        Self::from_array(cross(self.as_array(), rhs.as_array()))
+        Self::from_array(cross(self.into_array(), rhs.into_array()))
     }
 }
 
@@ -472,7 +478,7 @@ pub fn lerp_slice<T: Number, const N: usize>(a: &[T; N], b: &[T; N], t: T) -> [T
     result
 }
 #[inline]
-pub fn cross<T: Number>(lhs: &[T; 3], rhs: &[T; 3]) -> [T; 3] {
+pub fn cross<T: Number>(lhs: [T; 3], rhs: [T; 3]) -> [T; 3] {
     [
         lhs[1] * rhs[2] - lhs[2] * rhs[1],
         lhs[2] * rhs[0] - lhs[0] * rhs[2],
@@ -480,7 +486,7 @@ pub fn cross<T: Number>(lhs: &[T; 3], rhs: &[T; 3]) -> [T; 3] {
     ]
 }
 #[inline]
-pub fn cross_2d<T: Number>(lhs: &[T; 2], rhs: &[T; 2]) -> T {
+pub fn cross_2d<T: Number>(lhs: [T; 2], rhs: [T; 2]) -> T {
     lhs[0] * rhs[1] - lhs[1] * rhs[0]
 }
 #[inline]

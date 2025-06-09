@@ -85,12 +85,12 @@ impl<T: Number> Mul for Mat2<T> {
     fn mul(self, rhs: Mat2<T>) -> Self::Output {
         Self::from_array([
             [
-                Vec2::from(self.row(0)).dot(&Vec2::from(*rhs.col(0))),
-                Vec2::from(self.row(1)).dot(&Vec2::from(*rhs.col(0))),
+                Vec2::from(self.row(0)).dot(Vec2::from(*rhs.col(0))),
+                Vec2::from(self.row(1)).dot(Vec2::from(*rhs.col(0))),
             ],
             [
-                Vec2::from(self.row(0)).dot(&Vec2::from(*rhs.col(1))),
-                Vec2::from(self.row(1)).dot(&Vec2::from(*rhs.col(1))),
+                Vec2::from(self.row(0)).dot(Vec2::from(*rhs.col(1))),
+                Vec2::from(self.row(1)).dot(Vec2::from(*rhs.col(1))),
             ],
         ])
     }
@@ -101,8 +101,8 @@ impl<T: Number> Mul<Vec2<T>> for Mat2<T> {
 
     fn mul(self, rhs: Vec2<T>) -> Self::Output {
         Vec2::from_array([
-            Vec2::from(self.row(0)).dot(&rhs),
-            Vec2::from(self.row(1)).dot(&rhs),
+            Vec2::from(self.row(0)).dot(rhs),
+            Vec2::from(self.row(1)).dot(rhs),
         ])
     }
 }
