@@ -1,6 +1,7 @@
 use std::ops::{BitAnd, BitOr};
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+// todo: rewrite Debug impl
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct LineBoundType(u8);
 impl LineBoundType {
     pub const UNRESTRICTED: LineBoundType = LineBoundType(0);

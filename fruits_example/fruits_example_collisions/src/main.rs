@@ -1,7 +1,7 @@
 use core::f32;
 
-use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
-use fruits_modules::{collision::{self, CollisionAabb, CollisionBox, CollisionLine, CollisionShape, CollisionSphere}, render::{CameraComponent, GizmoLine, GizmoSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
+use fruits_math::{Quat, Vec2, Vec3, Vec4};
+use fruits_modules::{collision::{self, ColliderComponent, CollisionAabb, CollisionBox, CollisionLine, CollisionShape, CollisionSphere, CollisionWorldResource, LineBoundType}, render::{CameraComponent, GizmoLine, GizmoSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
 use fruits_prelude::*;
 
 fn main() {
@@ -9,28 +9,121 @@ fn main() {
 
     fruits_modules::render::add_module_to(app.ecs_mut());
     fruits_modules::transform::add_module_to(app.ecs_mut());
+    fruits_modules::collision::add_module_to(app.ecs_mut());
+    fruits_modules::fps_counter::add_module_to(app.ecs_mut());
+
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Start).add_system(init);
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(move_camera);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_system);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_colliders);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(draw_gizmo_components);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(raycast_mouse);
 
-    let ec = app.ecs_mut().data_mut().entities_components_mut();
-    
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(raycast_mouse).before_system(draw_gizmo_components);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(draw_gizmo_components).before_group(fruits_modules::render::SYSTEM_GROUP);
+
+    app.run();
+}
+
+#[derive(Component)]
+struct GizmoComponent {
+    pub space: GizmoSpace,
+    pub color: Vec4<f32>,
+}
+
+fn init(
+    mut world: ExclusiveWorldAccess,
+) {
+    let ec = world.entities_components_mut();
+
     let camera = ec.create_entity();
 
-    ec.add_component(camera, GlobalTransform {
-        scale_rotation: Mat::IDENTITY,
-        position: Vec3::new(0.0_f32, 0.0_f32, -2.0f32),
-    }).ok().unwrap();
+    ec.add_component(camera, LocalTransform::IDENTITY).ok().unwrap();
     ec.add_component(camera, CameraComponent {
         near: 0.1_f32,
         far: 1_000_f32,
         fov: 90_f32.to_radians(),
     }).ok().unwrap();
-    ec.add_component(camera, LocalTransform::IDENTITY).ok().unwrap();
-    // ec.add_component(camera, GlobalTransform::IDENTITY).ok().unwrap();
-    // ec.add_component(camera, CameraComponent { near: 0.1, far: 1000.0, fov: 130.0_f32.to_radians() }).ok().unwrap();
 
-    app.run();
+    //
+
+    create_button_entity(ec, Vec3::new(200.0, 400.0, 0.0), Vec3::new(100.0, 100.0, 0.1));
+    create_button_entity(ec, Vec3::new(350.0, 400.0, 0.0), Vec3::new(50.0, 100.0, 0.1));
+    create_button_entity(ec, Vec3::new(200.0, 200.0, 0.0), Vec3::new(50.0, 10.0, 0.1));
+}
+
+fn create_button_entity(ec: &mut EntitiesComponentsHolder, pos: Vec3<f32>, scale: Vec3<f32>) {
+    let e = ec.create_entity();
+
+    ec.add_component(e, LocalTransform {
+        position: pos,
+        rotation: Quat::IDENTITY,
+        scale: scale,
+    }).ok().unwrap();
+    ec.add_component(e, GizmoComponent {
+        color: Vec4::new(0.5, 0.5, 0.5, 0.0),
+        // todo: Window doesn't work?
+        space: GizmoSpace::Window,
+    }).ok().unwrap();
+    ec.add_component(e, ColliderComponent {
+        shape: CollisionShape::Aabb(CollisionAabb {
+            center: Vec3::with_all(0.0),
+            extents: Vec3::with_all(0.0),
+        })
+    }).ok().unwrap();
+}
+
+fn update_colliders(
+    mut q: WorldQuery<(&GlobalTransform, &LocalTransform, &mut ColliderComponent)>,
+) {
+    for (global_transform, local_transform, collider) in q.iter_mut() {
+        let CollisionShape::Aabb(collision_aabb) = &mut collider.shape else {
+            todo!();
+        };
+
+        collision_aabb.center = global_transform.position;
+        collision_aabb.extents = local_transform.scale * 0.5;
+    }
+}
+
+fn raycast_mouse(
+    collision_world: Res<CollisionWorldResource>,
+    input: Res<InputResource>,
+    mut q: WorldQuery<&mut GizmoComponent>
+) {
+    for gizmo_component in q.iter_mut() {
+        gizmo_component.color = Vec4::new(0.5, 0.5, 0.5, 1.0);
+    }
+
+    let start = Vec3::new(input.mouse.position[0] as f32, input.mouse.position[1] as f32, 0.0);
+    let end = start + Vec3::<f32>::Z;
+
+    let line = CollisionLine {
+        start,
+        end,
+        bounds: LineBoundType::UNRESTRICTED,
+    };
+    
+    if let Some(gizmo_component) = q.get_mut(collision_world.raycast(line)) {
+        gizmo_component.color = match input.mouse.is_pressed(MouseButton::Left) {
+            false => Vec4::new(1.0, 0.0, 0.0, 1.0),
+            true => Vec4::new(0.0, 1.0, 0.0, 1.0)
+        };
+    }
+}
+
+fn draw_gizmo_components(
+    q: WorldQuery<(&GizmoComponent, &ColliderComponent)>,
+    mut gizmos: ResMut<GizmosResource>,
+) {
+    for (gizmo, collider) in q.iter() {
+        let CollisionShape::Aabb(collision_aabb) = collider.shape else {
+            todo!();
+        };
+
+        draw_gizmo_collision_shape(gizmos.space(gizmo.space), gizmo.color, collision_aabb.into());   
+    }
 }
 
 fn move_camera(
@@ -60,11 +153,11 @@ fn update_system(
 ) {
     let sh1 = CollisionAabb {
         center: Vec3::new(2.2, 0.0, 0.0),
-        scale: Vec3::new(1.0, 1.0, 1.0)
+        extents: Vec3::new(0.5, 0.5, 0.5)
     }.into();
     let sh2 = CollisionBox {
         center: Vec3::new(1.0, 0.0, 0.0),
-        scale: Vec3::with_all(1.0),
+        extents: Vec3::with_all(0.5),
         rotation: Quat::rotation_y(1.0),
     }.into();
 
@@ -79,6 +172,8 @@ fn update_system(
     draw_gizmo_collision_shape(lines, color, sh1);
     draw_gizmo_collision_shape(lines, color, sh2);
 }
+
+//
 
 fn draw_gizmo_collision_shape(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionShape) {
     match sh {
@@ -116,7 +211,7 @@ fn draw_gizmo_line(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionLi
 fn draw_gizmo_box(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionBox) {
     let mat = sh.rotation.to_matrix();
 
-    let ext = sh.scale / 2.0;
+    let ext = sh.extents;
 
     lines.push(GizmoLine { start: sh.center + mat * Vec3::new(-ext.x, -ext.y, -ext.z), end: sh.center + mat * Vec3::new(-ext.x, ext.y, -ext.z), color, });
     lines.push(GizmoLine { start: sh.center + mat * Vec3::new(-ext.x, ext.y, -ext.z), end: sh.center + mat * Vec3::new(ext.x, ext.y, -ext.z), color, });
@@ -135,7 +230,7 @@ fn draw_gizmo_box(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionBox
 }
 
 fn draw_gizmo_aabb(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionAabb) {
-    let ext = sh.scale / 2.0;
+    let ext = sh.extents;
 
     lines.push(GizmoLine { start: sh.center + Vec3::new(-ext.x, -ext.y, -ext.z), end: sh.center + Vec3::new(-ext.x, ext.y, -ext.z), color, });
     lines.push(GizmoLine { start: sh.center + Vec3::new(-ext.x, ext.y, -ext.z), end: sh.center + Vec3::new(ext.x, ext.y, -ext.z), color, });

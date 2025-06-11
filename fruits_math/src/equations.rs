@@ -1,5 +1,5 @@
 /// Solves equation of type ax + b = 0
-pub fn linear(a: f32, b: f32) -> LinearEquationResult {
+pub fn eq_linear(a: f32, b: f32) -> LinearEquationResult {
     if a != 0.0 {
         return LinearEquationResult::Success(-b / a);
     }
@@ -11,7 +11,7 @@ pub fn linear(a: f32, b: f32) -> LinearEquationResult {
 }
 
 /// Solves equation of type ax² + bx + c = 0
-pub fn quadratic(a: f32, b: f32, c: f32) -> QuadraticEquationResult {
+pub fn eq_quadratic(a: f32, b: f32, c: f32) -> QuadraticEquationResult {
     if a == 0.0 && b == 0.0 {
         return match c
         {

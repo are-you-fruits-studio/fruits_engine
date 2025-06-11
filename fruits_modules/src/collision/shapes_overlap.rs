@@ -1,6 +1,6 @@
-use fruits_math::{Mat3, Vec3};
+use fruits_math::{eq_quadratic, Mat3, QuadraticEquationResult, Vec3};
 
-use crate::collision::{equations::{self, QuadraticEquationResult}, CollisionAabb, CollisionBox, CollisionLine, CollisionShape, CollisionSphere};
+use crate::collision::*;
 
 pub fn overlaps(lhs: CollisionShape, rhs: CollisionShape) -> bool {
     match (lhs, rhs) {
@@ -45,10 +45,6 @@ pub fn overlaps(lhs: CollisionShape, rhs: CollisionShape) -> bool {
         (CollisionShape::Triangle(lhs), CollisionShape::Box(rhs)) => overlaps_bx_tr(rhs, lhs),
         (CollisionShape::Triangle(lhs), CollisionShape::Sphere(rhs)) => overlaps_sp_tr(rhs, lhs),
         (CollisionShape::Triangle(lhs), CollisionShape::Triangle(rhs)) => overlaps_tr_tr(rhs, lhs),
-        
-        
-        // todo: remove
-        _ => todo!(),
     }
 }
 
@@ -206,9 +202,9 @@ fn overlaps_bx_bx(s1: CollisionBox, s2: CollisionBox) -> bool {
     let rot_inv = s1.rotation.to_matrix().inverse().unwrap();
 
     overlaps_centered_aa_bx(
-        s1.scale / 2.0,
+        s1.extents,
         rot_inv * (s2.center - s1.center),
-        s2.scale,
+        s2.extents,
         rot_inv * s2.rotation.to_matrix(),
     )
 }
@@ -222,7 +218,7 @@ fn overlaps_bx_sp(s1: CollisionBox, s2: CollisionSphere) -> bool {
     };
 
     overlaps_centered_aa_sp(
-        s1.scale / 2.0,
+        s1.extents,
         s2,
     )
 }
@@ -233,7 +229,7 @@ fn overlaps_bx_tr(s1: CollisionBox, s2: [Vec3<f32>; 3]) -> bool {
     let s2 = s2.map(|v| rot_inv * (v - s1.center));
 
     overlaps_centered_aa_tr(
-        s1.scale / 2.0,
+        s1.extents,
         s2,
     )
 }
@@ -245,13 +241,13 @@ fn overlaps_sp_sp(s1: CollisionSphere, s2: CollisionSphere) -> bool {
 }
 
 fn overlaps_pt_aa(s1: Vec3<f32>, s2: CollisionAabb) -> bool {
-    overlaps_centered_aa_pt(s2.scale / 2.0, s1 - s2.center)
+    overlaps_centered_aa_pt(s2.extents, s1 - s2.center)
 }
 
 fn overlaps_pt_bx(s1: Vec3<f32>, s2: CollisionBox) -> bool {
     let s1 = s2.rotation.to_matrix().inverse().unwrap() * (s1 - s2.center);
 
-    let extents = s2.scale / 2.0;
+    let extents = s2.extents;
 
     let mut result = true;
 
@@ -267,7 +263,7 @@ fn overlaps_ln_aa(mut s1: CollisionLine, s2: CollisionAabb) -> bool {
     s1.end -= s2.center;
 
     overlaps_centered_aa_ln(
-        s2.scale / 2.0,
+        s2.extents,
         s1,
     )
 }
@@ -279,7 +275,7 @@ fn overlaps_ln_bx(s1: CollisionLine, s2: CollisionBox) -> bool {
         bounds: s1.bounds,
     };
 
-    let extents = s2.scale / 2.0;
+    let extents = s2.extents;
 
     let mut t_min = 0.0;
     let mut t_max = 1.0;
@@ -342,8 +338,8 @@ fn overlaps_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
 }
 
 fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
-    let s1_ext = s1.scale / 2.0;
-    let s2_ext = s2.scale / 2.0;
+    let s1_ext = s1.extents;
+    let s2_ext = s2.extents;
 
     let s1_min = s1.center - s1_ext;
     let s1_max = s1.center + s1_ext;
@@ -359,20 +355,20 @@ fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
 
 fn overlaps_aa_bx(s1: CollisionAabb, s2: CollisionBox) -> bool {
     overlaps_centered_aa_bx(
-        s1.scale * 0.5,
+        s1.extents,
         s2.center - s1.center,
-        s2.scale / 2.0,
+        s2.extents,
         s2.rotation.to_matrix(),
     )
 }
 
 fn overlaps_aa_sp(s1: CollisionAabb, mut s2: CollisionSphere) -> bool {
     s2.center -= s1.center;
-    overlaps_centered_aa_sp(s1.scale * 0.5, s2)
+    overlaps_centered_aa_sp(s1.extents, s2)
 }
 
 fn overlaps_aa_tr(s1: CollisionAabb, s2: [Vec3<f32>; 3]) -> bool {
-    overlaps_centered_aa_tr(s1.scale * 0.5, s2.map(|v| v - s1.center))
+    overlaps_centered_aa_tr(s1.extents, s2.map(|v| v - s1.center))
 }
 
 /// <summary>
@@ -392,7 +388,7 @@ fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
     let b = bx + by + bz;
     let c = cx + cy + cz - s2.radius * s2.radius;
 
-    let equation_result = equations::quadratic(a, b, c);
+    let equation_result = eq_quadratic(a, b, c);
 
     return match equation_result {
         QuadraticEquationResult::Single(r) => r >= 0.0 && r <= 1.0,
