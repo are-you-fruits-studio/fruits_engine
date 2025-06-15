@@ -8,7 +8,7 @@ struct VertexOutput {
 };
 
 @vertex
-fn vertex_main(@location(0) index: u32) -> VertexOutput {
+fn vertex_main(@builtin(vertex_index) index: u32) -> VertexOutput {
     var out: VertexOutput;
 
     out.pos = transform * vertex[index];

@@ -1,9 +1,9 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
 use fruits_math::{Mat3, Mat4, Vec3, Vec4};
-use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState};
+use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState};
 
-use crate::{asset::AssetStorageResource, transform::GlobalTransform};
+use crate::{asset::AssetStorageResource, render::utils::GIZMO_LINES_PER_DRAW_MAX, transform::GlobalTransform};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmoSpace, GizmosRenderResource, GizmosResource, StandardRenderResource, StandardGlobalUniform};
 
@@ -159,22 +159,19 @@ pub fn create_gizmos_render_resource(
 ) {
     let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
-    let index_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Gizmos Index Buffer"),
-        usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&[0_u32; 2]),
-    });
+    let vertices_cpu_buffer = vec![[Vec4::with_all(0.0); 2]; GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
+    let colors_cpu_buffer = vec![Vec4::with_all(0.0); GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
 
     let vertex_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Vertex Buffer"),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&[Vec4::<f32>::with_all(0.0); 2]),
+        contents: fruits_utils::mem::as_bytes(&vertices_cpu_buffer),
     });
 
     let color_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Color Buffer"),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(Vec4::<f32>::with_all(0.0).as_array()),
+        contents: fruits_utils::mem::as_bytes(&colors_cpu_buffer),
     });
 
     let transform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
@@ -281,30 +278,19 @@ pub fn create_gizmos_render_resource(
         vertex: VertexState {
             module: &shader,
             entry_point: "vertex_main",
-            buffers: &[
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<u32>() as wgpu::BufferAddress,
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &[
-                        VertexAttribute {
-                            format: VertexFormat::Uint32,
-                            offset: 0,
-                            shader_location: 0,
-                        }
-                    ],
-                }
-            ],
+            buffers: &[],
             compilation_options: Default::default(),
         }
     });
 
     world.resources_mut().insert(GizmosRenderResource {
-        index_buffer,
         vertex_buffer,
         color_buffer,
         transform_buffer,
         bind_group,
         pipeline,
+        vertices_cpu_buffer,
+        colors_cpu_buffer,
     }).ok().unwrap();
 }
 
@@ -454,7 +440,7 @@ pub fn render_meshes_and_materials(
 
 pub fn render_gizmos(
     mut gizmos: ResMut<GizmosResource>,
-    gizmos_render_res: Res<GizmosRenderResource>,
+    mut gizmos_render_res: ResMut<GizmosRenderResource>,
     surface_texture: Res<SurfaceTextureResource>,
     render_state: Res<RenderStateResource>,
     camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
@@ -495,15 +481,28 @@ pub fn render_gizmos(
 
         render_state.queue().write_buffer(&gizmos_render_res.transform_buffer, 0, fruits_utils::mem::as_bytes(transform.as_array()));
 
-        while let Some(line) = lines.pop() {
-            let vertex_data = [
-                Vec4::new(line.start.x, line.start.y, line.start.z, 1.0),
-                Vec4::new(line.end.x, line.end.y, line.end.z, 1.0),
-            ];
+        loop {
+            if lines.is_empty() {
+                break;
+            }
 
-            render_state.queue().write_buffer(&gizmos_render_res.index_buffer, 0, fruits_utils::mem::as_bytes(&[0_u32, 1_u32]));
-            render_state.queue().write_buffer(&gizmos_render_res.vertex_buffer, 0, fruits_utils::mem::as_bytes(&vertex_data));
-            render_state.queue().write_buffer(&gizmos_render_res.color_buffer, 0, fruits_utils::mem::as_bytes(line.color.as_array()));
+            let mut count = 0_usize;
+
+            for i in 0..1024 {
+                let Some(line) = lines.pop() else {
+                    break;
+                };
+
+                gizmos_render_res.vertices_cpu_buffer[i] = [
+                    Vec4::new(line.start.x, line.start.y, line.start.z, 1.0),
+                    Vec4::new(line.end.x, line.end.y, line.end.z, 1.0),
+                ];
+                gizmos_render_res.colors_cpu_buffer[i] = line.color;
+                count += 1;
+            }
+
+            render_state.queue().write_buffer(&gizmos_render_res.vertex_buffer, 0, fruits_utils::mem::as_bytes(&gizmos_render_res.vertices_cpu_buffer[..count]));
+            render_state.queue().write_buffer(&gizmos_render_res.color_buffer, 0, fruits_utils::mem::as_bytes(&gizmos_render_res.colors_cpu_buffer[..count]));
             render_state.queue().submit([]);
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
@@ -527,8 +526,7 @@ pub fn render_gizmos(
             
                 render_pass.set_pipeline(&gizmos_render_res.pipeline);
                 render_pass.set_bind_group(0, &gizmos_render_res.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, gizmos_render_res.index_buffer.slice(..));
-                render_pass.draw(0..2, 0..1);
+                render_pass.draw(0..(count as u32 * 2), 0..1);
             }
 
             render_state.queue().submit(std::iter::once(encoder.finish()));

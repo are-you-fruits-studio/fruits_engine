@@ -4,6 +4,7 @@ mod shapes_overlap;
 mod resources;
 mod systems;
 mod components;
+mod utils;
 
 pub use line_bound_type::*;
 pub use shapes::*;
@@ -11,6 +12,7 @@ pub use shapes_overlap::*;
 pub use resources::*;
 pub use systems::*;
 pub use components::*;
+pub use utils::*;
 
 use fruits_ecs::{Schedule, WorldBuilder};
 

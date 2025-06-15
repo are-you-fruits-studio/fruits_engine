@@ -54,6 +54,6 @@ pub fn count_fps(
     let avg_frame_time_ms = avg_frame_time_s * 1000.0;
     let fps = (1.0 / avg_frame_time_s) as usize;
 
-    println!("fps: {: >5} | frame_time: {: >10.2} ms", fps, avg_frame_time_ms);
+    println!("fps: {: >5} | frame_time: {: >10.3} ms", fps, avg_frame_time_ms);
     res.last_print_time = Some(Instant::now());
 }

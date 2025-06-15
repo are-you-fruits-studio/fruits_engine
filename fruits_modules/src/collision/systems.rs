@@ -6,6 +6,8 @@ pub fn update_collision_world(
     mut collision_world: ResMut<CollisionWorldResource>,
     q: WorldQuery<(Entity, &ColliderComponent)>
 ) {
-    collision_world.collision_shapes.clear();
-    collision_world.collision_shapes.extend(q.iter().map(|(e, c)| (c.shape, e)));
+    let iter = q.iter().map(|(e, c)| (c.shape.to_aab(), e));
+
+    *collision_world = CollisionWorldResource::new(iter.collect::<Vec<_>>());
+    // collision_world.refill().extend(iter);
 }

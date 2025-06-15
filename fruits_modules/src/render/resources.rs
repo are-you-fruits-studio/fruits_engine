@@ -1,6 +1,7 @@
 use std::collections::{hash_map::IterMut, HashMap};
 
 use fruits_ecs::Resource;
+use fruits_math::Vec4;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, ShaderModule, SurfaceTexture, Texture, TextureView};
 
 use super::{GizmoLine, GizmoSpace, StandardGlobalUniform};
@@ -38,12 +39,13 @@ impl GizmosResource {
 
 #[derive(Resource)]
 pub struct GizmosRenderResource {
-    pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
     pub color_buffer: Buffer,
     pub transform_buffer: Buffer,
     pub pipeline: RenderPipeline,
     pub bind_group: BindGroup,
+    pub vertices_cpu_buffer: Box<[[Vec4<f32>; 2]]>,
+    pub colors_cpu_buffer: Box<[Vec4<f32>]>,
 }
 
 #[derive(Resource)]

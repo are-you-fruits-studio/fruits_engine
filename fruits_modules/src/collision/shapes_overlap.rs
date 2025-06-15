@@ -338,17 +338,8 @@ fn overlaps_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
 }
 
 fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
-    let s1_ext = s1.extents;
-    let s2_ext = s2.extents;
-
-    let s1_min = s1.center - s1_ext;
-    let s1_max = s1.center + s1_ext;
-
-    let s2_min = s2.center - s2_ext;
-    let s2_max = s2.center + s2_ext;
-
-    let min = s1_min.zip(s2_min, f32::max);
-    let max = s1_max.zip(s2_max, f32::min);
+    let min = s1.min().zip(s2.min(), f32::max);
+    let max = s1.max().zip(s2.max(), f32::min);
 
     min.zip(max, |a, b| a <= b).all()
 }

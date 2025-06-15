@@ -116,25 +116,6 @@ pub fn update_parents_add_missing_children(
     }
 }
 
-
-// - Update ParentComponents according to ChildComponents
-//     - Destroy existing empty parent components
-pub fn update_parents_destroy_empty_parents(
-    mut world: ExclusiveWorldAccess,
-) {
-    let empty_parents = world
-        .entities_components()
-        .query::<(Entity, &ParentComponent)>()
-        .iter()
-        .filter(|(_, p)| p.children.len() == 0)
-        .map(|(e, _)| e)
-        .collect::<Vec<_>>();
-
-    for parent in empty_parents {
-        world.entities_components_mut().remove_component::<ParentComponent>(parent);
-    }
-}
-
 // - Calculate GlobalTransform from LocalTransform and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_transform(
     mut world: ExclusiveWorldAccess,

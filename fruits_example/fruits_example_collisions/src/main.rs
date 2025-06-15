@@ -15,7 +15,7 @@ fn main() {
     app.ecs_mut().behavior_mut().get_mut(Schedule::Start).add_system(init);
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(move_camera);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_system);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(draw_collisions);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_colliders);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(draw_gizmo_components);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(raycast_mouse);
@@ -48,9 +48,15 @@ fn init(
 
     //
 
-    create_button_entity(ec, Vec3::new(200.0, 400.0, 0.0), Vec3::new(100.0, 100.0, 0.1));
-    create_button_entity(ec, Vec3::new(350.0, 400.0, 0.0), Vec3::new(50.0, 100.0, 0.1));
-    create_button_entity(ec, Vec3::new(200.0, 200.0, 0.0), Vec3::new(50.0, 10.0, 0.1));
+    for x in 0..60 {
+        for y in 0..60 {
+            create_button_entity(
+                ec,
+                Vec3::new(15.0 * x as f32, 15.0 * y as f32, 0.0),
+                Vec3::new(9.0, 9.0, 0.1),
+            );
+        }
+    }
 }
 
 fn create_button_entity(ec: &mut EntitiesComponentsHolder, pos: Vec3<f32>, scale: Vec3<f32>) {
@@ -105,7 +111,13 @@ fn raycast_mouse(
         bounds: LineBoundType::UNRESTRICTED,
     };
     
-    if let Some(gizmo_component) = q.get_mut(collision_world.raycast(line)) {
+    let mut results = Vec::new();
+    collision_world.overlaps(line.into(), &mut results);
+    for e in results {
+        let Some(gizmo_component) = q.get_mut(e) else {
+            continue;
+        };
+        
         gizmo_component.color = match input.mouse.is_pressed(MouseButton::Left) {
             false => Vec4::new(1.0, 0.0, 0.0, 1.0),
             true => Vec4::new(0.0, 1.0, 0.0, 1.0)
@@ -148,7 +160,7 @@ fn move_camera(
     }
 }
 
-fn update_system(
+fn draw_collisions(
     mut gizmos: ResMut<GizmosResource>,
 ) {
     let sh1 = CollisionAabb {

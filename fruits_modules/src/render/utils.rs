@@ -1,0 +1,1 @@
+pub const GIZMO_LINES_PER_DRAW_MAX: usize = 1024;
