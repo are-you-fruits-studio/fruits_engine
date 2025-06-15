@@ -4,7 +4,7 @@ macro_rules! system_with_marker_impl {
     ($($P: ident),*) => {
         unsafe impl<F, $($P),*> SystemWithMarker<fn($($P),*)> for F
         where
-            for<'a> F: 'static + Send + Sync + Fn($($P),*) + Fn($($P::Item<'a>),*),
+            F: 'static + Send + Sync + Fn($($P),*) + for<'a> Fn($($P::Item<'a>),*),
             fn($($P),*): 'static,
             $($P: SystemParam),*
         {

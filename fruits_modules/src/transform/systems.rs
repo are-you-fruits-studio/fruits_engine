@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use fruits_ecs::{Entity, ExclusiveWorldAccess, WorldQuery};
+use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::Mat3;
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
@@ -8,60 +8,103 @@ use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 pub fn adjust_component_sets(
     mut world: ExclusiveWorldAccess,
 ) {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-    enum Change {
-        ParentAdd,
-        ParentRemove,
-        ChildAdd,
-        ChildRemove,
-        GlobalAdd,
-    }
+    // #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    // enum Change {
+    //     ParentAdd,
+    //     ParentRemove,
+    //     ChildAdd,
+    //     ChildRemove,
+    //     GlobalAdd,
+    // }
 
-    let mut changes = Vec::new();
+    // let mut changes = Vec::new();
+    let mut buffer = Vec::new();
 
     let entities_components = world.entities_components_mut();
-    for e in entities_components.query::<Entity>().iter() {
-        // +-Parent +-Child +Global
 
-        // - -> -Parent -Child
-        // Local -> +Global +Child +Parent
-        // Global -> +Parent -Child
-        // Local, Global -> +Child +Parent
-        let contains_global = entities_components.get_component::<GlobalTransform>(e).is_some();
-        let contains_local = entities_components.get_component::<LocalTransform>(e).is_some();
-        let contains_child = entities_components.get_component::<ChildComponent>(e).is_some();
-        let contains_parent = entities_components.get_component::<ParentComponent>(e).is_some();
-
-        match (contains_global, contains_local) {
-            (false, false) => {
-                if contains_parent { changes.push((e, Change::ParentRemove)) };
-                if contains_child { changes.push((e, Change::ChildRemove)) };
-            },
-            (false, true) => {
-                changes.push((e, Change::GlobalAdd));
-                if !contains_parent { changes.push((e, Change::ParentAdd)) };
-                if !contains_child { changes.push((e, Change::ChildAdd)) };
-            },
-            (true, false) => {
-                if !contains_parent { changes.push((e, Change::ParentAdd)) };
-                if contains_child { changes.push((e, Change::ChildRemove)) };
-            },
-            (true, true) => {
-                if !contains_parent { changes.push((e, Change::ParentAdd)) };
-                if !contains_child { changes.push((e, Change::ChildAdd)) };
-            },
-        }
+    buffer.extend(entities_components.query_filtered::<Entity, (
+        WithFilter<LocalTransform>,
+        WithoutFilter<GlobalTransform>,
+    )>().iter());
+    for e in buffer.drain(..) {
+        entities_components.add_component(e, GlobalTransform::IDENTITY).ok().unwrap();
     }
 
-    for (e, change) in changes {
-        match change {
-            Change::ChildAdd => { entities_components.add_component(e, ChildComponent { parent: Entity::EMPTY }).ok().unwrap(); },
-            Change::ChildRemove => { entities_components.remove_component::<ChildComponent>(e).unwrap(); },
-            Change::ParentAdd => { entities_components.add_component(e, ParentComponent { children: Vec::new() }).ok().unwrap(); },
-            Change::ParentRemove => { entities_components.remove_component::<ParentComponent>(e).unwrap(); },
-            Change::GlobalAdd => { entities_components.add_component(e, GlobalTransform::IDENTITY).ok().unwrap(); },
-        }
+    buffer.extend(entities_components.query_filtered::<Entity, (
+        WithoutFilter<GlobalTransform>,
+        WithoutFilter<LocalTransform>,
+        WithFilter<ParentComponent>,
+    )>().iter());
+    for e in buffer.drain(..) {
+        entities_components.remove_component::<ParentComponent>(e).unwrap();
     }
+
+    buffer.extend(entities_components.query_filtered::<Entity, (
+        OrFilter<(WithFilter<GlobalTransform>, WithFilter<LocalTransform>)>,
+        WithoutFilter<ParentComponent>,
+    )>().iter());
+    for e in buffer.drain(..) {
+        entities_components.add_component(e, ParentComponent { children: Vec::new(), }).ok().unwrap();
+    }
+
+    buffer.extend(entities_components.query_filtered::<Entity, (
+        WithoutFilter<LocalTransform>,
+        WithFilter<ChildComponent>,
+    )>().iter());
+    for e in buffer.drain(..) {
+        entities_components.remove_component::<ChildComponent>(e).unwrap();
+    }
+
+    buffer.extend(entities_components.query_filtered::<Entity, (
+        WithFilter<LocalTransform>,
+        WithoutFilter<ChildComponent>,
+    )>().iter());
+    for e in buffer.drain(..) {
+        entities_components.add_component(e, ChildComponent { parent: Entity::EMPTY }).ok().unwrap();
+    }
+
+    // for e in entities_components.query::<Entity>().iter() {
+    //     // +-Parent +-Child +Global
+
+    //     // - -> -Parent -Child
+    //     // Local -> +Global +Child +Parent
+    //     // Global -> +Parent -Child
+    //     // Local, Global -> +Child +Parent
+    //     let contains_global = entities_components.get_component::<GlobalTransform>(e).is_some();
+    //     let contains_local = entities_components.get_component::<LocalTransform>(e).is_some();
+    //     let contains_child = entities_components.get_component::<ChildComponent>(e).is_some();
+    //     let contains_parent = entities_components.get_component::<ParentComponent>(e).is_some();
+
+    //     match (contains_global, contains_local) {
+    //         (false, false) => {
+    //             if contains_parent { changes.push((e, Change::ParentRemove)) };
+    //             if contains_child { changes.push((e, Change::ChildRemove)) };
+    //         },
+    //         (false, true) => {
+    //             changes.push((e, Change::GlobalAdd));
+    //             if !contains_parent { changes.push((e, Change::ParentAdd)) };
+    //             if !contains_child { changes.push((e, Change::ChildAdd)) };
+    //         },
+    //         (true, false) => {
+    //             if !contains_parent { changes.push((e, Change::ParentAdd)) };
+    //             if contains_child { changes.push((e, Change::ChildRemove)) };
+    //         },
+    //         (true, true) => {
+    //             if !contains_parent { changes.push((e, Change::ParentAdd)) };
+    //             if !contains_child { changes.push((e, Change::ChildAdd)) };
+    //         },
+    //     }
+    // }
+
+    // for (e, change) in changes {
+    //     match change {
+    //         Change::ChildAdd => { entities_components.add_component(e, ChildComponent { parent: Entity::EMPTY }).ok().unwrap(); },
+    //         Change::ChildRemove => { entities_components.remove_component::<ChildComponent>(e).unwrap(); },
+    //         Change::ParentAdd => { entities_components.add_component(e, ParentComponent { children: Vec::new() }).ok().unwrap(); },
+    //         Change::ParentRemove => { entities_components.remove_component::<ParentComponent>(e).unwrap(); },
+    //         Change::GlobalAdd => { entities_components.add_component(e, GlobalTransform::IDENTITY).ok().unwrap(); },
+    //     }
+    // }
 }
 
 // - Update ParentComponents according to ChildComponents

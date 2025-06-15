@@ -1,27 +1,10 @@
-use std::any::TypeId;
-
 use crate::*;
 
-pub unsafe trait WorldQueryIterParam {
-    fn component_type() -> TypeId;
-    fn is_mutable() -> bool;
+pub struct WorldQuery<'e, A: ArchetypeIteratorItem, F: QueryFilter = ()> {
+    q: EntitiesComponentsQuery<'e, A, F>,
 }
 
-unsafe impl<P: Component> WorldQueryIterParam for &P {
-    fn component_type() -> TypeId { TypeId::of::<P>() }
-    fn is_mutable() -> bool { false }
-}
-
-unsafe impl<P: Component> WorldQueryIterParam for &mut P {
-    fn component_type() -> TypeId { TypeId::of::<P>() }
-    fn is_mutable() -> bool { true }
-}
-
-pub struct WorldQuery<'e, A: ArchetypeIteratorItem> {
-    q: EntitiesComponentsQuery<'e, A>,
-}
-
-impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
+impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> WorldQuery<'e, A, F> {
     pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'e: 'r
     {
@@ -55,8 +38,8 @@ impl<'e, A: ArchetypeIteratorItem> WorldQuery<'e, A> {
 }
 
 // todo: unsafe to sealed trait
-unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
-    type Item<'b> = WorldQuery<'b, A::Item<'b>>;
+unsafe impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> SystemParam for WorldQuery<'e, A, F> {
+    type Item<'b> = WorldQuery<'b, A::Item<'b>, F>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
         if let DataUsage::PerType(per_type) = usage {
@@ -67,7 +50,7 @@ unsafe impl<'e, A: ArchetypeIteratorItem> SystemParam for WorldQuery<'e, A> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(WorldQuery {
             // Safety. Managed by caller.
-            q: unsafe { input.world_data.entities_components().query::<A::Item<'_>>() },
+            q: unsafe { input.world_data.entities_components().query::<A::Item<'_>, F>() },
         })
     }
 }
