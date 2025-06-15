@@ -25,6 +25,10 @@ impl<T> Bvh<T> {
             root: BvhNode::new(values, 0),
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.root.is_none()
+    }
 }
 
 impl<T: Clone> Bvh<T> {

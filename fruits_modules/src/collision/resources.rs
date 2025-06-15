@@ -17,6 +17,10 @@ impl CollisionWorldResource {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.collision_shapes.is_empty()
+    }
+
     // pub fn refill(&mut self) -> &mut Vec<(CollisionAabb, Entity)> {
     //     self.collision_shapes.clear();
 

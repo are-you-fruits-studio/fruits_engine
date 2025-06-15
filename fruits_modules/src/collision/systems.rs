@@ -8,6 +8,8 @@ pub fn update_collision_world(
 ) {
     let iter = q.iter().map(|(e, c)| (c.shape.to_aab(), e));
 
-    *collision_world = CollisionWorldResource::new(iter.collect::<Vec<_>>());
-    // collision_world.refill().extend(iter);
+    //if collision_world.is_empty() {
+        *collision_world = CollisionWorldResource::new(iter.collect::<Vec<_>>());
+        // collision_world.refill().extend(iter);
+    //}
 }
