@@ -116,10 +116,22 @@ impl ArchetypeLayout {
         self.memory_physical_location(entity_in_archetype_index, item_layout)
     }
 
+    pub fn component_line_memory_physical_location(&self, chunk_index: usize, component: &TypeId) -> ArchetypeItemPhysicalLocation {
+        let item_layout = self.components.get(component).unwrap();
+
+        self.memory_line_physical_location(chunk_index, item_layout)
+    }
+
     pub fn entity_memory_physical_location(&self, entity_in_archetype_index: usize) -> ArchetypeItemPhysicalLocation {
         let item_layout = ArchetypeLayout::entity_item_layout();
 
         self.memory_physical_location(entity_in_archetype_index, &item_layout)
+    }
+
+    pub fn entity_line_memory_physical_location(&self, chunk_index: usize) -> ArchetypeItemPhysicalLocation {
+        let item_layout = ArchetypeLayout::entity_item_layout();
+
+        self.memory_line_physical_location(chunk_index, &item_layout)
     }
 
     fn memory_physical_location(&self, entity_in_archetype_index: usize, item_layout: &ArchetypeItemLayout) -> ArchetypeItemPhysicalLocation {
@@ -130,6 +142,19 @@ impl ArchetypeLayout {
 
         ArchetypeItemPhysicalLocation {
             chunk_index: self.chunk_index(entity_in_archetype_index),
+            memory_offset,
+            memory_size,
+            memory_align,
+        }
+    }
+
+    fn memory_line_physical_location(&self, chunk_index: usize, item_layout: &ArchetypeItemLayout) -> ArchetypeItemPhysicalLocation {
+        let memory_size = item_layout.type_info.size() * self.entities_per_chunk_count;
+        let memory_align = item_layout.type_info.align();
+        let memory_offset = item_layout.offset;
+
+        ArchetypeItemPhysicalLocation {
+            chunk_index,
             memory_offset,
             memory_size,
             memory_align,
