@@ -5,14 +5,50 @@ use crate::*;
 pub unsafe trait ArchetypeIteratorItem {
     type Item<'w>: 'w + ArchetypeIteratorItem;
     type ReadOnlyItem<'w>: 'w + ArchetypeIteratorItem;
+    type IterState;
     
+    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState;
+    unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w>;
     fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w>;
     fn fill_usage(usage: &mut PerTypeDataUsage);
+}
+
+pub struct SomeIterState {
+    entity_index: usize,
+    mem_line_ptr: *mut u8,
 }
 
 unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     type Item<'w> = &'w C;
     type ReadOnlyItem<'w> = &'w C;
+    type IterState = SomeIterState;
+    
+    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+        SomeIterState {
+            entity_index: 0,
+            mem_line_ptr: std::ptr::null_mut(),
+        }
+    }
+    unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w> {
+        let entity_index = iter_state.entity_index;
+        let chunk_index = layout.chunk_index(entity_index);
+        let entity_in_chunk_index = layout.entity_in_chunk_index(entity_index);
+
+        unsafe {
+            if entity_in_chunk_index == 0 {
+                let phys_loc = layout.component_line_memory_physical_location(chunk_index, &TypeId::of::<C>());
+                let (ptr, _) = archetype.get_memory(&phys_loc);
+                iter_state.mem_line_ptr = ptr;
+            }
+            
+            let result = &*(iter_state.mem_line_ptr as *const C);
+
+            iter_state.entity_index += 1;
+            iter_state.mem_line_ptr = iter_state.mem_line_ptr.byte_add(std::mem::size_of::<C>());
+
+            result
+        }
+    }
     
     fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
@@ -36,6 +72,34 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
 unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     type Item<'w> = &'w mut C;
     type ReadOnlyItem<'w> = &'w C;
+    type IterState = SomeIterState;
+    
+    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+        SomeIterState {
+            entity_index: 0,
+            mem_line_ptr: std::ptr::null_mut(),
+        }
+    }
+    unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w> {
+        let entity_index = iter_state.entity_index;
+        let chunk_index = layout.chunk_index(entity_index);
+        let entity_in_chunk_index = layout.entity_in_chunk_index(entity_index);
+
+        unsafe {
+            if entity_in_chunk_index == 0 {
+                let phys_loc = layout.component_line_memory_physical_location(chunk_index, &TypeId::of::<C>());
+                let (ptr, _) = archetype.get_memory(&phys_loc);
+                iter_state.mem_line_ptr = ptr;
+            }
+            
+            let result = &mut *(iter_state.mem_line_ptr as *mut C);
+
+            iter_state.entity_index += 1;
+            iter_state.mem_line_ptr = iter_state.mem_line_ptr.byte_add(std::mem::size_of::<C>());
+
+            result
+        }
+    }
     
     fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
@@ -59,6 +123,42 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
 unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     type Item<'w> = Option<&'w C>;
     type ReadOnlyItem<'w> = Option<&'w C>;
+    type IterState = Option<SomeIterState>;
+    
+    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+        if layout.components().contains_key(&TypeId::of::<C>()) {
+            Some(SomeIterState {
+                entity_index: 0,
+                mem_line_ptr: std::ptr::null_mut(),
+            })
+        } else {
+            None
+        }
+    }
+    unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w> {
+        let Some(iter_state) = iter_state else {
+            return None;
+        };
+
+        let entity_index = iter_state.entity_index;
+        let chunk_index = layout.chunk_index(entity_index);
+        let entity_in_chunk_index = layout.entity_in_chunk_index(entity_index);
+
+        unsafe {
+            if entity_in_chunk_index == 0 {
+                let phys_loc = layout.component_line_memory_physical_location(chunk_index, &TypeId::of::<C>());
+                let (ptr, _) = archetype.get_memory(&phys_loc);
+                iter_state.mem_line_ptr = ptr;
+            }
+            
+            let result = &*(iter_state.mem_line_ptr as *const C);
+
+            iter_state.entity_index += 1;
+            iter_state.mem_line_ptr = iter_state.mem_line_ptr.byte_add(std::mem::size_of::<C>());
+
+            Some(result)
+        }
+    }
     
     fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
         // todo: optimize
@@ -87,6 +187,42 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
 unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     type Item<'w> = Option<&'w mut C>;
     type ReadOnlyItem<'w> = Option<&'w C>;
+    type IterState = Option<SomeIterState>;
+    
+    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+        if layout.components().contains_key(&TypeId::of::<C>()) {
+            Some(SomeIterState {
+                entity_index: 0,
+                mem_line_ptr: std::ptr::null_mut(),
+            })
+        } else {
+            None
+        }
+    }
+    unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w> {
+        let Some(iter_state) = iter_state else {
+            return None;
+        };
+
+        let entity_index = iter_state.entity_index;
+        let chunk_index = layout.chunk_index(entity_index);
+        let entity_in_chunk_index = layout.entity_in_chunk_index(entity_index);
+
+        unsafe {
+            if entity_in_chunk_index == 0 {
+                let phys_loc = layout.component_line_memory_physical_location(chunk_index, &TypeId::of::<C>());
+                let (ptr, _) = archetype.get_memory(&phys_loc);
+                iter_state.mem_line_ptr = ptr;
+            }
+            
+            let result = &mut *(iter_state.mem_line_ptr as *mut C);
+
+            iter_state.entity_index += 1;
+            iter_state.mem_line_ptr = iter_state.mem_line_ptr.byte_add(std::mem::size_of::<C>());
+
+            Some(result)
+        }
+    }
     
     fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
         // todo: optimize
@@ -115,6 +251,34 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
 unsafe impl ArchetypeIteratorItem for Entity {
     type Item<'w> = Entity;
     type ReadOnlyItem<'w> = Entity;
+    type IterState = SomeIterState;
+    
+    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+        SomeIterState {
+            entity_index: 0,
+            mem_line_ptr: std::ptr::null_mut(),
+        }
+    }
+    unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w> {
+        let entity_index = iter_state.entity_index;
+        let chunk_index = layout.chunk_index(entity_index);
+        let entity_in_chunk_index = layout.entity_in_chunk_index(entity_index);
+
+        unsafe {
+            if entity_in_chunk_index == 0 {
+                let phys_loc = layout.entity_line_memory_physical_location(chunk_index);
+                let (ptr, _) = archetype.get_memory(&phys_loc);
+                iter_state.mem_line_ptr = ptr;
+            }
+            
+            let result = *(iter_state.mem_line_ptr as *const Entity);
+
+            iter_state.entity_index += 1;
+            iter_state.mem_line_ptr = iter_state.mem_line_ptr.byte_add(std::mem::size_of::<Entity>());
+
+            result
+        }
+    }
     
     fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
         let item_location = layout.entity_memory_physical_location(entity_index);
@@ -149,6 +313,29 @@ macro_rules! archetype_iterator_item_impl {
             type ReadOnlyItem<'w> = (
                 $($P::ReadOnlyItem<'w>),+
             );
+            type IterState = (
+                $($P::IterState),+
+            );
+
+            unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+                unsafe {
+                    (
+                        $($P::prepare_iter_state(archetype, layout)),+
+                    )
+                }
+            }
+            unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w> {
+                #[allow(non_snake_case)]
+                let (
+                    $($P),+
+                ) = iter_state;
+
+                unsafe {
+                    (
+                        $($P::next(archetype, layout, $P)),+
+                    )
+                }
+            }
             
             fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
                 (
@@ -184,16 +371,20 @@ pub struct ArchetypeIterator<'a, A: ArchetypeIteratorItem> {
     archetype_layout: Arc<ArchetypeLayout>,
     entities_count: usize,
     entity_index: usize,
+    iter_state: A::IterState,
     _phantom: PhantomData<&'a mut A>,
 }
 
 impl<'a, A: ArchetypeIteratorItem> ArchetypeIterator<'a, A> {
-    pub fn new(archetype: &'a UnsafeArchetype, archetype_layout: Arc<ArchetypeLayout>, entities_count: usize) -> Self {
+    pub unsafe fn new(archetype: &'a UnsafeArchetype, archetype_layout: Arc<ArchetypeLayout>, entities_count: usize) -> Self {
+        let iter_state = unsafe { A::prepare_iter_state(archetype, &*archetype_layout) };
+        
         Self {
             archetype,
-            archetype_layout,
             entities_count,
+            archetype_layout,
             entity_index: 0,
+            iter_state,
             _phantom: Default::default(),
         }
     }
@@ -207,7 +398,9 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for ArchetypeIterator<'a, A> {
             return None;
         }
         
-        let result = A::from_archetype(self.entity_index, &self.archetype, &self.archetype_layout);
+        let result = unsafe { A::next(&self.archetype, &self.archetype_layout, &mut self.iter_state) };
+        // todo
+        //let result = A::from_archetype(self.entity_index, &self.archetype, &self.archetype_layout);
 
         self.entity_index += 1;
 
@@ -241,11 +434,13 @@ impl Archetype {
 
     pub fn iter<A: ArchetypeIteratorItem>(&self) -> ArchetypeIterator<A> {
         // todo: threading guards
-        ArchetypeIterator::new(
-            &self.archetype,
-            Arc::clone(&self.layout),
-            self.alive_entities_count,
-        )
+        unsafe {
+            ArchetypeIterator::new(
+                &self.archetype,
+                Arc::clone(&self.layout),
+                self.alive_entities_count,
+            )
+        }
     }
 
     pub fn entities_count(&self) -> usize {
