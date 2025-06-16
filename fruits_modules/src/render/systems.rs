@@ -488,7 +488,7 @@ pub fn render_gizmos(
 
             let mut count = 0_usize;
 
-            for i in 0..1024 {
+            for i in 0..GIZMO_LINES_PER_DRAW_MAX {
                 let Some(line) = lines.pop() else {
                     break;
                 };
@@ -503,7 +503,6 @@ pub fn render_gizmos(
 
             render_state.queue().write_buffer(&gizmos_render_res.vertex_buffer, 0, fruits_utils::mem::as_bytes(&gizmos_render_res.vertices_cpu_buffer[..count]));
             render_state.queue().write_buffer(&gizmos_render_res.color_buffer, 0, fruits_utils::mem::as_bytes(&gizmos_render_res.colors_cpu_buffer[..count]));
-            render_state.queue().submit([]);
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Gizmos Encoder"),
