@@ -48,8 +48,8 @@ fn init(
 
     //
 
-    for x in 0..60 {
-        for y in 0..60 {
+    for x in 0..100 {
+        for y in 0..100 {
             create_button_entity(
                 ec,
                 Vec3::new(15.0 * x as f32, 15.0 * y as f32, 0.0),
