@@ -9,7 +9,7 @@ pub unsafe trait ArchetypeIteratorItem {
     
     unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState;
     unsafe fn next<'w>(archetype: &UnsafeArchetype, layout: &ArchetypeLayout, iter_state: &mut Self::IterState) -> Self::Item<'w>;
-    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w>;
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>>;
     fn fill_usage(usage: &mut PerTypeDataUsage);
 }
 
@@ -50,7 +50,11 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
         }
     }
     
-    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>> {
+        if !layout.components().contains_key(&TypeId::of::<C>()) {
+            return None;
+        }
+
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
 
         unsafe {
@@ -60,7 +64,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
                 panic!("fruits: invalid memory layout");
             }
 
-            &*(memory.0 as *const C)
+            Some(&*(memory.0 as *const C))
         }
     }
     
@@ -101,7 +105,11 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
         }
     }
     
-    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>> {
+        if !layout.components().contains_key(&TypeId::of::<C>()) {
+            return None;
+        }
+
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
 
         unsafe {
@@ -111,7 +119,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
                 panic!("fruits: invalid memory layout");
             }
 
-            &mut *(memory.0 as *mut C)
+            Some(&mut *(memory.0 as *mut C))
         }
     }
     
@@ -160,10 +168,10 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
         }
     }
     
-    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>> {
         // todo: optimize
         if !layout.components().contains_key(&TypeId::of::<C>()) {
-            return None;
+            return Some(None);
         }
 
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
@@ -175,7 +183,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
                 panic!("fruits: invalid memory layout");
             }
 
-            Some(&*(memory.0 as *const C))
+            Some(Some(&*(memory.0 as *const C)))
         }
     }
     
@@ -224,10 +232,10 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
         }
     }
     
-    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>> {
         // todo: optimize
         if !layout.components().contains_key(&TypeId::of::<C>()) {
-            return None;
+            return Some(None);
         }
 
         let item_location = layout.component_memory_physical_location(entity_index, &TypeId::of::<C>());
@@ -239,7 +247,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
                 panic!("fruits: invalid memory layout");
             }
 
-            Some(&mut *(memory.0 as *mut C))
+            Some(Some(&mut *(memory.0 as *mut C)))
         }
     }
     
@@ -280,7 +288,7 @@ unsafe impl ArchetypeIteratorItem for Entity {
         }
     }
     
-    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
+    fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>> {
         let item_location = layout.entity_memory_physical_location(entity_index);
 
         unsafe {
@@ -290,7 +298,7 @@ unsafe impl ArchetypeIteratorItem for Entity {
                 panic!("fruits: invalid memory layout");
             }
 
-            *(memory.0 as *const Entity)
+            Some(*(memory.0 as *const Entity))
         }
     }
     
@@ -337,10 +345,10 @@ macro_rules! archetype_iterator_item_impl {
                 }
             }
             
-            fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Self::Item<'w> {
-                (
-                    $($P::from_archetype(entity_index, archetype, layout)),+
-                )
+            fn from_archetype<'w>(entity_index: usize, archetype: &'w UnsafeArchetype, layout: &ArchetypeLayout) -> Option<Self::Item<'w>> {
+                Some((
+                    $($P::from_archetype(entity_index, archetype, layout)?),+
+                ))
             }
             
             fn fill_usage(usage: &mut PerTypeDataUsage) {

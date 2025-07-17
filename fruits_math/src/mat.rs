@@ -1,5 +1,7 @@
 use std::ops::{Index, IndexMut, Mul};
 
+use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
+
 use crate::{num::Number, Primitive};
 
 /// Column-major
@@ -189,3 +191,6 @@ impl<const N: usize, T: Number> Mul<T> for Mat<N, T> {
         self
     }
 }
+
+unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for Mat<N, T> { }
+unsafe impl<const N: usize, T: AllBitsInit> AllBitsInit for Mat<N, T> { }

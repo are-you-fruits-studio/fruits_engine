@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
 use fruits_math::{Mat3, Mat4, Vec3, Vec4};
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState};
 
-use crate::{asset::AssetStorageResource, render::utils::GIZMO_LINES_PER_DRAW_MAX, transform::GlobalTransform};
+use crate::{asset::AssetStorageResource, render::utils::{GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, transform::GlobalTransform};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmoSpace, GizmosRenderResource, GizmosResource, StandardRenderResource, StandardGlobalUniform};
 
@@ -60,11 +62,13 @@ pub fn create_standard_render_resource(
             },
         ],
     });
+
+    let instance_cpu_buffer = vec![Mat4::<f32>::IDENTITY.into_array(); STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX].into_boxed_slice();
     
     let instance_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Instance Buffer"),
         usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(Mat4::<f32>::IDENTITY.as_array()),
+        contents: fruits_utils::mem::as_bytes_slice(&instance_cpu_buffer),
     });
 
     let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -85,6 +89,7 @@ pub fn create_standard_render_resource(
         uniform: StandardGlobalUniform::default(),
         uniform_buffer,
         uniform_bind_group,
+        instance_cpu_buffer,
         instance_buffer,
     }).ok().unwrap();
 }
@@ -165,13 +170,13 @@ pub fn create_gizmos_render_resource(
     let vertex_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Vertex Buffer"),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&vertices_cpu_buffer),
+        contents: fruits_utils::mem::as_bytes_slice(&vertices_cpu_buffer),
     });
 
     let color_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Color Buffer"),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&colors_cpu_buffer),
+        contents: fruits_utils::mem::as_bytes_slice(&colors_cpu_buffer),
     });
 
     let transform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
@@ -380,61 +385,115 @@ pub fn render_meshes_and_materials(
 
     render_state.queue().write_buffer(&standard_render_res.uniform_buffer, 0, fruits_utils::mem::as_bytes(&[standard_render_res.uniform]));
     
-    for (transform, render_mesh, render_material) in query.iter() {
-        let Some(mesh) = meshes.get(&render_mesh.mesh) else { continue; };
-        let Some(material) = materials.get_mut(&render_material.material) else { continue; };
+    let mut instanced_matrices = HashMap::new();
 
-        // todo: temp
-        material.uniform_mut().albedo_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
-        material.uniform_mut().metallic = 0.9;
-        material.uniform_mut().roughness = 0.3;
+    for (transform, render_mesh, render_material) in query.iter() {
+        instanced_matrices.entry((render_mesh.mesh.clone(), render_material.material.clone()))
+            .or_insert_with(|| Vec::new())
+            .push(transform.scale_rotation.into_4x4_with_offset(transform.position));
+    }
+
+    for ((mesh, material), matrices) in instanced_matrices.iter() {
+        let Some(mesh) = meshes.get(&mesh) else { continue; };
+        let Some(material) = materials.get_mut(&material) else { continue; };
 
         render_state.queue().write_buffer(material.uniform_buffer(), 0, fruits_utils::mem::as_bytes(&[*material.uniform()]));
         
-        let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position);
-        let transform_matrix = transform_matrix.into_array();
-        let transform_matrix = fruits_utils::mem::as_bytes(&transform_matrix);
-
-        render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, transform_matrix);
-        render_state.queue().submit([]);
-
-        let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Load,
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &depth_res.texture_view,
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Load,
-                        store: StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
+        for matrices in matrices.chunks(STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX) {
+            let matrices_bytes = fruits_utils::mem::as_bytes_slice(matrices);
+            
+            render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, matrices_bytes);
+            render_state.queue().submit([]);
+            
+            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
             });
-    
-            render_pass.set_pipeline(material.render_pipeline());
-            render_pass.set_bind_group(0, &standard_render_res.uniform_bind_group, &[]);
-            render_pass.set_bind_group(1, material.uniform_bind_group(), &[]);
-            render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
-            render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
-            render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
-            render_pass.draw_indexed(0..(mesh.indices_count() as u32), 0, 0..1);
+
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &depth_res.texture_view,
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+            
+                render_pass.set_pipeline(material.render_pipeline());
+                render_pass.set_bind_group(0, &standard_render_res.uniform_bind_group, &[]);
+                render_pass.set_bind_group(1, material.uniform_bind_group(), &[]);
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+                render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+                render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
+                render_pass.draw_indexed(0..(mesh.indices_count() as u32), 0, 0..(matrices.len() as u32));
+            }
+
+            render_state.queue().submit(std::iter::once(encoder.finish()));
         }
-        
-        render_state.queue().submit(std::iter::once(encoder.finish()));
     }
+
+    // for (transform, render_mesh, render_material) in query.iter() {
+    //     let Some(mesh) = meshes.get(&render_mesh.mesh) else { continue; };
+    //     let Some(material) = materials.get_mut(&render_material.material) else { continue; };
+
+    //     render_state.queue().write_buffer(material.uniform_buffer(), 0, fruits_utils::mem::as_bytes(&[*material.uniform()]));
+        
+    //     let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position);
+    //     let transform_matrix = transform_matrix.into_array();
+    //     let transform_matrix = fruits_utils::mem::as_bytes(&transform_matrix);
+
+    //     render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, transform_matrix);
+    //     render_state.queue().submit([]);
+
+    //     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+    //         label: Some("Render Encoder"),
+    //     });
+
+    //     {
+    //         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+    //             label: Some("Render Pass"),
+    //             color_attachments: &[Some(RenderPassColorAttachment {
+    //                 view: &view,
+    //                 resolve_target: None,
+    //                 ops: Operations {
+    //                     load: LoadOp::Load,
+    //                     store: StoreOp::Store,
+    //                 },
+    //             })],
+    //             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+    //                 view: &depth_res.texture_view,
+    //                 depth_ops: Some(Operations {
+    //                     load: LoadOp::Load,
+    //                     store: StoreOp::Store,
+    //                 }),
+    //                 stencil_ops: None,
+    //             }),
+    //             ..Default::default()
+    //         });
+    
+    //         render_pass.set_pipeline(material.render_pipeline());
+    //         render_pass.set_bind_group(0, &standard_render_res.uniform_bind_group, &[]);
+    //         render_pass.set_bind_group(1, material.uniform_bind_group(), &[]);
+    //         render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+    //         render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+    //         render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
+    //         render_pass.draw_indexed(0..(mesh.indices_count() as u32), 0, 0..1);
+    //     }
+        
+    //     render_state.queue().submit(std::iter::once(encoder.finish()));
+    // }
 
 }
 
@@ -501,8 +560,8 @@ pub fn render_gizmos(
                 count += 1;
             }
 
-            render_state.queue().write_buffer(&gizmos_render_res.vertex_buffer, 0, fruits_utils::mem::as_bytes(&gizmos_render_res.vertices_cpu_buffer[..count]));
-            render_state.queue().write_buffer(&gizmos_render_res.color_buffer, 0, fruits_utils::mem::as_bytes(&gizmos_render_res.colors_cpu_buffer[..count]));
+            render_state.queue().write_buffer(&gizmos_render_res.vertex_buffer, 0, fruits_utils::mem::as_bytes_slice(&gizmos_render_res.vertices_cpu_buffer[..count]));
+            render_state.queue().write_buffer(&gizmos_render_res.color_buffer, 0, fruits_utils::mem::as_bytes_slice(&gizmos_render_res.colors_cpu_buffer[..count]));
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Gizmos Encoder"),

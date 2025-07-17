@@ -2,6 +2,8 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign, Neg
 };
 
+use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
+
 use super::num::{Number, Primitive};
 
 macro_rules! members_count {
@@ -301,6 +303,9 @@ macro_rules! vec_impl {
                 &mut self.as_array_mut()[i]
             }
         }
+        
+        unsafe impl<T: AllBitVariationsValid> AllBitVariationsValid for $V<T> { }
+        unsafe impl<T: AllBitsInit> AllBitsInit for $V<T> { }
     };
 }
 
@@ -334,6 +339,8 @@ impl<T: Primitive> Vec4<T> {
     pub const Z: Vec4<T> = Vec4::new(T::ZERO, T::ZERO, T::ONE, T::ZERO);
     pub const W: Vec4<T> = Vec4::new(T::ZERO, T::ZERO, T::ZERO, T::ONE);
 }
+
+//
 
 #[inline]
 pub fn dot<T: Number, const N: usize>(lhs: &[T; N], rhs: &[T; N]) -> T {

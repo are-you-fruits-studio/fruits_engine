@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{hash::{Hash, Hasher}, marker::PhantomData};
 
 use fruits_ecs::Resource;
 use fruits_utils::index_version_collection::{
@@ -16,16 +16,30 @@ pub struct AssetStorageResource<T> {
 }
 impl<T: 'static + Send + Sync> Resource for AssetStorageResource<T> { }
 
+#[derive(Debug)]
 pub struct AssetHandle<T> {
     index: VersionIndex,
     _phantom: PhantomData<fn(T) -> T>,
 }
 
+impl<T> Hash for AssetHandle<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.index.hash(state);
+    }
+}
+
+impl<T> PartialEq for AssetHandle<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+impl<T> Eq for AssetHandle<T> { }
+
 impl<T> Clone for AssetHandle<T> {
     fn clone(&self) -> Self {
         Self {
             index: self.index.clone(),
-            _phantom: self._phantom.clone()
+            _phantom: Default::default(),
         }
     }
 }

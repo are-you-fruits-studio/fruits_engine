@@ -27,6 +27,15 @@ pub fn derive_system_resource(stream: TokenStream) -> TokenStream {
     format!("impl SystemResource for {struct_name} {{ }}").parse().unwrap()
 }
 
+#[proc_macro_derive(Event)]
+pub fn derive_event(stream: TokenStream) -> TokenStream {
+    let Some(struct_name) = get_struct_name(stream) else {
+        panic!("The name of the struct is not found.");
+    };
+
+    format!("impl Event for {struct_name} {{ }}").parse().unwrap()
+}
+
 fn get_struct_name(stream: TokenStream) -> Option<String> {
     let mut iter = stream.into_iter();
 

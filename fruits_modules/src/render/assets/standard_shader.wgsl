@@ -8,6 +8,7 @@ struct GlobalUniform {
 
 struct MaterialUniform {
     albedo_color: vec4<f32>,
+    emission_color: vec4<f32>,
     metallic: f32,
     roughness: f32,
 }
@@ -63,15 +64,15 @@ fn map_instance_data(input: InstanceRawAttributes) -> InstanceAttributes {
 const PI = radians(180.0);
 
 struct Light {
-    position: vec3<f32>,
+    direction: vec3<f32>,
     color: vec3<f32>,
 }
 
 fn light() -> Light {
     var output: Light;
 
-    output.position = normalize(vec3<f32>(0.0, 0.0, -1.0));
-    output.color = vec3<f32>(1.0, 1.0, 1.0) * 1.0;
+    output.direction = normalize(vec3<f32>(1.0, 1.0, -1.0));
+    output.color = vec3<f32>(1.0, 1.0, 1.0) * 5.0;
 
     return output;
 }
@@ -128,8 +129,7 @@ struct VertexOutput {
     @builtin(position) position_clip: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) normal_world: vec3<f32>,
-    @location(2) light_position_world: vec3<f32>,
-    @location(3) position_world: vec3<f32>,
+    @location(2) position_world: vec3<f32>,
 };
 
 fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> VertexOutput {
@@ -140,7 +140,6 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     out.position_clip = global_uniform.matrix_world_to_clip * position_world;
     out.color = vertex.color * material_uniform.albedo_color;
     out.normal_world = (instance.local_to_world * vec4<f32>(vertex.normal, 0.0)).xyz;
-    out.light_position_world = light().position;
     out.position_world = position_world.xyz;
     
     return out;
@@ -156,9 +155,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         in.color.xyz,
         material_uniform.metallic,
         material_uniform.roughness,
-        normalize(in.light_position_world - in.position_world),
-        light().color
+        light.direction,
+        light.color
     );
 
-    return vec4<f32>(color_lit, 1.0);
+    return vec4<f32>(color_lit + material_uniform.emission_color.xyz, 1.0);
 }

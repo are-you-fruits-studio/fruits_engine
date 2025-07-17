@@ -4,6 +4,8 @@ use fruits_ecs::Resource;
 use fruits_math::Vec4;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, ShaderModule, SurfaceTexture, Texture, TextureView};
 
+use crate::asset::AssetHandle;
+
 use super::{GizmoLine, GizmoSpace, StandardGlobalUniform};
 
 #[derive(Resource)]
@@ -60,6 +62,7 @@ pub struct StandardRenderResource {
     pub shader: ShaderModule,
     pub pipeline_layout: PipelineLayout,
     pub instance_buffer: Buffer,
+    pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
     pub uniform: StandardGlobalUniform,
     pub uniform_buffer: Buffer,
     pub uniform_bind_group: BindGroup,

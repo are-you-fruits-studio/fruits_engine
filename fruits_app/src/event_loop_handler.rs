@@ -148,6 +148,8 @@ impl ApplicationHandler for EventLoopHandler {
             WindowEvent::RedrawRequested => {
                 world.execute_iteration(Schedule::Update);
 
+                world.data().events_mut().clear();
+
                 let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();

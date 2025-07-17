@@ -326,18 +326,31 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
         }
     }
 
-    pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
+    // todo: don't remove until the new version fully checked.
+    pub fn iter_old<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r
     {
         self.archetypes_iter()
             .flat_map(move |a| a.iter::<A::ReadOnlyItem<'static>>())
     }
+
+    pub fn iter<'r>(&'r self) -> QueryIter<'r, A>
+        where 'd: 'r
+    {
+        QueryIter::new(self.archetypes_iter())
+    }
     
-    pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
+    pub fn iter_mut_old<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
         where 'd: 'r
     {
         self.archetypes_iter()
             .flat_map(move |a| a.iter::<A::Item<'static>>())
+    }
+    
+    pub fn iter_mut<'r>(&'r mut self) -> QueryIterMut<'r, A>
+        where 'd: 'r
+    {
+        QueryIterMut::new(self.archetypes_iter())
     }
 
     pub fn len(&self) -> usize {
@@ -357,11 +370,11 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
 
         let archetype = self.data.archetypes.by_id_ref(location.archetype_id)?;
 
-        Some(<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::from_archetype(
+        <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::from_archetype(
             location.entity_archetype_index,
             unsafe { archetype.unsafe_archetype() },
             archetype.layout(),
-        ))
+        )
     }
 
     pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
@@ -371,19 +384,111 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
 
         let archetype = self.data.archetypes.by_id_ref(location.archetype_id)?;
 
-        Some(<A::Item<'static> as ArchetypeIteratorItem>::from_archetype(
+        <A::Item<'static> as ArchetypeIteratorItem>::from_archetype(
             location.entity_archetype_index,
             unsafe { archetype.unsafe_archetype() },
             archetype.layout(),
-        ))
+        )
     }
 
-    fn archetypes_iter<'r>(&'r self) -> impl Iterator<Item = &'r Archetype> + 'r
-    {
-        self.archetype_indices.iter()
-            .map(|i| self.data.archetypes.by_id_ref(*i).unwrap())
+    fn archetypes_iter(&self) -> ArchetypesIter {
+        ArchetypesIter::new(&self.data.archetypes, self.archetype_indices.iter())
     }
 }
+
+struct ArchetypesIter<'a> {
+    archetypes: &'a WorldArchetypes,
+    iter: std::slice::Iter<'a, usize>,
+}
+
+impl<'a> ArchetypesIter<'a> {
+    pub fn new(archetypes: &'a WorldArchetypes, iter: std::slice::Iter<'a, usize>) -> Self {
+        Self {
+            archetypes,
+            iter,
+        }
+    }
+}
+
+impl<'a> Iterator for ArchetypesIter<'a> {
+    type Item = &'a Archetype;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.archetypes.by_id_ref(*self.iter.next()?).unwrap())
+    }
+}
+
+pub struct QueryIter<'a, A: ArchetypeIteratorItem> {
+    iter: ArchetypesIter<'a>,
+    iter2: Option<ArchetypeIterator<'a, A::ReadOnlyItem<'static>>>,
+}
+
+impl<'a, A: ArchetypeIteratorItem> QueryIter<'a, A> {
+    fn new(iter: ArchetypesIter<'a>) -> Self {
+        Self {
+            iter,
+            iter2: None,
+        }
+    }
+}
+impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
+    type Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            // if let item @ Some(_) = self.iter2.as_mut().map(Iterator::next).flatten() {}
+            if let Some(iter2) = &mut self.iter2 && let item @ Some(_) = iter2.next() {
+                return item;
+            } else if let Some(iter_item) = self.iter.next() {
+                self.iter2 = Some(iter_item.iter::<A::ReadOnlyItem<'static>>());
+            } else {
+                return None;
+            }
+        }
+    }
+}
+
+pub struct QueryIterMut<'a, A: ArchetypeIteratorItem> {
+    iter: ArchetypesIter<'a>,
+    iter2: Option<ArchetypeIterator<'a, A::Item<'static>>>,
+}
+
+impl<'a, A: ArchetypeIteratorItem> QueryIterMut<'a, A> {
+    fn new(iter: ArchetypesIter<'a>) -> Self {
+        Self {
+            iter,
+            iter2: None,
+        }
+    }
+}
+impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
+    type Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            // if let item @ Some(_) = self.iter2.as_mut().map(Iterator::next).flatten() {}
+            if let Some(iter2) = &mut self.iter2 && let item @ Some(_) = iter2.next() {
+                return item;
+            } else if let Some(iter_item) = self.iter.next() {
+                self.iter2 = Some(iter_item.iter::<A::Item<'static>>());
+            } else {
+                return None;
+            }
+        }
+    }
+}
+
+// todo
+
+// impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> IntoIterator for &EntitiesComponentsQuery<'d, A, F> {
+//     type Item = <QueryIter<'d, A> as Iterator>::Item;
+
+//     type IntoIter = QueryIter<'d, A>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.iter()
+//     }
+// }
 
 pub unsafe trait QueryFilter: 'static {
     fn matches(layout: &ArchetypeLayout) -> bool;

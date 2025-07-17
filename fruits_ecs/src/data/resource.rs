@@ -2,10 +2,10 @@ use std::{any::{Any, TypeId}, cell::UnsafeCell, collections::HashMap};
 
 pub trait Resource : 'static + Send + Sync { }
 
-pub struct ResourceHolderUnsafe {
+pub struct ResourcesHolderUnsafe {
     resources: HashMap<TypeId, Box<dyn Any>>,
 }
-impl ResourceHolderUnsafe {
+impl ResourcesHolderUnsafe {
     pub fn new() -> Self {
         Self {
             resources: HashMap::new(),
@@ -30,26 +30,26 @@ impl ResourceHolderUnsafe {
 
     pub fn as_safe(&self) -> &ResourcesHolder {
         // Safety. Safe, because of repr(transparent).
-        unsafe { std::mem::transmute::<&ResourceHolderUnsafe, &ResourcesHolder>(self) }
+        unsafe { std::mem::transmute::<&ResourcesHolderUnsafe, &ResourcesHolder>(self) }
     }
 
     pub fn as_safe_mut(&mut self) -> &mut ResourcesHolder {
         // Safety. Safe, because of repr(transparent).
-        unsafe { std::mem::transmute::<&mut ResourceHolderUnsafe, &mut ResourcesHolder>(self) }
+        unsafe { std::mem::transmute::<&mut ResourcesHolderUnsafe, &mut ResourcesHolder>(self) }
     }
 }
 // Safety. Is safe itself. Ptr usage is managed by caller
-unsafe impl Send for ResourceHolderUnsafe { }
-unsafe impl Sync for ResourceHolderUnsafe { }
+unsafe impl Send for ResourcesHolderUnsafe { }
+unsafe impl Sync for ResourcesHolderUnsafe { }
 
 #[repr(transparent)]
 pub struct ResourcesHolder {
-    resources: ResourceHolderUnsafe,
+    resources: ResourcesHolderUnsafe,
 }
 impl ResourcesHolder {
     pub fn new() -> Self {
         Self {
-            resources: ResourceHolderUnsafe::new(),
+            resources: ResourcesHolderUnsafe::new(),
         }
     }
 

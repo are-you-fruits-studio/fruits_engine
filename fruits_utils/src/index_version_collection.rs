@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, mem::MaybeUninit};
+use std::{cmp::Ordering, collections::VecDeque, mem::MaybeUninit};
 
 pub struct VersionCollection<T> {
     items: Vec<DataWithVersion<T>>,
@@ -10,10 +10,25 @@ pub struct VersionCollection<T> {
 unsafe impl<S: Send> Send for VersionCollection<S> { }
 unsafe impl<S: Sync> Sync for VersionCollection<S> { }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VersionIndex {
     pub index: usize,
     pub version: usize,
+}
+
+impl Ord for VersionIndex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.index.cmp(&other.index) {
+            Ordering::Equal => self.version.cmp(&other.version),
+            cmp @ _ => cmp,
+        }
+    }
+}
+
+impl PartialOrd for VersionIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 struct DataWithVersion<T> {

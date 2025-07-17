@@ -22,6 +22,10 @@ impl App {
         &mut self.ecs_world
     }
 
+    pub fn try_init(&mut self) {
+        
+    }
+
     pub fn run(self) {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);

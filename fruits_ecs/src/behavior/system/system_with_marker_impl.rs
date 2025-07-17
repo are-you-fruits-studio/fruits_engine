@@ -2,9 +2,9 @@ use crate::*;
 
 macro_rules! system_with_marker_impl {
     ($($P: ident),*) => {
-        unsafe impl<F, $($P),*> SystemWithMarker<fn($($P),*)> for F
+        unsafe impl<F, R, $($P),*> SystemWithMarker<fn($($P),*)> for F
         where
-            F: 'static + Send + Sync + Fn($($P),*) + for<'a> Fn($($P::Item<'a>),*),
+            F: 'static + Send + Sync + Fn($($P),*) -> R + for<'a> Fn($($P::Item<'a>),*) -> R,
             fn($($P),*): 'static,
             $($P: SystemParam),*
         {

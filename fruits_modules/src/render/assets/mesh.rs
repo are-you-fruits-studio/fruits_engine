@@ -1,3 +1,4 @@
+use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use wgpu::{util::DeviceExt, Buffer, Device};
 
 #[repr(C)]
@@ -8,6 +9,9 @@ pub struct StandardVertex {
     pub color: [f32; 4],
     pub uv: [f32; 2],
 }
+
+unsafe impl AllBitVariationsValid for StandardVertex { }
+unsafe impl AllBitsInit for StandardVertex { }
 
 impl StandardVertex {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -37,7 +41,7 @@ impl StandardMesh {
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: fruits_utils::mem::as_bytes(vertices),
+                contents: fruits_utils::mem::as_bytes_slice(vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             }
         );
@@ -45,7 +49,7 @@ impl StandardMesh {
         let index_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: fruits_utils::mem::as_bytes(indices),
+                contents: fruits_utils::mem::as_bytes_slice(indices),
                 usage: wgpu::BufferUsages::INDEX,
             }
         );

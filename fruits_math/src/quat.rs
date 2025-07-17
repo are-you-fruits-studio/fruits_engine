@@ -1,5 +1,7 @@
 use std::ops::Mul;
 
+use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
+
 use crate::{Mat3, Number, Vec3, Vec4};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -194,3 +196,6 @@ impl<N: Number> Mul for Quat<N> {
         }
     }
 }
+
+unsafe impl<T: AllBitVariationsValid + Number> AllBitVariationsValid for Quat<T> { }
+unsafe impl<T: AllBitsInit + Number> AllBitsInit for Quat<T> { }
