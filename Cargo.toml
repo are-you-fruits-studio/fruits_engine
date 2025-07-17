@@ -5,9 +5,13 @@ name = "fruits_engine"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["lib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-env_logger = "0.11"
-log = "0.4"
-pollster = "0.3"
+fruits_prelude = { path = "./fruits_prelude" }
+fruits_modules = { path = "./fruits_modules" }
+fruits_utils = { path = "./fruits_utils" }
+fruits_math = { path = "./fruits_math" }
