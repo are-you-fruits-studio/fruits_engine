@@ -173,7 +173,7 @@ fn create_render_app_state(event_loop: &ActiveEventLoop) -> RenderAppState {
     
     // todo: move wgpu initialization into ecs Start handle?
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::DX12,
+        backends: Backends::PRIMARY,
         dx12_shader_compiler: Default::default(),
         ..Default::default()
     });
