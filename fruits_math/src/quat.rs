@@ -145,6 +145,38 @@ impl<N: Number> Quat<N> {
         }
     }
 
+    pub fn look_rotation(forward: Vec3<N>, mut up: Vec3<N>) -> Self {
+        // todo: check and edge-cases
+        let forward = forward.normalized();
+
+        if forward.length() < 1e-6 {
+            return Quat::IDENTITY;
+        }
+
+        let mut right = Vec3::cross(up, forward).normalized();
+
+        if right.length_sq() < N::from_f64(1e-6) {
+            up = Vec3::cross(forward, Vec3::X);
+            if up.length_sq() < N::from_f64(1e-6) {
+                up = Vec3::cross(forward, Vec3::Y);
+            }
+
+            right = Vec3::cross(up, forward).normalized();
+        }
+
+        let corrected_up = Vec3::cross(forward, right);
+
+        // Construct rotation matrix
+        let m = Mat3::<N>::from_array([
+            right.into_array(),
+            corrected_up.into_array(),
+            forward.into_array(),
+        ]);
+
+        // Convert matrix to quaternion
+        Self::from_matrix(m)
+    }
+
     pub const fn new(x: N, y: N, z: N, w: N) -> Self {
         Self { x, y, z, w }
     }
