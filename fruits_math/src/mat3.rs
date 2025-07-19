@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-use crate::{Mat, Mat2, Mat4, Primitive};
+use crate::{Mat, Mat2, Mat4, Primitive, Quat};
 
 use super::{num::Number, Vec2, Vec3};
 
@@ -158,6 +158,28 @@ impl<T: Number> Mat3<T> {
         Vec2::new(x, y) / z
     }
 
+    pub fn to_lossy_scale(&self) -> Vec3<T> {
+        Vec3 {
+            x: T::from_f64(crate::vec::length(&self[0])),
+            y: T::from_f64(crate::vec::length(&self[1])),
+            z: T::from_f64(crate::vec::length(&self[2])),
+        }
+    }
+
+    pub fn to_lossy_scale_rotation(&self) -> (Vec3<T>, Quat<T>) {
+        // todo: check
+        let scale = self.to_lossy_scale();
+
+        let mut rot_mat = *self;
+
+        for i in 0..scale.as_array().len() {
+            if scale[i] != T::ZERO {
+                rot_mat[i] = crate::vec::div_by(&rot_mat[i], scale.x);
+            }
+        }
+
+        (scale, Quat::from_matrix(rot_mat))
+    }
 }
 
 impl<T: Number> Mul for Mat3<T> {

@@ -1,4 +1,4 @@
-use fruits_math::{Quat, Vec3};
+use fruits_math::{Mat4, Quat, Vec3};
 
 use crate::collision::LineBoundType;
 
@@ -55,6 +55,42 @@ impl CollisionShape {
                 extents: Vec3::with_all(collision_sphere.radius),
             },
             CollisionShape::Triangle(collision_triangle) => CollisionAabb::from_points(collision_triangle.into_iter().copied()),
+        }
+    }
+
+    pub fn apply_matrix_lossy(&self, mat: Mat4<f32>) -> Self {
+        // todo: check
+        match self {
+            CollisionShape::Point(collision_point) => CollisionShape::Point(mat.mul_with_projection(*collision_point)),
+            CollisionShape::Line(collision_line) => CollisionShape::Line(CollisionLine {
+                start: mat.mul_with_projection(collision_line.start),
+                end: mat.mul_with_projection(collision_line.end),
+                bounds: collision_line.bounds,
+            }),
+            CollisionShape::Aabb(collision_aabb) => CollisionShape::Aabb(CollisionAabb {
+                center: mat.mul_with_projection(collision_aabb.center),
+                extents: collision_aabb.extents,
+            }),
+            CollisionShape::Box(collision_box) => {
+                let (lossy_scale, rotation) = mat.ignored(3, 3).to_lossy_scale_rotation();
+
+                CollisionShape::Box(CollisionBox {
+                    center: mat.mul_with_projection(collision_box.center),
+                    extents: lossy_scale * collision_box.extents,
+                    rotation: rotation * collision_box.rotation,
+                })
+            },
+            CollisionShape::Sphere(collision_sphere) => {
+                let lossy_scale = mat.ignored(3, 3).to_lossy_scale();
+
+                let avg_scale = lossy_scale.into_array().iter().sum::<f32>() / 3.0;
+
+                CollisionShape::Sphere(CollisionSphere {
+                    center: mat.mul_with_projection(collision_sphere.center),
+                    radius: avg_scale * collision_sphere.radius,
+                })
+            },
+            CollisionShape::Triangle(collision_triangle) => CollisionShape::Triangle(collision_triangle.map(|p| mat.mul_with_projection(p))),
         }
     }
 }

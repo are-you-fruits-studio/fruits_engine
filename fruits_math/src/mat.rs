@@ -20,6 +20,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
 
     pub const fn into_array(self) -> [[T; N]; N] { self.data }
     pub const fn as_array(&self) -> &[[T; N]; N] { &self.data }
+    pub const fn as_array_mut(&mut self) -> &mut [[T; N]; N] { &mut self.data }
 
     pub const fn try_col(&self, x: usize) -> Option<&[T; N]> {
         if x >= N {
