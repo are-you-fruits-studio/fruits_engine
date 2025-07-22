@@ -1,5 +1,5 @@
 @group(0) @binding(0) var<uniform> global_uniform: GlobalUniform;
-@group(1) @binding(0) var<uniform> material_uniform: MaterialUniform;
+@group(0) @binding(1) var<uniform> material_uniform: MaterialUniform;
 
 struct GlobalUniform {
     matrix_world_to_clip: mat4x4<f32>,
