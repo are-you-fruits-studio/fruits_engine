@@ -31,14 +31,6 @@ struct InstanceAttributes {
     local_to_world: mat4x4<f32>,
 };
 
-struct VertexInput {
-    position: vec3<f32>,
-    normal: vec3<f32>,
-    color: vec4<f32>,
-    uv: vec2<f32>,
-    local_to_world: mat4x4<f32>,
-}
-
 @vertex
 fn vs_main(vertex: VertexAttributes, instance_raw: InstanceRawAttributes) -> VertexOutput {
     var instance = map_instance_data(instance_raw);

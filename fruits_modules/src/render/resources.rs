@@ -1,7 +1,7 @@
 use std::collections::{hash_map::IterMut, HashMap};
 
 use fruits_ecs::Resource;
-use fruits_math::Vec4;
+use fruits_math::{Mat4, Vec3, Vec4};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, ShaderModule, SurfaceTexture, Texture, TextureView};
 
 use crate::asset::AssetHandle;
@@ -59,12 +59,18 @@ pub struct DepthTextureResource {
 
 #[derive(Resource)]
 pub struct StandardRenderResource {
-    pub shader: ShaderModule,
     pub pipeline_layout: PipelineLayout,
     pub instance_buffer: Buffer,
     pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
-    pub uniform: StandardGlobalUniform,
-    pub uniform_buffer: Buffer,
-    pub uniform_bind_group: BindGroup,
-    pub material_uniform_bind_group_layout: BindGroupLayout,
+    pub camera_pos: Vec3<f32>,
+    pub camera_proj_matrix: Mat4<f32>,
+    pub lit: LitStandardRenderResourceData,
+}
+
+pub struct LitStandardRenderResourceData {
+    pub buffer_uniform_global: Buffer,
+    pub buffer_uniform_material: Buffer,
+    pub bind_group_uniform: BindGroup,
+    pub render_pipeline: RenderPipeline,
+    pub uniform_global: StandardGlobalUniform,
 }
