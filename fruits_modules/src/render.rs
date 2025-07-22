@@ -30,6 +30,8 @@ pub fn add_module_to(world: &mut WorldBuilder) {
         .add_child_system(recreate_depth_texture_resource)
         .add_child_system(create_gizmos_render_resource);
 
+    start.order_system(recreate_depth_texture_resource).before_system(create_standard_render_resource);
+
     let update = world.behavior_mut().get_mut(Schedule::Update);
 
     update.group(SYSTEM_GROUP)
