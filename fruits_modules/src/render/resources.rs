@@ -2,11 +2,10 @@ use std::collections::{hash_map::IterMut, HashMap};
 
 use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
-use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, ShaderModule, SurfaceTexture, Texture, TextureView};
+use wgpu::{BindGroup, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
-use crate::asset::AssetHandle;
 
-use super::{GizmoLine, GizmoSpace, StandardGlobalUniform};
+use super::{GizmoLine, GizmoSpace};
 
 #[derive(Resource)]
 pub struct SurfaceTextureResource {
@@ -64,13 +63,16 @@ pub struct StandardRenderResource {
     pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
     pub camera_pos: Vec3<f32>,
     pub camera_proj_matrix: Mat4<f32>,
-    pub lit: LitStandardRenderResourceData,
+    pub lit: MaterialStandardRenderResourceData,
+    pub unlit: MaterialStandardRenderResourceData,
 }
 
-pub struct LitStandardRenderResourceData {
-    pub buffer_uniform_global: Buffer,
-    pub buffer_uniform_material: Buffer,
+pub struct MaterialStandardRenderResourceData {
+    pub buffer_uniform: Buffer,
     pub bind_group_uniform: BindGroup,
     pub render_pipeline: RenderPipeline,
-    pub uniform_global: StandardGlobalUniform,
+}
+
+pub struct UnlitStandardRenderResourceData {
+
 }

@@ -69,7 +69,12 @@ struct BoidSettings {
 fn init(mut world: ExclusiveWorldAccess) {
     let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
-    let material = StandardMaterial::from_world(&*world);
+    let material = StandardMaterial::Lit(LitMaterial {
+        albedo_color: Vec4::with_all(0.5),
+        emission_color: Vec4::with_all(0.0),
+        metallic: 0.0,
+        roughness: 0.5,
+    });
 
     let mut vertices = [
         StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },

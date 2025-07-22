@@ -1,20 +1,8 @@
-@group(0) @binding(0) var<uniform> global_uniform: GlobalUniform;
-@group(1) @binding(0) var<uniform> material_uniform: MaterialUniform;
+@group(0) @binding(0) var<uniform> global_data: GlobalData;
 
-struct GlobalUniform {
+struct GlobalData {
     matrix_world_to_clip: mat4x4<f32>,
-    // todo: unused
-    camera_position_world: vec3<f32>,
-}
-
-struct MaterialUniform {
     albedo_color: vec4<f32>,
-    // todo: unused
-    emission_color: vec4<f32>,
-    // todo: unused
-    metallic: f32,
-    // todo: unused
-    roughness: f32,
 }
 
 struct VertexAttributes {
@@ -65,8 +53,8 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
 
     var position_world = instance.local_to_world * vec4<f32>(vertex.position, 1.0);
 
-    out.position_clip = global_uniform.matrix_world_to_clip * position_world;
-    out.color = vertex.color * material_uniform.albedo_color;
+    out.position_clip = global_data.matrix_world_to_clip * position_world;
+    out.color = vertex.color * global_data.color;
     
     return out;
 }
