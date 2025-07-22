@@ -2,7 +2,7 @@
 
 struct GlobalData {
     matrix_world_to_clip: mat4x4<f32>,
-    albedo_color: vec4<f32>,
+    color: vec4<f32>,
 }
 
 struct VertexAttributes {
