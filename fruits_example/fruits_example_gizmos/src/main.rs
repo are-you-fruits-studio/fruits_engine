@@ -1,5 +1,5 @@
 use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
-use fruits_modules::{render::{CameraComponent, GizmoLine, GizmoSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
+use fruits_modules::{render::{CameraComponent, GizmoLine, RenderSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
 use fruits_prelude::*;
 
 fn main() {
@@ -57,7 +57,7 @@ fn update_system(
     mut gizmos: ResMut<GizmosResource>,
 ) {
 
-    let lines = gizmos.space(GizmoSpace::Clip);
+    let lines = gizmos.space(RenderSpace::Clip);
     let color = Vec4::new(1.0, 0.0, 0.0, 1.0);
 
     lines.push(GizmoLine { start: Vec3::new(-0.5, -0.5, 0.0), end: Vec3::new(-0.5, 0.5, 0.0), color, });
@@ -65,7 +65,7 @@ fn update_system(
     lines.push(GizmoLine { start: Vec3::new(0.5, 0.5, 0.0), end: Vec3::new(0.5, -0.5, 0.0), color, });
     lines.push(GizmoLine { start: Vec3::new(0.5, -0.5, 0.0), end: Vec3::new(-0.5, -0.5, 0.0), color, });
 
-    let lines = gizmos.space(GizmoSpace::Window);
+    let lines = gizmos.space(RenderSpace::Window);
     let color = Vec4::new(0.0, 1.0, 0.0, 1.0);
 
     lines.push(GizmoLine { start: Vec3::new(1.0, 1.0, 0.0), end: Vec3::new(1.0, 100.0, 0.0), color, });
@@ -73,7 +73,7 @@ fn update_system(
     lines.push(GizmoLine { start: Vec3::new(100.0, 100.0, 0.0), end: Vec3::new(100.0, 1.0, 0.0), color, });
     lines.push(GizmoLine { start: Vec3::new(100.0, 1.0, 0.0), end: Vec3::new(1.0, 1.0, 0.0), color, });
     
-    let lines = gizmos.space(GizmoSpace::World);
+    let lines = gizmos.space(RenderSpace::World);
     let color = Vec4::new(0.0, 0.0, 1.0, 1.0);
 
     lines.push(GizmoLine { start: Vec3::new(0.0, 0.0, 0.0), end: Vec3::new(0.0, 1.0, 0.0), color, });

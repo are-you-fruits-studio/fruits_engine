@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Mat3, Mat4, Vec3, Vec4};
+use fruits_math::{Mat3, Mat4, Vec2, Vec3, Vec4};
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState};
 
-use crate::{asset::AssetStorageResource, render::{utils::{GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, LitUniform, MaterialStandardRenderResourceData, StandardInstance, StandardVertex, UnlitUniform}, transform::GlobalTransform};
+use crate::{asset::AssetStorageResource, render::{utils::{self, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardVertex, UnlitUniform}, transform::GlobalTransform};
 
-use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmoSpace, GizmosRenderResource, GizmosResource, StandardRenderResource};
+use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, RenderSpace, GizmosRenderResource, GizmosResource, StandardRenderResource};
 
 pub fn create_standard_render_resource(
     mut world: ExclusiveWorldAccess,
@@ -477,6 +477,7 @@ pub fn clear_depth(
 pub fn render_meshes_and_materials(
     query: WorldQuery<(&GlobalTransform, &StandardMeshComponent, &StandardMaterialComponent)>,
     render_state: Res<RenderStateResource>,
+    screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     depth_res: Res<DepthTextureResource>,
     surface_texture: Res<SurfaceTextureResource>,
@@ -490,6 +491,15 @@ pub fn render_meshes_and_materials(
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+
+    let window_size = render_state.size();
+
+    let screen_space_transform_mat = utils::create_screen_world_to_clip_matrix(
+        window_size.width as f32,
+        window_size.height as f32,
+        screen_space_res.near,
+        screen_space_res.far,
+    );
 
     let mut instanced_matrices = HashMap::new();
 
@@ -506,6 +516,12 @@ pub fn render_meshes_and_materials(
         let (render_pipeline, bind_group) = match material {
             StandardMaterial::Lit(material) => {
                 let lit_data = &standard_render_res.lit;
+                
+                let world_to_clip = match material.space {
+                    RenderSpace::Clip => Mat4::IDENTITY,
+                    RenderSpace::Window => screen_space_transform_mat,
+                    RenderSpace::World => standard_render_res.camera_proj_matrix,
+                };
 
                 let uniform = LitUniform {
                     albedo_color: material.albedo_color,
@@ -513,7 +529,7 @@ pub fn render_meshes_and_materials(
                     emission_color: material.emission_color,
                     roughness: material.roughness,
                     camera_position_world: standard_render_res.camera_pos,
-                    world_to_clip: standard_render_res.camera_proj_matrix,
+                    world_to_clip,
                     _padding: Default::default(),
                 };
 
@@ -524,8 +540,14 @@ pub fn render_meshes_and_materials(
             StandardMaterial::Unlit(material) => {
                 let unlit_data = &standard_render_res.unlit;
 
+                let world_to_clip = match material.space {
+                    RenderSpace::Clip => Mat4::IDENTITY,
+                    RenderSpace::Window => screen_space_transform_mat,
+                    RenderSpace::World => standard_render_res.camera_proj_matrix,
+                };
+
                 let uniform = UnlitUniform {
-                    world_to_clip: standard_render_res.camera_proj_matrix,
+                    world_to_clip,
                     color: material.color,
                 };
 
@@ -636,6 +658,7 @@ pub fn render_gizmos(
     mut gizmos: ResMut<GizmosResource>,
     mut gizmos_render_res: ResMut<GizmosRenderResource>,
     surface_texture: Res<SurfaceTextureResource>,
+    screen_space_res: Res<ScreenSpaceResource>,
     render_state: Res<RenderStateResource>,
     camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
@@ -653,12 +676,11 @@ pub fn render_gizmos(
         }
 
         let transform = match space {
-            GizmoSpace::Clip => Mat4::<f32>::IDENTITY,
-            GizmoSpace::Window => {
-                Mat4::<f32>::offset(Vec3::new(-1.0, 1.0, 0.0))
-                * Mat3::<f32>::scale(Vec3::new(2.0 / window_size.width as f32, -2.0 / window_size.height as f32, 1.0)).into_4x4()
+            RenderSpace::Clip => Mat4::<f32>::IDENTITY,
+            RenderSpace::Window => {
+                utils::create_screen_world_to_clip_matrix(window_size.width as f32, window_size.height as f32, screen_space_res.near, screen_space_res.far)
             },
-            GizmoSpace::World => {
+            RenderSpace::World => {
                 let Some((transform, camera)) = camera_query.iter().next() else {
                     continue;
                 };

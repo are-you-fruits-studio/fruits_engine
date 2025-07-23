@@ -1,7 +1,7 @@
 use core::f32;
 
 use fruits_math::{Quat, Vec2, Vec3, Vec4};
-use fruits_modules::{collision::{self, ColliderComponent, CollisionAabb, CollisionBox, CollisionLine, CollisionShape, CollisionSphere, CollisionWorldResource, LineBoundType}, render::{CameraComponent, GizmoLine, GizmoSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
+use fruits_modules::{collision::{self, ColliderComponent, CollisionAabb, CollisionBox, CollisionLine, CollisionShape, CollisionSphere, CollisionWorldResource, LineBoundType}, render::{CameraComponent, GizmoLine, RenderSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
 use fruits_prelude::*;
 
 fn main() {
@@ -28,7 +28,7 @@ fn main() {
 
 #[derive(Component)]
 struct GizmoComponent {
-    pub space: GizmoSpace,
+    pub space: RenderSpace,
     pub color: Vec4<f32>,
 }
 
@@ -70,7 +70,7 @@ fn create_button_entity(ec: &mut EntitiesComponentsHolder, pos: Vec3<f32>, scale
     ec.add_component(e, GizmoComponent {
         color: Vec4::new(0.5, 0.5, 0.5, 0.0),
         // todo: Window doesn't work?
-        space: GizmoSpace::Window,
+        space: RenderSpace::Window,
     }).ok().unwrap();
     ec.add_component(e, ColliderComponent {
         shape: CollisionShape::Aabb(CollisionAabb {
@@ -178,7 +178,7 @@ fn draw_collisions(
         sh2,
     );
 
-    let lines = gizmos.space(GizmoSpace::World);
+    let lines = gizmos.space(RenderSpace::World);
     let color = if overlaps { Vec4::new(1.0, 0.0, 0.0, 1.0) } else { Vec4::new(0.0, 1.0, 0.0, 1.0) };
 
     draw_gizmo_collision_shape(lines, color, sh1);

@@ -83,12 +83,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
         return;
     };
 
-    let material = StandardMaterial::Lit(LitMaterial {
-        albedo_color: Vec4::with_all(0.5),
-        emission_color: Vec4::with_all(0.0),
-        metallic: 0.0,
-        roughness: 0.5,
-    });
+    let material = StandardMaterial::Lit(LitMaterial::default());
 
     let mut vertices = [
         StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },

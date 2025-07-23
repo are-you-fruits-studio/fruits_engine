@@ -1,6 +1,8 @@
 use fruits_math::{Mat4, Vec3, Vec4};
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
+use crate::render::RenderSpace;
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct LitUniform {
@@ -51,15 +53,38 @@ impl Default for UnlitUniform {
 
 #[derive(Copy, Clone, Debug)]
 pub struct LitMaterial {
+    pub space: RenderSpace,
     pub albedo_color: Vec4<f32>,
     pub emission_color: Vec4<f32>,
     pub metallic: f32,
     pub roughness: f32,
 }
 
+impl Default for LitMaterial {
+    fn default() -> Self {
+        LitMaterial {
+            space: RenderSpace::World,
+            albedo_color: Vec4::with_all(0.5),
+            emission_color: Vec4::with_all(0.0),
+            metallic: 0.0,
+            roughness: 0.5,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct UnlitMaterial {
+    pub space: RenderSpace,
     pub color: Vec4<f32>,
+}
+
+impl Default for UnlitMaterial {
+    fn default() -> Self {
+        Self {
+            space: RenderSpace::World,
+            color: Vec4::with_all(0.5),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]

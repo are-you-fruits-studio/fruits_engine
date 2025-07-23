@@ -5,7 +5,7 @@ use fruits_math::{Mat4, Vec3, Vec4};
 use wgpu::{BindGroup, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
 
-use super::{GizmoLine, GizmoSpace};
+use super::GizmoLine;
 
 #[derive(Resource)]
 pub struct SurfaceTextureResource {
@@ -14,27 +14,28 @@ pub struct SurfaceTextureResource {
 
 #[derive(Resource)]
 pub struct GizmosResource {
-    lines: HashMap<GizmoSpace, Vec<GizmoLine>>,
+    lines: HashMap<RenderSpace, Vec<GizmoLine>>,
 }
 impl GizmosResource {
-    pub fn new() -> Self {
+    pub fn space(&mut self, space: RenderSpace) -> &mut Vec<GizmoLine> {
+        self.lines.get_mut(&space).unwrap()
+    }
+
+    pub fn spaces(&mut self) -> IterMut<'_, RenderSpace, Vec<GizmoLine>> {
+        self.lines.iter_mut()
+    }
+}
+impl Default for GizmosResource {
+    fn default() -> Self {
         let mut lines = HashMap::new();
 
-        lines.insert(GizmoSpace::Clip, Vec::new());
-        lines.insert(GizmoSpace::Window, Vec::new());
-        lines.insert(GizmoSpace::World, Vec::new());
+        lines.insert(RenderSpace::Clip, Vec::new());
+        lines.insert(RenderSpace::Window, Vec::new());
+        lines.insert(RenderSpace::World, Vec::new());
 
         Self {
             lines,
         }
-    }
-
-    pub fn space(&mut self, space: GizmoSpace) -> &mut Vec<GizmoLine> {
-        self.lines.get_mut(&space).unwrap()
-    }
-
-    pub fn spaces(&mut self) -> IterMut<'_, GizmoSpace, Vec<GizmoLine>> {
-        self.lines.iter_mut()
     }
 }
 
@@ -73,6 +74,24 @@ pub struct MaterialStandardRenderResourceData {
     pub render_pipeline: RenderPipeline,
 }
 
-pub struct UnlitStandardRenderResourceData {
+#[derive(Resource)]
+pub struct ScreenSpaceResource {
+    pub near: f32,
+    pub far: f32,
+}
 
+impl Default for ScreenSpaceResource {
+    fn default() -> Self {
+        Self {
+            near: -1_000.0,
+            far: 1_000.0,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RenderSpace {
+    Clip,
+    Window,
+    World,
 }

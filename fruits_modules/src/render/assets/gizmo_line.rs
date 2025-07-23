@@ -7,10 +7,3 @@ pub struct GizmoLine {
     // todo: transparency.
     pub color: Vec4<f32>,
 }
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum GizmoSpace {
-    Clip,
-    Window,
-    World,
-}

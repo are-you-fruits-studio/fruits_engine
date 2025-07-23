@@ -21,7 +21,8 @@ pub fn add_module_to(world: &mut WorldBuilder) {
     world.data_mut().resources_mut().insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
     world.data_mut().resources_mut().insert(AssetStorageResource::<StandardMaterial>::new()).ok().unwrap();
     world.data_mut().resources_mut().insert(AssetStorageResource::<StandardMesh>::new()).ok().unwrap();
-    world.data_mut().resources_mut().insert(GizmosResource::new()).ok().unwrap();
+    world.data_mut().resources_mut().insert(GizmosResource::default()).ok().unwrap();
+    world.data_mut().resources_mut().insert(ScreenSpaceResource::default()).ok().unwrap();
 
     let start = world.behavior_mut().get_mut(Schedule::Start);
 
