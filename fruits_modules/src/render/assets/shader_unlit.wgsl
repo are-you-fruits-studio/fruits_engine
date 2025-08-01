@@ -1,8 +1,11 @@
 @group(0) @binding(0) var<uniform> global_data: GlobalData;
+@group(1) @binding(0) var color_texture: texture_2d<f32>;
+@group(1) @binding(1) var color_sampler: sampler;
 
 struct GlobalData {
     matrix_world_to_clip: mat4x4<f32>,
     color: vec4<f32>,
+    alpha_threshold: f32,
 }
 
 struct VertexAttributes {
@@ -46,6 +49,7 @@ fn map_instance_data(input: InstanceRawAttributes) -> InstanceAttributes {
 struct VertexOutput {
     @builtin(position) position_clip: vec4<f32>,
     @location(0) color: vec4<f32>,
+    @location(1) uv: vec2<f32>,
 };
 
 fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> VertexOutput {
@@ -55,11 +59,18 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
 
     out.position_clip = global_data.matrix_world_to_clip * position_world;
     out.color = vertex.color * global_data.color;
+    out.uv = vertex.uv;
     
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.color.xyz, 1.0);
+    let color = in.color * textureSample(color_texture, color_sampler, in.uv);
+    
+    if (color.w < global_data.alpha_threshold) {
+        discard;
+    }
+
+    return vec4<f32>(color.xyz, 1.0);
 }

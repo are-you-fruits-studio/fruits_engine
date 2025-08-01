@@ -5,10 +5,6 @@ use fruits_math::{Mat, Quat, Vec3};
 use fruits_modules::{asset::*, render::*, transform::*};
 
 fn main() {
-    run_ecs_behavior_integration_test();
-}
-
-fn run_ecs_behavior_integration_test() {
     let mut app = App::new();
     let world = app.ecs_mut();
 
@@ -86,14 +82,14 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     let material = StandardMaterial::Lit(LitMaterial::default());
 
     let mut vertices = [
-        StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 0.0], ..Default::default() },
-        StandardVertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0, 0.0], ..Default::default() },
-        StandardVertex { position: [0.0, 1.0, 0.0], color: [0.0, 1.0, 0.0, 0.0], ..Default::default() },
-        StandardVertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 0.0, 0.0], ..Default::default() },
-        StandardVertex { position: [0.0, 0.0, 1.0], color: [0.0, 0.0, 1.0, 0.0], ..Default::default() },
-        StandardVertex { position: [1.0, 0.0, 1.0], color: [1.0, 0.0, 1.0, 0.0], ..Default::default() },
-        StandardVertex { position: [0.0, 1.0, 1.0], color: [0.0, 1.0, 1.0, 0.0], ..Default::default() },
-        StandardVertex { position: [1.0, 1.0, 1.0], color: [1.0, 1.0, 1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 1.0], uv: [0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0, 1.0], uv: [1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.0, 1.0, 0.0], color: [0.0, 1.0, 0.0, 1.0], uv: [0.0, 1.0], ..Default::default() },
+        StandardVertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 0.0, 1.0], uv: [1.0, 1.0], ..Default::default() },
+        StandardVertex { position: [0.0, 0.0, 1.0], color: [0.0, 0.0, 1.0, 1.0], uv: [1.0, 0.0], ..Default::default() },
+        StandardVertex { position: [1.0, 0.0, 1.0], color: [1.0, 0.0, 1.0, 1.0], uv: [0.0, 0.0], ..Default::default() },
+        StandardVertex { position: [0.0, 1.0, 1.0], color: [0.0, 1.0, 1.0, 1.0], uv: [1.0, 1.0], ..Default::default() },
+        StandardVertex { position: [1.0, 1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0], uv: [0.0, 1.0], ..Default::default() },
     ];
 
     for vertex in vertices.iter_mut() {

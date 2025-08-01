@@ -1,4 +1,6 @@
 @group(0) @binding(0) var<uniform> global_data: GlobalData;
+@group(1) @binding(0) var albedo_texture: texture_2d<f32>;
+@group(1) @binding(1) var albedo_sampler: sampler;
 
 struct GlobalData {
     matrix_world_to_clip: mat4x4<f32>,
@@ -7,6 +9,7 @@ struct GlobalData {
     camera_position_world: vec3<f32>,
     metallic: f32,
     roughness: f32,
+    alpha_threshold: f32,
 }
 
 struct VertexAttributes {
@@ -118,6 +121,7 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
     @location(1) normal_world: vec3<f32>,
     @location(2) position_world: vec3<f32>,
+    @location(3) uv: vec2<f32>,
 };
 
 fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> VertexOutput {
@@ -129,6 +133,7 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     out.color = vertex.color * global_data.albedo_color;
     out.normal_world = (instance.local_to_world * vec4<f32>(vertex.normal, 0.0)).xyz;
     out.position_world = position_world.xyz;
+    out.uv = vertex.uv;
     
     return out;
 }
@@ -137,10 +142,16 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var light = light();
 
+    let albedo_color = in.color * textureSample(albedo_texture, albedo_sampler, in.uv);
+
+    if (albedo_color.w < global_data.alpha_threshold) {
+        discard;
+    }
+
     var color_lit = cook_torrance_brdf(
         normalize(in.normal_world),
         normalize(global_data.camera_position_world - in.position_world),
-        in.color.xyz,
+        albedo_color.xyz,
         global_data.metallic,
         global_data.roughness,
         light.direction,

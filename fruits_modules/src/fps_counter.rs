@@ -11,9 +11,23 @@ pub fn add_module_to(world: &mut WorldBuilder) {
 
 #[derive(Resource, Default)]
 pub struct FpsResource {
-    frame_times: VecDeque<f64>,
+    last_frame_times_s: VecDeque<f64>,
     last_frame_time: Option<Instant>,
     last_print_time: Option<Instant>,
+    last_fps: usize,
+    last_frame_time_ms: f64,
+}
+
+impl FpsResource {
+    pub fn last_frame_times_s(&self) -> &VecDeque<f64> {
+        &self.last_frame_times_s
+    }
+    pub fn last_fps(&self) -> usize {
+        self.last_fps
+    }
+    pub fn last_frame_time_ms(&self) -> f64 {
+        self.last_frame_time_ms
+    }
 }
 
 pub fn count_fps(
@@ -22,8 +36,8 @@ pub fn count_fps(
     const MAX_FRAMES: usize = 100;
     const PRINT_PERIOD_S: f64 = 1.0;
 
-    if res.frame_times.len() >= MAX_FRAMES {
-        res.frame_times.pop_front();
+    if res.last_frame_times_s.len() >= MAX_FRAMES {
+        res.last_frame_times_s.pop_front();
     }
 
     let last_frame_time = res.last_frame_time;
@@ -35,9 +49,9 @@ pub fn count_fps(
     };
     
     let duration = last_frame_time.elapsed();
-    res.frame_times.push_back(duration.as_secs_f64());
+    res.last_frame_times_s.push_back(duration.as_secs_f64());
 
-    if res.frame_times.is_empty() {
+    if res.last_frame_times_s.is_empty() {
         return;
     }
 
@@ -50,9 +64,12 @@ pub fn count_fps(
         return;
     }
     
-    let avg_frame_time_s = res.frame_times.iter().sum::<f64>() / res.frame_times.len() as f64;
+    let avg_frame_time_s = res.last_frame_times_s.iter().sum::<f64>() / res.last_frame_times_s.len() as f64;
     let avg_frame_time_ms = avg_frame_time_s * 1000.0;
     let fps = (1.0 / avg_frame_time_s) as usize;
+
+    res.last_fps = fps;
+    res.last_frame_time_ms = avg_frame_time_ms;
 
     println!("fps: {: >5} | frame_time: {: >10.3} ms", fps, avg_frame_time_ms);
     res.last_print_time = Some(Instant::now());

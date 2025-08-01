@@ -84,6 +84,12 @@ impl<T: Number> Mat4<T> {
 
         Vec3::new(x, y, z) / w
     }
+
+    pub fn mul_with_projection_as_dir(self, rhs: Vec3<T>) -> Vec3<T> {
+        let Vec4 { x, y, z, w } = self.mul(Vec4::new(rhs.x, rhs.y, rhs.z, T::ZERO));
+
+        Vec3::new(x, y, z) / w
+    }
 }
 
 impl<T: Number> Mul for Mat4<T> {

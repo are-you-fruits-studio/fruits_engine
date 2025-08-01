@@ -172,9 +172,8 @@ fn create_render_app_state(event_loop: &ActiveEventLoop) -> RenderAppState {
     let size = window.inner_size();
     
     // todo: move wgpu initialization into ecs Start handle?
-    let instance = Instance::new(InstanceDescriptor {
+    let instance = Instance::new(&InstanceDescriptor {
         backends: Backends::PRIMARY,
-        dx12_shader_compiler: Default::default(),
         ..Default::default()
     });
     
@@ -188,15 +187,13 @@ fn create_render_app_state(event_loop: &ActiveEventLoop) -> RenderAppState {
         },
     )).unwrap();
     
-    let (device, queue) = pollster::block_on(adapter.request_device(
-        &DeviceDescriptor {
-            required_features: Features::empty(),
-            required_limits: Limits::default(),
-            label: None,
-            memory_hints: wgpu::MemoryHints::Performance,
-        },
-        None,
-    )).unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
+        required_features: Features::empty(),
+        required_limits: Limits::default(),
+        label: None,
+        memory_hints: wgpu::MemoryHints::Performance,
+        ..Default::default()
+    })).unwrap();
     
     let surface_capabilities = surface.get_capabilities(&adapter);
     

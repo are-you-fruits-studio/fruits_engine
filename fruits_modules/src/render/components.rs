@@ -1,12 +1,24 @@
 use fruits_ecs::Component;
 
-use crate::asset::AssetHandle;
+use crate::{asset::AssetHandle, render::{Font, StandardVertex}};
 
 use super::assets::{StandardMaterial, StandardMesh};
 
 #[derive(Component)]
+pub struct StandardRenderComponent {
+    pub mesh: AssetHandle<StandardMesh>,
+    pub material: AssetHandle<StandardMaterial>,
+}
+
+#[derive(Component)]
 pub struct StandardMeshComponent {
     pub mesh: AssetHandle<StandardMesh>,
+}
+
+#[derive(Component, Default)]
+pub struct BatchedMeshComponent {
+    pub vertices: Vec<StandardVertex>,
+    pub indices: Vec<u16>,
 }
 
 #[derive(Component)]
@@ -19,4 +31,29 @@ pub struct CameraComponent {
     pub fov: f32,
     pub near: f32,
     pub far: f32,
+}
+
+#[derive(Component)]
+pub struct TextComponent {
+    pub font: AssetHandle<Font>,
+    pub text: String,
+    pub font_size: f32,
+    pub horizontal_align: HorizontalAlign,
+    pub vertical_align: VerticalAlign,
+    pub is_y_inverted: bool,
+    pub horizontal_spacing: f32,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum HorizontalAlign {
+    Left,
+    Middle,
+    Right,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum VerticalAlign {
+    Top,
+    Middle,
+    Bottom,
 }

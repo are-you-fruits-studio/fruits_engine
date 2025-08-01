@@ -14,6 +14,10 @@ impl GlobalTransform {
     };
 }
 
+impl Default for GlobalTransform {
+    fn default() -> Self { GlobalTransform::IDENTITY }
+}
+
 #[derive(Component, Copy, Clone)]
 pub struct LocalTransform {
     pub position: Vec3<f32>,
@@ -27,6 +31,10 @@ impl LocalTransform {
         rotation: Quat::IDENTITY,
         scale: Vec3::with_all(1.0),
     };
+}
+
+impl Default for LocalTransform {
+    fn default() -> Self { LocalTransform::IDENTITY }
 }
 
 #[derive(Component, Clone)]

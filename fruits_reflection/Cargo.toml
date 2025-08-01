@@ -1,0 +1,13 @@
+[package]
+name = "fruits_reflection"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+
+[[bin]]
+name = "fruits_reflection_example"
+path = "src/main.rs"
+
+[dependencies]

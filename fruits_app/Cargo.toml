@@ -9,7 +9,7 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-pollster = "0.3"
+pollster = "0.4.0"
 winit = "0.30.4"
-wgpu = "22.0.0"
+wgpu = "26.0.1"
 fruits_ecs = { path = "../fruits_ecs" }

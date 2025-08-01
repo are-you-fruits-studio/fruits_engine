@@ -2,10 +2,11 @@ use std::collections::HashMap;
 
 use fruits_app::RenderStateResource;
 use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
-use fruits_math::{Mat3, Mat4, Vec2, Vec3, Vec4};
-use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState};
+use fruits_math::{Mat4, Vec2, Vec3, Vec4};
+use image::GenericImageView;
+use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
 
-use crate::{asset::AssetStorageResource, render::{utils::{self, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardVertex, UnlitUniform}, transform::GlobalTransform};
+use crate::{asset::AssetStorageResource, render::{self, utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, HorizontalAlign, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::GlobalTransform};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, RenderSpace, GizmosRenderResource, GizmosResource, StandardRenderResource};
 
@@ -31,10 +32,33 @@ pub fn create_standard_render_resource(
         ]
     });
 
+    let bind_group_layout_standard_texture = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Standard Texture Bind Group Layout"),
+        entries: &[
+            BindGroupLayoutEntry {
+                binding: 0,
+                count: None,
+                visibility: ShaderStages::VERTEX_FRAGMENT,
+                ty: BindingType::Texture {
+                    sample_type: TextureSampleType::Float { filterable: true },
+                    view_dimension: TextureViewDimension::D2,
+                    multisampled: false,
+                },
+            },
+            BindGroupLayoutEntry {
+                binding: 1,
+                count: None,
+                visibility: ShaderStages::VERTEX_FRAGMENT,
+                ty: BindingType::Sampler(SamplerBindingType::Filtering),
+            },
+        ],
+    });
+
     let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Standard Pipeline Layout"),
         bind_group_layouts: &[
             &bind_group_layout,
+            &bind_group_layout_standard_texture,
         ],
         push_constant_ranges: &[],
     });
@@ -63,7 +87,7 @@ pub fn create_standard_render_resource(
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &lit_shader,
-            entry_point: "vs_main",
+            entry_point: Some("vs_main"),
             buffers: &[
                 StandardVertex::desc(),
                 StandardInstance::desc(),
@@ -72,7 +96,7 @@ pub fn create_standard_render_resource(
         },
         fragment: Some(wgpu::FragmentState {
             module: &lit_shader,
-            entry_point: "fs_main",
+            entry_point: Some("fs_main"),
             targets: &[Some(wgpu::ColorTargetState {
                 format: render_state.surface_config().format,
                 blend: Some(wgpu::BlendState::REPLACE),
@@ -135,7 +159,7 @@ pub fn create_standard_render_resource(
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &unlit_shader,
-            entry_point: "vs_main",
+            entry_point: Some("vs_main"),
             buffers: &[
                 StandardVertex::desc(),
                 StandardInstance::desc(),
@@ -144,7 +168,7 @@ pub fn create_standard_render_resource(
         },
         fragment: Some(wgpu::FragmentState {
             module: &unlit_shader,
-            entry_point: "fs_main",
+            entry_point: Some("fs_main"),
             targets: &[Some(wgpu::ColorTargetState {
                 format: render_state.surface_config().format,
                 blend: Some(wgpu::BlendState::REPLACE),
@@ -191,14 +215,79 @@ pub fn create_standard_render_resource(
         contents: fruits_utils::mem::as_bytes_slice(&instance_cpu_buffer),
     });
 
+    let batched_vertex_cpu_buffer = vec![StandardVertex::default(); BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX * 3].into_boxed_slice();
+
+    let batched_vertex_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Batch vertex buffer"),
+        usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes_slice(&batched_vertex_cpu_buffer)
+    });
+
     world.resources_mut().insert(StandardRenderResource {
+        bind_group_layout_standard_texture,
         pipeline_layout,
         instance_cpu_buffer,
         instance_buffer,
+        batched_vertex_buffer,
         lit: lit_data,
         unlit: unlit_data,
         camera_pos: Vec3::default(),
         camera_proj_matrix: Mat4::IDENTITY,
+    }).ok().unwrap();
+
+    world.resources_mut().insert(BatchedVertexCpuBufferResource(batched_vertex_cpu_buffer)).ok().unwrap();
+
+    let texture_white = StandardTexture::from_world(
+        &world,
+        FilterMode::Linear,
+        [2, 2],
+        &[255; 16]
+    );
+
+    let texture_text = include_bytes!("./assets/ascii_pixelated.png");
+
+    let texture_text = image::load_from_memory(texture_text).unwrap();
+
+    let texture_dimensions: [u32; 2] = texture_text.dimensions().into();
+
+    let texture_text = StandardTexture::from_world(
+        &world,
+        FilterMode::Nearest,
+        texture_dimensions,
+        texture_text.as_bytes(),
+    );
+
+    let text_chars_count = [16, 8];
+    let single_char_uv_size = [1.0 / text_chars_count[0] as f32, 1.0 / text_chars_count[1] as f32];
+
+    let characters_uv = (' '..='~').map(|c| {
+        let char_uv_index = [c as i32 % text_chars_count[0], c as i32 / text_chars_count[0]];
+        let char_uv_min = fruits_math::zip(&char_uv_index, &text_chars_count, |a, b| a as f32 / b as f32);
+        
+        let char_uvs = [
+            Vec2::from_array(char_uv_min),
+            Vec2::from_array(fruits_math::zip(&char_uv_min, &single_char_uv_size, |a, b| a + b)),
+        ];
+
+        (c, char_uvs)
+    }).collect::<HashMap<_, _>>();
+    
+    let texture_white = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture_white);
+    let texture_text = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture_text);
+    
+    let font_pixelated = Font {
+        texture: texture_text.clone(),
+        mising_character_uv: characters_uv[&'?'],
+        characters_uv: characters_uv,
+        character_ratio: (text_chars_count[1] as f32 / text_chars_count[0] as f32) * (texture_dimensions[0] as f32 / texture_dimensions[1] as f32),
+    };
+
+    let font_pixelated = world.resources_mut().get_mut::<AssetStorageResource<Font>>().unwrap().insert(font_pixelated);
+
+    world.resources_mut().insert(StandardRenderAssetsResource {
+        texture_white,
+        texture_text,
+        font_pixelated,
     }).ok().unwrap();
 }
 
@@ -245,9 +334,9 @@ pub fn recreate_depth_texture_resource(
         address_mode_u: wgpu::AddressMode::ClampToEdge,
         address_mode_v: wgpu::AddressMode::ClampToEdge,
         address_mode_w: wgpu::AddressMode::ClampToEdge,
-        mag_filter: wgpu::FilterMode::Linear,
-        min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::FilterMode::Nearest,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: FilterMode::Nearest,
         compare: Some(wgpu::CompareFunction::LessEqual),
         lod_min_clamp: 0.0,
         lod_max_clamp: 100.0,
@@ -380,7 +469,7 @@ pub fn create_gizmos_render_resource(
         },
         fragment: Some(FragmentState {
             module: &shader,
-            entry_point: "fragment_main",
+            entry_point: Some("fragment_main"),
             targets: &[Some(wgpu::ColorTargetState {
                 format: render_state.surface_config().format,
                 blend: Some(wgpu::BlendState::REPLACE),
@@ -390,7 +479,7 @@ pub fn create_gizmos_render_resource(
         }),
         vertex: VertexState {
             module: &shader,
-            entry_point: "vertex_main",
+            entry_point: Some("vertex_main"),
             buffers: &[],
             compilation_options: Default::default(),
         }
@@ -434,6 +523,77 @@ pub fn update_camera_uniform(
     standard_render_res.camera_pos = transform.position;
 }
 
+pub fn update_text_batched_mesh(
+    mut q: WorldQuery<(&TextComponent, &mut BatchedMeshComponent)>,
+    font_assets: Res<AssetStorageResource<Font>>,
+) {
+    const VERTICES_PER_CHAR: usize = 4;
+    const INDICES_PER_CHAR: usize = 6;
+
+    let normal = [0.0, 0.0, -1.0];
+    let color = [1.0, 1.0, 1.0, 1.0];
+
+    for (text_c, mesh_c) in q.iter_mut() {
+        let font = font_assets.get(&text_c.font).unwrap();
+        let font_size = text_c.font_size;
+        
+        let quad_scale = Vec2::new(font_size * font.character_ratio, font_size);
+
+        let chars_count = text_c.text.chars().count();
+
+        let mut text_scale = quad_scale;
+
+        text_scale.x *= chars_count as f32;
+
+        if chars_count > 1 {
+            text_scale.x += (chars_count - 1) as f32 * text_c.horizontal_spacing;
+        }
+
+        let mut start_pos = Vec2::new(
+            match text_c.horizontal_align {
+                HorizontalAlign::Left => 0.0,
+                HorizontalAlign::Middle => -0.5,
+                HorizontalAlign::Right => -1.0,
+            },
+            match text_c.vertical_align {
+                VerticalAlign::Top => -1.0,
+                VerticalAlign::Middle => -0.5,
+                VerticalAlign::Bottom => 0.0,
+            },
+        ) * text_scale;
+
+        if text_c.is_y_inverted {
+            start_pos.y = -text_scale.y - start_pos.y;
+        }
+
+        let inv_i = text_c.is_y_inverted as usize;
+
+        mesh_c.vertices.resize(chars_count * VERTICES_PER_CHAR, StandardVertex::default());
+        mesh_c.indices.resize(chars_count * INDICES_PER_CHAR, 0);
+
+        for (i, character) in text_c.text.chars().enumerate() {
+            let char_uvs = font.characters_uv.get(&character).unwrap_or(&font.mising_character_uv);
+            
+            let pos = [
+                start_pos + Vec2::new((i + 0) as f32, 0.0) * quad_scale + Vec2::X * text_c.horizontal_spacing * i as f32,
+                start_pos + Vec2::new((i + 1) as f32, 1.0) * quad_scale + Vec2::X * text_c.horizontal_spacing * i as f32,
+            ];
+
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[0][1]], position: [pos[0][0], pos[1 - inv_i][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[0][1]], position: [pos[1][0], pos[1 - inv_i][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[1][1]], position: [pos[0][0], pos[inv_i][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[1][1]], position: [pos[1][0], pos[inv_i][1], 0.0] };
+            
+            mesh_c.indices[i * INDICES_PER_CHAR + 0] = (i * VERTICES_PER_CHAR + 0) as u16;
+            mesh_c.indices[i * INDICES_PER_CHAR + 1] = (i * VERTICES_PER_CHAR + 3) as u16;
+            mesh_c.indices[i * INDICES_PER_CHAR + 2] = (i * VERTICES_PER_CHAR + 1) as u16;
+            mesh_c.indices[i * INDICES_PER_CHAR + 3] = (i * VERTICES_PER_CHAR + 0) as u16;
+            mesh_c.indices[i * INDICES_PER_CHAR + 4] = (i * VERTICES_PER_CHAR + 2) as u16;
+            mesh_c.indices[i * INDICES_PER_CHAR + 5] = (i * VERTICES_PER_CHAR + 3) as u16;
+        }
+    }
+}
+
 pub fn request_surface_texture(
     render_state: Res<RenderStateResource>,
     mut surface_texture: ResMut<SurfaceTextureResource>,
@@ -474,15 +634,17 @@ pub fn clear_depth(
     render_state.queue().submit(std::iter::once(encoder.finish()));
 }
 
-pub fn render_meshes_and_materials(
+pub fn render_meshes_and_materials_instanced(
     query: WorldQuery<(&GlobalTransform, &StandardMeshComponent, &StandardMaterialComponent)>,
     render_state: Res<RenderStateResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
+    standard_render_assets_res: Res<StandardRenderAssetsResource>,
     depth_res: Res<DepthTextureResource>,
     surface_texture: Res<SurfaceTextureResource>,
     meshes: Res<AssetStorageResource<StandardMesh>>,
-    mut materials: ResMut<AssetStorageResource<StandardMaterial>>,
+    materials: Res<AssetStorageResource<StandardMaterial>>,
+    textures: Res<AssetStorageResource<StandardTexture>>,
 ) {
     if query.len() == 0 {
         return;
@@ -494,7 +656,7 @@ pub fn render_meshes_and_materials(
 
     let window_size = render_state.size();
 
-    let screen_space_transform_mat = utils::create_screen_world_to_clip_matrix(
+    let window_to_clip_mat = utils::create_window_to_clip_matrix(
         window_size.width as f32,
         window_size.height as f32,
         screen_space_res.near,
@@ -511,15 +673,15 @@ pub fn render_meshes_and_materials(
 
     for ((mesh, material), matrices) in instanced_matrices.iter() {
         let Some(mesh) = meshes.get(&mesh) else { continue; };
-        let Some(material) = materials.get_mut(&material) else { continue; };
+        let Some(material) = materials.get(&material) else { continue; };
 
-        let (render_pipeline, bind_group) = match material {
+        let (render_pipeline, bind_group, bind_group_tex) = match material {
             StandardMaterial::Lit(material) => {
                 let lit_data = &standard_render_res.lit;
                 
                 let world_to_clip = match material.space {
                     RenderSpace::Clip => Mat4::IDENTITY,
-                    RenderSpace::Window => screen_space_transform_mat,
+                    RenderSpace::Window => window_to_clip_mat,
                     RenderSpace::World => standard_render_res.camera_proj_matrix,
                 };
 
@@ -528,6 +690,7 @@ pub fn render_meshes_and_materials(
                     metallic: material.metallic,
                     emission_color: material.emission_color,
                     roughness: material.roughness,
+                    alpha_threshold: material.alpha_threshold,
                     camera_position_world: standard_render_res.camera_pos,
                     world_to_clip,
                     _padding: Default::default(),
@@ -535,25 +698,37 @@ pub fn render_meshes_and_materials(
 
                 render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
-                (&lit_data.render_pipeline, &lit_data.bind_group_uniform)
+                let bind_group_tex = match &material.albedo_tex {
+                    Some(albedo_tex) => textures.get(albedo_tex).unwrap().bind_group(),
+                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                };
+
+                (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
             },
             StandardMaterial::Unlit(material) => {
                 let unlit_data = &standard_render_res.unlit;
 
                 let world_to_clip = match material.space {
                     RenderSpace::Clip => Mat4::IDENTITY,
-                    RenderSpace::Window => screen_space_transform_mat,
+                    RenderSpace::Window => window_to_clip_mat,
                     RenderSpace::World => standard_render_res.camera_proj_matrix,
                 };
 
                 let uniform = UnlitUniform {
                     world_to_clip,
                     color: material.color,
+                    alpha_threshold: material.alpha_threshold,
+                    _padding: Default::default(),
                 };
 
                 render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
-                (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform)
+                let bind_group_tex = match &material.color_tex {
+                    Some(color_tex) => textures.get(color_tex).unwrap().bind_group(),
+                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                };
+
+                (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
             },
         };
         
@@ -577,6 +752,7 @@ pub fn render_meshes_and_materials(
                             load: LoadOp::Load,
                             store: StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: &depth_res.texture_view,
@@ -590,7 +766,8 @@ pub fn render_meshes_and_materials(
                 });
             
                 render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, &bind_group, &[]);
+                render_pass.set_bind_group(0, bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group_tex, &[]);
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
@@ -600,58 +777,205 @@ pub fn render_meshes_and_materials(
             render_state.queue().submit(std::iter::once(encoder.finish()));
         }
     }
+}
 
-    // for (transform, render_mesh, render_material) in query.iter() {
-    //     let Some(mesh) = meshes.get(&render_mesh.mesh) else { continue; };
-    //     let Some(material) = materials.get_mut(&render_material.material) else { continue; };
+pub fn render_meshes_and_materials_batched(
+    query: WorldQuery<(&GlobalTransform, &BatchedMeshComponent, &StandardMaterialComponent)>,
+    render_state: Res<RenderStateResource>,
+    screen_space_res: Res<ScreenSpaceResource>,
+    standard_render_res: Res<StandardRenderResource>,
+    standard_render_assets_res: Res<StandardRenderAssetsResource>,
+    depth_res: Res<DepthTextureResource>,
+    surface_texture: Res<SurfaceTextureResource>,
+    materials: Res<AssetStorageResource<StandardMaterial>>,
+    textures: Res<AssetStorageResource<StandardTexture>>,
+    mut batched_vertex_cpu_buffer: ResMut<BatchedVertexCpuBufferResource>,
+) {
+    if query.len() == 0 {
+        return;
+    }
 
-    //     render_state.queue().write_buffer(material.uniform_buffer(), 0, fruits_utils::mem::as_bytes(&[*material.uniform()]));
-        
-    //     let transform_matrix = transform.scale_rotation.into_4x4_with_offset(transform.position);
-    //     let transform_matrix = transform_matrix.into_array();
-    //     let transform_matrix = fruits_utils::mem::as_bytes(&transform_matrix);
+    let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
-    //     render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, transform_matrix);
-    //     render_state.queue().submit([]);
+    let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
 
-    //     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
-    //         label: Some("Render Encoder"),
-    //     });
+    let window_size = render_state.size();
 
-    //     {
-    //         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-    //             label: Some("Render Pass"),
-    //             color_attachments: &[Some(RenderPassColorAttachment {
-    //                 view: &view,
-    //                 resolve_target: None,
-    //                 ops: Operations {
-    //                     load: LoadOp::Load,
-    //                     store: StoreOp::Store,
-    //                 },
-    //             })],
-    //             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-    //                 view: &depth_res.texture_view,
-    //                 depth_ops: Some(Operations {
-    //                     load: LoadOp::Load,
-    //                     store: StoreOp::Store,
-    //                 }),
-    //                 stencil_ops: None,
-    //             }),
-    //             ..Default::default()
-    //         });
+    let window_to_clip_mat = utils::create_window_to_clip_matrix(
+        window_size.width as f32,
+        window_size.height as f32,
+        screen_space_res.near,
+        screen_space_res.far,
+    );
+
+    let mut batched_meshes_by_material = HashMap::new();
+
+    for (transform, batched_mesh, render_material) in query.iter() {
+        batched_meshes_by_material.entry(render_material.material.clone())
+            .or_insert_with(|| Vec::new())
+            .push((transform.scale_rotation.into_4x4_with_offset(transform.position), batched_mesh));
+    }
+
+    render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, fruits_utils::mem::as_bytes(&Mat4::<f32>::IDENTITY));
+    render_state.queue().submit([]);
+
+    let batch_cpu_buffer = &mut batched_vertex_cpu_buffer.0;
     
-    //         render_pass.set_pipeline(material.render_pipeline());
-    //         render_pass.set_bind_group(0, &standard_render_res.uniform_bind_group, &[]);
-    //         render_pass.set_bind_group(1, material.uniform_bind_group(), &[]);
-    //         render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
-    //         render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
-    //         render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
-    //         render_pass.draw_indexed(0..(mesh.indices_count() as u32), 0, 0..1);
-    //     }
+    for (material, matrices_and_meshes) in batched_meshes_by_material {
+        let Some(material) = materials.get(&material) else { continue; };
         
-    //     render_state.queue().submit(std::iter::once(encoder.finish()));
-    // }
+        let (render_pipeline, bind_group, bind_group_tex) = match material {
+            StandardMaterial::Lit(material) => {
+                let lit_data = &standard_render_res.lit;
+                
+                let world_to_clip = match material.space {
+                    RenderSpace::Clip => Mat4::IDENTITY,
+                    RenderSpace::Window => window_to_clip_mat,
+                    RenderSpace::World => standard_render_res.camera_proj_matrix,
+                };
 
+                let uniform = LitUniform {
+                    albedo_color: material.albedo_color,
+                    metallic: material.metallic,
+                    emission_color: material.emission_color,
+                    roughness: material.roughness,
+                    alpha_threshold: material.alpha_threshold,
+                    camera_position_world: standard_render_res.camera_pos,
+                    world_to_clip,
+                    _padding: Default::default(),
+                };
+
+                render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
+
+                let bind_group_tex = match &material.albedo_tex {
+                    Some(albedo_tex) => textures.get(albedo_tex).unwrap().bind_group(),
+                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                };
+
+                (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
+            },
+            StandardMaterial::Unlit(material) => {
+                let unlit_data = &standard_render_res.unlit;
+
+                let world_to_clip = match material.space {
+                    RenderSpace::Clip => Mat4::IDENTITY,
+                    RenderSpace::Window => window_to_clip_mat,
+                    RenderSpace::World => standard_render_res.camera_proj_matrix,
+                };
+
+                let uniform = UnlitUniform {
+                    world_to_clip,
+                    color: material.color,
+                    alpha_threshold: material.alpha_threshold,
+                    _padding: Default::default(),
+                };
+
+                render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
+
+                let bind_group_tex = match &material.color_tex {
+                    Some(color_tex) => textures.get(color_tex).unwrap().bind_group(),
+                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                };
+
+                (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
+            },
+        };
+        
+        let mut batch_buffer_i = 0;
+
+        for (mat, batched_mesh) in matrices_and_meshes {
+            for &i in &batched_mesh.indices {
+                let mut vertex = batched_mesh.vertices[i as usize];
+
+                vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
+                vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();
+
+                batch_cpu_buffer[batch_buffer_i] = vertex;
+
+                batch_buffer_i += 1;
+
+                if batch_buffer_i < batch_cpu_buffer.len() {
+                    continue;
+                }
+
+                batch_buffer_i = 0;
+
+                submit_render(
+                    &render_state,
+                    &standard_render_res,
+                    &batch_cpu_buffer[..],
+                    &view,
+                    &depth_res,
+                    render_pipeline,
+                    bind_group,
+                    bind_group_tex,
+                );
+            }
+        }
+
+        if batch_buffer_i > 0 {
+            submit_render(
+                &render_state,
+                &standard_render_res,
+                &batch_cpu_buffer[..batch_buffer_i],
+                &view,
+                &depth_res,
+                render_pipeline,
+                bind_group,
+                bind_group_tex,
+            );
+        }
+
+        fn submit_render(
+            render_state: &RenderStateResource,
+            standard_render_res: &StandardRenderResource,
+            batched_cpu_slice: &[StandardVertex],
+            render_target_view: &TextureView, 
+            depth_res: &DepthTextureResource,
+            render_pipeline: &RenderPipeline,
+            bind_group: &BindGroup,
+            bind_group_tex: &BindGroup,
+        ) {
+            render_state.queue().write_buffer(&standard_render_res.batched_vertex_buffer, 0, fruits_utils::mem::as_bytes_slice(batched_cpu_slice));
+
+            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: render_target_view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &depth_res.texture_view,
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+            
+                render_pass.set_pipeline(render_pipeline);
+                render_pass.set_bind_group(0, bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
+                render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+                render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
+            }
+
+            render_state.queue().submit(std::iter::once(encoder.finish()));
+        }
+    }
 }
 
 pub fn render_gizmos(
@@ -678,7 +1002,7 @@ pub fn render_gizmos(
         let transform = match space {
             RenderSpace::Clip => Mat4::<f32>::IDENTITY,
             RenderSpace::Window => {
-                utils::create_screen_world_to_clip_matrix(window_size.width as f32, window_size.height as f32, screen_space_res.near, screen_space_res.far)
+                utils::create_window_to_clip_matrix(window_size.width as f32, window_size.height as f32, screen_space_res.near, screen_space_res.far)
             },
             RenderSpace::World => {
                 let Some((transform, camera)) = camera_query.iter().next() else {
@@ -734,6 +1058,7 @@ pub fn render_gizmos(
                             load: LoadOp::Load,
                             store: StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     depth_stencil_attachment: None,
                     ..Default::default()

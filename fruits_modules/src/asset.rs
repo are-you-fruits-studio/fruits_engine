@@ -1,4 +1,4 @@
-use std::{hash::{Hash, Hasher}, marker::PhantomData};
+use std::{hash::{Hash, Hasher}, marker::PhantomData, sync::Arc};
 
 use fruits_ecs::Resource;
 use fruits_utils::index_version_collection::{
@@ -19,7 +19,7 @@ impl<T: 'static + Send + Sync> Resource for AssetStorageResource<T> { }
 #[derive(Debug)]
 pub struct AssetHandle<T> {
     index: VersionIndex,
-    _phantom: PhantomData<fn(T) -> T>,
+    _phantom: PhantomData<Arc<T>>,
 }
 
 impl<T> Hash for AssetHandle<T> {

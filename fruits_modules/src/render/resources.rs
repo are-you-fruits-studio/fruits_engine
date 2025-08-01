@@ -2,8 +2,10 @@ use std::collections::{hash_map::IterMut, HashMap};
 
 use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
-use wgpu::{BindGroup, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
+use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
+
+use crate::{asset::AssetHandle, render::{Font, StandardTexture, StandardVertex}};
 
 use super::GizmoLine;
 
@@ -60,12 +62,24 @@ pub struct DepthTextureResource {
 #[derive(Resource)]
 pub struct StandardRenderResource {
     pub pipeline_layout: PipelineLayout,
+    pub bind_group_layout_standard_texture: BindGroupLayout,
+    pub batched_vertex_buffer: Buffer,
     pub instance_buffer: Buffer,
     pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
     pub camera_pos: Vec3<f32>,
     pub camera_proj_matrix: Mat4<f32>,
     pub lit: MaterialStandardRenderResourceData,
     pub unlit: MaterialStandardRenderResourceData,
+}
+
+#[derive(Resource)]
+pub struct BatchedVertexCpuBufferResource(pub Box<[StandardVertex]>);
+
+#[derive(Resource)]
+pub struct StandardRenderAssetsResource {
+    pub texture_white: AssetHandle<StandardTexture>,
+    pub texture_text: AssetHandle<StandardTexture>,
+    pub font_pixelated: AssetHandle<Font>,
 }
 
 pub struct MaterialStandardRenderResourceData {
