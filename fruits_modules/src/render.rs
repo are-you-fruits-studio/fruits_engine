@@ -45,6 +45,7 @@ pub fn add_module_to(world: &mut WorldBuilder) {
     update.group("fruits_render_stuff")
         .add_child_system(update_camera_uniform)
         .add_child_system(update_text_batched_mesh)
+        .add_child_system(update_image_batched_mesh)
         .add_child_system(recreate_depth_texture_resource)
         .add_child_system(clear_depth)
         .add_child_system(render_meshes_and_materials_instanced)
@@ -58,6 +59,7 @@ pub fn add_module_to(world: &mut WorldBuilder) {
     update.order_system(clear_depth).before_system(render_meshes_and_materials_instanced);
     update.order_system(clear_depth).before_system(render_meshes_and_materials_batched);
     update.order_system(update_text_batched_mesh).before_system(render_meshes_and_materials_batched);
+    update.order_system(update_image_batched_mesh).before_system(render_meshes_and_materials_batched);
     update.order_system(render_meshes_and_materials_instanced).before_system(render_gizmos);
     update.order_system(render_meshes_and_materials_batched).before_system(render_gizmos);
 

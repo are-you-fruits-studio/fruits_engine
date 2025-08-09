@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::VecDeque, mem::MaybeUninit};
+use std::{cmp::Ordering, collections::VecDeque};
 
 pub struct VersionCollection<T> {
     items: Vec<DataWithVersion<T>>,
@@ -6,9 +6,6 @@ pub struct VersionCollection<T> {
     // reserved_places: VecDeque<usize>,
     count: usize,
 }
-
-unsafe impl<S: Send> Send for VersionCollection<S> { }
-unsafe impl<S: Sync> Sync for VersionCollection<S> { }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VersionIndex {
@@ -33,7 +30,7 @@ impl PartialOrd for VersionIndex {
 
 struct DataWithVersion<T> {
     pub version: usize,
-    pub data: MaybeUninit<T>,
+    pub data: Option<T>,
 }
 
 impl<T> VersionCollection<T> {
@@ -50,7 +47,7 @@ impl<T> VersionCollection<T> {
             let version = self.items[index].version;
 
             self.items[index] = DataWithVersion::<T> {
-                data: MaybeUninit::new(data),
+                data: Some(data),
                 version,
             };
             
@@ -67,7 +64,7 @@ impl<T> VersionCollection<T> {
         let version = 1;
 
         self.items.push(DataWithVersion::<T> {
-            data: MaybeUninit::new(data),
+            data: Some(data),
             version,
         });
 
@@ -80,17 +77,16 @@ impl<T> VersionCollection<T> {
     }
 
     pub fn remove(&mut self, index: VersionIndex) -> Option<T> {
-        let Some(data_with_version) = self.get_data_with_version_mut(index) else {
-            return None;
-        };
+        let data_with_version = self.get_data_with_version_mut(index)?;
 
-        data_with_version.version += 1;
+        data_with_version.version = data_with_version.version.wrapping_add(1);
 
-        let data = unsafe {
-            let data: T = std::mem::transmute_copy(&data_with_version.data);
-            data_with_version.data = MaybeUninit::uninit();
-            data
-        };
+        // to prevent version = 0.
+        if data_with_version.version == 0 {
+            data_with_version.version += 1;
+        }
+
+        let data = data_with_version.data.take().unwrap();
 
         self.free_places.push_back(index.index);
 
@@ -100,23 +96,17 @@ impl<T> VersionCollection<T> {
     }
 
     pub fn get(&self, index: VersionIndex) -> Option<&T> {
-        self.get_data_with_version(index).map(|d| unsafe { d.data.assume_init_ref() })
-    }
-
-    pub fn get_mut(&mut self, index: VersionIndex) -> Option<&mut T> {
-        self.get_data_with_version_mut(index).map(|d| unsafe { d.data.assume_init_mut() })
-    }
-
-    fn get_data_with_version(&self, index: VersionIndex) -> Option<&DataWithVersion<T>> {
-        let Some(data_with_version) = self.items.get(index.index) else {
-            return None;
-        };
+        let data_with_version = self.items.get(index.index)?;
 
         if index.version != data_with_version.version {
             return None;
         }
 
-        Some(data_with_version)
+        Some(data_with_version.data.as_ref().unwrap())
+    }
+
+    pub fn get_mut(&mut self, index: VersionIndex) -> Option<&mut T> {
+        self.get_data_with_version_mut(index).map(|d| d.data.as_mut().unwrap())
     }
 
     fn get_data_with_version_mut(&mut self, index: VersionIndex) -> Option<&mut DataWithVersion<T>> {
@@ -139,37 +129,5 @@ impl<T> VersionCollection<T> {
 
     pub fn len(&self) -> usize {
         self.count
-    }
-}
-
-impl<T> Drop for VersionCollection<T> {
-    fn drop(&mut self) {
-        self.free_places.make_contiguous();
-        self.free_places.as_mut_slices().0.sort();
-
-        let mut free_places_iter = self.free_places.iter();
-
-        let mut free_place = free_places_iter.next();
-
-        for (index, item) in self.items.iter_mut().enumerate() {
-            let should_drop = loop {
-                let Some(&free_index) = free_place else {
-                    break true;
-                };
-
-                if free_index == index {
-                    break false;
-                }
-
-                if free_index < index {
-                    free_place = free_places_iter.next();
-                }
-            };
-
-            if should_drop {
-                drop(unsafe { std::mem::transmute_copy::<_, T>(item.data.assume_init_ref()) });
-                continue;
-            }
-        }
     }
 }

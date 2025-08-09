@@ -1,6 +1,7 @@
 use fruits_ecs::Component;
+use fruits_math::Vec4;
 
-use crate::{asset::AssetHandle, render::{Font, StandardVertex}};
+use crate::{asset::AssetHandle, render::{Font, StandardVertex}, transform::UiVal};
 
 use super::assets::{StandardMaterial, StandardMesh};
 
@@ -37,11 +38,20 @@ pub struct CameraComponent {
 pub struct TextComponent {
     pub font: AssetHandle<Font>,
     pub text: String,
-    pub font_size: f32,
+    pub font_size: UiVal,
     pub horizontal_align: HorizontalAlign,
     pub vertical_align: VerticalAlign,
     pub is_y_inverted: bool,
     pub horizontal_spacing: f32,
+    pub color: Vec4<f32>,
+}
+
+#[derive(Component)]
+pub struct ImageComponent {
+    pub is_y_inverted: bool,
+    pub horizontal_align: HorizontalAlign,
+    pub vertical_align: VerticalAlign,
+    pub color: Vec4<f32>,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]

@@ -16,7 +16,7 @@ impl EntitiesComponentsHolderUnsafe {
         }
     }
     
-    pub unsafe fn query<A: ArchetypeIteratorItem, F: QueryFilter>(&self) -> EntitiesComponentsQuery<A, F> {
+    pub unsafe fn query<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a self) -> EntitiesComponentsQuery<'a, A, F> {
         // Safety. Managed by caller.
         unsafe {
             EntitiesComponentsQuery::new(self)
@@ -179,28 +179,28 @@ impl EntitiesComponentsHolder {
         }
     }
 
-    pub fn query<A: ArchetypeIteratorItem>(&self) -> EntitiesComponentsQuery<A::Item<'_>> {
+    pub fn query<'a, A: ArchetypeIteratorItem>(&'a self) -> EntitiesComponentsQuery<'a, A::Item<'a>> {
         // Safety. Managed with lifetimes.
         unsafe {
             EntitiesComponentsQuery::new(&self.data)
         }
     }
 
-    pub fn query_filtered<A: ArchetypeIteratorItem, F: QueryFilter>(&self) -> EntitiesComponentsQuery<A::Item<'_>, F> {
+    pub fn query_filtered<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a self) -> EntitiesComponentsQuery<'a, A::Item<'a>, F> {
         // Safety. Managed with lifetimes.
         unsafe {
             EntitiesComponentsQuery::new(&self.data)
         }
     }
 
-    pub fn query_mut<A: ArchetypeIteratorItem>(&mut self) -> EntitiesComponentsQuery<A::ReadOnlyItem<'_>> {
+    pub fn query_mut<'a, A: ArchetypeIteratorItem>(&'a mut self) -> EntitiesComponentsQuery<'a, A::ReadOnlyItem<'a>> {
         // Safety. Managed with lifetimes.
         unsafe {
             EntitiesComponentsQuery::new(&mut self.data)
         }
     }
 
-    pub fn query_filtered_mut<A: ArchetypeIteratorItem, F: QueryFilter>(&mut self) -> EntitiesComponentsQuery<A::ReadOnlyItem<'_>, F> {
+    pub fn query_filtered_mut<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a mut self) -> EntitiesComponentsQuery<'a, A::ReadOnlyItem<'a>, F> {
         // Safety. Managed with lifetimes.
         unsafe {
             EntitiesComponentsQuery::new(&mut self.data)
@@ -391,7 +391,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
         )
     }
 
-    fn archetypes_iter(&self) -> ArchetypesIter {
+    fn archetypes_iter<'a>(&'a self) -> ArchetypesIter<'a> {
         ArchetypesIter::new(&self.data.archetypes, self.archetype_indices.iter())
     }
 }

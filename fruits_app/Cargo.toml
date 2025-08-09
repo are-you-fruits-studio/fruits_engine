@@ -10,6 +10,6 @@ crate-type = ["lib"]
 
 [dependencies]
 pollster = "0.4.0"
-winit = "0.30.4"
+winit = "0.30.12"
 wgpu = "26.0.1"
 fruits_ecs = { path = "../fruits_ecs" }

@@ -15,7 +15,7 @@ pub enum JsonValue {
 #[derive(Copy, Clone, Default)]
 pub enum JsonIndentation {
     #[default]
-    Default,
+    None,
     Indented { indent_level: usize }
 }
 

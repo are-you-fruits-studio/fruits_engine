@@ -6,6 +6,7 @@ mod num;
 mod vec;
 mod quat;
 mod equations;
+mod colors;
 
 pub use mat::*;
 pub use mat2::*;
@@ -15,6 +16,7 @@ pub use num::*;
 pub use vec::*;
 pub use quat::*;
 pub use equations::*;
+pub use colors::*;
 
 pub fn into_matrix4x4_with_pos<T: Primitive>(mat: Mat3<T>, pos: Vec3<T>) -> Mat4<T> {
     Mat4::from_array(

@@ -4,7 +4,7 @@ use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
 use crate::{Mat3, Number, Vec3, Vec4};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
 #[repr(C)]
 pub struct Quat<N: Number> {
     pub x: N,

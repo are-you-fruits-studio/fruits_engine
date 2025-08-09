@@ -50,8 +50,8 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     let standard_render_assets = world.resources().get::<StandardRenderAssetsResource>().unwrap();
 
-    let texture_text = standard_render_assets.texture_text.clone();
-    let font_pixelated = standard_render_assets.font_pixelated.clone();
+    let texture_text = standard_render_assets.texture_text_px_5_7.clone();
+    let font = standard_render_assets.font_px_5_7.clone();
 
     let material = StandardMaterial::Unlit(UnlitMaterial {
         space: RenderSpace::World,
@@ -72,13 +72,14 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent_text, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent_text, StandardMaterialComponent { material: material.clone(), }).ok().unwrap();
     ec.add_component(ent_text, TextComponent {
-        font: font_pixelated.clone(),
-        font_size: 0.4,
+        font: font.clone(),
+        font_size: UiVal::Px(0.4),
         text: String::from("Dashunia - myla pinhvinka"),
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Middle,
         is_y_inverted: false,
         horizontal_spacing: 0.2,
+        color: Vec4::with_all(1.0),
     }).ok().unwrap();
 }
 

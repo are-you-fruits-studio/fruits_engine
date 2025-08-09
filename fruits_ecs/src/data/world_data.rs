@@ -7,6 +7,15 @@ struct WorldDataStorage {
     entities_components: EntitiesComponentsHolderUnsafe,
     events: EventsHolderUnsafe,
 }
+impl WorldDataStorage {
+    pub fn new() -> Self {
+        Self {
+            resources: ResourcesHolderUnsafe::new(),
+            entities_components: EntitiesComponentsHolderUnsafe::new(),
+            events: EventsHolderUnsafe::new(),
+        }
+    }
+}
 
 #[repr(transparent)]
 pub struct WorldDataUnsafe {
@@ -15,11 +24,7 @@ pub struct WorldDataUnsafe {
 impl WorldDataUnsafe {
     pub fn new() -> Self {
         Self {
-            data: UnsafeCell::new(WorldDataStorage {
-                resources: ResourcesHolderUnsafe::new(),
-                entities_components: EntitiesComponentsHolderUnsafe::new(),
-                events: EventsHolderUnsafe::new(),
-            }),
+            data: UnsafeCell::new(WorldDataStorage::new()),
         }
     }
 
@@ -75,6 +80,7 @@ impl WorldDataUnsafe {
 pub struct WorldData {
     data: WorldDataUnsafe,
 }
+
 // Safety. Data struct isn't changed - internals support threaded access and send.
 unsafe impl Send for WorldDataUnsafe { }
 unsafe impl Sync for WorldDataUnsafe { }

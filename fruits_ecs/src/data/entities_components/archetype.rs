@@ -23,7 +23,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     type ReadOnlyItem<'w> = &'w C;
     type IterState = SomeIterState;
     
-    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+    unsafe fn prepare_iter_state(_archetype: &UnsafeArchetype, _layout: &ArchetypeLayout) -> Self::IterState {
         SomeIterState {
             entity_index: 0,
             mem_line_ptr: std::ptr::null_mut(),
@@ -78,7 +78,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     type ReadOnlyItem<'w> = &'w C;
     type IterState = SomeIterState;
     
-    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+    unsafe fn prepare_iter_state(_archetype: &UnsafeArchetype, _layout: &ArchetypeLayout) -> Self::IterState {
         SomeIterState {
             entity_index: 0,
             mem_line_ptr: std::ptr::null_mut(),
@@ -133,7 +133,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     type ReadOnlyItem<'w> = Option<&'w C>;
     type IterState = Option<SomeIterState>;
     
-    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+    unsafe fn prepare_iter_state(_archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
         if layout.components().contains_key(&TypeId::of::<C>()) {
             Some(SomeIterState {
                 entity_index: 0,
@@ -197,7 +197,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     type ReadOnlyItem<'w> = Option<&'w C>;
     type IterState = Option<SomeIterState>;
     
-    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+    unsafe fn prepare_iter_state(_archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
         if layout.components().contains_key(&TypeId::of::<C>()) {
             Some(SomeIterState {
                 entity_index: 0,
@@ -261,7 +261,7 @@ unsafe impl ArchetypeIteratorItem for Entity {
     type ReadOnlyItem<'w> = Entity;
     type IterState = SomeIterState;
     
-    unsafe fn prepare_iter_state(archetype: &UnsafeArchetype, layout: &ArchetypeLayout) -> Self::IterState {
+    unsafe fn prepare_iter_state(_archetype: &UnsafeArchetype, _layout: &ArchetypeLayout) -> Self::IterState {
         SomeIterState {
             entity_index: 0,
             mem_line_ptr: std::ptr::null_mut(),
@@ -440,7 +440,7 @@ impl Archetype {
         self.layout.components_set()
     }
 
-    pub fn iter<A: ArchetypeIteratorItem>(&self) -> ArchetypeIterator<A> {
+    pub fn iter<'a, A: ArchetypeIteratorItem>(&'a self) -> ArchetypeIterator<'a, A> {
         // todo: threading guards
         unsafe {
             ArchetypeIterator::new(

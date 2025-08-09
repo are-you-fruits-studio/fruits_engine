@@ -39,7 +39,7 @@ impl RenderAppState {
         &self.queue
     }
 
-    pub fn surface(&self) -> &Surface {
+    pub fn surface(&self) -> &Surface<'static> {
         &self.surface
     }
 

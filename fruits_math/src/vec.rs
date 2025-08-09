@@ -14,7 +14,7 @@ macro_rules! members_count {
 
 macro_rules! vec_impl {
     ($V: ident, $($I: ident),+) => {
-        #[derive(Copy, Clone, Debug, Hash, Default)]
+        #[derive(Copy, Clone, Debug, Hash, Default, PartialEq, Eq)]
         #[repr(C)]
         pub struct $V<T> {
             $(pub $I: T),+
@@ -24,6 +24,39 @@ macro_rules! vec_impl {
             #[inline]
             pub const fn new($($I: T),+) -> Self {
                 Self { $($I),+ }
+            }
+            #[inline]
+            pub const fn as_array(&self) -> &[T; members_count!($($I),+)] {
+                unsafe { &*(self as *const $V<T> as *const [T; members_count!($($I),+)]) }
+            }
+            #[inline]
+            pub const fn as_array_mut(&mut self) -> &mut [T; members_count!($($I),+)] {
+                unsafe { &mut *(self as *mut $V<T> as *mut [T; members_count!($($I),+)]) }
+            }
+            #[inline]
+            pub const fn from_array_ref(a: &[T; members_count!($($I),+)]) -> &Self {
+                unsafe { &*(a as *const [T; members_count!($($I),+)] as *const $V<T>) }
+            }
+            #[inline]
+            pub const fn from_array_mut(a: &mut [T; members_count!($($I),+)]) -> &mut Self {
+                unsafe { &mut *(a as *mut [T; members_count!($($I),+)] as *mut $V<T>) }
+            }
+            #[inline]
+            pub fn into_array(self) -> [T; members_count!($($I),+)] {
+                [
+                    $(self.$I),+
+                ]
+            }
+            #[inline]
+            pub fn from_array(a: [T; members_count!($($I),+)]) -> Self {
+                let [$($I),+] = a;
+                Self {
+                    $($I),+
+                }
+            }
+            #[inline]
+            pub fn map<U>(self, f: impl Fn(T) -> U) -> $V<U> {
+                $V::<U>::from_array(self.into_array().map(f))
             }
         }
 
@@ -43,43 +76,18 @@ macro_rules! vec_impl {
 
         impl<T: Primitive> $V<T> {
             #[inline]
-            pub const fn as_array(&self) -> &[T; members_count!($($I),+)] {
-                unsafe { std::mem::transmute(self) }
-            }
-
-            #[inline]
-            pub const fn as_array_mut(&mut self) -> &mut [T; members_count!($($I),+)] {
-                unsafe { std::mem::transmute(self) }
-            }
-
-            #[inline]
-            pub const fn from_array_ref(a: &[T; members_count!($($I),+)]) -> &Self {
-                unsafe { std::mem::transmute(a) }
-            }
-
-            #[inline]
-            pub const fn from_array_mut(a: &mut [T; members_count!($($I),+)]) -> &mut Self {
-                unsafe { std::mem::transmute(a) }
-            }
-
-            #[inline]
-            pub const fn into_array(self) -> [T; members_count!($($I),+)] {
+            pub const fn into_array_const(self) -> [T; members_count!($($I),+)] {
                 [
                     $(self.$I),+
                 ]
             }
 
             #[inline]
-            pub const fn from_array(a: [T; members_count!($($I),+)]) -> Self {
+            pub const fn from_array_const(a: [T; members_count!($($I),+)]) -> Self {
                 let [$($I),+] = a;
                 Self {
                     $($I),+
                 }
-            }
-            
-            #[inline]
-            pub fn map<U: Primitive>(self, f: impl Fn(T) -> U) -> $V<U> {
-                $V::<U>::from_array(self.as_array().map(f))
             }
 
             #[inline]
@@ -128,6 +136,11 @@ macro_rules! vec_impl {
             }
 
             #[inline]
+            pub fn lerp_separately(self, b: Self, t: Self) -> Self {
+                Self::from_array(lerp_slice_separately(self.as_array(), b.as_array(), t.as_array()))
+            }
+
+            #[inline]
             pub fn inv_lerp(self, b: Self, x: Self) -> T {
                 let ab = b - self;
                 (ab.dot(x - self) / ab.length_sq())
@@ -145,15 +158,6 @@ macro_rules! vec_impl {
                 any(self.as_array())
             }
         }
-
-        impl<T: Primitive> PartialEq for $V<T> {
-            #[inline]
-            fn eq(&self, rhs: &Self) -> bool {
-                self.as_array() == rhs.as_array()
-            }
-        }
-
-        impl<T: Number + Eq> Eq for $V<T> { }
 
         impl<T: Primitive> Into<[T; members_count!($($I),+)]> for $V<T> {
             #[inline]
@@ -480,6 +484,16 @@ pub fn lerp_slice<T: Number, const N: usize>(a: &[T; N], b: &[T; N], t: T) -> [T
 
     for i in 0..N {
         result[i] = crate::lerp(a[i], b[i], t);
+    }
+
+    result
+}
+#[inline]
+pub fn lerp_slice_separately<T: Number, const N: usize>(a: &[T; N], b: &[T; N], t: &[T; N]) -> [T; N] {
+    let mut result = [T::ZERO; N];
+
+    for i in 0..N {
+        result[i] = crate::lerp(a[i], b[i], t[i]);
     }
 
     result

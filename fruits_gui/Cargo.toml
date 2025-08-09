@@ -6,3 +6,8 @@ edition = "2024"
 [dependencies]
 bevy = "0.14.2"
 fruits_serialization = { path = "../fruits_serialization" }
+fruits_prelude = { path = "../fruits_prelude" }
+fruits_modules = { path = "../fruits_modules" }
+fruits_reflection = { path = "../fruits_reflection" }
+fruits_utils = { path = "../fruits_utils" }
+fruits_debug = { path = "../fruits_debug" }

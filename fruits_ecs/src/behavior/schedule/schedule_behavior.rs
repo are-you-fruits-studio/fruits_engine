@@ -107,17 +107,17 @@ impl ScheduleBehaviorBuilder {
     }
 
     #[must_use]
-    pub fn order_system<M0: 'static>(&mut self, s: impl SystemWithMarker<M0> + Any) -> OrderHelper {
+    pub fn order_system<'a, M0: 'static>(&'a mut self, s: impl SystemWithMarker<M0> + Any) -> OrderHelper<'a> {
         OrderHelper::from_system(self, s)
     }
 
     #[must_use]
-    pub fn order_group(&mut self, g: &'static str) -> OrderHelper {
+    pub fn order_group<'a>(&'a mut self, g: &'static str) -> OrderHelper<'a> {
         OrderHelper::from_group(self, g)
     }
 
     #[must_use]
-    pub fn group(&mut self, group: &'static str) -> GroupHelper {
+    pub fn group<'a>(&'a mut self, group: &'static str) -> GroupHelper<'a> {
         GroupHelper::new(self, group)
     }
 

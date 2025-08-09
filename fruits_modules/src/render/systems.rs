@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use fruits_app::RenderStateResource;
-use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldQuery};
+use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldData, WorldQuery};
 use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
 
-use crate::{asset::AssetStorageResource, render::{self, utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, HorizontalAlign, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::GlobalTransform};
+use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, RenderSpace, GizmosRenderResource, GizmosResource, StandardRenderResource};
 
@@ -244,17 +244,36 @@ pub fn create_standard_render_resource(
         &[255; 16]
     );
 
-    let texture_text = include_bytes!("./assets/ascii_pixelated.png");
+    let texture_white = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture_white);
 
-    let texture_text = image::load_from_memory(texture_text).unwrap();
+    let (texture_text_px_5_7, font_px_5_7) = create_ascii_monospace_font(&mut world, include_bytes!("./assets/ascii_px_5x7.png"));
+    let (texture_text_px_8_8, font_px_8_8) = create_ascii_monospace_font(&mut world, include_bytes!("./assets/ascii_px_8x8.png"));
+    let (texture_text_px_8_12, font_px_8_12) = create_ascii_monospace_font(&mut world, include_bytes!("./assets/ascii_px_8x12.png"));
 
-    let texture_dimensions: [u32; 2] = texture_text.dimensions().into();
+    world.resources_mut().insert(StandardRenderAssetsResource {
+        texture_white,
+        texture_text_px_5_7,
+        font_px_5_7,
+        texture_text_px_8_8,
+        font_px_8_8,
+        texture_text_px_8_12,
+        font_px_8_12,
+    }).ok().unwrap();
+}
 
-    let texture_text = StandardTexture::from_world(
-        &world,
+fn create_ascii_monospace_font(
+    world: &mut WorldData,
+    texture_bytes: &[u8],
+) -> (AssetHandle<StandardTexture>, AssetHandle<Font>) {
+    let image = image::load_from_memory(texture_bytes).unwrap();
+
+    let texture_dimensions: [u32; 2] = image.dimensions().into();
+
+    let texture = StandardTexture::from_world(
+        world,
         FilterMode::Nearest,
         texture_dimensions,
-        texture_text.as_bytes(),
+        image.as_bytes(),
     );
 
     let text_chars_count = [16, 8];
@@ -272,23 +291,18 @@ pub fn create_standard_render_resource(
         (c, char_uvs)
     }).collect::<HashMap<_, _>>();
     
-    let texture_white = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture_white);
-    let texture_text = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture_text);
+    let texture = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture);
     
-    let font_pixelated = Font {
-        texture: texture_text.clone(),
+    let font = Font {
+        texture: texture.clone(),
         mising_character_uv: characters_uv[&'?'],
         characters_uv: characters_uv,
         character_ratio: (text_chars_count[1] as f32 / text_chars_count[0] as f32) * (texture_dimensions[0] as f32 / texture_dimensions[1] as f32),
     };
 
-    let font_pixelated = world.resources_mut().get_mut::<AssetStorageResource<Font>>().unwrap().insert(font_pixelated);
+    let font = world.resources_mut().get_mut::<AssetStorageResource<Font>>().unwrap().insert(font);
 
-    world.resources_mut().insert(StandardRenderAssetsResource {
-        texture_white,
-        texture_text,
-        font_pixelated,
-    }).ok().unwrap();
+    (texture, font)
 }
 
 pub fn recreate_depth_texture_resource(
@@ -524,49 +538,53 @@ pub fn update_camera_uniform(
 }
 
 pub fn update_text_batched_mesh(
-    mut q: WorldQuery<(&TextComponent, &mut BatchedMeshComponent)>,
+    mut q: WorldQuery<(&TextComponent, &mut BatchedMeshComponent, Option<&GlobalRectComponent>)>,
+    render_res: Res<RenderStateResource>,
     font_assets: Res<AssetStorageResource<Font>>,
 ) {
     const VERTICES_PER_CHAR: usize = 4;
     const INDICES_PER_CHAR: usize = 6;
 
-    let normal = [0.0, 0.0, -1.0];
-    let color = [1.0, 1.0, 1.0, 1.0];
+    let window_size: [u32; 2] = render_res.size().into();
+    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    for (text_c, mesh_c) in q.iter_mut() {
+    let normal = [0.0, 0.0, -1.0];
+
+    for (text_c, mesh_c, rect_c) in q.iter_mut() {
+        let color = text_c.color.into_array();
         let font = font_assets.get(&text_c.font).unwrap();
-        let font_size = text_c.font_size;
+
+        let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.0), scale: Vec2::with_all(0.0), });
+
+        let font_size = text_c.font_size.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size);
         
-        let quad_scale = Vec2::new(font_size * font.character_ratio, font_size);
+        let mut quad_scale = Vec2::new(font_size * font.character_ratio, font_size);
 
         let chars_count = text_c.text.chars().count();
 
         let mut text_scale = quad_scale;
-
         text_scale.x *= chars_count as f32;
+        text_scale.x += (usize::max(chars_count, 1) - 1) as f32 * text_c.horizontal_spacing;
 
-        if chars_count > 1 {
-            text_scale.x += (chars_count - 1) as f32 * text_c.horizontal_spacing;
-        }
-
-        let mut start_pos = Vec2::new(
+        let center = Vec2::new(
             match text_c.horizontal_align {
-                HorizontalAlign::Left => 0.0,
-                HorizontalAlign::Middle => -0.5,
-                HorizontalAlign::Right => -1.0,
+                HorizontalAlign::Left => rect.center.x - rect.scale.x * 0.5 + text_scale.x * 0.5,
+                HorizontalAlign::Middle => rect.center.x,
+                HorizontalAlign::Right => rect.center.x + rect.scale.x * 0.5 - text_scale.x * 0.5,
             },
             match text_c.vertical_align {
-                VerticalAlign::Top => -1.0,
-                VerticalAlign::Middle => -0.5,
-                VerticalAlign::Bottom => 0.0,
+                VerticalAlign::Top => rect.center.y - rect.scale.y * 0.5 + text_scale.y * 0.5,
+                VerticalAlign::Middle => rect.center.y,
+                VerticalAlign::Bottom => rect.center.y + rect.scale.y * 0.5 - text_scale.y * 0.5,
             },
-        ) * text_scale;
+        );
 
         if text_c.is_y_inverted {
-            start_pos.y = -text_scale.y - start_pos.y;
+            quad_scale.y *= -1.0;
+            text_scale.y *= -1.0;
         }
 
-        let inv_i = text_c.is_y_inverted as usize;
+        let start_pos = center - text_scale * 0.5;
 
         mesh_c.vertices.resize(chars_count * VERTICES_PER_CHAR, StandardVertex::default());
         mesh_c.indices.resize(chars_count * INDICES_PER_CHAR, 0);
@@ -579,10 +597,10 @@ pub fn update_text_batched_mesh(
                 start_pos + Vec2::new((i + 1) as f32, 1.0) * quad_scale + Vec2::X * text_c.horizontal_spacing * i as f32,
             ];
 
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[0][1]], position: [pos[0][0], pos[1 - inv_i][1], 0.0] };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[0][1]], position: [pos[1][0], pos[1 - inv_i][1], 0.0] };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[1][1]], position: [pos[0][0], pos[inv_i][1], 0.0] };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[1][1]], position: [pos[1][0], pos[inv_i][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[0][1]], position: [pos[0][0], pos[1][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[0][1]], position: [pos[1][0], pos[1][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[1][1]], position: [pos[0][0], pos[0][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[1][1]], position: [pos[1][0], pos[0][1], 0.0] };
             
             mesh_c.indices[i * INDICES_PER_CHAR + 0] = (i * VERTICES_PER_CHAR + 0) as u16;
             mesh_c.indices[i * INDICES_PER_CHAR + 1] = (i * VERTICES_PER_CHAR + 3) as u16;
@@ -591,6 +609,42 @@ pub fn update_text_batched_mesh(
             mesh_c.indices[i * INDICES_PER_CHAR + 4] = (i * VERTICES_PER_CHAR + 2) as u16;
             mesh_c.indices[i * INDICES_PER_CHAR + 5] = (i * VERTICES_PER_CHAR + 3) as u16;
         }
+    }
+}
+
+pub fn update_image_batched_mesh(
+    mut q: WorldQuery<(&ImageComponent, &mut BatchedMeshComponent, Option<&GlobalRectComponent>)>,
+) {
+    let normal = [0.0, 0.0, -1.0];
+
+    for (image_c, mesh_c, rect_c) in q.iter_mut() {
+        let color = image_c.color.into_array();
+
+        mesh_c.vertices.resize(4, StandardVertex::default());
+        mesh_c.indices.resize(6, 0);
+
+        let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.5), scale: Vec2::with_all(1.0), });
+
+        if image_c.is_y_inverted {
+            rect.scale.y *= -1.0;
+        }
+
+        let pos = [
+            rect.center - rect.scale * 0.5,
+            rect.center + rect.scale * 0.5,
+        ];
+
+        mesh_c.vertices[0] = StandardVertex { color, normal, uv: [0.0, 0.0], position: [pos[0][0], pos[1][1], 0.0] };
+        mesh_c.vertices[1] = StandardVertex { color, normal, uv: [1.0, 0.0], position: [pos[1][0], pos[1][1], 0.0] };
+        mesh_c.vertices[2] = StandardVertex { color, normal, uv: [0.0, 1.0], position: [pos[0][0], pos[0][1], 0.0] };
+        mesh_c.vertices[3] = StandardVertex { color, normal, uv: [1.0, 1.0], position: [pos[1][0], pos[0][1], 0.0] };
+        
+        mesh_c.indices[0] = 0;
+        mesh_c.indices[1] = 3;
+        mesh_c.indices[2] = 1;
+        mesh_c.indices[3] = 0;
+        mesh_c.indices[4] = 2;
+        mesh_c.indices[5] = 3;
     }
 }
 

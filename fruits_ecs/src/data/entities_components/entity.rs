@@ -14,6 +14,10 @@ impl Entity {
     pub fn version_index(&self) -> VersionIndex {
         self.0
     }
+
+    pub fn from_version_index(vi: VersionIndex) -> Self {
+        Self(vi)
+    }
 }
 
 impl Default for Entity {

@@ -78,8 +78,12 @@ pub struct BatchedVertexCpuBufferResource(pub Box<[StandardVertex]>);
 #[derive(Resource)]
 pub struct StandardRenderAssetsResource {
     pub texture_white: AssetHandle<StandardTexture>,
-    pub texture_text: AssetHandle<StandardTexture>,
-    pub font_pixelated: AssetHandle<Font>,
+    pub texture_text_px_5_7: AssetHandle<StandardTexture>,
+    pub font_px_5_7: AssetHandle<Font>,
+    pub texture_text_px_8_8: AssetHandle<StandardTexture>,
+    pub font_px_8_8: AssetHandle<Font>,
+    pub texture_text_px_8_12: AssetHandle<StandardTexture>,
+    pub font_px_8_12: AssetHandle<Font>,
 }
 
 pub struct MaterialStandardRenderResourceData {

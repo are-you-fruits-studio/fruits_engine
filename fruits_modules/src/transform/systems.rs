@@ -1,13 +1,17 @@
 use std::collections::VecDeque;
 
+use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, WithFilter, WithoutFilter, WorldQuery};
-use fruits_math::Mat3;
+use fruits_math::{Mat3, Vec2};
 
-use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
+use crate::transform::{GlobalRectComponent, LocalRectComponent};
+
+use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent, UiVal};
 
 pub fn adjust_component_sets(
     mut world: ExclusiveWorldAccess,
 ) {
+    // todo: do the same with rects?
     let mut buffer = Vec::new();
 
     let entities_components = world.entities_components_mut();
@@ -53,12 +57,6 @@ pub fn adjust_component_sets(
         entities_components.add_component(e, ChildComponent { parent: Entity::EMPTY }).ok().unwrap();
     }
 }
-
-// - Update ParentComponents according to ChildComponents
-//     - Remove children from parent components
-//     - Add missing children to parent components with creation if needed
-//     - Destroy existing empty parent components
-
 
 // - Update ParentComponents according to ChildComponents
 //     - Remove children from parent components
@@ -152,6 +150,72 @@ pub fn calculate_global_transform(
 
         for &child in children.children.iter() {
             transforms_to_calc.push_back(child);
+        }
+    }
+}
+
+// - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
+pub fn calculate_global_rect(
+    mut world: ExclusiveWorldAccess,
+) {
+    let (res, ec, _) = world.as_tuple_mut();
+
+    let window_size: [u32; 2] = res.get::<RenderStateResource>().unwrap().size().into();
+    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
+
+    let mut rects_to_calc = ec
+        .query::<(Entity, &GlobalRectComponent)>()
+        .iter()
+        .filter(|(e, _)| {
+            let Some(child_component) = ec.get_component::<ChildComponent>(*e) else {
+                return true;
+            };
+
+            !ec.contains_entity(child_component.parent)
+        })
+        .map(|(e, _)| e)
+        .collect::<VecDeque<_>>();
+
+    while let Some(rect) = rects_to_calc.pop_front() {
+        let parent_global_rect = match ec.get_component::<ChildComponent>(rect) {
+            None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, },
+            Some(child_component) => match ec.get_component::<GlobalRectComponent>(child_component.parent) {
+                None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, },
+                Some(&parent_global_rect) => parent_global_rect,
+            }
+        };
+
+        // todo: Check geometry operations
+        // {
+        let Some(&local_rect) = ec.get_component::<LocalRectComponent>(rect) else {
+            continue;
+        };
+        let Some(global_rect) = ec.get_component_mut::<GlobalRectComponent>(rect) else {
+            continue;
+        };
+        let parent_min = parent_global_rect.center - parent_global_rect.scale * 0.5;
+        let parent_max = parent_global_rect.center + parent_global_rect.scale * 0.5;
+
+        let anchored_min = Vec2::lerp_separately(parent_min, parent_max, local_rect.anchor_min);
+        let anchored_max = Vec2::lerp_separately(parent_min, parent_max, local_rect.anchor_max);
+
+        let ui_val_to_px = |v: UiVal| -> f32 {
+            v.into_px(parent_global_rect.scale, window_size)
+        };
+
+        let min = anchored_min + local_rect.offset_min.map(ui_val_to_px);
+        let max = anchored_max + local_rect.offset_max.map(ui_val_to_px);
+
+        global_rect.center = (max + min) * 0.5;
+        global_rect.scale = max - min;
+        // }
+
+        let Some(children) = ec.get_component::<ParentComponent>(rect) else {
+            continue;
+        };
+
+        for &child in children.children.iter() {
+            rects_to_calc.push_back(child);
         }
     }
 }

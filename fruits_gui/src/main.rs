@@ -1,154 +1,35 @@
-use bevy::{app::{App, Startup}, prelude::*, winit::WinitSettings, DefaultPlugins};
-use fruits_serialization::json_reflection::*;
+use fruits_modules::{render, transform::{self}};
+use fruits_prelude::*;
+
+mod systems;
+mod resources;
+mod events;
+
+use systems::*;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .insert_resource(WinitSettings::desktop_app())
-        .add_systems(Startup, setup)
-        .run();
-}
+    let mut app = App::new();
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    commands.spawn((Camera2dBundle::default(), IsDefaultUiCamera));
+    fruits_modules::transform::add_module_to(app.ecs_mut());
+    fruits_modules::render::add_module_to(app.ecs_mut());
+    fruits_modules::fps_counter::add_module_to(app.ecs_mut());
+    // todo: to fruits_modules
+    fruits_debug::add_module_as_client_to(app.ecs_mut());
 
-    let mut object = JsonObject::new();
-    object.push_field("name", String::from("Peter")).ok().unwrap();
-    object.push_field("age", 25).ok().unwrap();
-    object.push_field("friend", {
-        let mut friend = JsonObject::new();
-        friend.push_field("name", String::from("Alex")).ok().unwrap();
-        friend.push_field("age", 22).ok().unwrap();
-        friend.push_field("account", {
-            let mut account = JsonObject::new();
-            account.push_field("name", String::from("superhero1337")).ok().unwrap();
-            account.push_field("password", String::from("123456789")).ok().unwrap();
-            account
-        }).ok().unwrap();
-        friend
-    }).ok().unwrap();
-    object.push_field("account", {
-        let mut account = JsonObject::new();
-        account.push_field("name", String::from("underground_sniper")).ok().unwrap();
-        account.push_field("password", String::from("und777sn1pr")).ok().unwrap();
-        account
-    }).ok().unwrap();
-    object.push_field("nicknames", {
-        let mut nicknames = Vec::<JsonValue>::new();
-        nicknames.push(String::from("superhot").into());
-        nicknames.push(String::from("noobs_killer").into());
-        nicknames.push(String::from("password-rememberer").into());
-        nicknames.push(String::from("bestplay3r").into());
-        nicknames
-    }).ok().unwrap();
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Start).add_system(init);
 
+    // app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(respawn_scene);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(connect_debug_system);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(parse_debug_msg_system);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_hierarchy);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(request_hierarchy_system);
+    
 
-    commands.spawn(NodeBundle {
-        style: Style {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            ..Default::default()
-        },
-        ..Default::default()
-    }).with_children(|parent| {
-        for (name, value) in object.fields() {
-            spawn_field(parent, &asset_server, name, value, 1);
-        }
-    });
-}
+    // app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(respawn_scene).before_group(transform::SYSTEM_GROUP);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(parse_debug_msg_system).before_system(update_hierarchy);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(update_hierarchy).before_group(transform::SYSTEM_GROUP);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(update_hierarchy).before_group(render::SYSTEM_GROUP);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_group(transform::SYSTEM_GROUP).before_group(render::SYSTEM_GROUP);
 
-fn spawn_field(
-    parent: &mut ChildBuilder,
-    asset_server: &Res<AssetServer>,
-    name: &str,
-    value: &JsonValue,
-    indent: usize,
-) {
-    // todo: don't use recursion
-    if let JsonValue::Object(object) = value {
-        spawn_node_with_text(parent, asset_server, name, "", indent);
-        for (name, value) in object.fields() {
-            spawn_field(parent, asset_server, name, value, indent + 1);
-        }
-    } else if let JsonValue::Array(array) = value {
-        spawn_node_with_text(parent, asset_server, name, "", indent);
-        for element in array {
-            spawn_field(parent, asset_server, "", element, indent + 1);
-        }
-    } else if let JsonValue::String(string) = value {
-        spawn_node_with_text(parent, asset_server, name, string, indent);
-    } else {
-        let mut serialized_value = String::new();
-        value.write(&mut serialized_value, None).unwrap();
-        spawn_node_with_text(parent, asset_server, name, &serialized_value, indent);
-    }
-}
-
-fn spawn_node_with_text(
-    parent: &mut ChildBuilder,
-    asset_server: &Res<AssetServer>,
-    name: &str,
-    value: &str,
-    indent: usize,
-) {
-    parent.spawn(NodeBundle {
-        style: Style {
-            width: Val::Percent(100.0),
-            height: Val::Px(30.0),
-            display: Display::Flex,
-            justify_content: JustifyContent::End,
-            ..Default::default()
-        },
-        ..Default::default()
-    }).with_children(|parent| {
-        parent.spawn(NodeBundle {
-            style: Style {
-                width: Val::Px(indent as f32 * 20.0),
-                height: Val::Percent(100.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-
-        parent.spawn(NodeBundle {
-            style: Style {
-                height: Val::Percent(100.0),
-                flex_grow: 1.0,
-                ..Default::default()
-            },
-            ..Default::default()
-        }).with_children(|parent| {
-            parent.spawn(TextBundle::from_section(
-                name,
-                TextStyle {
-                    font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                    font_size: 30.0,
-                    ..default()
-                },
-            ));
-        });
-
-        parent.spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(50.0),
-                height: Val::Percent(100.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        }).with_children(|parent| {
-            parent.spawn(TextBundle::from_section(
-                value,
-                TextStyle {
-                    font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                    font_size: 30.0,
-                    ..default()
-                },
-            ));
-        });
-    });
+    app.run();
 }

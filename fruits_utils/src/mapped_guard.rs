@@ -39,7 +39,7 @@ impl MappableGuarding for RwLockReadGuarding {
     type Guard<'o, Origin: 'o> = RwLockReadGuard<'o, Origin>;
     
     unsafe fn get_ref<'o, T: 'o>(guard: &Self::Guard<'o, T>) -> &'o T {
-        &*(guard as *const Self::Guard<'o, T>)
+        unsafe { &*(guard as *const Self::Guard<'o, T>) }
     }
 }
 
@@ -48,13 +48,13 @@ impl MappableGuarding for RwLockWriteGuarding {
     type Guard<'o, Origin: 'o> = RwLockWriteGuard<'o, Origin>;
     
     unsafe fn get_ref<'o, T: 'o>(guard: &Self::Guard<'o, T>) -> &'o T {
-        &*(guard as *const Self::Guard<'o, T>)
+        unsafe { &*(guard as *const Self::Guard<'o, T>) }
     }
 }
 
 impl MutMappableGuarding for RwLockWriteGuarding {
     unsafe fn get_mut<'o, T: 'o>(guard: &mut Self::Guard<'o, T>) -> &'o mut T {
-        &mut *(guard as *mut Self::Guard<'o, T>)
+        unsafe { &mut *(guard as *mut Self::Guard<'o, T>) }
     }
 }
 
@@ -63,13 +63,13 @@ impl MappableGuarding for MutexGuarding {
     type Guard<'o, Origin: 'o> = MutexGuard<'o, Origin>;
 
     unsafe fn get_ref<'o, T: 'o>(guard: &Self::Guard<'o, T>) -> &'o T {
-        &*(guard as *const Self::Guard<'o, T>)
+        unsafe { &*(guard as *const Self::Guard<'o, T>) }
     }
 }
 
 impl MutMappableGuarding for MutexGuarding {
     unsafe fn get_mut<'o, T: 'o>(guard: &mut Self::Guard<'o, T>) -> &'o mut T {
-        &mut *(guard as *mut Self::Guard<'o, T>)
+        unsafe { &mut *(guard as *mut Self::Guard<'o, T>) }
     }
 }
 
@@ -78,7 +78,7 @@ impl MappableGuarding for RefCellReadGuarding {
     type Guard<'o, Origin: 'o> = Ref<'o, Origin>;
 
     unsafe fn get_ref<'o, T: 'o>(guard: &Self::Guard<'o, T>) -> &'o T {
-        &*(guard as *const Self::Guard<'o, T>)
+        unsafe { &*(guard as *const Self::Guard<'o, T>) }
     }
 }
 
@@ -87,13 +87,13 @@ impl MappableGuarding for RefCellWriteGuarding {
     type Guard<'o, Origin: 'o> = RefMut<'o, Origin>;
 
     unsafe fn get_ref<'o, T: 'o>(guard: &Self::Guard<'o, T>) -> &'o T {
-        &*(guard as *const Self::Guard<'o, T>)
+        unsafe { &*(guard as *const Self::Guard<'o, T>) }
     }
 }
 
 impl MutMappableGuarding for RefCellWriteGuarding {
     unsafe fn get_mut<'o, T: 'o>(guard: &mut Self::Guard<'o, T>) -> &'o mut T {
-        &mut *(guard as *mut Self::Guard<'o, T>)
+        unsafe { &mut *(guard as *mut Self::Guard<'o, T>) }
     }
 }
 
@@ -102,7 +102,7 @@ impl MappableGuarding for ArcGuarding {
     type Guard<'o, Origin: 'o> = Arc<Origin>;
 
     unsafe fn get_ref<'o, T: 'o>(guard: &Self::Guard<'o, T>) -> &'o T {
-        &*(guard as *const Self::Guard<'o, T>)
+        unsafe { &*(guard as *const Self::Guard<'o, T>) }
     }
 }
 

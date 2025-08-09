@@ -5,7 +5,7 @@ use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use crate::{num::Number, Primitive};
 
 /// Column-major
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct Mat<const N: usize, T> {
     data: [[T; N]; N],
