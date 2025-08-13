@@ -81,7 +81,7 @@ pub fn update_parents_remove_invalid_children(
             }
         }
 
-        for &index in indices_to_remove.iter().rev() {
+        for &index in indices_to_remove.iter() {
             parent.children.remove(index);
         }
 
