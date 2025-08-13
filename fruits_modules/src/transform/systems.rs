@@ -68,12 +68,20 @@ pub fn update_parents_remove_invalid_children(
     
     for (parent_entity, parent) in parents.iter_mut() {
         for (index, &child_entity) in parent.children.iter().enumerate().rev() {
-            if children.get(child_entity).map(|c| c.parent != parent_entity).unwrap_or(true) {
+            if child_entity == parent_entity {
+                indices_to_remove.push(index);
+                continue;
+            }
+            let Some(child_child_c) = children.get(child_entity) else {
+                indices_to_remove.push(index);
+                continue;
+            };
+            if child_child_c.parent != parent_entity {
                 indices_to_remove.push(index);
             }
         }
 
-        for &index in indices_to_remove.iter() {
+        for &index in indices_to_remove.iter().rev() {
             parent.children.remove(index);
         }
 
@@ -149,6 +157,18 @@ pub fn calculate_global_transform(
         };
 
         for &child in children.children.iter() {
+            if child == transform {
+                continue;
+            }
+
+            let Some(child_child_c) = ec.get_component::<ChildComponent>(child) else {
+                continue;
+            };
+            
+            if child_child_c.parent != transform {
+                continue;
+            }
+
             transforms_to_calc.push_back(child);
         }
     }
@@ -215,6 +235,18 @@ pub fn calculate_global_rect(
         };
 
         for &child in children.children.iter() {
+            if child == rect {
+                continue;
+            }
+
+            let Some(child_child_c) = ec.get_component::<ChildComponent>(child) else {
+                continue;
+            };
+            
+            if child_child_c.parent != rect {
+                continue;
+            }
+
             rects_to_calc.push_back(child);
         }
     }
