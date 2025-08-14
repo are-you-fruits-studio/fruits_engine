@@ -79,12 +79,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         offset_min: Vec2::new(UiVal::Pmin(-0.25), UiVal::Pmin(-0.25)),
         offset_max: Vec2::new(UiVal::Pmin(0.25), UiVal::Pmin(0.25)),
     }).ok().unwrap();
-    ec.add_component(ent1, ImageComponent {
-        is_y_inverted: true,
-        horizontal_align: HorizontalAlign::Middle,
-        vertical_align: VerticalAlign::Middle,
-        color: Vec4::with_all(1.0),
-    }).ok().unwrap();
+    ec.add_component(ent1, ImageComponent::default()).ok().unwrap();
 
     ec.add_component(ent2, GlobalTransform::IDENTITY).ok().unwrap();
     ec.add_component(ent2, LocalTransform {
@@ -103,10 +98,8 @@ fn init(mut world: ExclusiveWorldAccess) {
         offset_max: Vec2::new(UiVal::Vmin(-0.1), UiVal::Vmin(-0.1)),
     }).ok().unwrap();
     ec.add_component(ent2, ImageComponent {
-        is_y_inverted: true,
-        horizontal_align: HorizontalAlign::Middle,
-        vertical_align: VerticalAlign::Middle,
         color: Vec4::with_all(0.6),
+        ..Default::default()
     }).ok().unwrap();
 
     ec.add_component(ent3, GlobalTransform::IDENTITY).ok().unwrap();

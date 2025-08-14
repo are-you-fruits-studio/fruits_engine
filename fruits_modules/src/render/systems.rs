@@ -1,3 +1,4 @@
+use core::f32;
 use std::collections::HashMap;
 
 use fruits_app::RenderStateResource;
@@ -8,7 +9,7 @@ use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, Bin
 
 use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}};
 
-use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, RenderSpace, GizmosRenderResource, GizmosResource, StandardRenderResource};
+use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
 pub fn create_standard_render_resource(
     mut world: ExclusiveWorldAccess,
@@ -620,31 +621,103 @@ pub fn update_image_batched_mesh(
     for (image_c, mesh_c, rect_c) in q.iter_mut() {
         let color = image_c.color.into_array();
 
-        mesh_c.vertices.resize(4, StandardVertex::default());
-        mesh_c.indices.resize(6, 0);
-
         let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.5), scale: Vec2::with_all(1.0), });
 
         if image_c.is_y_inverted {
             rect.scale.y *= -1.0;
         }
 
+        let center = rect.center;
+
         let pos = [
-            rect.center - rect.scale * 0.5,
-            rect.center + rect.scale * 0.5,
+            center - rect.scale * 0.5,
+            center,
+            center + rect.scale * 0.5,
         ];
 
-        mesh_c.vertices[0] = StandardVertex { color, normal, uv: [0.0, 0.0], position: [pos[0][0], pos[1][1], 0.0] };
-        mesh_c.vertices[1] = StandardVertex { color, normal, uv: [1.0, 0.0], position: [pos[1][0], pos[1][1], 0.0] };
-        mesh_c.vertices[2] = StandardVertex { color, normal, uv: [0.0, 1.0], position: [pos[0][0], pos[0][1], 0.0] };
-        mesh_c.vertices[3] = StandardVertex { color, normal, uv: [1.0, 1.0], position: [pos[1][0], pos[0][1], 0.0] };
-        
-        mesh_c.indices[0] = 0;
-        mesh_c.indices[1] = 3;
-        mesh_c.indices[2] = 1;
-        mesh_c.indices[3] = 0;
-        mesh_c.indices[4] = 2;
-        mesh_c.indices[5] = 3;
+        let fill_amt = image_c.fill_amt.clamp(0.0, 1.0);
+
+        let clear_fill_f = |mesh_c: &mut BatchedMeshComponent| {
+            mesh_c.vertices.clear();
+            mesh_c.indices.clear();
+        };
+
+        let standard_fill_f = |mesh_c: &mut BatchedMeshComponent| {
+            mesh_c.vertices.resize(4, StandardVertex::default());
+            mesh_c.indices.resize(6, 0);
+
+            mesh_c.vertices[0] = StandardVertex { color, normal, uv: [0.0, 0.0], position: [pos[0][0], pos[2][1], 0.0] };
+            mesh_c.vertices[1] = StandardVertex { color, normal, uv: [1.0, 0.0], position: [pos[2][0], pos[2][1], 0.0] };
+            mesh_c.vertices[2] = StandardVertex { color, normal, uv: [0.0, 1.0], position: [pos[0][0], pos[0][1], 0.0] };
+            mesh_c.vertices[3] = StandardVertex { color, normal, uv: [1.0, 1.0], position: [pos[2][0], pos[0][1], 0.0] };
+            
+            mesh_c.indices[0] = 0;
+            mesh_c.indices[1] = 3;
+            mesh_c.indices[2] = 1;
+            mesh_c.indices[3] = 0;
+            mesh_c.indices[4] = 2;
+            mesh_c.indices[5] = 3;
+        };
+
+        match &image_c.fill_settings {
+            None => standard_fill_f(mesh_c),
+            _ if fill_amt == 1.0 => standard_fill_f(mesh_c),
+            _ if fill_amt == 0.0 => clear_fill_f(mesh_c),
+            Some(ImageFillSettings::RadialCenter) => {
+                let uvs = [
+                    [0.5, 0.5],
+                    [0.5, 1.0],
+                    [0.0, 1.0],
+                    [0.0, 0.5],
+                    [0.0, 0.0],
+                    [0.5, 0.0],
+                    [1.0, 0.0],
+                    [1.0, 0.5],
+                    [1.0, 1.0],
+                    [0.5, 1.0],
+                ];
+
+                let poss = [
+                    [pos[1][0], pos[1][1], 0.0],
+                    [pos[1][0], pos[2][1], 0.0],
+                    [pos[0][0], pos[2][1], 0.0],
+                    [pos[0][0], pos[1][1], 0.0],
+                    [pos[0][0], pos[0][1], 0.0],
+                    [pos[1][0], pos[0][1], 0.0],
+                    [pos[2][0], pos[0][1], 0.0],
+                    [pos[2][0], pos[1][1], 0.0],
+                    [pos[2][0], pos[2][1], 0.0],
+                ];
+
+                let fill_amt = image_c.fill_amt.clamp(0.0, 1.0);
+                
+                let slices = 1 + ((fill_amt * 8.0).floor() as usize).clamp(0, 7);
+
+                mesh_c.vertices.resize(3 + slices, StandardVertex::default());
+                mesh_c.indices.resize(slices * 3, 0);
+
+                mesh_c.vertices[0] = StandardVertex { color, normal, uv: uvs[0], position: poss[0] };
+                mesh_c.vertices[1] = StandardVertex { color, normal, uv: uvs[1], position: poss[1] };
+                
+                for i in 0..slices {
+                    if i + 1 == slices {
+                        let (x, y) = (fill_amt * 2.0 * f32::consts::PI).sin_cos();
+
+                        let t = Vec2::new(x, -y) / f32::max(x.abs(), y.abs());
+
+                        let last_pos = pos[1].lerp_separately(pos[0], t);
+
+                        mesh_c.vertices[i + 2] = StandardVertex { color, normal, uv: uvs[i + 2], position: [last_pos[0], last_pos[1], 0.0] };
+                    } else {
+                        mesh_c.vertices[i + 2] = StandardVertex { color, normal, uv: uvs[i + 2], position: poss[i + 2] };
+                    }
+
+                    mesh_c.indices[i * 3 + 0] = (i + 1) as u16;
+                    mesh_c.indices[i * 3 + 1] = (i + 2) as u16;
+                    mesh_c.indices[i * 3 + 2] = 0;
+                }
+            },
+        }
     }
 }
 

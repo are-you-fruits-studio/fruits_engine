@@ -52,6 +52,26 @@ pub struct ImageComponent {
     pub horizontal_align: HorizontalAlign,
     pub vertical_align: VerticalAlign,
     pub color: Vec4<f32>,
+    pub fill_amt: f32,
+    pub fill_settings: Option<ImageFillSettings>,
+}
+impl Default for ImageComponent {
+    fn default() -> Self {
+        Self {
+            is_y_inverted: true,
+            horizontal_align: HorizontalAlign::Middle,
+            vertical_align: VerticalAlign::Middle,
+            color: Vec4::with_all(1.0),
+            fill_amt: 1.0,
+            fill_settings: None,
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum ImageFillSettings {
+    // todo: add more variants and details.
+    RadialCenter,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
