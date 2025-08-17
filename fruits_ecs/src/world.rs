@@ -22,6 +22,7 @@ impl World {
     }
 }
 
+#[derive(Default)]
 pub struct WorldBuilder {
     data: WorldData,
     behavior: WorldBehaviorBuilder,

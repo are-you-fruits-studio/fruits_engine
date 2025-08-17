@@ -2,6 +2,7 @@ use std::{any::{Any, TypeId}, cell::UnsafeCell, collections::HashMap};
 
 pub trait Resource : 'static + Send + Sync { }
 
+#[derive(Default)]
 pub struct ResourcesHolderUnsafe {
     resources: HashMap<TypeId, Box<dyn Any>>,
 }

@@ -38,6 +38,7 @@ pub struct EntityLocation {
     pub entity_archetype_index: usize,
 }
 
+#[derive(Default)]
 pub struct WorldEntities(VersionCollection<EntityLocation>);
 
 impl WorldEntities {

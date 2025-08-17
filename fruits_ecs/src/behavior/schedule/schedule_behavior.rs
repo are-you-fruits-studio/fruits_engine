@@ -58,7 +58,7 @@ impl ScheduleBehavior {
                         {
                             let input = SystemInput {
                                 world_data: data,
-                                system_data: &mut *system_data.try_lock().ok().unwrap(),
+                                system_data: &mut system_data.try_lock().ok().unwrap(),
                             };
                         
                             
@@ -86,6 +86,7 @@ impl ScheduleBehavior {
     }
 }
 
+#[derive(Default)]
 pub struct ScheduleBehaviorBuilder {
     systems: HashMap<TypeId, Box<dyn System>>,
     systems_ordering: HashSet<(OrderEntry, OrderEntry)>,

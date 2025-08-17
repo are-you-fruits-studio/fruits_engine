@@ -4,6 +4,7 @@ use crate::*;
 
 // todo: update unsafe modifier for all functions inside this file.
 
+#[derive(Default)]
 pub struct EntitiesComponentsHolderUnsafe {
     archetypes: WorldArchetypes,
     entity_datas: WorldEntities,

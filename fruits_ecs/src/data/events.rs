@@ -80,6 +80,11 @@ impl EventsHolderUnsafe {
         unsafe { std::mem::transmute::<&mut EventsHolderUnsafe, &mut EventsHolder>(self) }
     }
 }
+impl Default for EventsHolderUnsafe {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 // Safety. Is safe itself. Ptr usage is managed by caller
 unsafe impl Send for EventsHolderUnsafe { }
 unsafe impl Sync for EventsHolderUnsafe { }

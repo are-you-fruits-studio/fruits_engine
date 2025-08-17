@@ -6,6 +6,7 @@ pub trait Component: 'static {
     
 }
 
+#[derive(Default)]
 pub struct WorldArchetypes {
     archetype_id_by_components: HashMap<UniqueComponentsSet, usize>,
     archetype_ids_by_component: HashMap<TypeId, HashSet<usize>>,

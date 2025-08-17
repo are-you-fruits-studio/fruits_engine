@@ -2,6 +2,7 @@ use std::cell::UnsafeCell;
 
 use crate::*;
 
+#[derive(Default)]
 struct WorldDataStorage {
     resources: ResourcesHolderUnsafe,
     entities_components: EntitiesComponentsHolderUnsafe,
@@ -76,14 +77,21 @@ impl WorldDataUnsafe {
     }
 }
 
-#[repr(transparent)]
-pub struct WorldData {
-    data: WorldDataUnsafe,
+impl Default for WorldDataUnsafe {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // Safety. Data struct isn't changed - internals support threaded access and send.
 unsafe impl Send for WorldDataUnsafe { }
 unsafe impl Sync for WorldDataUnsafe { }
+
+#[derive(Default)]
+#[repr(transparent)]
+pub struct WorldData {
+    data: WorldDataUnsafe,
+}
 
 impl WorldData {
     pub fn new() -> Self {

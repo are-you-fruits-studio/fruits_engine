@@ -6,6 +6,11 @@ pub struct VersionCollection<T> {
     // reserved_places: VecDeque<usize>,
     count: usize,
 }
+impl<T> Default for VersionCollection<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VersionIndex {

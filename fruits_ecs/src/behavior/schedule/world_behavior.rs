@@ -32,6 +32,11 @@ impl WorldBehaviorBuilder {
         }
     }
 }
+impl Default for WorldBehaviorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 pub struct WorldBehavior {
     schedule_behaviors: [ScheduleBehavior; Schedule::COUNT],
