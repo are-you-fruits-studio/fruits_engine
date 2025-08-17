@@ -1,8 +1,31 @@
 mod test_json;
-use fruits_utils;
+use std::time::Duration;
+
+use fruits_utils::{self, thread_pool::ThreadPool};
 
 fn main() {
-    println!("Hello world");
-    test_json::test_serialization();
+    // test_json::test_serialization();
+
+    let pool = ThreadPool::new(1);
+
+    println!("before scope");
+
+    pool.scope(|s| {
+        println!("scope start");
+
+        s.push_job_unhandled(|| {
+            std::thread::sleep(Duration::from_secs_f32(1.0));
+            println!("job 1");
+        });
+
+        s.push_job_unhandled(|| {
+            std::thread::sleep(Duration::from_secs_f32(1.0));
+            println!("job 2");
+        });
+
+        println!("scope end");
+    });
+    
+    println!("after scope");
 }
 

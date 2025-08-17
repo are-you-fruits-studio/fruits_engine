@@ -30,60 +30,59 @@ impl ScheduleBehavior {
 
     pub fn execute_iteration(&self, data: &mut WorldData) {
         // Safety. No reference outlives this function.
-        let data = unsafe {  &*&WorldDataUnsafe::from_safe_mut(data) };
+        let data = unsafe { &*WorldDataUnsafe::from_safe_mut(data) };
 
         let iter = Arc::new(Mutex::new(self.execution_graph.iter()));
 
-        loop {
-            let system_index = {
-                let mut iter = iter.lock().unwrap();
+        self.thread_pool.scope(|scope| {
+            loop {
+                let system_index = {
+                    let mut iter = iter.lock().unwrap();
+                    
+                    if iter.all_ended() {
+                        break;
+                    }
                 
-                if iter.all_ended() {
-                    break;
-                }
-
-                iter.start_next()
-            };
-
-            if let Some(system_index) = system_index {
-                let iter = Arc::clone(&iter);
-                let systems = &self.systems;
-                let system_datas = Arc::clone(&self.system_datas);
-
-                let job = move || {
-                    let system = &systems[system_index];
-                    let system_data = &system_datas[system_index];
-
-                    {
-                        let input = SystemInput {
-                            world_data: data,
-                            system_data: &mut *system_data.try_lock().ok().unwrap(),
-                        };
+                    iter.start_next()
+                };
+            
+                if let Some(system_index) = system_index {
+                    let iter = Arc::clone(&iter);
+                    let systems = &self.systems;
+                    let system_datas = Arc::clone(&self.system_datas);
+                
+                    let job = move || {
+                        let system = &systems[system_index];
+                        let system_data = &system_datas[system_index];
                     
+                        {
+                            let input = SystemInput {
+                                world_data: data,
+                                system_data: &mut *system_data.try_lock().ok().unwrap(),
+                            };
                         
-                        // Safety. Access is managed by OrderGraph and data usage.
-                        unsafe {
-                            system.execute(&input);
+                            
+                            // Safety. Access is managed by OrderGraph and data usage.
+                            unsafe {
+                                println!("system start: {}", system.system_name());
+                                system.execute(&input);
+                                println!("system end:   {}", system.system_name());
+                            }
                         }
-                    }
-                    
-                    {
-                        iter.lock().unwrap().end(system_index);
-                    }
-                };
-
-                let job: Box<dyn FnOnce() + Send> = Box::new(job);
-
-                // Safety. Iteration blocks until all jobs end, so lifetimes are managed - no need for borrow-checker.
-                let job = unsafe {
-                    std::mem::transmute::<Box<dyn FnOnce() + Send>, Box<dyn FnOnce() + Send + 'static>>(job)
-                };
-
-                self.thread_pool.push_job(job);
-            } else {
-                self.thread_pool.panic_if_err();
+                        
+                        {
+                            iter.lock().unwrap().end(system_index);
+                        }
+                    };
+                
+                    let job: Box<dyn FnOnce() + Send> = Box::new(job);
+                
+                    scope.push_job_unhandled(job);
+                } else {
+                    scope.panic_if_err();
+                }
             }
-        }
+        });
     }
 }
 

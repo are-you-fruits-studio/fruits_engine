@@ -62,7 +62,7 @@ struct Light {
 fn light() -> Light {
     var output: Light;
 
-    output.direction = normalize(vec3<f32>(1.0, 1.0, -1.0));
+    output.direction = normalize(vec3<f32>(2.0, 3.0, -1.0));
     output.color = vec3<f32>(1.0, 1.0, 1.0) * 5.0;
 
     return output;
