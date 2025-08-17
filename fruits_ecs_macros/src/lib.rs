@@ -39,7 +39,7 @@ pub fn derive_event(stream: TokenStream) -> TokenStream {
 fn get_struct_name(stream: TokenStream) -> Option<String> {
     let mut iter = stream.into_iter();
 
-    while let Some(tree) = iter.next() {
+    for tree in &mut iter {
         if let proc_macro::TokenTree::Ident(ident) = tree {
             if ident.to_string() == "struct" {
                 break;
@@ -47,9 +47,7 @@ fn get_struct_name(stream: TokenStream) -> Option<String> {
         }
     }
 
-    let Some(name_tree) = iter.next() else {
-        return None;
-    };
+    let name_tree = iter.next()?;
 
     let proc_macro::TokenTree::Ident(name_ident) = name_tree else {
         return None;

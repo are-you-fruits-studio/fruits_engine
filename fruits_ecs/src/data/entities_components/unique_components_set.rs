@@ -6,7 +6,7 @@ use std::{
 
 use crate::*;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct UniqueComponentsSet {
     component_infos: BTreeMap<TypeId, TypeInfo>,
 }
@@ -49,7 +49,7 @@ impl PartialEq for UniqueComponentsSet {
         }
 
         for component_id in self.component_infos.keys() {
-            if !other.component_infos.contains_key(&component_id) {
+            if !other.component_infos.contains_key(component_id) {
                 return false;
             }
         }

@@ -11,13 +11,13 @@ impl<'e, S: SystemResource> Deref for Local<'e, S> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
-        &*self.data
+        &self.data
     }
 }
 
 impl<'e, S: SystemResource> DerefMut for Local<'e, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.data
+        &mut self.data
     }
 }
 

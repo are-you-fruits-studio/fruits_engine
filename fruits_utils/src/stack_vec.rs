@@ -17,6 +17,10 @@ impl<T, const C: usize> StackVec<T, C> {
         self.len
     }
 
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn push(&mut self, v: T) -> Result<(), T> {
         if self.len == C {
             return Err(v);
@@ -34,7 +38,7 @@ impl<T, const C: usize> StackVec<T, C> {
 
         // Safety. Init state is managed by len.
         let item = unsafe {
-            std::ptr::read(self.buf[self.len - 1].as_mut_ptr() as *mut T)
+            std::ptr::read(self.buf[self.len - 1].as_mut_ptr())
         };
         self.len -= 1;
         Some(item)
@@ -74,6 +78,12 @@ impl<T, const C: usize> StackVec<T, C> {
         unsafe {
             std::slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut T, self.len)
         }
+    }
+}
+
+impl<T, const C: usize> Default for StackVec<T, C> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

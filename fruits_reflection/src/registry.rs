@@ -100,7 +100,7 @@ struct ExampleStructReflRepresenter;
 impl ReflRepresenter for ExampleStructReflRepresenter {
     type Item = ExampleStruct;
 
-    fn item_name(&self, ctx: &ReflRepresenterCtx) -> String {
+    fn item_name(&self, _ctx: &ReflRepresenterCtx) -> String {
         String::from("ExampleStruct")
     }
 

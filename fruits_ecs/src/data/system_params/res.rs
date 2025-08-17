@@ -10,7 +10,7 @@ impl<'e, R: Resource> Deref for Res<'e, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        &self.res
+        self.res
     }
 }
 

@@ -29,48 +29,64 @@ impl WorldDataUnsafe {
         }
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn resources(&self) -> &ResourcesHolderUnsafe {
         // Safety. Lifetimes safety is managed by caller
         &unsafe { &*self.data.get() }.resources
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn resources_mut(&self) -> &mut ResourcesHolderUnsafe {
-        // Safety. Lifetimes safety is managed by caller
+        // Safety. Managed by lifetimes.
         &mut unsafe { &mut *self.data.get() }.resources
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn entities_components(&self) -> &EntitiesComponentsHolderUnsafe {
         // Safety. Lifetimes safety is managed by caller
         &unsafe { &*self.data.get() }.entities_components
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn entities_components_mut(&self) -> &mut EntitiesComponentsHolderUnsafe {
-        // Safety. Lifetimes safety is managed by caller
+        // Safety. Managed by lifetimes.
         &mut unsafe { &mut *self.data.get() }.entities_components
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn events(&self) -> &EventsHolderUnsafe {
         // Safety. Lifetimes safety is managed by caller
         &unsafe { &*self.data.get() }.events
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn events_mut(&self) -> &mut EventsHolderUnsafe {
-        // Safety. Lifetimes safety is managed by caller
+        // Safety. Managed by lifetimes.
         &mut unsafe { &mut *self.data.get() }.events
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn from_safe_mut(world: &mut WorldData) -> &mut Self {
         &mut world.data
     }
 
-    /// Safety. Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
+    /// # Safety
+    /// 
+    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
     pub unsafe fn as_safe_mut(&self) -> &mut WorldData {
         // Safety. Transmute is safe, because of repr(transparent). Lifetimes safety is managed by caller
         unsafe { std::mem::transmute::<&mut WorldDataStorage, &mut WorldData>(&mut *self.data.get()) }
@@ -131,7 +147,6 @@ impl WorldData {
     }
 
     pub fn as_tuple_mut(&mut self) -> (&mut ResourcesHolder, &mut EntitiesComponentsHolder, &mut EventsHolder) {
-        // Safety. Managed with lifetimes. the resulting values don't intersect - they are different fields.
         unsafe { (
             self.data.resources_mut().as_safe_mut(),
             self.data.entities_components_mut().as_safe_mut(),

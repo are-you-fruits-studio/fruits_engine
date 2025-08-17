@@ -79,7 +79,7 @@ impl WorldArchetypes {
         self.by_id_mut(id)
     }
     pub fn id_by_components(&self, components: &UniqueComponentsSet) -> Option<usize> {
-        self.archetype_id_by_components.get(&components).copied()
+        self.archetype_id_by_components.get(components).copied()
     }
     pub fn ids_by_component(&self, component: &TypeId) -> Option<&HashSet<usize>> {
         self.archetype_ids_by_component.get(component)

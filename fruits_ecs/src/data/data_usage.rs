@@ -23,13 +23,18 @@ impl DataUsage {
             panic_invalid_usage()
         };
 
-        if per_type_usage.values().len() != 0 {
+        if !per_type_usage.values().is_empty() {
             panic_invalid_usage()
         }
 
         *self = DataUsage::GlobalMutable;
     }
 
+}
+impl Default for DataUsage {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 fn panic_invalid_usage() -> ! {
@@ -58,6 +63,7 @@ impl DataUsageEntry {
     }
 }
 
+#[derive(Default)]
 pub struct PerTypeDataUsage {
     details: HashMap<TypeId, DataUsageDetails>
 }

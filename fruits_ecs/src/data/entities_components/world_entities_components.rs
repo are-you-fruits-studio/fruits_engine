@@ -62,7 +62,7 @@ impl EntitiesComponentsHolderUnsafe {
             *self.entity_datas.get_mut(last_entity).unwrap() = entity_location;
         }
 
-        return true;
+        true
     }
 
     pub fn add_component<C: Component>(&mut self, entity: Entity, component: C) -> Result<(), C> {
@@ -105,7 +105,7 @@ impl EntitiesComponentsHolderUnsafe {
 
         *self.entity_datas.get_mut(entity).unwrap() = entity_with_added_component_new_location;
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn remove_component<C: Component>(&mut self, entity: Entity) -> Option<C> {
@@ -143,10 +143,12 @@ impl EntitiesComponentsHolderUnsafe {
 
         *self.entity_datas.get_mut(entity).unwrap() = entity_with_removed_component_new_location;
 
-        return Some(component);
+        Some(component)
     }
 
-    /// Safety. No lifetime management. Make sure ptr lives less than a guard.
+    /// # Safety
+    /// 
+    /// No lifetime management. Make sure ptr lives less than a guard.
     pub unsafe fn get_component_ptr<C: Component>(&self, entity: Entity) -> Option<*mut C> {
         let entity_location = self.entity_datas.get(entity)?;
 
@@ -163,12 +165,13 @@ impl EntitiesComponentsHolderUnsafe {
         unsafe { std::mem::transmute::<&EntitiesComponentsHolderUnsafe, &EntitiesComponentsHolder>(self) }
     }
 
-    pub unsafe fn as_safe_mut(&mut self) -> &mut EntitiesComponentsHolder {
+    pub fn as_safe_mut(&mut self) -> &mut EntitiesComponentsHolder {
         // Safety. Safe, because of repr(transparent).
         unsafe { std::mem::transmute::<&mut EntitiesComponentsHolderUnsafe, &mut EntitiesComponentsHolder>(self) }
     }
 }
 
+#[derive(Default)]
 #[repr(transparent)]
 pub struct EntitiesComponentsHolder {
     data: EntitiesComponentsHolderUnsafe,
@@ -237,7 +240,7 @@ impl EntitiesComponentsHolder {
         unsafe { self.data.get_component_ptr(entity).map(|p| &*p) }
     }
 
-    pub fn get_component_mut<C: Component>(&self, entity: Entity) -> Option<&mut C> {
+    pub fn get_component_mut<C: Component>(&mut self, entity: Entity) -> Option<&mut C> {
         // Safety. Managed with lifetimes.
         unsafe { self.data.get_component_ptr(entity).map(|p| &mut *p) }
     }
@@ -249,7 +252,9 @@ pub struct EntitiesComponentsQuery<'d, A: ArchetypeIteratorItem, F: QueryFilter 
     _phantom: (PhantomData<fn(A::Item<'static>) -> A::Item<'static>>, PhantomData<fn(F) -> F>),
 }
 impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A, F> {
-    /// Safety. No access sync - needs to be managed by caller.
+    /// # Safety
+    /// 
+    /// No access sync - needs to be managed by caller.
     unsafe fn new(data: &'d EntitiesComponentsHolderUnsafe) -> Self {
         let mut usage = PerTypeDataUsage::new();
 
@@ -259,10 +264,10 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
 
         components.remove(&TypeId::of::<Entity>());
 
-        if components.len() == 0 {
+        if components.is_empty() {
             // Query is with entities only (should iterate all entities).
             return Self {
-                data: data,
+                data,
                 archetype_indices: (0..data.archetypes.all().len())
                     .filter(|ai| F::matches(data.archetypes.by_id_ref(*ai).unwrap().layout()))
                     .collect::<Vec<_>>(),
@@ -278,7 +283,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
             let Some(archetypes_with_component) = data.archetypes.ids_by_component(component) else {
                 // Query is with some required component that no archetype has (should iterate none).
                 return Self {
-                    data: data,
+                    data,
                     archetype_indices: Vec::new(),
                     _phantom: Default::default(),
                 };
@@ -297,7 +302,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
         let Some((_, archetypes_with_rarest_component)) = archetypes_with_rarest_component else {
             // Query has optional components only (should iterate all entities).
             return Self {
-                data: data,
+                data,
                 archetype_indices: (0..data.archetypes.all().len())
                     .filter(|ai| F::matches(data.archetypes.by_id_ref(*ai).unwrap().layout()))
                     .collect::<Vec<_>>(),
@@ -321,7 +326,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
         }
 
         Self {
-            data: data,
+            data,
             archetype_indices: suitable_archetypes,
             _phantom: Default::default(),
         }
@@ -491,7 +496,7 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
 //     }
 // }
 
-pub unsafe trait QueryFilter: 'static {
+pub trait QueryFilter: 'static {
     fn matches(layout: &ArchetypeLayout) -> bool;
 }
 
@@ -500,7 +505,7 @@ pub struct WithoutFilter<T: Component>
     _phantom: PhantomData<fn(T) -> T>,
 }
 
-unsafe impl<C: 'static + Component> QueryFilter for WithoutFilter<C> {
+impl<C: 'static + Component> QueryFilter for WithoutFilter<C> {
     fn matches(layout: &ArchetypeLayout) -> bool {
         !layout.components().contains_key(&TypeId::of::<C>())
     }
@@ -511,7 +516,7 @@ pub struct WithFilter<T: Component>
     _phantom: PhantomData<fn(T) -> T>,
 }
 
-unsafe impl<C: 'static + Component> QueryFilter for WithFilter<C> {
+impl<C: 'static + Component> QueryFilter for WithFilter<C> {
     fn matches(layout: &ArchetypeLayout) -> bool {
         layout.components().contains_key(&TypeId::of::<C>())
     }
@@ -519,7 +524,7 @@ unsafe impl<C: 'static + Component> QueryFilter for WithFilter<C> {
 
 macro_rules! query_filter_tuple {
     ($($q: ident),*) => {
-        unsafe impl<
+        impl<
         $($q: QueryFilter),*
         > QueryFilter for (
         $($q,)*
@@ -542,7 +547,7 @@ query_filter_tuple!(Q1, Q2, Q3, Q4, Q5, Q6);
 query_filter_tuple!(Q1, Q2, Q3, Q4, Q5, Q6, Q7);
 
 // todo: to sealed
-pub unsafe trait OrFilterArg: 'static {
+pub trait OrFilterArg: 'static {
     fn or(layout: &ArchetypeLayout) -> bool;
 }
 
@@ -551,7 +556,7 @@ pub struct OrFilter<A: OrFilterArg>
     _phantom: PhantomData<fn(A) -> A>,
 }
 
-unsafe impl<A: OrFilterArg> QueryFilter for OrFilter<A> {
+impl<A: OrFilterArg> QueryFilter for OrFilter<A> {
     fn matches(layout: &ArchetypeLayout) -> bool {
         A::or(layout)
     }
@@ -559,7 +564,7 @@ unsafe impl<A: OrFilterArg> QueryFilter for OrFilter<A> {
 
 macro_rules! query_filter_or {
     ($($q: ident),*) => {
-        unsafe impl<
+        impl<
         $($q: QueryFilter),*
         > OrFilterArg for (
         $($q,)*

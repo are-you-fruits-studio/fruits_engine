@@ -75,6 +75,12 @@ impl<const N: usize> BitArray<N> {
     }
 }
 
+impl<const N: usize> Default for BitArray<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a, const N: usize> IntoIterator for &'a BitArray<N> {
     type Item = <BitArrayIter::<'a, N> as Iterator>::Item;
 
@@ -171,14 +177,4 @@ const fn set_bit(src: &mut u8, bit: usize, v: bool) {
     } else {
         *src &= !(1 << bit);
     }
-}
-
-//
-
-fn use_case() {
-    let mut bit_array = BitArray::<1>::new();
-
-    bit_array.set(0, true);
-
-    dbg!(bit_array.get(0));
 }

@@ -159,10 +159,10 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Primitive> Into<[T; members_count!($($I),+)]> for $V<T> {
+        impl<T: Primitive> From<$V<T>> for [T; members_count!($($I),+)] {
             #[inline]
-            fn into(self) -> [T; members_count!($($I),+)] {
-                self.into_array()
+            fn from(a: $V<T>) -> Self {
+                a.into_array()
             }
         }
 
@@ -448,8 +448,8 @@ pub fn mul_by<T: Number, const N: usize>(lhs: &[T; N], rhs: T) -> [T; N] {
 }
 #[inline]
 pub fn mul_by_assign<T: Number, const N: usize>(lhs: &mut [T; N], rhs: T) {
-    for i in 0..N {
-        lhs[i] *= rhs;
+    for i in lhs.iter_mut() {
+        *i *= rhs;
     }
 }
 #[inline]
@@ -464,8 +464,8 @@ pub fn div_by<T: Number, const N: usize>(lhs: &[T; N], rhs: T) -> [T; N] {
 }
 #[inline]
 pub fn div_by_assign<T: Number, const N: usize>(lhs: &mut [T; N], rhs: T) {
-    for i in 0..N {
-        lhs[i] /= rhs;
+    for i in lhs.iter_mut() {
+        *i /= rhs;
     }
 }
 #[inline]

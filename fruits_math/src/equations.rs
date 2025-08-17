@@ -4,10 +4,10 @@ pub fn eq_linear(a: f32, b: f32) -> LinearEquationResult {
         return LinearEquationResult::Success(-b / a);
     }
 
-    return match b {
+    match b {
         0.0 => LinearEquationResult::Any,
         _ => LinearEquationResult::None,
-    };
+    }
 }
 
 /// Solves equation of type ax² + bx + c = 0
@@ -41,7 +41,7 @@ pub fn eq_quadratic(a: f32, b: f32, c: f32) -> QuadraticEquationResult {
     let x1 = (-b - d_sqrt) / (2.0 * a);
     let x2 = (-b + d_sqrt) / (2.0 * a);
 
-    return QuadraticEquationResult::Double([x1, x2]);
+    QuadraticEquationResult::Double([x1, x2])
 }
 
 pub enum LinearEquationResult {

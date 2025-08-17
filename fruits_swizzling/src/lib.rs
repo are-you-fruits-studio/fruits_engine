@@ -28,7 +28,7 @@ fn generate_swizzlings() -> Vec<String> {
         }
     }
 
-    return results;
+    results
 }
         
 fn generate_vector_swizzling_impl(input_count: usize, output_count: usize) -> String

@@ -385,7 +385,7 @@ pub struct ArchetypeIterator<'a, A: ArchetypeIteratorItem> {
 
 impl<'a, A: ArchetypeIteratorItem> ArchetypeIterator<'a, A> {
     pub unsafe fn new(archetype: &'a UnsafeArchetype, archetype_layout: Arc<ArchetypeLayout>, entities_count: usize) -> Self {
-        let iter_state = unsafe { A::prepare_iter_state(archetype, &*archetype_layout) };
+        let iter_state = unsafe { A::prepare_iter_state(archetype, &archetype_layout) };
         
         Self {
             archetype,
@@ -406,7 +406,7 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for ArchetypeIterator<'a, A> {
             return None;
         }
         
-        let result = unsafe { A::next(&self.archetype, &self.archetype_layout, &mut self.iter_state) };
+        let result = unsafe { A::next(self.archetype, &self.archetype_layout, &mut self.iter_state) };
         // todo
         //let result = A::from_archetype(self.entity_index, &self.archetype, &self.archetype_layout);
 
@@ -475,7 +475,9 @@ impl Archetype {
         Some(entity)
     }
 
-    /// Safety. Memory is automatically deallocated. Needs manual life-time-management.
+    /// # Safety
+    /// 
+    /// Memory is automatically deallocated. Needs manual life-time-management.
     pub unsafe fn get_component_ptr<C: Component>(&self, entity_index: usize) -> Option<*mut C> {
         if entity_index >= self.alive_entities_count {
             return None;
@@ -546,7 +548,7 @@ impl Archetype {
             unsafe {
                 let memory = self.archetype.get_memory(&location);
                 
-                item_layout.type_info.drop(memory.0)
+                item_layout.type_info.drop_in_place(memory.0)
             }
         }
 
@@ -575,7 +577,7 @@ impl Archetype {
                 panic!("fruits: invalid memory layout");
             }
 
-                    std::ptr::copy_nonoverlapping(src_mem.0 as *mut u8, dst_mem.0 as *mut u8, dst_mem.1)
+                    std::ptr::copy_nonoverlapping(src_mem.0, dst_mem.0, dst_mem.1)
                 }
             }
         }
@@ -598,7 +600,10 @@ impl Archetype {
     }
 
     /// Returns the last entity from src archetype before the movement.
-    /// Safety. Memory is automatically deallocated. Needs manual lifetime-management.
+    /// 
+    /// # Safety
+    /// 
+    /// Memory is automatically deallocated. Needs manual lifetime-management.
     pub unsafe fn add_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: usize, component: C) -> Result<Entity, C> {
         if !ArchetypeLayout::is_component_the_only_difference(&dst.layout, &src.layout, &TypeId::of::<C>()) {
             return Err(component);
@@ -618,7 +623,7 @@ impl Archetype {
                     panic!("fruits: invalid memory layout");
                 }
 
-                std::ptr::copy_nonoverlapping(src_mem.0 as *mut u8, dst_mem.0 as *mut u8, dst_mem.1);
+                std::ptr::copy_nonoverlapping(src_mem.0, dst_mem.0, dst_mem.1);
             }
         }
 
@@ -671,7 +676,7 @@ impl Archetype {
                     panic!("fruits: invalid memory layout");
                 }
 
-                std::ptr::copy_nonoverlapping(src_mem.0 as *mut u8, dst_mem.0 as *mut u8, dst_mem.1)
+                std::ptr::copy_nonoverlapping(src_mem.0, dst_mem.0, dst_mem.1)
             }
         }
 

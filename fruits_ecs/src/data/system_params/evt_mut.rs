@@ -10,12 +10,12 @@ impl<'e, E: Event> Deref for EvtMut<'e, E> {
     type Target = Vec<E>;
 
     fn deref(&self) -> &Self::Target {
-        &self.evt
+        self.evt
     }
 }
 impl<'e, E: Event> DerefMut for EvtMut<'e, E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.evt
+        self.evt
     }
 }
 

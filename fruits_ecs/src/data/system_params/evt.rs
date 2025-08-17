@@ -10,7 +10,7 @@ impl<'e, E: Event> Deref for Evt<'e, E> {
     type Target = [E];
 
     fn deref(&self) -> &Self::Target {
-        &self.evt
+        self.evt
     }
 }
 

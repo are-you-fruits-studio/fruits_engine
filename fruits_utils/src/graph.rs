@@ -1,5 +1,6 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash};
 
+#[derive(Default)]
 pub struct Graph<T: Eq + Hash + Copy + Clone> {
     forward: HashMap<T, HashSet<T>>,
     backward: HashMap<T, HashSet<T>>,
@@ -20,7 +21,7 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
     }
 
     pub fn insert_node(&mut self, node: T) -> bool {
-        return self.nodes.insert(node);
+        self.nodes.insert(node)
     }
 
     pub fn edges_from(&self, node: &T) -> Option<&HashSet<T>> {
@@ -32,11 +33,11 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
     }
 
     pub fn to_vec(&self) -> Vec<T> {
-        return Self::to_vec_internal(&self.backward, &self.nodes);
+        Self::to_vec_internal(&self.backward, &self.nodes)
     }
 
     pub fn to_vec_rev(&self) -> Vec<T> {
-        return Self::to_vec_internal(&self.forward, &self.nodes);
+        Self::to_vec_internal(&self.forward, &self.nodes)
     }
 
     fn to_vec_internal(inverted: &HashMap<T, HashSet<T>>, nodes: &HashSet<T>) -> Vec<T> {
@@ -45,7 +46,7 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
         let mut ordered_set = HashSet::<T>::new();
         let mut ordered = Vec::<T>::new();
 
-        while max_to_min.len() != 0 {
+        while !max_to_min.is_empty() {
             let (min, max) = Self::most_min(&max_to_min);
 
             if ordered_set.insert(min) {
@@ -55,7 +56,7 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
             if let Some(mins) = max_to_min.get_mut(&max) {
                 mins.remove(&min);
                 
-                if mins.len() == 0
+                if mins.is_empty()
                 {
                     if ordered_set.insert(max)
                     {
@@ -73,7 +74,7 @@ impl<T: Eq + Hash + Copy + Clone> Graph<T> {
             }
         }
 
-        return ordered;
+        ordered
     }
 
     fn most_min(max_to_min: &HashMap<T, HashSet<T>>) -> (T, T) {

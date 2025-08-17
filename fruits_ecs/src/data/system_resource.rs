@@ -24,7 +24,12 @@ impl SystemResourcesHolder {
             res
         });
         
-        return SystemResourceGuard::<S>::new(res).unwrap();
+        SystemResourceGuard::<S>::new(res).unwrap()
+    }
+}
+impl Default for SystemResourcesHolder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -37,7 +42,7 @@ impl<S: SystemResource> SystemResourceGuard<S> {
         let guard = res.downcast_ref::<Mutex<S>>()?.lock().unwrap();
         // Safety. Safe if guard is dropped first.
         unsafe {
-            let guard = std::mem::transmute::<_, MutexGuard<'static, S>>(guard);
+            let guard = std::mem::transmute::<MutexGuard<'_, S>, MutexGuard<'static, S>>(guard);
 
             Some(Self {
                 res: Some(res),

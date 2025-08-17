@@ -37,7 +37,9 @@ impl EventsHolderUnsafe {
         }
     }
 
-    /// Safety. Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
+    /// # Safety
+    /// 
+    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
     pub unsafe fn get<E: Event>(&self) -> Option<*mut Vec<E>> {
         unsafe { 
             let events = &mut *(self.events.get());
@@ -46,7 +48,9 @@ impl EventsHolderUnsafe {
         }
     }
 
-    /// Safety. Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
+    /// # Safety
+    /// 
+    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
     pub unsafe fn get_or_create<E: Event>(&self) -> *mut Vec<E> {
         unsafe {
             let events = &mut *(self.events.get());
@@ -59,7 +63,9 @@ impl EventsHolderUnsafe {
         }
     }
 
-    /// Safety. Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
+    /// # Safety
+    /// 
+    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
     pub unsafe fn clear(&self) {
         unsafe {
             let events = &mut *(self.events.get());
@@ -89,6 +95,7 @@ impl Default for EventsHolderUnsafe {
 unsafe impl Send for EventsHolderUnsafe { }
 unsafe impl Sync for EventsHolderUnsafe { }
 
+#[derive(Default)]
 #[repr(transparent)]
 pub struct EventsHolder {
     events: EventsHolderUnsafe,

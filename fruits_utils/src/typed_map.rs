@@ -60,6 +60,7 @@ pub mod strategies {
     }
 }
 
+#[derive(Default)]
 pub struct TypedMap<Strategy: TypedMapStrategy = strategies::DefaultStrategy> {
     data: HashMap<TypeId, Strategy::ValueBase>,
 }

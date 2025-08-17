@@ -64,9 +64,7 @@ impl ScheduleBehavior {
                             
                             // Safety. Access is managed by OrderGraph and data usage.
                             unsafe {
-                                println!("system start: {}", system.system_name());
                                 system.execute(&input);
-                                println!("system end:   {}", system.system_name());
                             }
                         }
                         

@@ -12,15 +12,15 @@ impl OrderGraph {
     ) -> Option<Self> {
         let mut directors_count = vec![0_usize; directions.len()];
 
-        for node in 0..directions.len() {
-            for &directed_node in directions[node].iter() {
-                if directed_node == node {
+        for (src, dst) in directions.iter().enumerate() {
+            for &directed_node in dst.iter() {
+                if directed_node == src {
                     return None;
                 }
 
                 directors_count[directed_node] += 1;
             }
-            if directions[node].iter().any(|j| *j == node) {
+            if dst.contains(&src) {
                 return None;
             }
         }
@@ -89,7 +89,7 @@ impl OrderGraphIterator {
     }
 
     pub fn all_started(&self) -> bool {
-        self.queue.len() == 0
+        self.queue.is_empty()
     }
 
     pub fn all_ended(&self) -> bool {

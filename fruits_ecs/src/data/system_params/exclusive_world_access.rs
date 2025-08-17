@@ -10,12 +10,12 @@ impl<'w> Deref for ExclusiveWorldAccess<'w> {
     type Target = WorldData;
 
     fn deref(&self) -> &Self::Target {
-        &self.world
+        self.world
     }
 }
 impl<'w> DerefMut for ExclusiveWorldAccess<'w> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.world
+        self.world
     }
 }
 

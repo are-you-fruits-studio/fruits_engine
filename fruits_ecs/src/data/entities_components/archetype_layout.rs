@@ -97,7 +97,7 @@ impl ArchetypeLayout {
             }
         }
 
-        return true;
+        true
     }
 }
 

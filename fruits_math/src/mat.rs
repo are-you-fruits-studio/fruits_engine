@@ -131,9 +131,9 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
     }
 }
 
-impl<const N: usize, T: Primitive> Into<[[T; N]; N]> for Mat<N, T> {
-    fn into(self) -> [[T; N]; N] {
-        self.into_array()
+impl<const N: usize, T: Primitive> From<Mat<N, T>> for [[T; N]; N] {
+    fn from(data: Mat<N, T>) -> Self {
+        data.into_array()
     }
 }
 

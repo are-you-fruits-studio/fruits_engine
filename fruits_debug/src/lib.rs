@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, io::{Read, Write}, net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream}, time::Instant};
+use std::{collections::VecDeque, io::{Read, Write}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream}, time::Instant};
 
 use fruits_ecs::{Entity, ExclusiveWorldAccess, ResMut, Resource, Schedule, WorldBuilder};
 
@@ -39,7 +39,7 @@ pub mod msg_types {
 pub fn generate_response_system(
     mut world: ExclusiveWorldAccess,
 ) {
-    let (res, ec, evt) = world.as_tuple_mut();
+    let (res, ec, _evt) = world.as_tuple_mut();
 
     let connection_res = res.get_mut::<DebugConnectionResource>().unwrap();
 
@@ -89,7 +89,7 @@ pub fn host_debug_server(
 pub fn debug_connection_ping_system(
     mut connection_res: ResMut<DebugConnectionResource>,
 ) {
-    let Some(connection) = &mut connection_res.active_stream else {
+    if connection_res.active_stream.is_none() {
         return;
     };
 

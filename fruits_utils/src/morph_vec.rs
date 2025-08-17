@@ -20,6 +20,10 @@ impl<T> MorphVec<T> {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn push(&mut self, v: T) {
         let cap = (self.cap_bytes - std::mem::align_of::<T>().max(1) - 1) / std::mem::size_of::<T>();
 
@@ -151,7 +155,9 @@ impl<T> MorphVec<T> {
         }
     }
 
-    /// Safety. Managed by caller.
+    /// # Safety
+    /// 
+    /// Managed by caller.
     unsafe fn buf_start(ptr: *mut u8) -> *mut T {
         // Safety. Managed by caller.
         unsafe {
@@ -169,6 +175,11 @@ impl<T> Drop for MorphVec<T> {
                 std::alloc::dealloc(self.buf, Layout::from_size_align(self.cap_bytes, 1).unwrap());
             }
         }
+    }
+}
+impl<T> Default for MorphVec<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl<T> Deref for MorphVec<T> {

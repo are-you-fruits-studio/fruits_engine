@@ -22,8 +22,11 @@ impl TypeInfo {
     }
 
     pub const fn id(&self) -> &TypeId { &self.id }
-    pub const fn name(&self) -> &'static str { &self.name }
+    pub const fn name(&self) -> &'static str { self.name }
     pub const fn size(&self) -> usize { self.size }
     pub const fn align(&self) -> usize { self.align }
-    pub unsafe fn drop(&self, ptr: *mut u8) { unsafe { (self.dropper)(ptr) } }
+    /// # Safety
+    /// 
+    /// The same cautions as std::ptr::drop_in_place
+    pub unsafe fn drop_in_place(&self, ptr: *mut u8) { unsafe { (self.dropper)(ptr) } }
 }

@@ -57,12 +57,12 @@ pub const fn parse_color_rgb_u8(v: &str) -> Option<[u8; 3]> {
 
     let mut bytes = v.as_bytes();
 
-    if bytes.len() < 1 {
+    if bytes.is_empty() {
         return None;
     }
 
     if bytes[0] == b'#' {
-        bytes = &bytes.split_at(1).1;
+        bytes = bytes.split_at(1).1;
     }
 
     if bytes.len() < REQUIRED_BYTES_COUNT {
@@ -106,12 +106,12 @@ pub const fn parse_color_rgba_u8(v: &str) -> Option<[u8; 4]> {
 
     let mut bytes = v.as_bytes();
 
-    if bytes.len() < 1 {
+    if bytes.is_empty() {
         return None;
     }
 
     if bytes[0] == b'#' {
-        bytes = &bytes.split_at(1).1;
+        bytes = bytes.split_at(1).1;
     }
 
     if bytes.len() < REQUIRED_BYTES_COUNT {

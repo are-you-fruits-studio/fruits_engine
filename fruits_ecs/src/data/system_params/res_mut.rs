@@ -10,13 +10,13 @@ impl<'e, R: Resource> Deref for ResMut<'e, R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        &self.res
+        self.res
     }
 }
 
 impl<'e, R: Resource> DerefMut for ResMut<'e, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.res
+        self.res
     }
 }
 
