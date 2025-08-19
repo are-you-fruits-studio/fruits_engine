@@ -555,7 +555,7 @@ pub fn update_text_batched_mesh(
         let color = text_c.color.into_array();
         let font = font_assets.get(&text_c.font).unwrap();
 
-        let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.0), scale: Vec2::with_all(0.0), });
+        let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.0), scale: Vec2::with_all(0.0), z: 0.0 });
 
         let font_size = text_c.font_size.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size);
         
@@ -598,10 +598,10 @@ pub fn update_text_batched_mesh(
                 start_pos + Vec2::new((i + 1) as f32, 1.0) * quad_scale + Vec2::X * text_c.horizontal_spacing * i as f32,
             ];
 
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[0][1]], position: [pos[0][0], pos[1][1], 0.0] };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[0][1]], position: [pos[1][0], pos[1][1], 0.0] };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[1][1]], position: [pos[0][0], pos[0][1], 0.0] };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[1][1]], position: [pos[1][0], pos[0][1], 0.0] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[0][1]], position: [pos[0][0], pos[1][1], rect.z] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[0][1]], position: [pos[1][0], pos[1][1], rect.z] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[1][1]], position: [pos[0][0], pos[0][1], rect.z] };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = StandardVertex { color, normal, uv: [char_uvs[1][0], char_uvs[1][1]], position: [pos[1][0], pos[0][1], rect.z] };
             
             mesh_c.indices[i * INDICES_PER_CHAR + 0] = (i * VERTICES_PER_CHAR + 0) as u16;
             mesh_c.indices[i * INDICES_PER_CHAR + 1] = (i * VERTICES_PER_CHAR + 3) as u16;
@@ -621,7 +621,7 @@ pub fn update_image_batched_mesh(
     for (image_c, mesh_c, rect_c) in q.iter_mut() {
         let color = image_c.color.into_array();
 
-        let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.5), scale: Vec2::with_all(1.0), });
+        let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.5), scale: Vec2::with_all(1.0), z: 0.0 });
 
         if image_c.is_y_inverted {
             rect.scale.y *= -1.0;
@@ -646,10 +646,10 @@ pub fn update_image_batched_mesh(
             mesh_c.vertices.resize(4, StandardVertex::default());
             mesh_c.indices.resize(6, 0);
 
-            mesh_c.vertices[0] = StandardVertex { color, normal, uv: [0.0, 0.0], position: [pos[0][0], pos[2][1], 0.0] };
-            mesh_c.vertices[1] = StandardVertex { color, normal, uv: [1.0, 0.0], position: [pos[2][0], pos[2][1], 0.0] };
-            mesh_c.vertices[2] = StandardVertex { color, normal, uv: [0.0, 1.0], position: [pos[0][0], pos[0][1], 0.0] };
-            mesh_c.vertices[3] = StandardVertex { color, normal, uv: [1.0, 1.0], position: [pos[2][0], pos[0][1], 0.0] };
+            mesh_c.vertices[0] = StandardVertex { color, normal, uv: [0.0, 0.0], position: [pos[0][0], pos[2][1], rect.z] };
+            mesh_c.vertices[1] = StandardVertex { color, normal, uv: [1.0, 0.0], position: [pos[2][0], pos[2][1], rect.z] };
+            mesh_c.vertices[2] = StandardVertex { color, normal, uv: [0.0, 1.0], position: [pos[0][0], pos[0][1], rect.z] };
+            mesh_c.vertices[3] = StandardVertex { color, normal, uv: [1.0, 1.0], position: [pos[2][0], pos[0][1], rect.z] };
             
             mesh_c.indices[0] = 0;
             mesh_c.indices[1] = 3;
@@ -678,15 +678,15 @@ pub fn update_image_batched_mesh(
                 ];
 
                 let poss = [
-                    [pos[1][0], pos[1][1], 0.0],
-                    [pos[1][0], pos[2][1], 0.0],
-                    [pos[0][0], pos[2][1], 0.0],
-                    [pos[0][0], pos[1][1], 0.0],
-                    [pos[0][0], pos[0][1], 0.0],
-                    [pos[1][0], pos[0][1], 0.0],
-                    [pos[2][0], pos[0][1], 0.0],
-                    [pos[2][0], pos[1][1], 0.0],
-                    [pos[2][0], pos[2][1], 0.0],
+                    [pos[1][0], pos[1][1], rect.z],
+                    [pos[1][0], pos[2][1], rect.z],
+                    [pos[0][0], pos[2][1], rect.z],
+                    [pos[0][0], pos[1][1], rect.z],
+                    [pos[0][0], pos[0][1], rect.z],
+                    [pos[1][0], pos[0][1], rect.z],
+                    [pos[2][0], pos[0][1], rect.z],
+                    [pos[2][0], pos[1][1], rect.z],
+                    [pos[2][0], pos[2][1], rect.z],
                 ];
 
                 let fill_amt = image_c.fill_amt.clamp(0.0, 1.0);
@@ -707,7 +707,7 @@ pub fn update_image_batched_mesh(
 
                         let last_pos = pos[1].lerp_separately(pos[0], t);
 
-                        mesh_c.vertices[i + 2] = StandardVertex { color, normal, uv: uvs[i + 2], position: [last_pos[0], last_pos[1], 0.0] };
+                        mesh_c.vertices[i + 2] = StandardVertex { color, normal, uv: uvs[i + 2], position: [last_pos[0], last_pos[1], rect.z] };
                     } else {
                         mesh_c.vertices[i + 2] = StandardVertex { color, normal, uv: uvs[i + 2], position: poss[i + 2] };
                     }
@@ -762,7 +762,7 @@ pub fn clear_depth(
 }
 
 pub fn render_meshes_and_materials_instanced(
-    query: WorldQuery<(&GlobalTransform, &StandardMeshComponent, &StandardMaterialComponent)>,
+    query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent)>,
     render_state: Res<RenderStateResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
@@ -793,9 +793,13 @@ pub fn render_meshes_and_materials_instanced(
     let mut instanced_matrices = HashMap::new();
 
     for (transform, render_mesh, render_material) in query.iter() {
+        let mat = match transform {
+            Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
+            None => Mat4::IDENTITY,
+        };
         instanced_matrices.entry((render_mesh.mesh.clone(), render_material.material.clone()))
             .or_insert_with(|| Vec::new())
-            .push(transform.scale_rotation.into_4x4_with_offset(transform.position));
+            .push(mat);
     }
 
     for ((mesh, material), matrices) in instanced_matrices.iter() {
@@ -907,7 +911,7 @@ pub fn render_meshes_and_materials_instanced(
 }
 
 pub fn render_meshes_and_materials_batched(
-    query: WorldQuery<(&GlobalTransform, &BatchedMeshComponent, &StandardMaterialComponent)>,
+    query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent)>,
     render_state: Res<RenderStateResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
@@ -938,9 +942,13 @@ pub fn render_meshes_and_materials_batched(
     let mut batched_meshes_by_material = HashMap::new();
 
     for (transform, batched_mesh, render_material) in query.iter() {
+        let mat = match transform {
+            Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
+            None => Mat4::IDENTITY,
+        };
         batched_meshes_by_material.entry(render_material.material.clone())
             .or_insert_with(|| Vec::new())
-            .push((transform.scale_rotation.into_4x4_with_offset(transform.position), batched_mesh));
+            .push((mat, batched_mesh));
     }
 
     render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, fruits_utils::mem::as_bytes(&Mat4::<f32>::IDENTITY));

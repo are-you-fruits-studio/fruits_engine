@@ -44,6 +44,9 @@ fn get_struct_name(stream: TokenStream) -> Option<String> {
             if ident.to_string() == "struct" {
                 break;
             }
+            if ident.to_string() == "enum" {
+                break;
+            }
         }
     }
 

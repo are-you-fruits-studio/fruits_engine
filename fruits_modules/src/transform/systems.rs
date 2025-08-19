@@ -34,7 +34,7 @@ pub fn adjust_component_sets(
     }
 
     buffer.extend(entities_components.query_filtered::<Entity, (
-        OrFilter<(WithFilter<GlobalTransform>, WithFilter<LocalTransform>)>,
+        OrFilter<(WithFilter<GlobalTransform>, WithFilter<LocalTransform>, WithFilter<GlobalRectComponent>, WithFilter<LocalRectComponent>)>,
         WithoutFilter<ParentComponent>,
     )>().iter());
     for e in buffer.drain(..) {
@@ -43,6 +43,7 @@ pub fn adjust_component_sets(
 
     buffer.extend(entities_components.query_filtered::<Entity, (
         WithoutFilter<LocalTransform>,
+        WithoutFilter<LocalRectComponent>,
         WithFilter<ChildComponent>,
     )>().iter());
     for e in buffer.drain(..) {
@@ -119,16 +120,15 @@ pub fn calculate_global_transform(
     let ec = world.entities_components_mut();
 
     let mut transforms_to_calc = ec
-        .query::<(Entity, &GlobalTransform)>()
+        .query_filtered::<Entity, WithFilter<GlobalTransform>>()
         .iter()
-        .filter(|(e, _)| {
+        .filter(|e| {
             let Some(child_component) = ec.get_component::<ChildComponent>(*e) else {
                 return true;
             };
 
             !ec.contains_entity(child_component.parent)
         })
-        .map(|(e, _)| e)
         .collect::<VecDeque<_>>();
 
     while let Some(transform) = transforms_to_calc.pop_front() {
@@ -184,23 +184,22 @@ pub fn calculate_global_rect(
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
     let mut rects_to_calc = ec
-        .query::<(Entity, &GlobalRectComponent)>()
+        .query_filtered::<Entity, WithFilter<GlobalRectComponent>>()
         .iter()
-        .filter(|(e, _)| {
+        .filter(|e| {
             let Some(child_component) = ec.get_component::<ChildComponent>(*e) else {
                 return true;
             };
 
             !ec.contains_entity(child_component.parent)
         })
-        .map(|(e, _)| e)
         .collect::<VecDeque<_>>();
 
     while let Some(rect) = rects_to_calc.pop_front() {
         let parent_global_rect = match ec.get_component::<ChildComponent>(rect) {
-            None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, },
+            None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
             Some(child_component) => match ec.get_component::<GlobalRectComponent>(child_component.parent) {
-                None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, },
+                None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
                 Some(&parent_global_rect) => parent_global_rect,
             }
         };
@@ -213,21 +212,7 @@ pub fn calculate_global_rect(
         let Some(global_rect) = ec.get_component_mut::<GlobalRectComponent>(rect) else {
             continue;
         };
-        let parent_min = parent_global_rect.center - parent_global_rect.scale * 0.5;
-        let parent_max = parent_global_rect.center + parent_global_rect.scale * 0.5;
-
-        let anchored_min = Vec2::lerp_separately(parent_min, parent_max, local_rect.anchor_min);
-        let anchored_max = Vec2::lerp_separately(parent_min, parent_max, local_rect.anchor_max);
-
-        let ui_val_to_px = |v: UiVal| -> f32 {
-            v.into_px(parent_global_rect.scale, window_size)
-        };
-
-        let min = anchored_min + local_rect.offset_min.map(ui_val_to_px);
-        let max = anchored_max + local_rect.offset_max.map(ui_val_to_px);
-
-        global_rect.center = (max + min) * 0.5;
-        global_rect.scale = max - min;
+        *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size);
         // }
 
         let Some(children) = ec.get_component::<ParentComponent>(rect) else {

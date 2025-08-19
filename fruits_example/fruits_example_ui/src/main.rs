@@ -10,8 +10,6 @@ fn main() {
     fruits_modules::fps_counter::add_module_to(world);
 
     world.behavior_mut().get_mut(Schedule::Start).add_system(init);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(create_test_entities);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(destroy_test_entities);
 
     world.behavior_mut().get_mut(Schedule::Start).order_group(fruits_modules::render::SYSTEM_GROUP).before_system(init);
     world.behavior_mut().get_mut(Schedule::Update).order_group(fruits_modules::transform::SYSTEM_GROUP).before_group(fruits_modules::render::SYSTEM_GROUP);
@@ -63,62 +61,59 @@ fn init(mut world: ExclusiveWorldAccess) {
     let ent1 = ec.create_entity();
     let ent2 = ec.create_entity();
     let ent3 = ec.create_entity();
+    let ent4 = ec.create_entity();
 
-    ec.add_component(ent1, GlobalTransform::IDENTITY).ok().unwrap();
-    ec.add_component(ent1, LocalTransform {
-        position: Vec3::new(0.0, 0.0, 0.0),
-        ..Default::default()
-    }).ok().unwrap();
     ec.add_component(ent1, ParentComponent { children: vec![ent2], }).ok().unwrap();
     ec.add_component(ent1, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent1, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent1, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent1, LocalRectComponent {
-        anchor_min: Vec2::new(0.5, 0.5),
-        anchor_max: Vec2::new(0.5, 0.5),
-        offset_min: Vec2::new(UiVal::Pmin(-0.25), UiVal::Pmin(-0.25)),
-        offset_max: Vec2::new(UiVal::Pmin(0.25), UiVal::Pmin(0.25)),
-    }).ok().unwrap();
-    ec.add_component(ent1, ImageComponent::default()).ok().unwrap();
-
-    ec.add_component(ent2, GlobalTransform::IDENTITY).ok().unwrap();
-    ec.add_component(ent2, LocalTransform {
-        position: Vec3::new(0.0, 0.0, -10.0),
+        offset_min: Vec2::new(UiVal::Pw(0.5), UiVal::Ph(0.5)),
+        offset_max: Vec2::new(UiVal::Pw(-0.5), UiVal::Ph(-0.5)),
+        z: 0.0,
         ..Default::default()
     }).ok().unwrap();
+
     ec.add_component(ent2, ChildComponent { parent: ent1, }).ok().unwrap();
     ec.add_component(ent2, ParentComponent { children: vec![ent3], }).ok().unwrap();
     ec.add_component(ent2, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent2, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent2, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent2, LocalRectComponent {
-        anchor_min: Vec2::new(0.0, 0.0),
-        anchor_max: Vec2::new(1.0, 1.0),
+        offset_min: Vec2::new(UiVal::Px(-100.0), UiVal::Px(-100.0)),
+        offset_max: Vec2::new(UiVal::Px(100.), UiVal::Px(100.0)),
+        z: -10.0,
+        ..Default::default()
+    }).ok().unwrap();
+    ec.add_component(ent2, ImageComponent::default()).ok().unwrap();
+
+    ec.add_component(ent3, ChildComponent { parent: ent2, }).ok().unwrap();
+    ec.add_component(ent3, ParentComponent { children: vec![ent4], }).ok().unwrap();
+    ec.add_component(ent3, BatchedMeshComponent::default()).ok().unwrap();
+    ec.add_component(ent3, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
+    ec.add_component(ent3, GlobalRectComponent::default()).ok().unwrap();
+    ec.add_component(ent3, LocalRectComponent {
         offset_min: Vec2::new(UiVal::Px(10.0), UiVal::Px(10.0)),
         offset_max: Vec2::new(UiVal::Vmin(-0.1), UiVal::Vmin(-0.1)),
+        z: -10.0,
+        ..Default::default()
     }).ok().unwrap();
-    ec.add_component(ent2, ImageComponent {
+    ec.add_component(ent3, ImageComponent {
         color: Vec4::with_all(0.6),
         ..Default::default()
     }).ok().unwrap();
 
-    ec.add_component(ent3, GlobalTransform::IDENTITY).ok().unwrap();
-    ec.add_component(ent3, LocalTransform {
-        position: Vec3::new(0.0, 0.0, -10.0),
+    ec.add_component(ent4, ChildComponent { parent: ent3, }).ok().unwrap();
+    ec.add_component(ent4, BatchedMeshComponent::default()).ok().unwrap();
+    ec.add_component(ent4, StandardMaterialComponent { material: material_text.clone(), }).ok().unwrap();
+    ec.add_component(ent4, GlobalRectComponent::default()).ok().unwrap();
+    ec.add_component(ent4, LocalRectComponent {
+        z: -10.0,
         ..Default::default()
     }).ok().unwrap();
-    ec.add_component(ent3, ChildComponent { parent: ent2, }).ok().unwrap();
-    ec.add_component(ent3, BatchedMeshComponent::default()).ok().unwrap();
-    ec.add_component(ent3, StandardMaterialComponent { material: material_text.clone(), }).ok().unwrap();
-    ec.add_component(ent3, GlobalRectComponent::default()).ok().unwrap();
-    ec.add_component(ent3, LocalRectComponent {
-        anchor_min: Vec2::new(0.0, 0.0),
-        anchor_max: Vec2::new(1.0, 1.0),
-        ..Default::default()
-    }).ok().unwrap();
-    ec.add_component(ent3, TextComponent {
+    ec.add_component(ent4, TextComponent {
         font: font.clone(),
-        font_size: UiVal::Ph(0.1),
+        font_size: UiVal::Vh(0.1),
         text: String::from("Dashunia - myla pinhvinka"),
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Bottom,
@@ -127,28 +122,3 @@ fn init(mut world: ExclusiveWorldAccess) {
         color: Vec4::new(1.0, 0.0, 1.0, 1.0),
     }).ok().unwrap();
 }
-
-fn create_test_entities(
-    mut world: ExclusiveWorldAccess,
-) {
-    let ec = world.entities_components_mut();
-
-    for _ in 0..100 {
-        let ent = ec.create_entity();
-        ec.add_component(ent, TestComponent(vec![1, 21, 3])).ok().unwrap();
-    }
-}
-
-fn destroy_test_entities(
-    mut world: ExclusiveWorldAccess,
-) {
-    let ec = world.entities_components_mut();
-
-    for (ent, num) in ec.query::<(Entity, &TestComponent)>().iter().map(|(e, t)| (e, t.0[1])).collect::<Vec<_>>() {
-        ec.destroy_entity(ent);
-    }
-}
-
-
-#[derive(Component)]
-pub struct TestComponent(Vec<i32>);
