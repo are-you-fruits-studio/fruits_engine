@@ -84,9 +84,6 @@ impl EntitiesComponentsHolderUnsafe {
 
         let dst_archetype_id = self.archetypes.id_by_components_or_create(dst_components_set).0;
 
-        // len 0 1
-        // len 1 1
-        // todo: what?
         let (src_archetype, dst_archetype) = self.archetypes.by_2_ids_mut((src_archetype_id, dst_archetype_id)).unwrap();
 
         let entity_with_added_component_new_location = EntityLocation {

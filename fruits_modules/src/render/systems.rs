@@ -7,7 +7,7 @@ use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
 
-use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}};
+use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
@@ -762,7 +762,7 @@ pub fn clear_depth(
 }
 
 pub fn render_meshes_and_materials_instanced(
-    query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent)>,
+    query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
     render_state: Res<RenderStateResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
@@ -792,7 +792,11 @@ pub fn render_meshes_and_materials_instanced(
 
     let mut instanced_matrices = HashMap::new();
 
-    for (transform, render_mesh, render_material) in query.iter() {
+    for (transform, render_mesh, render_material, disableable) in query.iter() {
+        if disableable.copied().unwrap_or_default().is_disabled {
+            continue;
+        }
+
         let mat = match transform {
             Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
             None => Mat4::IDENTITY,
@@ -911,7 +915,7 @@ pub fn render_meshes_and_materials_instanced(
 }
 
 pub fn render_meshes_and_materials_batched(
-    query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent)>,
+    query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
     render_state: Res<RenderStateResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
@@ -941,7 +945,10 @@ pub fn render_meshes_and_materials_batched(
 
     let mut batched_meshes_by_material = HashMap::new();
 
-    for (transform, batched_mesh, render_material) in query.iter() {
+    for (transform, batched_mesh, render_material, disableable) in query.iter() {
+        if disableable.copied().unwrap_or_default().is_disabled {
+            continue;
+        }
         let mat = match transform {
             Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
             None => Mat4::IDENTITY,

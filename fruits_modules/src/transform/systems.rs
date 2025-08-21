@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
 
 use fruits_app::RenderStateResource;
-use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, WithFilter, WithoutFilter, WorldQuery};
+use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::{Mat3, Vec2};
 
-use crate::transform::{GlobalRectComponent, LocalRectComponent};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}};
 
-use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent, UiVal};
+use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
 pub fn adjust_component_sets(
     mut world: ExclusiveWorldAccess,
@@ -115,124 +115,207 @@ pub fn update_parents_add_missing_children(
 
 // - Calculate GlobalTransform from LocalTransform and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_transform(
-    mut world: ExclusiveWorldAccess,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    local_transform_q: WorldQuery<&LocalTransform>,
+    mut global_transform_q: WorldQuery<&mut GlobalTransform>,
 ) {
-    let ec = world.entities_components_mut();
-
-    let mut transforms_to_calc = ec
-        .query_filtered::<Entity, WithFilter<GlobalTransform>>()
-        .iter()
-        .filter(|e| {
-            let Some(child_component) = ec.get_component::<ChildComponent>(*e) else {
-                return true;
-            };
-
-            !ec.contains_entity(child_component.parent)
-        })
-        .collect::<VecDeque<_>>();
-
-    while let Some(transform) = transforms_to_calc.pop_front() {
-        let parent_global_transform = match ec.get_component::<ChildComponent>(transform) {
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |ent, parent| {
+        let parent_global_transform = match global_transform_q.get(parent) {
             None => GlobalTransform::IDENTITY,
-            Some(child_component) => match ec.get_component::<GlobalTransform>(child_component.parent) {
-                None => GlobalTransform::IDENTITY,
-                Some(&parent_global_transform) => parent_global_transform,
-            }
+            Some(&parent_global_transform) => parent_global_transform,
         };
 
         // todo: Check geometry operations
         // {
-        let Some(&local_transform) = ec.get_component::<LocalTransform>(transform) else {
-            continue;
+
+        let Some(&local_transform) = local_transform_q.get(ent) else {
+            return;
         };
-        let Some(global_transform) = ec.get_component_mut::<GlobalTransform>(transform) else {
-            continue;
+        let Some(global_transform) = global_transform_q.get_mut(ent) else {
+            return;
         };
         global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
         global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Mat3::scale(local_transform.scale));
         // }
-
-        let Some(children) = ec.get_component::<ParentComponent>(transform) else {
-            continue;
-        };
-
-        for &child in children.children.iter() {
-            if child == transform {
-                continue;
-            }
-
-            let Some(child_child_c) = ec.get_component::<ChildComponent>(child) else {
-                continue;
-            };
-            
-            if child_child_c.parent != transform {
-                continue;
-            }
-
-            transforms_to_calc.push_back(child);
-        }
-    }
+    });
 }
 
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_rect(
-    mut world: ExclusiveWorldAccess,
+    render_state: Res<RenderStateResource>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    local_rect_q: WorldQuery<&LocalRectComponent>,
+    mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
-    let (res, ec, _) = world.as_tuple_mut();
-
-    let window_size: [u32; 2] = res.get::<RenderStateResource>().unwrap().size().into();
+    let window_size: [u32; 2] = render_state.size().into();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    let mut rects_to_calc = ec
-        .query_filtered::<Entity, WithFilter<GlobalRectComponent>>()
-        .iter()
-        .filter(|e| {
-            let Some(child_component) = ec.get_component::<ChildComponent>(*e) else {
-                return true;
-            };
-
-            !ec.contains_entity(child_component.parent)
-        })
-        .collect::<VecDeque<_>>();
-
-    while let Some(rect) = rects_to_calc.pop_front() {
-        let parent_global_rect = match ec.get_component::<ChildComponent>(rect) {
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |ent, parent| {
+        let parent_global_rect = match global_rect_q.get(parent) {
             None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
-            Some(child_component) => match ec.get_component::<GlobalRectComponent>(child_component.parent) {
-                None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
-                Some(&parent_global_rect) => parent_global_rect,
-            }
+            Some(&parent_global_rect) => parent_global_rect,
         };
 
         // todo: Check geometry operations
         // {
-        let Some(&local_rect) = ec.get_component::<LocalRectComponent>(rect) else {
-            continue;
+        let Some(&local_rect) = local_rect_q.get(ent) else {
+            return;
         };
-        let Some(global_rect) = ec.get_component_mut::<GlobalRectComponent>(rect) else {
-            continue;
+        let Some(global_rect) = global_rect_q.get_mut(ent) else {
+            return;
         };
         *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size);
         // }
+    });
+}
 
-        let Some(children) = ec.get_component::<ParentComponent>(rect) else {
-            continue;
+// - Calculate GlobalDisableableComponent from LocalDisableableComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
+pub fn calculate_global_disableable(
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    local_transform_q: WorldQuery<&LocalDisableableComponent>,
+    mut global_transform_q: WorldQuery<&mut GlobalDisableableComponent>,
+) {
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |ent, parent| {
+        let parent_global_disableable = match global_transform_q.get(parent) {
+            None => GlobalDisableableComponent::default(),
+            Some(&parent_global_transform) => parent_global_transform,
         };
 
-        for &child in children.children.iter() {
-            if child == rect {
-                continue;
-            }
+        let Some(&local_disableable) = local_transform_q.get(ent) else {
+            return;
+        };
+        let Some(global_disableable) = global_transform_q.get_mut(ent) else {
+            return;
+        };
+        global_disableable.is_disabled = parent_global_disableable.is_disabled || local_disableable.is_disabled;
+    });
+}
 
-            let Some(child_child_c) = ec.get_component::<ChildComponent>(child) else {
-                continue;
+fn hierarchy_iter_breadth_first_parent_to_child(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    mut f: impl FnMut(Entity, Entity),
+) {
+    let mut ents_to_calc = q.iter()
+        .filter_map(|(e, c, _p)| {
+            let Some(child_component) = c else {
+                return Some((e, Entity::EMPTY));
             };
+
+            if q.get(child_component.parent).is_none() {
+                return Some((e, Entity::EMPTY));
+            }
             
-            if child_child_c.parent != rect {
+            None
+        })
+        .collect::<VecDeque<_>>();
+
+    while let Some((entity, parent)) = ents_to_calc.pop_front() {
+        let entity_parent_c = q.get(entity).unwrap().2;
+
+        if let Some(entity_parent_c) = entity_parent_c {
+            for &child in entity_parent_c.children.iter() {
+                if child == entity {
+                    continue;
+                }
+
+                let Some(child_child_c) = q.get(child).unwrap().1 else {
+                    continue;
+                };
+
+                if child_child_c.parent != entity {
+                    continue;
+                }
+
+                ents_to_calc.push_back((child, entity));
+            }
+        };
+
+        f(entity, parent);
+    }
+}
+
+/// f(child, optional parent)
+fn hierarchy_iter_depth_first_parent_to_child(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    mut f: impl FnMut(Entity, Entity),
+) {
+    hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
+        if !is_moving_to_root {
+            f(dst, src);
+        }
+    })
+}
+
+/// f(parent, children)
+fn hierarchy_iter_depth_first_child_to_parent(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    mut f: impl FnMut(Entity, &[Entity]),
+) {
+    hierarchy_iter_depth_first(q, move |src, _dst, is_moving_to_root| {
+        if is_moving_to_root && let Some((_, _, p)) = q.get(src) {
+            let children = p
+                .map(|p| p.children.as_slice()).unwrap_or(&[]);
+
+            f(src, children);
+        }
+    })
+}
+
+fn hierarchy_iter_depth_first(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    mut f: impl FnMut(Entity, Entity, bool),
+) {
+    let roots = q.iter()
+        .filter_map(|(e, c, _p)| {
+            let Some(child_component) = c else {
+                return Some(e);
+            };
+
+            if q.get(child_component.parent).is_none() {
+                return Some(e);
+            }
+            
+            None
+        })
+        .collect::<Vec<_>>();
+
+    let get_children = |ent| -> &[Entity] {
+        let Some(p) = q.get(ent).map(|t| t.2).flatten() else {
+            return &[];
+        };
+        p.children.as_slice()
+    };
+
+    let mut stack = VecDeque::<(Entity, usize)>::new();
+
+    for root in roots {
+        f(Entity::EMPTY, root, false);
+
+        let mut entity = root;
+        let mut child_idx_to_check = 0;
+
+        loop {
+            let children = get_children(entity);
+
+            if child_idx_to_check < children.len() {
+                stack.push_back((entity, child_idx_to_check + 1));
+                let child_entity = children[child_idx_to_check];
+                f(entity, child_entity, false);
+                entity = child_entity;
+                child_idx_to_check = 0;
                 continue;
             }
 
-            rects_to_calc.push_back(child);
+            // todo: handle root
+            if let Some((parent_ent, parent_idx_to_check)) = stack.pop_back() {
+                f(entity, parent_ent, true);
+                entity = parent_ent;
+                child_idx_to_check = parent_idx_to_check;
+                continue;
+            }
+
+            f(entity, Entity::EMPTY, true);
+            break;
         }
     }
 }

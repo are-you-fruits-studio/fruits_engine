@@ -1,8 +1,3 @@
-use crate::*;
-
-pub const SOME_COLOR: [f32; 4] = parse_color_rgba_f32("#fffffaaf").unwrap();
-pub const SOME_COLOR_2: [u8; 3] = rgb_u8!("#428a42ef");
-
 #[macro_export]
 macro_rules! rgb_u8 {
     ($v: literal) => {

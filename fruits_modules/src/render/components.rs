@@ -49,8 +49,6 @@ pub struct TextComponent {
 #[derive(Component)]
 pub struct ImageComponent {
     pub is_y_inverted: bool,
-    pub horizontal_align: HorizontalAlign,
-    pub vertical_align: VerticalAlign,
     pub color: Vec4<f32>,
     pub fill_amt: f32,
     pub fill_settings: Option<ImageFillSettings>,
@@ -59,8 +57,6 @@ impl Default for ImageComponent {
     fn default() -> Self {
         Self {
             is_y_inverted: true,
-            horizontal_align: HorizontalAlign::Middle,
-            vertical_align: VerticalAlign::Middle,
             color: Vec4::with_all(1.0),
             fill_amt: 1.0,
             fill_settings: None,
@@ -86,4 +82,27 @@ pub enum VerticalAlign {
     Top,
     Middle,
     Bottom,
+}
+
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct GlobalDisableableComponent {
+    pub is_disabled: bool,
+}
+impl Default for GlobalDisableableComponent {
+    fn default() -> Self {
+        Self {
+            is_disabled: false,
+        }
+    }
+}
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct LocalDisableableComponent {
+    pub is_disabled: bool,
+}
+impl Default for LocalDisableableComponent {
+    fn default() -> Self {
+        Self {
+            is_disabled: false,
+        }
+    }
 }
