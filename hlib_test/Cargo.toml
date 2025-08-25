@@ -7,5 +7,4 @@ edition = "2024"
 
 [dependencies]
 fruits_serialization = { path = "../fruits_serialization" }
-fruits_prelude = { path = "../fruits_prelude" }
-fruits_utils = { path = "../fruits_utils" }
+fruits_engine = { path = "../../fruits_engine" }

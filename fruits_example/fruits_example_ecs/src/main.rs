@@ -1,6 +1,6 @@
 use std::sync::{LazyLock, Mutex};
 
-use fruits_prelude::{App, Component, ExclusiveWorldAccess, Res, Resource, Schedule, WorldQuery};
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();

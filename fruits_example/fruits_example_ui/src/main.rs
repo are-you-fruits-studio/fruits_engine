@@ -1,18 +1,15 @@
-use fruits_prelude::*;
-use fruits_modules::{asset::*, render::*, transform::*};
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();
     let world = app.ecs_mut();
 
-    fruits_modules::render::add_module_to(world);
-    fruits_modules::transform::add_module_to(world);
-    fruits_modules::fps_counter::add_module_to(world);
+    add_defult_modules_to(world);
+    fps_counter::add_module_to(world);
 
     world.behavior_mut().get_mut(Schedule::Start).add_system(init);
 
-    world.behavior_mut().get_mut(Schedule::Start).order_group(fruits_modules::render::SYSTEM_GROUP).before_system(init);
-    world.behavior_mut().get_mut(Schedule::Update).order_group(fruits_modules::transform::SYSTEM_GROUP).before_group(fruits_modules::render::SYSTEM_GROUP);
+    world.behavior_mut().get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
 
     let world_data = world.data_mut();
 

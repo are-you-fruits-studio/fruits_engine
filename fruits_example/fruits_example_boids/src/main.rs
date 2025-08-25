@@ -1,17 +1,11 @@
 use std::time::Instant;
 
-use fruits_prelude::*;
-use fruits_math::{Mat, Mat3, Vec3};
-use fruits_modules::{
-    asset::AssetStorageResource,
-    render::*,
-    transform::GlobalTransform,
-};
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();
 
-    fruits_modules::render::add_module_to(app.ecs_mut());
+    fruits_engine::modules::add_defult_modules_to(app.ecs_mut());
     
     let ecs = app.ecs_mut();
     
@@ -21,7 +15,7 @@ fn main() {
     let systems = ecs.behavior_mut();
 
     systems.get_mut(Schedule::Start).add_system(init);
-    systems.get_mut(Schedule::Start).order_group(fruits_modules::render::SYSTEM_GROUP).before_system(init);
+    systems.get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
 
     let update_systems = systems.get_mut(Schedule::Update);
 
@@ -195,7 +189,7 @@ fn rotate_boids_by_velocity(
 ) {
     for (transform, velocity, _) in query.iter_mut() {
         let angle = f32::atan2(velocity.0.x, velocity.0.y);
-        transform.scale_rotation = fruits_math::Mat3::rotation_z(-angle as f64)
+        transform.scale_rotation = Mat3::rotation_z(-angle as f64)
     }
 }
 

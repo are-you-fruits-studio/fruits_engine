@@ -6,7 +6,5 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fruits_math = { path = "../../fruits_math" }
-fruits_modules = { path = "../../fruits_modules" }
-fruits_prelude = { path = "../../fruits_prelude" }
+fruits_engine = { path = "../../../fruits_engine" }
 rand = "*"

@@ -1,7 +1,6 @@
 use std::time::Instant;
 
-use fruits_modules::{asset::AssetHandle, render::StandardMaterial};
-use fruits_prelude::Resource;
+use fruits_engine::prelude::*;
 
 #[derive(Resource)]
 pub struct AssetsResource {

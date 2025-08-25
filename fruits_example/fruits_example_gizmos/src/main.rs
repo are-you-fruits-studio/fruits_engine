@@ -1,12 +1,9 @@
-use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
-use fruits_modules::{render::{CameraComponent, GizmoLine, RenderSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
-use fruits_prelude::*;
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();
 
-    fruits_modules::render::add_module_to(app.ecs_mut());
-    fruits_modules::transform::add_module_to(app.ecs_mut());
+    add_defult_modules_to(app.ecs_mut());
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(move_camera);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_system);

@@ -1,7 +1,7 @@
 mod test_json;
 use std::time::Duration;
 
-use fruits_utils::{self, thread_pool::ThreadPool};
+use fruits_engine::utils::thread_pool::ThreadPool;
 
 fn main() {
     // test_json::test_serialization();

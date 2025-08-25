@@ -1,16 +1,12 @@
 use core::f32;
 
-use fruits_math::{Quat, Vec2, Vec3, Vec4};
-use fruits_modules::{collision::{self, ColliderComponent, CollisionAabb, CollisionBox, CollisionLine, CollisionShape, CollisionSphere, CollisionWorldResource, LineBoundType}, render::{CameraComponent, GizmoLine, RenderSpace, GizmosResource}, transform::{GlobalTransform, LocalTransform}};
-use fruits_prelude::*;
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();
 
-    fruits_modules::render::add_module_to(app.ecs_mut());
-    fruits_modules::transform::add_module_to(app.ecs_mut());
-    fruits_modules::collision::add_module_to(app.ecs_mut());
-    fruits_modules::fps_counter::add_module_to(app.ecs_mut());
+    add_defult_modules_to(app.ecs_mut());
+    fruits_engine::modules::fps_counter::add_module_to(app.ecs_mut());
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Start).add_system(init);
 
@@ -21,7 +17,7 @@ fn main() {
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(raycast_mouse);
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(raycast_mouse).before_system(draw_gizmo_components);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(draw_gizmo_components).before_group(fruits_modules::render::SYSTEM_GROUP);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(draw_gizmo_components).before_group(SYSTEM_GROUP_RENDER);
 
     app.run();
 }
@@ -173,7 +169,7 @@ fn draw_collisions(
         rotation: Quat::rotation_y(1.0),
     }.into();
 
-    let overlaps = collision::overlaps(
+    let overlaps = fruits_engine::modules::overlaps(
         sh1,
         sh2,
     );

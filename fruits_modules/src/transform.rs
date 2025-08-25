@@ -8,12 +8,12 @@ pub use self::{
 
 use fruits_ecs::{Schedule, WorldBuilder};
 
-pub const SYSTEM_GROUP: &'static str = "fruits_transform";
+pub const SYSTEM_GROUP_TRANSFORM: &'static str = "fruits_transform";
 
-pub fn add_module_to(world: &mut WorldBuilder) {
+pub(crate) fn add_module_to(world: &mut WorldBuilder) {
     let update = world.behavior_mut().get_mut(Schedule::Update);
 
-    update.group(SYSTEM_GROUP)
+    update.group(SYSTEM_GROUP_TRANSFORM)
         .add_child_system(adjust_component_sets)
         .add_child_system(update_parents_remove_invalid_children)
         .add_child_system(update_parents_add_missing_children)

@@ -19,10 +19,10 @@ pub use utils::*;
 
 use fruits_ecs::{Schedule, WorldBuilder};
 
-pub const SYSTEM_GROUP: &'static str = "fruits_collision";
+pub const SYSTEM_GROUP_COLLISION: &'static str = "fruits_collision";
 
-pub fn add_module_to(world: &mut WorldBuilder) {
+pub(crate) fn add_module_to(world: &mut WorldBuilder) {
     world.data_mut().resources_mut().insert(CollisionWorldResource::default()).ok().unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).add_child_system(update_collision_world);
+    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP_COLLISION).add_child_system(update_collision_world);
 }

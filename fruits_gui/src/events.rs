@@ -1,4 +1,4 @@
-use fruits_prelude::{Entity, Event};
+use fruits_engine::ecs::{Entity, Event};
 
 #[derive(Event)]
 pub struct HierarchyUpdateEvent {

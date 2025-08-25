@@ -1,15 +1,12 @@
 use std::time::Instant;
 
-use fruits_prelude::*;
-use fruits_math::{Mat, Quat, Vec3};
-use fruits_modules::{asset::*, render::*, transform::*};
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();
     let world = app.ecs_mut();
 
-    fruits_modules::render::add_module_to(world);
-    fruits_modules::transform::add_module_to(world);
+    add_defult_modules_to(world);
 
     world.behavior_mut().get_mut(Schedule::Start).add_system(init_resources);
     world.behavior_mut().get_mut(Schedule::Start).add_system(init_mesh_material);
@@ -20,7 +17,7 @@ fn main() {
     //world.behavior_mut().get_mut(Schedule::Update).add_system(log_entities);
 
     world.behavior_mut().get_mut(Schedule::Start).order_system(init_resources).before_system(init_mesh_material);
-    world.behavior_mut().get_mut(Schedule::Start).order_group(fruits_modules::render::SYSTEM_GROUP).before_system(init_mesh_material);
+    world.behavior_mut().get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init_mesh_material);
 
     
     let world_data = world.data_mut();
