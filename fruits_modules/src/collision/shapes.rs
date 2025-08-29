@@ -135,16 +135,16 @@ impl CollisionAabb {
         let mut max = first;
 
         for point in points {
-            min = min.zip(point, f32::min);
-            max = max.zip(point, f32::max);
+            min = min.zip_copied(point, f32::min);
+            max = max.zip_copied(point, f32::max);
         }
 
         Self::from_min_max(min, max)
     }
 
     pub fn merge(self, other: Self) -> Self {
-        let min = self.min().zip(other.min(), f32::min);
-        let max = self.max().zip(other.max(), f32::max);
+        let min = self.min().zip_copied(other.min(), f32::min);
+        let max = self.max().zip_copied(other.max(), f32::max);
 
         Self::from_min_max(min, max)
     }

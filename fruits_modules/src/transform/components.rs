@@ -58,12 +58,11 @@ pub enum UiDirection {
 
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct LocalRectComponent {
-    pub anchor_min: Vec2<f32>,
-    pub anchor_max: Vec2<f32>,
-    pub offset_min: Vec2<UiVal>,
-    pub offset_max: Vec2<UiVal>,
-    pub pivot: Vec2<f32>,
+    pub parent_padding_min: Vec2<UiVal>,
+    pub parent_padding_max: Vec2<UiVal>,
     pub offset: Vec2<UiVal>,
+    pub anchor: Vec2<f32>,
+    pub pivot: Vec2<f32>,
     // todo: handle none (= fit children)
     pub scale: Vec2<Option<UiVal>>,
     pub z: f32,
@@ -75,13 +74,12 @@ pub struct LocalRectComponent {
 impl Default for LocalRectComponent {
     fn default() -> Self {
         Self {
-            anchor_min: Vec2::with_all(0.0),
-            anchor_max: Vec2::with_all(1.0),
-            offset_min: Vec2::with_all(UiVal::Px(0.0)),
-            offset_max: Vec2::with_all(UiVal::Px(0.0)),
-            pivot: Vec2::with_all(0.5),
+            parent_padding_min: Vec2::with_all(UiVal::Px(0.0)),
+            parent_padding_max: Vec2::with_all(UiVal::Px(0.0)),
             offset: Vec2::with_all(UiVal::Px(0.0)),
-            scale: Vec2::with_all(Some(UiVal::Px(0.0))),
+            anchor: Vec2::with_all(0.5),
+            pivot: Vec2::with_all(0.5),
+            scale: Vec2::new(Some(UiVal::Pw(1.0)), Some(UiVal::Ph(1.0))),
             z: -1.0,
             children_align: None,
             ignore_parent_align: false,
@@ -93,6 +91,7 @@ impl LocalRectComponent {
         local_rect: &LocalRectComponent,
         parent_rect: &GlobalRectComponent,
         window_size: Vec2<f32>,
+        child_based_scale: Vec2<f32>,
     ) -> GlobalRectComponent {
         let parent_min = parent_rect.center - parent_rect.scale * 0.5;
         let parent_max = parent_rect.center + parent_rect.scale * 0.5;
@@ -101,24 +100,39 @@ impl LocalRectComponent {
             v.into_px(parent_rect.scale, window_size)
         };
 
-        let anchored_min = parent_min.lerp_separately(parent_max, local_rect.anchor_min);
-        let anchored_max = parent_min.lerp_separately(parent_max, local_rect.anchor_max);
+        let parent_min = parent_min + local_rect.parent_padding_min.map(ui_val_to_px);
+        let parent_max = parent_max - local_rect.parent_padding_max.map(ui_val_to_px);
 
-        let mut min = anchored_min + local_rect.offset_min.map(ui_val_to_px);
-        let mut max = anchored_max + local_rect.offset_max.map(ui_val_to_px);
+        let padded_parent_scale = parent_max - parent_min;
 
-        // todo: calculate scale from children
-        let scaling = local_rect.scale.map(|x| x.map(ui_val_to_px).unwrap_or(0.0));
-        let pivot = local_rect.pivot.map(|x| x.clamp(0.0, 1.0));
+        let ui_val_to_px = |v: UiVal| -> f32 {
+            v.into_px(padded_parent_scale, window_size)
+        };
 
-        min += local_rect.offset.map(ui_val_to_px) + -scaling * pivot;
-        max += local_rect.offset.map(ui_val_to_px) + scaling * (Vec2::with_all(1.0) - pivot);
+        let final_scale = local_rect.scale.zip(child_based_scale, |x, c| x.map(ui_val_to_px).unwrap_or(*c));
+
+        let anchored_pos = parent_min.lerp_separately(parent_max, local_rect.anchor);
+        let offset_pos = anchored_pos + local_rect.offset.map(ui_val_to_px);
+        let pivoted_center = offset_pos + final_scale * (Vec2::with_all(0.5) - local_rect.pivot);
 
         GlobalRectComponent {
-            center: (max + min) * 0.5,
-            scale: max - min,
+            center: pivoted_center,
+            scale: final_scale,
             z: parent_rect.z + local_rect.z,
         }
+    }
+
+    pub fn calculate_scale_hierarchy_independent(
+        local_rect: &LocalRectComponent,
+        window_size: Vec2<f32>,
+    ) -> Vec2<f32> {
+        let ui_val_to_px = |v: UiVal| -> f32 {
+            v.into_px_without_parent(window_size).unwrap_or(0.0)
+        };
+
+        let scale = local_rect.scale.map(|x| x.map(ui_val_to_px).unwrap_or(0.0));
+
+        scale
     }
 }
 
@@ -147,5 +161,16 @@ impl UiVal {
             UiVal::Vmin(v) => f32::min(view_size.x, view_size.y) * v,
             UiVal::Vmax(v) => f32::max(view_size.x, view_size.y) * v,
         }
+    }
+
+    pub fn into_px_without_parent(self, view_size: Vec2<f32>) -> Option<f32> {
+        Some(match self {
+            UiVal::Px(v) => v,
+            UiVal::Vw(v) => view_size.x * v,
+            UiVal::Vh(v) => view_size.y * v,
+            UiVal::Vmin(v) => f32::min(view_size.x, view_size.y) * v,
+            UiVal::Vmax(v) => f32::max(view_size.x, view_size.y) * v,
+            _ => return None,
+        })
     }
 }

@@ -338,8 +338,8 @@ fn overlaps_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
 }
 
 fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
-    let min = s1.min().zip(s2.min(), f32::max);
-    let max = s1.max().zip(s2.max(), f32::min);
+    let min = s1.min().zip_copied(s2.min(), f32::max);
+    let max = s1.max().zip_copied(s2.max(), f32::min);
 
     min.zip(max, |a, b| a <= b).all()
 }
@@ -397,7 +397,7 @@ fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
 }
 
 fn overlaps_centered_aa_pt(ext: Vec3<f32>, pt: Vec3<f32>) -> bool {
-    pt.zip(ext, |p, e| p.abs() <= e).all()
+    pt.zip_copied(ext, |p, e| p.abs() <= e).all()
 }
 
 fn overlaps_centered_aa_ln(ext: Vec3<f32>, ln: CollisionLine) -> bool {
@@ -465,7 +465,7 @@ fn overlaps_centered_aa_bx(ext: Vec3<f32>, bx_center: Vec3<f32>, bx_ext: Vec3<f3
 }
 
 fn overlaps_centered_aa_sp(ext: Vec3<f32>, sp: CollisionSphere) -> bool {
-    let closest = sp.center.zip(-ext, f32::max).zip(ext, f32::min);
+    let closest = sp.center.zip_copied(-ext, f32::max).zip_copied(ext, f32::min);
 
     (closest - sp.center).length_sq() <= sp.radius * sp.radius
 }

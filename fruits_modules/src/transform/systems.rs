@@ -4,7 +4,7 @@ use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}, UiDirection};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
@@ -140,8 +140,71 @@ pub fn calculate_global_transform(
     });
 }
 
+// - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
+pub fn precalculate_global_rect_hierarchy_independent(
+    render_state: Res<RenderStateResource>,
+    mut rect_q: WorldQuery<(&LocalRectComponent, &mut GlobalRectComponent)>,
+) {
+    let window_size: [u32; 2] = render_state.size().into();
+    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
+
+    for (local_rect, global_rect) in rect_q.iter_mut() {
+        global_rect.scale = LocalRectComponent::calculate_scale_hierarchy_independent(local_rect, window_size);
+    }
+}
+
+// - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
+pub fn precalculate_global_rect_children_based(
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    local_rect_q: WorldQuery<&LocalRectComponent>,
+    mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
+) {
+    hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |ent, children| {
+        let Some(&local_rect) = local_rect_q.get(ent) else {
+            return;
+        };
+        let Some(_global_rect) = global_rect_q.get_mut(ent) else {
+            return;
+        };
+
+        let mut child_based_scale = if local_rect.scale.as_array().iter().all(Option::is_some) {
+            Vec2::with_all(0.0)
+        } else {
+            let mut max = Vec2::with_all(0.0);
+            let mut sum = Vec2::with_all(0.0);
+
+            for &child in children {
+                let Some(child_transform) = global_rect_q.get(child) else {
+                    continue;
+                };
+
+                max = max.zip_copied(child_transform.scale, f32::max);
+                sum += child_transform.scale;
+            }
+
+            match local_rect.children_align {
+                None => max,
+                Some(UiDirection::Horizontal) => Vec2::new(sum.x, max.y),
+                Some(UiDirection::Vertical) => Vec2::new(max.x, sum.y),
+            }
+        };
+
+        let Some(global_rect) = global_rect_q.get_mut(ent) else {
+            return;
+        };
+
+        for (i, s) in local_rect.scale.as_array().iter().enumerate() {
+            if s.is_some() {
+                child_based_scale[i] = global_rect.scale[i];
+            }
+        }
+
+        global_rect.scale = child_based_scale;
+    });
+}
+
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
-pub fn calculate_global_rect(
+pub fn calculate_global_rect_parent_based(
     render_state: Res<RenderStateResource>,
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
@@ -164,7 +227,7 @@ pub fn calculate_global_rect(
         let Some(global_rect) = global_rect_q.get_mut(ent) else {
             return;
         };
-        *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size);
+        *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size, global_rect.scale);
         // }
     });
 }

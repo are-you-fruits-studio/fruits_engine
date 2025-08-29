@@ -10,6 +10,7 @@ pub trait Primitive
     + Clone
     + PartialEq
     + PartialOrd
+    + Default
 {
     const ZERO: Self;
     const ONE: Self;

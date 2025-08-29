@@ -43,12 +43,12 @@ impl Debug for ReflRepr {
             },
             ReflRepr::Primitive(repr) => {
                 match repr {
-                    ReflReprPrimitive::Int(repr) => write!(f, "{}", repr).unwrap(),
-                    ReflReprPrimitive::Float(repr) => write!(f, "{}", repr).unwrap(),
-                    ReflReprPrimitive::Char(repr) => write!(f, "'{}'", repr).unwrap(),
-                    ReflReprPrimitive::Str(repr) => write!(f, "\"{}\"", repr).unwrap(),
-                    ReflReprPrimitive::Bool(repr) => write!(f, "{}", repr).unwrap(),
-                    ReflReprPrimitive::Unit => write!(f, "()").unwrap(),
+                    ReflReprPrimitive::Int(repr) => write!(f, "{}", repr)?,
+                    ReflReprPrimitive::Float(repr) => write!(f, "{}", repr)?,
+                    ReflReprPrimitive::Char(repr) => write!(f, "'{}'", repr)?,
+                    ReflReprPrimitive::Str(repr) => write!(f, "\"{}\"", repr)?,
+                    ReflReprPrimitive::Bool(repr) => write!(f, "{}", repr)?,
+                    ReflReprPrimitive::Unit => write!(f, "()")?,
                 }
             },
         }

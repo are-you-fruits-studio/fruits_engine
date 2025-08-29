@@ -58,12 +58,20 @@ macro_rules! vec_impl {
             pub fn map<U>(self, f: impl Fn(T) -> U) -> $V<U> {
                 $V::<U>::from_array(self.into_array().map(f))
             }
+            #[inline]
+            pub fn zip<U, R>(self, rhs: $V<U>, f: impl Fn(&T, &U) -> R) -> $V<R> {
+                $V::<R>::from_array(zip(self.as_array(), rhs.as_array(), f))
+            }
         }
 
         impl<T: Copy> $V<T> {
             #[inline]
             pub const fn with_all(v: T) -> Self {
                 Self { $($I: v),+ }
+            }
+            #[inline]
+            pub fn zip_copied<U: Copy, R>(self, rhs: $V<U>, f: impl Fn(T, U) -> R) -> $V<R> {
+                $V::<R>::from_array(zip(self.as_array(), rhs.as_array(), |l, r| f(*l, *r)))
             }
         }
 
@@ -88,11 +96,6 @@ macro_rules! vec_impl {
                 Self {
                     $($I),+
                 }
-            }
-
-            #[inline]
-            pub fn zip<U: Primitive, R: Primitive>(self, rhs: $V<U>, f: impl Fn(T, U) -> R) -> $V<R> {
-                $V::<R>::from_array(zip(self.as_array(), rhs.as_array(), f))
             }
         }
 
@@ -469,14 +472,8 @@ pub fn div_by_assign<T: Number, const N: usize>(lhs: &mut [T; N], rhs: T) {
     }
 }
 #[inline]
-pub fn zip<T1: Primitive, T2: Primitive, R: Primitive, const N: usize>(lhs: &[T1; N], rhs: &[T2; N], f: impl Fn(T1, T2) -> R) -> [R; N] {
-    let mut result = [R::ZERO; N];
-
-    for i in 0..N {
-        result[i] = f(lhs[i], rhs[i]);
-    }
-
-    result
+pub fn zip<T1, T2, R, const N: usize>(lhs: &[T1; N], rhs: &[T2; N], f: impl Fn(&T1, &T2) -> R) -> [R; N] {
+    std::array::from_fn(|i| f(&lhs[i], &rhs[i]))
 }
 #[inline]
 pub fn lerp_slice<T: Number, const N: usize>(a: &[T; N], b: &[T; N], t: T) -> [T; N] {

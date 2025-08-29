@@ -282,7 +282,7 @@ fn create_ascii_monospace_font(
 
     let characters_uv = (' '..='~').map(|c| {
         let char_uv_index = [c as i32 % text_chars_count[0], c as i32 / text_chars_count[0]];
-        let char_uv_min = fruits_math::zip(&char_uv_index, &text_chars_count, |a, b| a as f32 / b as f32);
+        let char_uv_min = fruits_math::zip(&char_uv_index, &text_chars_count, |a, b| *a as f32 / *b as f32);
         
         let char_uvs = [
             Vec2::from_array(char_uv_min),
