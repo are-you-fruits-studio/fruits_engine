@@ -119,24 +119,26 @@ pub fn calculate_global_transform(
     local_transform_q: WorldQuery<&LocalTransform>,
     mut global_transform_q: WorldQuery<&mut GlobalTransform>,
 ) {
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |ent, parent| {
-        let parent_global_transform = match global_transform_q.get(parent) {
-            None => GlobalTransform::IDENTITY,
-            Some(&parent_global_transform) => parent_global_transform,
-        };
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+        for &ent in children {
+            let parent_global_transform = match global_transform_q.get(parent) {
+                None => GlobalTransform::IDENTITY,
+                Some(&parent_global_transform) => parent_global_transform,
+            };
 
-        // todo: Check geometry operations
-        // {
+            // todo: Check geometry operations
+            // {
 
-        let Some(&local_transform) = local_transform_q.get(ent) else {
-            return;
-        };
-        let Some(global_transform) = global_transform_q.get_mut(ent) else {
-            return;
-        };
-        global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
-        global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Mat3::scale(local_transform.scale));
-        // }
+            let Some(&local_transform) = local_transform_q.get(ent) else {
+                return;
+            };
+            let Some(global_transform) = global_transform_q.get_mut(ent) else {
+                return;
+            };
+            global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
+            global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Mat3::scale(local_transform.scale));
+            // }
+        }
     });
 }
 
@@ -159,11 +161,11 @@ pub fn precalculate_global_rect_children_based(
     local_rect_q: WorldQuery<&LocalRectComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
-    hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |ent, children| {
-        let Some(&local_rect) = local_rect_q.get(ent) else {
+    hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |parent, children| {
+        let Some(&local_rect) = local_rect_q.get(parent) else {
             return;
         };
-        let Some(_global_rect) = global_rect_q.get_mut(ent) else {
+        let Some(_global_rect) = global_rect_q.get_mut(parent) else {
             return;
         };
 
@@ -189,7 +191,7 @@ pub fn precalculate_global_rect_children_based(
             }
         };
 
-        let Some(global_rect) = global_rect_q.get_mut(ent) else {
+        let Some(global_rect) = global_rect_q.get_mut(parent) else {
             return;
         };
 
@@ -213,44 +215,48 @@ pub fn calculate_global_rect_parent_based(
     let window_size: [u32; 2] = render_state.size().into();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |ent, parent| {
-        let parent_global_rect = match global_rect_q.get(parent) {
-            None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
-            Some(&parent_global_rect) => parent_global_rect,
-        };
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+        for &ent in children {
+            let parent_global_rect = match global_rect_q.get(parent) {
+                None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
+                Some(&parent_global_rect) => parent_global_rect,
+            };
 
-        // todo: Check geometry operations
-        // {
-        let Some(&local_rect) = local_rect_q.get(ent) else {
-            return;
-        };
-        let Some(global_rect) = global_rect_q.get_mut(ent) else {
-            return;
-        };
-        *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size, global_rect.scale);
-        // }
+            // todo: Check geometry operations
+            // {
+            let Some(&local_rect) = local_rect_q.get(ent) else {
+                return;
+            };
+            let Some(global_rect) = global_rect_q.get_mut(ent) else {
+                return;
+            };
+            *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size, global_rect.scale);
+            // }
+        }
     });
 }
 
 // - Calculate GlobalDisableableComponent from LocalDisableableComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_disableable(
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    local_transform_q: WorldQuery<&LocalDisableableComponent>,
-    mut global_transform_q: WorldQuery<&mut GlobalDisableableComponent>,
+    local_disableable_q: WorldQuery<&LocalDisableableComponent>,
+    mut global_disableable_q: WorldQuery<&mut GlobalDisableableComponent>,
 ) {
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |ent, parent| {
-        let parent_global_disableable = match global_transform_q.get(parent) {
-            None => GlobalDisableableComponent::default(),
-            Some(&parent_global_transform) => parent_global_transform,
-        };
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+        for &ent in children {
+            let parent_global_disableable = match global_disableable_q.get(parent) {
+                None => GlobalDisableableComponent::default(),
+                Some(&parent_global_transform) => parent_global_transform,
+            };
 
-        let Some(&local_disableable) = local_transform_q.get(ent) else {
-            return;
-        };
-        let Some(global_disableable) = global_transform_q.get_mut(ent) else {
-            return;
-        };
-        global_disableable.is_disabled = parent_global_disableable.is_disabled || local_disableable.is_disabled;
+            let Some(&local_disableable) = local_disableable_q.get(ent) else {
+                return;
+            };
+            let Some(global_disableable) = global_disableable_q.get_mut(ent) else {
+                return;
+            };
+            global_disableable.is_disabled = parent_global_disableable.is_disabled || local_disableable.is_disabled;
+        }
     });
 }
 
@@ -297,33 +303,65 @@ fn hierarchy_iter_breadth_first_parent_to_child(
     }
 }
 
-/// f(child, optional parent)
+/// f(optional parent, children)
 fn hierarchy_iter_depth_first_parent_to_child(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, Entity),
+    mut f: impl FnMut(Entity, &[Entity]),
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
-        if !is_moving_to_root {
-            f(dst, src);
+        if is_moving_to_root {
+            // moving child_to_parent
+            return;
         }
+
+        if q.get(src).is_none() {
+            // src does not exist - dst is root. Dst as child
+            f(Entity::EMPTY, &[dst]);
+        }
+ 
+        let Some((_, _, p)) = q.get(dst) else {
+            // dst does not exist - src is root. Imposible while moving parent_to_child
+            return;
+        };
+
+        // dst as parent
+        let children = p
+            .map(|p| p.children.as_slice()).unwrap_or(&[]);
+
+        f(dst, children);
     })
 }
 
-/// f(parent, children)
+/// f(optional parent, children)
 fn hierarchy_iter_depth_first_child_to_parent(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     mut f: impl FnMut(Entity, &[Entity]),
 ) {
-    hierarchy_iter_depth_first(q, move |src, _dst, is_moving_to_root| {
-        if is_moving_to_root && let Some((_, _, p)) = q.get(src) {
-            let children = p
-                .map(|p| p.children.as_slice()).unwrap_or(&[]);
+    hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
+        if !is_moving_to_root {
+            // moving parent_to_child
+            return;
+        }
+ 
+        let Some((_, _, p)) = q.get(src) else {
+            // src does not exist - dst is root. Imposible while moving child_to_parent
+            return;
+        };
 
-            f(src, children);
+        // src as parent
+        let children = p
+            .map(|p| p.children.as_slice()).unwrap_or(&[]);
+
+        f(src, children);
+
+        if q.get(dst).is_none() {
+            // dst does not exist - src is root. Src as child
+            f(Entity::EMPTY, &[src]);
         }
     })
 }
 
+/// f(src, dst, is_moving_to_root)
 fn hierarchy_iter_depth_first(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     mut f: impl FnMut(Entity, Entity, bool),

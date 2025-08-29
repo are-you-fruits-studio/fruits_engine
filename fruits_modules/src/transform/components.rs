@@ -68,8 +68,6 @@ pub struct LocalRectComponent {
     pub z: f32,
     // todo
     pub children_align: Option<UiDirection>,
-    // todo: ignore children_align field of the parent
-    pub ignore_parent_align: bool,
 }
 impl Default for LocalRectComponent {
     fn default() -> Self {
@@ -82,7 +80,6 @@ impl Default for LocalRectComponent {
             scale: Vec2::new(Some(UiVal::Pw(1.0)), Some(UiVal::Ph(1.0))),
             z: -1.0,
             children_align: None,
-            ignore_parent_align: false,
         }
     }
 }
