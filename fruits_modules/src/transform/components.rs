@@ -93,8 +93,7 @@ impl Default for LocalRectComponent {
 pub struct RectChildAlignComponent {
     pub anchor: Vec2<f32>,
     pub direction: UiDirection,
-    // todo: to UiVal
-    pub min_gap: f32,
+    pub min_gap: UiVal,
     pub spacing: UiSpacing,
 }
 
@@ -103,7 +102,7 @@ impl Default for RectChildAlignComponent {
         Self {
             anchor: Vec2::splat(0.5),
             direction: UiDirection::Vertical,
-            min_gap: 0.0,
+            min_gap: UiVal::Px(0.0),
             spacing: UiSpacing::SpaceBetween,
         }
     }

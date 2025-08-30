@@ -130,13 +130,13 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent10, LocalRectComponent {
         pivot: Vec2::splat(0.0),
         anchor: Vec2::splat(0.0),
-        scale: Vec2::new(Some(UiVal::Px(500.0)), None),
+        scale: Vec2::new(None, None),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent10, RectChildAlignComponent {
-        direction: UiDirection::Horizontal,
+        direction: UiDirection::Vertical,
         anchor: Vec2::new(0.5, 0.5),
-        min_gap: 50.0,
+        min_gap: UiVal::Vd(0.1),
         spacing: UiSpacing::Chunk,
         ..Default::default()
     }).ok().unwrap();

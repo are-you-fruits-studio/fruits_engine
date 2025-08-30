@@ -160,15 +160,19 @@ pub fn precalculate_global_rect_hierarchy_independent(
 
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
 pub fn precalculate_global_rect_children_based(
+    render_state: Res<RenderStateResource>,
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     local_rect_q: WorldQuery<(&LocalRectComponent, Option<&RectChildAlignComponent>)>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
+    let window_size: [i32; 2] = render_state.size().into();
+    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
+
     hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |parent, children| {
         let Some((&local_rect, align_c)) = local_rect_q.get(parent) else {
             return;
         };
-        let Some(_global_rect) = global_rect_q.get_mut(parent) else {
+        let Some(&parent_global_rect) = global_rect_q.get(parent) else {
             return;
         };
 
@@ -189,15 +193,19 @@ pub fn precalculate_global_rect_children_based(
                 sum += child_transform.scale;
             }
 
+            let uival_into_px = |v: UiVal| -> Vec2<f32> {
+                v.into_px(parent_global_rect.scale, window_size)
+            };
+
             if let Some(align_c) = align_c {
                 let gaps_count = count.max(1) - 1;
                 let total_gap = match align_c.spacing {
-                    UiSpacing::Chunk => align_c.min_gap * gaps_count as f32,
-                    UiSpacing::SpaceBetween => align_c.min_gap * gaps_count as f32,
-                    UiSpacing::SpaceAround => align_c.min_gap * (gaps_count + 1) as f32,
-                    UiSpacing::SpaceEvenly => align_c.min_gap * (gaps_count + 2) as f32,
+                    UiSpacing::Chunk => uival_into_px(align_c.min_gap) * gaps_count as f32,
+                    UiSpacing::SpaceBetween => uival_into_px(align_c.min_gap) * gaps_count as f32,
+                    UiSpacing::SpaceAround => uival_into_px(align_c.min_gap) * (gaps_count + 1) as f32,
+                    UiSpacing::SpaceEvenly => uival_into_px(align_c.min_gap) * (gaps_count + 2) as f32,
                 };
-                sum += Vec2::splat(total_gap);
+                sum += total_gap;
             }
 
             match align_c.map(|a| a.direction) {
@@ -279,10 +287,14 @@ pub fn calculate_global_rect_parent_based(
 }
 
 pub fn align_rect_children(
+    render_state: Res<RenderStateResource>,
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     align_q: WorldQuery<&RectChildAlignComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
+    let window_size: [i32; 2] = render_state.size().into();
+    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
+
     hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         if children.is_empty() {
             return;
@@ -314,6 +326,10 @@ pub fn align_rect_children(
 
         let gaps_count = children_count - 1;
 
+        let uival_into_px = |v: UiVal| -> Vec2<f32> {
+            v.into_px(parent_global_c.scale, window_size)
+        };
+
         let children_scale_with_gaps;
         let gap;
         let pre_gap;
@@ -321,15 +337,15 @@ pub fn align_rect_children(
         match align_c.spacing {
             UiSpacing::Chunk => {
                 let mut final_scale = children_scale;
-                final_scale[dir_axis] += align_c.min_gap * gaps_count as f32;
+                final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * gaps_count as f32;
 
                 children_scale_with_gaps = final_scale;
-                gap = align_c.min_gap;
+                gap = uival_into_px(align_c.min_gap)[dir_axis];
                 pre_gap = 0.0;
             },
             UiSpacing::SpaceBetween => {
                 let mut final_scale = children_scale;
-                final_scale[dir_axis] += align_c.min_gap * gaps_count as f32;
+                final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * gaps_count as f32;
                 final_scale[dir_axis] = final_scale[dir_axis].max(parent_global_c.scale[dir_axis]);
 
                 children_scale_with_gaps = final_scale;
@@ -338,7 +354,7 @@ pub fn align_rect_children(
             },
             UiSpacing::SpaceAround => {
                 let mut final_scale = children_scale;
-                final_scale[dir_axis] += align_c.min_gap * (gaps_count + 1) as f32;
+                final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * (gaps_count + 1) as f32;
                 final_scale[dir_axis] = final_scale[dir_axis].max(parent_global_c.scale[dir_axis]);
 
                 children_scale_with_gaps = final_scale;
@@ -347,7 +363,7 @@ pub fn align_rect_children(
             },
             UiSpacing::SpaceEvenly => {
                 let mut final_scale = children_scale;
-                final_scale[dir_axis] += align_c.min_gap * (gaps_count + 2) as f32;
+                final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * (gaps_count + 2) as f32;
                 final_scale[dir_axis] = final_scale[dir_axis].max(parent_global_c.scale[dir_axis]);
 
                 children_scale_with_gaps = final_scale;
