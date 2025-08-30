@@ -42,14 +42,14 @@ fn init(mut world: ExclusiveWorldAccess) {
     let material_white = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(StandardMaterial::Unlit(UnlitMaterial {
         space: RenderSpace::Window,
         color_tex: Some(texture_white.clone()),
-        color: Vec4::with_all(1.0),
+        color: Vec4::splat(1.0),
         alpha_threshold: 0.5,
     }));
     
     let material_text = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(StandardMaterial::Unlit(UnlitMaterial {
         space: RenderSpace::Window,
         color_tex: Some(texture_text.clone()),
-        color: Vec4::with_all(1.0),
+        color: Vec4::splat(1.0),
         alpha_threshold: 0.5,
     }));
     
@@ -96,7 +96,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent3, ImageComponent {
-        color: Vec4::with_all(0.6),
+        color: Vec4::splat(0.6),
         ..Default::default()
     }).ok().unwrap();
 
@@ -124,44 +124,66 @@ fn init(mut world: ExclusiveWorldAccess) {
     let ent10 = ec.create_entity();
     let ent11 = ec.create_entity();
     let ent12 = ec.create_entity();
+    let ent13 = ec.create_entity();
 
     ec.add_component(ent10, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent10, LocalRectComponent {
-        pivot: Vec2::with_all(0.0),
-        scale: Vec2::with_all(None),
+        pivot: Vec2::splat(0.0),
+        anchor: Vec2::splat(0.0),
+        scale: Vec2::new(Some(UiVal::Px(500.0)), None),
         ..Default::default()
     }).ok().unwrap();
-    ec.add_component(ent10, ParentComponent { children: vec![ent11, ent12] }).ok().unwrap();
+    ec.add_component(ent10, RectChildAlignComponent {
+        direction: UiDirection::Horizontal,
+        anchor: Vec2::new(0.5, 0.5),
+        min_gap: 50.0,
+        spacing: UiSpacing::Chunk,
+        ..Default::default()
+    }).ok().unwrap();
+    ec.add_component(ent10, ParentComponent { children: vec![ent11, ent12, ent13] }).ok().unwrap();
     ec.add_component(ent10, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent10, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent10, ImageComponent {
-        color: Vec4::new(1.0, 0.0, 0.0, 1.0),
+        color: Vec4::new(1.0, 1.0, 1.0, 1.0),
         ..Default::default()
     }).ok().unwrap();
 
     ec.add_component(ent11, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent11, LocalRectComponent {
-        scale: Vec2::with_all(Some(UiVal::Px(50.0))),
+        scale: Vec2::splat(Some(UiVal::Px(50.0))),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent11, ChildComponent { parent: ent10 }).ok().unwrap();
     ec.add_component(ent11, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent11, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent11, ImageComponent {
-        color: Vec4::new(0.0, 1.0, 0.0, 0.0),
+        color: Vec4::new(1.0, 0.0, 0.0, 1.0),
         ..Default::default()
     }).ok().unwrap();
 
     ec.add_component(ent12, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent12, LocalRectComponent {
-        scale: Vec2::with_all(Some(UiVal::Px(50.0))),
+        scale: Vec2::splat(Some(UiVal::Px(40.0))),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent12, ChildComponent { parent: ent10 }).ok().unwrap();
     ec.add_component(ent12, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent12, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent12, ImageComponent {
-        color: Vec4::new(0.0, 0.0, 1.0, 0.0),
+        color: Vec4::new(0.0, 1.0, 0.0, 1.0),
+        ..Default::default()
+    }).ok().unwrap();
+
+    ec.add_component(ent13, GlobalRectComponent::default()).ok().unwrap();
+    ec.add_component(ent13, LocalRectComponent {
+        scale: Vec2::splat(Some(UiVal::Px(70.0))),
+        ..Default::default()
+    }).ok().unwrap();
+    ec.add_component(ent13, ChildComponent { parent: ent10 }).ok().unwrap();
+    ec.add_component(ent13, BatchedMeshComponent::default()).ok().unwrap();
+    ec.add_component(ent13, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
+    ec.add_component(ent13, ImageComponent {
+        color: Vec4::new(0.0, 0.0, 1.0, 1.0),
         ..Default::default()
     }).ok().unwrap();
 }

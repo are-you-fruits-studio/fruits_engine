@@ -70,8 +70,8 @@ fn create_button_entity(ec: &mut EntitiesComponentsHolder, pos: Vec3<f32>, scale
     }).ok().unwrap();
     ec.add_component(e, ColliderComponent {
         shape: CollisionShape::Aabb(CollisionAabb {
-            center: Vec3::with_all(0.0),
-            extents: Vec3::with_all(0.0),
+            center: Vec3::splat(0.0),
+            extents: Vec3::splat(0.0),
         })
     }).ok().unwrap();
 }
@@ -138,7 +138,7 @@ fn move_camera(
     mut q: WorldQuery<(&mut LocalTransform, &CameraComponent)>,
     input: Res<InputResource>,
 ) {
-    let mut direction = Vec3::<f32>::with_all(0.0);
+    let mut direction = Vec3::<f32>::splat(0.0);
     let mut rot = 0.0;
 
     if input.keyboard.is_pressed(KeyCode::KeyQ) { rot -= 1.0 };
@@ -165,7 +165,7 @@ fn draw_collisions(
     }.into();
     let sh2 = CollisionBox {
         center: Vec3::new(1.0, 0.0, 0.0),
-        extents: Vec3::with_all(0.5),
+        extents: Vec3::splat(0.5),
         rotation: Quat::rotation_y(1.0),
     }.into();
 

@@ -57,7 +57,7 @@ impl Default for ImageComponent {
     fn default() -> Self {
         Self {
             is_y_inverted: true,
-            color: Vec4::with_all(1.0),
+            color: Vec4::splat(1.0),
             fill_amt: 1.0,
             fill_settings: None,
         }

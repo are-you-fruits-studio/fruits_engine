@@ -13,7 +13,7 @@ pub fn init(
 
     let material_text = world.resources_mut().get_mut::<AssetStorageResource<StandardMaterial>>().unwrap().insert(StandardMaterial::Unlit(UnlitMaterial {
         space: RenderSpace::Window,
-        color: Vec4::with_all(1.0),
+        color: Vec4::splat(1.0),
         color_tex: Some(texture_text),
         alpha_threshold: 0.5,
     }));
@@ -215,6 +215,6 @@ fn spawn_text(
         horizontal_spacing: 0.0,
         is_y_inverted: true,
         text,
-        color: Vec4::with_all(1.0),
+        color: Vec4::splat(1.0),
     }).ok().unwrap();
 }

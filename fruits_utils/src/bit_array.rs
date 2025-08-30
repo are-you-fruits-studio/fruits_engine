@@ -10,7 +10,7 @@ impl<const N: usize> BitArray<N> {
         }
     }
 
-    pub const fn with_all(v: bool) -> Self {
+    pub const fn splat(v: bool) -> Self {
         let v = if v { !0 } else { 0 };
 
         Self {

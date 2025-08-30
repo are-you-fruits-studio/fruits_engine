@@ -92,7 +92,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
         Some(&mut self.data[x][y])
     }
 
-    pub const fn with_all(v: T) -> Self {
+    pub const fn splat(v: T) -> Self {
         Self::from_array([[v; N]; N])
     }
     
@@ -113,7 +113,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
     }
 
     pub const IDENTITY: Self = {
-        let mut mat = Mat::<N, T>::with_all(T::ZERO);
+        let mut mat = Mat::<N, T>::splat(T::ZERO);
 
         let mut i = 0;
         while i < N {

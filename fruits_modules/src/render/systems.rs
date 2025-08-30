@@ -376,8 +376,8 @@ pub fn create_gizmos_render_resource(
 ) {
     let render_state = world.resources().get::<RenderStateResource>().unwrap();
 
-    let vertices_cpu_buffer = vec![[Vec4::with_all(0.0); 2]; GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
-    let colors_cpu_buffer = vec![Vec4::with_all(0.0); GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
+    let vertices_cpu_buffer = vec![[Vec4::splat(0.0); 2]; GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
+    let colors_cpu_buffer = vec![Vec4::splat(0.0); GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
 
     let vertex_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Gizmos Vertex Buffer"),
@@ -555,7 +555,7 @@ pub fn update_text_batched_mesh(
         let color = text_c.color.into_array();
         let font = font_assets.get(&text_c.font).unwrap();
 
-        let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.0), scale: Vec2::with_all(0.0), z: 0.0 });
+        let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::splat(0.0), scale: Vec2::splat(0.0), z: 0.0 });
 
         let font_size = text_c.font_size.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size)[1];
         
@@ -621,7 +621,7 @@ pub fn update_image_batched_mesh(
     for (image_c, mesh_c, rect_c) in q.iter_mut() {
         let color = image_c.color.into_array();
 
-        let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.5), scale: Vec2::with_all(1.0), z: 0.0 });
+        let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::splat(0.5), scale: Vec2::splat(1.0), z: 0.0 });
 
         if image_c.is_y_inverted {
             rect.scale.y *= -1.0;

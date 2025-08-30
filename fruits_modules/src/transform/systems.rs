@@ -4,7 +4,7 @@ use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}, UiDirection, UiVal};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
@@ -161,11 +161,11 @@ pub fn precalculate_global_rect_hierarchy_independent(
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
 pub fn precalculate_global_rect_children_based(
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    local_rect_q: WorldQuery<&LocalRectComponent>,
+    local_rect_q: WorldQuery<(&LocalRectComponent, Option<&RectChildAlignComponent>)>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
     hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |parent, children| {
-        let Some(&local_rect) = local_rect_q.get(parent) else {
+        let Some((&local_rect, align_c)) = local_rect_q.get(parent) else {
             return;
         };
         let Some(_global_rect) = global_rect_q.get_mut(parent) else {
@@ -173,21 +173,34 @@ pub fn precalculate_global_rect_children_based(
         };
 
         let mut child_based_scale = if local_rect.scale.as_array().iter().all(Option::is_some) {
-            Vec2::with_all(0.0)
+            Vec2::splat(0.0)
         } else {
-            let mut max = Vec2::with_all(0.0);
-            let mut sum = Vec2::with_all(0.0);
+            let mut max = Vec2::splat(0.0);
+            let mut sum = Vec2::splat(0.0);
+            let mut count = 0;
 
             for &child in children {
                 let Some(child_transform) = global_rect_q.get(child) else {
                     continue;
                 };
 
+                count += 1;
                 max = max.zip_copied(child_transform.scale, f32::max);
                 sum += child_transform.scale;
             }
 
-            match local_rect.children_align {
+            if let Some(align_c) = align_c {
+                let gaps_count = count.max(1) - 1;
+                let total_gap = match align_c.spacing {
+                    UiSpacing::Chunk => align_c.min_gap * gaps_count as f32,
+                    UiSpacing::SpaceBetween => align_c.min_gap * gaps_count as f32,
+                    UiSpacing::SpaceAround => align_c.min_gap * (gaps_count + 1) as f32,
+                    UiSpacing::SpaceEvenly => align_c.min_gap * (gaps_count + 2) as f32,
+                };
+                sum += Vec2::splat(total_gap);
+            }
+
+            match align_c.map(|a| a.direction) {
                 None => max,
                 Some(UiDirection::Horizontal) => Vec2::new(sum.x, max.y),
                 Some(UiDirection::Vertical) => Vec2::new(max.x, sum.y),
@@ -254,7 +267,7 @@ pub fn calculate_global_rect_parent_based(
 
             let anchored_pos = parent_min.lerp_separately(parent_max, local_rect.anchor);
             let offset_pos = anchored_pos + Vec2::from_fn(|i| ui_val_to_px(local_rect.offset[i])[i]);
-            let pivoted_center = offset_pos + final_scale * (Vec2::with_all(0.5) - local_rect.pivot);
+            let pivoted_center = offset_pos + final_scale * (Vec2::splat(0.5) - local_rect.pivot);
 
             *global_rect = GlobalRectComponent {
                 center: pivoted_center,
@@ -262,6 +275,104 @@ pub fn calculate_global_rect_parent_based(
                 z: parent_global_rect.z + local_rect.z,
             };
         }
+    });
+}
+
+pub fn align_rect_children(
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    align_q: WorldQuery<&RectChildAlignComponent>,
+    mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
+) {
+    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+        if children.is_empty() {
+            return;
+        }
+
+        let Some(align_c) = align_q.get(parent) else {
+            return;
+        };
+
+        let Some(&parent_global_c) = global_rect_q.get(parent) else {
+            return;
+        };
+
+        let dir_axis = align_c.direction.to_axis_idx();
+        let dir_perp_axis = 1 - dir_axis;
+
+        let mut children_count = 0;
+        let mut children_scale = Vec2::splat(0.0);
+
+        for &child in children {
+            let Some(child_global_c) = global_rect_q.get_mut(child) else {
+                continue;
+            };
+
+            children_count += 1;
+            children_scale[dir_axis] += child_global_c.scale[dir_axis];
+            children_scale[dir_perp_axis] = children_scale[dir_perp_axis].max(child_global_c.scale[dir_perp_axis]);
+        }
+
+        let gaps_count = children_count - 1;
+
+        let children_scale_with_gaps;
+        let gap;
+        let pre_gap;
+
+        match align_c.spacing {
+            UiSpacing::Chunk => {
+                let mut final_scale = children_scale;
+                final_scale[dir_axis] += align_c.min_gap * gaps_count as f32;
+
+                children_scale_with_gaps = final_scale;
+                gap = align_c.min_gap;
+                pre_gap = 0.0;
+            },
+            UiSpacing::SpaceBetween => {
+                let mut final_scale = children_scale;
+                final_scale[dir_axis] += align_c.min_gap * gaps_count as f32;
+                final_scale[dir_axis] = final_scale[dir_axis].max(parent_global_c.scale[dir_axis]);
+
+                children_scale_with_gaps = final_scale;
+                gap = (final_scale[dir_axis] - children_scale[dir_axis]) / gaps_count as f32;
+                pre_gap = 0.0;
+            },
+            UiSpacing::SpaceAround => {
+                let mut final_scale = children_scale;
+                final_scale[dir_axis] += align_c.min_gap * (gaps_count + 1) as f32;
+                final_scale[dir_axis] = final_scale[dir_axis].max(parent_global_c.scale[dir_axis]);
+
+                children_scale_with_gaps = final_scale;
+                gap = (final_scale[dir_axis] - children_scale[dir_axis]) / (gaps_count + 1) as f32;
+                pre_gap = gap * 0.5;
+            },
+            UiSpacing::SpaceEvenly => {
+                let mut final_scale = children_scale;
+                final_scale[dir_axis] += align_c.min_gap * (gaps_count + 2) as f32;
+                final_scale[dir_axis] = final_scale[dir_axis].max(parent_global_c.scale[dir_axis]);
+
+                children_scale_with_gaps = final_scale;
+                gap = (final_scale[dir_axis] - children_scale[dir_axis]) / (gaps_count + 2) as f32;
+                pre_gap = gap;
+            },
+        }
+
+        let children_center_dir = parent_global_c.center[dir_axis] + (children_scale_with_gaps[dir_axis] - parent_global_c.scale[dir_axis]) * (0.5 - align_c.anchor[dir_axis]);
+        let children_start_dir = children_center_dir - children_scale_with_gaps[dir_axis] * 0.5;
+
+        let mut child_start_dir = children_start_dir + pre_gap;
+
+        for &child in children {
+            let Some(child_global_c) = global_rect_q.get_mut(child) else {
+                continue;
+            };
+
+            let child_center_perp_dir = parent_global_c.center[dir_perp_axis] + (child_global_c.scale[dir_perp_axis] - parent_global_c.scale[dir_perp_axis]) * (0.5 - align_c.anchor[dir_perp_axis]);
+
+            child_global_c.center[dir_axis] = child_start_dir + child_global_c.scale[dir_axis] * 0.5;
+            child_global_c.center[dir_perp_axis] = child_center_perp_dir;
+
+            child_start_dir += child_global_c.scale[dir_axis] + gap;
+        }        
     });
 }
 

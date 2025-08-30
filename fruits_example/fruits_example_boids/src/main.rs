@@ -96,10 +96,10 @@ fn init(mut world: ExclusiveWorldAccess) {
 
         ec.add_component(entity, StandardMeshComponent { mesh: mesh.clone() }).ok().unwrap();
         ec.add_component(entity, StandardMaterialComponent { material: material.clone() }).ok().unwrap();
-        ec.add_component(entity, Boid { target_direction: Vec3::with_all(0.0) }).ok().unwrap();
+        ec.add_component(entity, Boid { target_direction: Vec3::splat(0.0) }).ok().unwrap();
         ec.add_component(entity, BoidTarget { }).ok().unwrap();
-        ec.add_component(entity, Motor { acceleration_direction: Vec3::with_all(0.0), strength: 0.01 }).ok().unwrap();
-        ec.add_component(entity, Velocity(Vec3::with_all(0.0))).ok().unwrap();
+        ec.add_component(entity, Motor { acceleration_direction: Vec3::splat(0.0), strength: 0.01 }).ok().unwrap();
+        ec.add_component(entity, Velocity(Vec3::splat(0.0))).ok().unwrap();
         ec.add_component(entity, GlobalTransform {
             scale_rotation: Mat3::IDENTITY,
             position: Vec3::new(rand::random::<f32>(), rand::random::<f32>(), 0.0),
@@ -129,7 +129,7 @@ fn accumulate_boid_separation(
     let timer = Instant::now();
 
     for (boid_entity, boid_transform, boid) in boids_queue.iter_mut() {
-        let mut sum = Vec3::with_all(0.0_f32);
+        let mut sum = Vec3::splat(0.0_f32);
 
         for (target_entity, target_transform, _) in targets_queue.iter() {
             if target_entity == boid_entity {

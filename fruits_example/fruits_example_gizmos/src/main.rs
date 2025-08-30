@@ -32,7 +32,7 @@ fn move_camera(
     mut q: WorldQuery<(&mut LocalTransform, &CameraComponent)>,
     input: Res<InputResource>,
 ) {
-    let mut direction = Vec3::<f32>::with_all(0.0);
+    let mut direction = Vec3::<f32>::splat(0.0);
     let mut rot = 0.0;
 
     if input.keyboard.is_pressed(KeyCode::KeyQ) { rot -= 1.0 };

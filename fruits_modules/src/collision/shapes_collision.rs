@@ -9,7 +9,7 @@ pub struct CollisionResult {
 }
 
 fn collision_result_point(point: Vec3<f32>) -> CollisionResult {
-    CollisionResult { normal: Vec3::with_all(0.0), penetration: 0.0, point, }
+    CollisionResult { normal: Vec3::splat(0.0), penetration: 0.0, point, }
 }
 
 pub fn collide(lhs: CollisionShape, rhs: CollisionShape) -> Option<CollisionResult> {
@@ -63,7 +63,7 @@ fn collide_pt_pt(lhs: Vec3<f32>, rhs: Vec3<f32>) -> Option<CollisionResult> {
         return None;
     }
 
-    Some(CollisionResult { normal: Vec3::with_all(0.0), penetration: 0.0, point: lhs })
+    Some(CollisionResult { normal: Vec3::splat(0.0), penetration: 0.0, point: lhs })
 }
 
 fn collide_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> Option<CollisionResult> {
@@ -164,7 +164,7 @@ fn collide_ln_ln(s1: CollisionLine, s2: CollisionLine) -> Option<CollisionResult
 fn collide_pt_sp(s1: Vec3<f32>, s2: CollisionSphere) -> Option<CollisionResult> {
     let distance_vector = s1 - s2.center;
 
-    if distance_vector == Vec3::with_all(0.0) {
+    if distance_vector == Vec3::splat(0.0) {
         return Some(collision_result_point(s1));
     }
 

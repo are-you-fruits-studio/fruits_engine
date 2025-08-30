@@ -24,7 +24,7 @@ impl CollisionShape {
         match self {
             CollisionShape::Point(collision_point) => CollisionAabb {
                 center: *collision_point,
-                extents: Vec3::with_all(0.0),
+                extents: Vec3::splat(0.0),
             },
             CollisionShape::Line(collision_line) => {
                 if collision_line.bounds != LineBoundType::SEGMENT {
@@ -52,7 +52,7 @@ impl CollisionShape {
             },
             CollisionShape::Sphere(collision_sphere) => CollisionAabb {
                 center: collision_sphere.center,
-                extents: Vec3::with_all(collision_sphere.radius),
+                extents: Vec3::splat(collision_sphere.radius),
             },
             CollisionShape::Triangle(collision_triangle) => CollisionAabb::from_points(collision_triangle.into_iter().copied()),
         }
@@ -126,8 +126,8 @@ impl CollisionAabb {
     pub fn from_points(mut points: impl Iterator<Item = Vec3<f32>>) -> Self {
         let Some(first) = points.next() else {
             return Self {
-                center: Vec3::with_all(0.0),
-                extents: Vec3::with_all(0.0),
+                center: Vec3::splat(0.0),
+                extents: Vec3::splat(0.0),
             };
         };
 

@@ -23,9 +23,9 @@ impl Default for LitUniform {
     fn default() -> Self {
         Self {
             world_to_clip: Mat4::IDENTITY,
-            albedo_color: Vec4::with_all(0.5),
-            emission_color: Vec4::with_all(0.0),
-            camera_position_world: Vec3::with_all(0.0),
+            albedo_color: Vec4::splat(0.5),
+            emission_color: Vec4::splat(0.0),
+            camera_position_world: Vec3::splat(0.0),
             metallic: 0.5,
             roughness: 0.5,
             alpha_threshold: 0.5,
@@ -50,7 +50,7 @@ impl Default for UnlitUniform {
     fn default() -> Self {
         Self {
             world_to_clip: Mat4::IDENTITY,
-            color: Vec4::with_all(0.5),
+            color: Vec4::splat(0.5),
             alpha_threshold: 0.5,
             _padding: Default::default(),
         }
@@ -72,8 +72,8 @@ impl Default for LitMaterial {
     fn default() -> Self {
         LitMaterial {
             space: RenderSpace::World,
-            albedo_color: Vec4::with_all(0.5),
-            emission_color: Vec4::with_all(0.0),
+            albedo_color: Vec4::splat(0.5),
+            emission_color: Vec4::splat(0.0),
             metallic: 0.0,
             roughness: 0.5,
             alpha_threshold: 0.5,
@@ -94,7 +94,7 @@ impl Default for UnlitMaterial {
     fn default() -> Self {
         Self {
             space: RenderSpace::World,
-            color: Vec4::with_all(0.5),
+            color: Vec4::splat(0.5),
             color_tex: None,
             alpha_threshold: 0.5,
         }

@@ -127,7 +127,7 @@ impl<N: Number> Quat<N> {
     }
 
     pub fn rotation_axis_angle(mut axis: Vec3<N>, rad: f64) -> Self {
-        if axis == Vec3::with_all(N::from_f64(0.0)) {
+        if axis == Vec3::splat(N::from_f64(0.0)) {
             return Self::IDENTITY;
         }
 
@@ -181,7 +181,7 @@ impl<N: Number> Quat<N> {
         Self { x, y, z, w }
     }
 
-    pub const fn with_all(v: N) -> Self {
+    pub const fn splat(v: N) -> Self {
         Self::new(v, v, v, v)
     }
 

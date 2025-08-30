@@ -70,7 +70,7 @@ macro_rules! vec_impl {
 
         impl<T: Copy> $V<T> {
             #[inline]
-            pub const fn with_all(v: T) -> Self {
+            pub const fn splat(v: T) -> Self {
                 Self { $($I: v),+ }
             }
             #[inline]
@@ -81,7 +81,7 @@ macro_rules! vec_impl {
 
         impl<T: Clone> $V<T> {
             #[inline]
-            pub fn with_all_cloned(v: &T) -> Self {
+            pub fn splat_cloned(v: &T) -> Self {
                 Self { $($I: v.clone()),+ }
             }
         }
