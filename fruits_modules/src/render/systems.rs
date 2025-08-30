@@ -557,7 +557,7 @@ pub fn update_text_batched_mesh(
 
         let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::with_all(0.0), scale: Vec2::with_all(0.0), z: 0.0 });
 
-        let font_size = text_c.font_size.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size);
+        let font_size = text_c.font_size.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size)[1];
         
         let mut quad_scale = Vec2::new(font_size * font.character_ratio, font_size);
 

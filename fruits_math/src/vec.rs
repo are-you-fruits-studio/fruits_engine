@@ -55,6 +55,10 @@ macro_rules! vec_impl {
                 }
             }
             #[inline]
+            pub fn from_fn(f: impl Fn(usize) -> T) -> Self {
+                Self::from_array(std::array::from_fn(f))
+            }
+            #[inline]
             pub fn map<U>(self, f: impl Fn(T) -> U) -> $V<U> {
                 $V::<U>::from_array(self.into_array().map(f))
             }
@@ -295,7 +299,7 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Primitive> Index<usize> for $V<T> {
+        impl<T> Index<usize> for $V<T> {
             type Output = T;
         
             #[inline]
@@ -304,7 +308,7 @@ macro_rules! vec_impl {
             }
         }
 
-        impl<T: Primitive> IndexMut<usize> for $V<T> {
+        impl<T> IndexMut<usize> for $V<T> {
             #[inline]
             fn index_mut(&mut self, i: usize) -> &mut Self::Output {
                 &mut self.as_array_mut()[i]

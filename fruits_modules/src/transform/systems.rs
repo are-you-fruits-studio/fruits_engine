@@ -4,7 +4,7 @@ use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}, UiDirection};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}, UiDirection, UiVal};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
@@ -126,18 +126,15 @@ pub fn calculate_global_transform(
                 Some(&parent_global_transform) => parent_global_transform,
             };
 
-            // todo: Check geometry operations
-            // {
-
             let Some(&local_transform) = local_transform_q.get(ent) else {
-                return;
+                continue;
             };
             let Some(global_transform) = global_transform_q.get_mut(ent) else {
-                return;
+                continue;
             };
+
             global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
             global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Mat3::scale(local_transform.scale));
-            // }
         }
     });
 }
@@ -151,7 +148,13 @@ pub fn precalculate_global_rect_hierarchy_independent(
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
     for (local_rect, global_rect) in rect_q.iter_mut() {
-        global_rect.scale = LocalRectComponent::calculate_scale_hierarchy_independent(local_rect, window_size);
+        let scale = Vec2::from_fn(|i| {
+            local_rect.scale[i].map(|v| v.into_px_without_parent(window_size).map(|v| v[i]))
+                .flatten()
+                .unwrap_or(0.0)
+        });
+
+        global_rect.scale = scale;
     }
 }
 
@@ -217,21 +220,47 @@ pub fn calculate_global_rect_parent_based(
 
     hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         for &ent in children {
-            let parent_global_rect = match global_rect_q.get(parent) {
-                None => GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 },
-                Some(&parent_global_rect) => parent_global_rect,
-            };
+            let parent_global_rect = global_rect_q.get(parent).copied().unwrap_or(GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 });
 
-            // todo: Check geometry operations
-            // {
-            let Some(&local_rect) = local_rect_q.get(ent) else {
-                return;
+            let Some(local_rect) = local_rect_q.get(ent) else {
+                continue;
             };
             let Some(global_rect) = global_rect_q.get_mut(ent) else {
-                return;
+                continue;
             };
-            *global_rect = LocalRectComponent::calculate_global_rect(&local_rect, &parent_global_rect, window_size, global_rect.scale);
-            // }
+
+            let parent_min = parent_global_rect.center - parent_global_rect.scale * 0.5;
+            let parent_max = parent_global_rect.center + parent_global_rect.scale * 0.5;
+
+            let ui_val_to_px = |v: UiVal| -> Vec2<f32> {
+                v.into_px(parent_global_rect.scale, window_size)
+            };
+
+            
+            let parent_min = parent_min + Vec2::from_fn(|i| ui_val_to_px(local_rect.parent_padding_min[i])[i]);
+            let parent_max = parent_max - Vec2::from_fn(|i| ui_val_to_px(local_rect.parent_padding_max[i])[i]);
+
+            let padded_parent_scale = parent_max - parent_min;
+
+            let ui_val_to_px = |v: UiVal| -> Vec2<f32> {
+                v.into_px(padded_parent_scale, window_size)
+            };
+
+            let final_scale = Vec2::from_fn(|i| {
+                local_rect.scale[i]
+                    .map(|v| ui_val_to_px(v)[i])
+                    .unwrap_or(global_rect.scale[i])
+            });
+
+            let anchored_pos = parent_min.lerp_separately(parent_max, local_rect.anchor);
+            let offset_pos = anchored_pos + Vec2::from_fn(|i| ui_val_to_px(local_rect.offset[i])[i]);
+            let pivoted_center = offset_pos + final_scale * (Vec2::with_all(0.5) - local_rect.pivot);
+
+            *global_rect = GlobalRectComponent {
+                center: pivoted_center,
+                scale: final_scale,
+                z: parent_global_rect.z + local_rect.z,
+            };
         }
     });
 }
@@ -244,17 +273,15 @@ pub fn calculate_global_disableable(
 ) {
     hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         for &ent in children {
-            let parent_global_disableable = match global_disableable_q.get(parent) {
-                None => GlobalDisableableComponent::default(),
-                Some(&parent_global_transform) => parent_global_transform,
-            };
+            let parent_global_disableable = global_disableable_q.get(parent).copied().unwrap_or_default();
 
             let Some(&local_disableable) = local_disableable_q.get(ent) else {
-                return;
+                continue;
             };
             let Some(global_disableable) = global_disableable_q.get_mut(ent) else {
-                return;
+                continue;
             };
+
             global_disableable.is_disabled = parent_global_disableable.is_disabled || local_disableable.is_disabled;
         }
     });
@@ -304,9 +331,9 @@ fn hierarchy_iter_breadth_first_parent_to_child(
 }
 
 /// f(optional parent, children)
-fn hierarchy_iter_depth_first_parent_to_child(
+fn hierarchy_iter_depth_first_parent_to_child<R>(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, &[Entity]),
+    mut f: impl FnMut(Entity, &[Entity]) -> R,
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
         if is_moving_to_root {
@@ -333,9 +360,9 @@ fn hierarchy_iter_depth_first_parent_to_child(
 }
 
 /// f(optional parent, children)
-fn hierarchy_iter_depth_first_child_to_parent(
+fn hierarchy_iter_depth_first_child_to_parent<R>(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, &[Entity]),
+    mut f: impl FnMut(Entity, &[Entity]) -> R,
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
         if !is_moving_to_root {
@@ -362,9 +389,9 @@ fn hierarchy_iter_depth_first_child_to_parent(
 }
 
 /// f(src, dst, is_moving_to_root)
-fn hierarchy_iter_depth_first(
+fn hierarchy_iter_depth_first<R>(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, Entity, bool),
+    mut f: impl FnMut(Entity, Entity, bool) -> R,
 ) {
     let roots = q.iter()
         .filter_map(|(e, c, _p)| {

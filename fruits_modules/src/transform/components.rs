@@ -83,90 +83,46 @@ impl Default for LocalRectComponent {
         }
     }
 }
-impl LocalRectComponent {
-    pub fn calculate_global_rect(
-        local_rect: &LocalRectComponent,
-        parent_rect: &GlobalRectComponent,
-        window_size: Vec2<f32>,
-        child_based_scale: Vec2<f32>,
-    ) -> GlobalRectComponent {
-        let parent_min = parent_rect.center - parent_rect.scale * 0.5;
-        let parent_max = parent_rect.center + parent_rect.scale * 0.5;
-
-        let ui_val_to_px = |v: UiVal| -> f32 {
-            v.into_px(parent_rect.scale, window_size)
-        };
-
-        let parent_min = parent_min + local_rect.parent_padding_min.map(ui_val_to_px);
-        let parent_max = parent_max - local_rect.parent_padding_max.map(ui_val_to_px);
-
-        let padded_parent_scale = parent_max - parent_min;
-
-        let ui_val_to_px = |v: UiVal| -> f32 {
-            v.into_px(padded_parent_scale, window_size)
-        };
-
-        let final_scale = local_rect.scale.zip(child_based_scale, |x, c| x.map(ui_val_to_px).unwrap_or(*c));
-
-        let anchored_pos = parent_min.lerp_separately(parent_max, local_rect.anchor);
-        let offset_pos = anchored_pos + local_rect.offset.map(ui_val_to_px);
-        let pivoted_center = offset_pos + final_scale * (Vec2::with_all(0.5) - local_rect.pivot);
-
-        GlobalRectComponent {
-            center: pivoted_center,
-            scale: final_scale,
-            z: parent_rect.z + local_rect.z,
-        }
-    }
-
-    pub fn calculate_scale_hierarchy_independent(
-        local_rect: &LocalRectComponent,
-        window_size: Vec2<f32>,
-    ) -> Vec2<f32> {
-        let ui_val_to_px = |v: UiVal| -> f32 {
-            v.into_px_without_parent(window_size).unwrap_or(0.0)
-        };
-
-        let scale = local_rect.scale.map(|x| x.map(ui_val_to_px).unwrap_or(0.0));
-
-        scale
-    }
-}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum UiVal {
     Px(f32),
     Pw(f32),
     Ph(f32),
+    Pd(f32),
     Pmin(f32),
     Pmax(f32),
     Vw(f32),
     Vh(f32),
+    Vd(f32),
     Vmin(f32),
     Vmax(f32),
 }
 impl UiVal {
-    pub fn into_px(self, parent_size: Vec2<f32>, view_size: Vec2<f32>) -> f32 {
+    pub fn into_px(self, parent_size: Vec2<f32>, view_size: Vec2<f32>) -> Vec2<f32> {
         match self {
-            UiVal::Px(v) => v,
-            UiVal::Pw(v) => parent_size.x * v,
-            UiVal::Ph(v) => parent_size.y * v,
-            UiVal::Pmin(v) => f32::min(parent_size.x, parent_size.y) * v,
-            UiVal::Pmax(v) => f32::max(parent_size.x, parent_size.y) * v,
-            UiVal::Vw(v) => view_size.x * v,
-            UiVal::Vh(v) => view_size.y * v,
-            UiVal::Vmin(v) => f32::min(view_size.x, view_size.y) * v,
-            UiVal::Vmax(v) => f32::max(view_size.x, view_size.y) * v,
+            UiVal::Px(v) => Vec2::with_all(v),
+            UiVal::Pw(v) => Vec2::with_all(parent_size.x * v),
+            UiVal::Ph(v) => Vec2::with_all(parent_size.y * v),
+            UiVal::Pd(v) => parent_size * v,
+            UiVal::Pmin(v) => Vec2::with_all(f32::min(parent_size.x, parent_size.y) * v),
+            UiVal::Pmax(v) => Vec2::with_all(f32::max(parent_size.x, parent_size.y) * v),
+            UiVal::Vw(v) => Vec2::with_all(view_size.x * v),
+            UiVal::Vh(v) => Vec2::with_all(view_size.y * v),
+            UiVal::Vd(v) => view_size * v,
+            UiVal::Vmin(v) => Vec2::with_all(f32::min(view_size.x, view_size.y) * v),
+            UiVal::Vmax(v) => Vec2::with_all(f32::max(view_size.x, view_size.y) * v),
         }
     }
 
-    pub fn into_px_without_parent(self, view_size: Vec2<f32>) -> Option<f32> {
+    pub fn into_px_without_parent(self, view_size: Vec2<f32>) -> Option<Vec2<f32>> {
         Some(match self {
-            UiVal::Px(v) => v,
-            UiVal::Vw(v) => view_size.x * v,
-            UiVal::Vh(v) => view_size.y * v,
-            UiVal::Vmin(v) => f32::min(view_size.x, view_size.y) * v,
-            UiVal::Vmax(v) => f32::max(view_size.x, view_size.y) * v,
+            UiVal::Px(v) => Vec2::with_all(v),
+            UiVal::Vw(v) => Vec2::with_all(view_size.x * v),
+            UiVal::Vh(v) => Vec2::with_all(view_size.y * v),
+            UiVal::Vd(v) => view_size * v,
+            UiVal::Vmin(v) => Vec2::with_all(f32::min(view_size.x, view_size.y) * v),
+            UiVal::Vmax(v) => Vec2::with_all(f32::max(view_size.x, view_size.y) * v),
             _ => return None,
         })
     }
