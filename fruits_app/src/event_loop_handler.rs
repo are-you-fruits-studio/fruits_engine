@@ -93,14 +93,7 @@ impl ApplicationHandler for EventLoopHandler {
         }
 
         match event {
-            WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
-                event: KeyEvent {
-                    state: ElementState::Pressed,
-                    physical_key: PhysicalKey::Code(KeyCode::Escape),
-                    ..
-                },
-                ..
-            } => event_loop.exit(),
+            WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::CursorMoved { position, .. } => {
                 let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
 
