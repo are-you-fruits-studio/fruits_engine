@@ -14,7 +14,9 @@ impl World {
     }
 
     pub fn execute_iteration(&mut self, schedule: Schedule) {
+        // println!("ayf: iteration {:?} start", schedule);
         self.behavior.get(schedule).execute_iteration(&mut self.data);
+        // println!("ayf: iteration {:?} end", schedule);
     }
 
     pub fn data(&mut self) -> &mut WorldData {

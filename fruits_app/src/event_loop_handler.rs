@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fruits_ecs::{Schedule, World, WorldBuilder};
 use wgpu::*;
-use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent}, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{WindowAttributes, WindowId}};
+use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, WindowEvent}, event_loop::ActiveEventLoop, keyboard::PhysicalKey, window::{WindowAttributes, WindowId}};
 
 use crate::{render_app_state::RenderAppState, InputResource, RenderStateResource};
 
@@ -139,6 +139,7 @@ impl ApplicationHandler for EventLoopHandler {
                 render_state.surface().configure(&render_state.device(), render_state.surface_config());
             }
             WindowEvent::RedrawRequested => {
+                // println!("ayf: redraw start");
                 world.execute_iteration(Schedule::Update);
 
                 world.data().events_mut().clear();
@@ -149,6 +150,7 @@ impl ApplicationHandler for EventLoopHandler {
 
                 let render_state = world.data().resources_mut().get_mut::<RenderStateResource>().unwrap();
                 render_state.window().request_redraw();
+                // println!("ayf: redraw end");
             }
             WindowEvent::Destroyed => {
                 // todo

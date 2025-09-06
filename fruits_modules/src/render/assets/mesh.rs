@@ -1,6 +1,11 @@
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use wgpu::{util::DeviceExt, Buffer, Device};
 
+pub struct StandardMeshData {
+    pub vertices: Vec<StandardVertex>,
+    pub indices: Vec<u16>,
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug)]
 pub struct StandardVertex {

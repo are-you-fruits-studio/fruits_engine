@@ -11,3 +11,4 @@ name = "fruits_reflection_example"
 path = "src/main.rs"
 
 [dependencies]
+fruits_reflection_macros = { path = "../fruits_reflection_macros" }

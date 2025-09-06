@@ -106,3 +106,6 @@ impl Default for LocalDisableableComponent {
         }
     }
 }
+
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
+pub struct ChildrenRectMaskComponent;

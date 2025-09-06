@@ -1,13 +1,13 @@
 use core::f32;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use fruits_app::RenderStateResource;
-use fruits_ecs::{ExclusiveWorldAccess, Res, ResMut, WorldData, WorldQuery};
+use fruits_ecs::{Entity, ExclusiveWorldAccess, Res, ResMut, WithFilter, WorldData, WorldQuery};
 use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
 
-use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}};
+use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
@@ -719,6 +719,63 @@ pub fn update_image_batched_mesh(
             },
         }
     }
+}
+
+pub fn update_masked_batched_mesh(
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    mask_q: WorldQuery<&GlobalRectComponent, WithFilter<ChildrenRectMaskComponent>>,
+    mut mesh_q: WorldQuery<&mut BatchedMeshComponent>,
+) {
+    let mut masked = HashMap::<Entity, GlobalRectComponent>::new();
+
+    crate::transform::utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |e, c| {
+        let parent_mask = masked.remove(&e);
+
+        for &child in c {
+            let child_mask = mask_q.get(child);
+
+            let rect = match (parent_mask, child_mask) {
+                (None, None) => continue,
+                (Some(m), None) => m,
+                (None, Some(&m)) => m,
+                (Some(p), Some(c)) => {
+                    let min = (p.center - p.scale * 0.5).zip_copied(c.center - c.scale * 0.5, f32::max);
+                    let max = (p.center + p.scale * 0.5).zip_copied(c.center + c.scale * 0.5, f32::min);
+
+                    let mut center = (min + max) * 0.5;
+                    let mut scale = max - min;
+
+                    // if scale.map(|s| s < 0.0).any() {
+                    //     center = Vec2::splat(0.0);
+                    //     scale = Vec2::splat(0.0);
+                    // }
+                    
+                    GlobalRectComponent {
+                        center,
+                        scale,
+                        z: 0.0,
+                    }
+                }
+            };
+
+            masked.insert(child, rect);
+
+            let min = rect.center - rect.scale * 0.5;
+            let max = rect.center + rect.scale * 0.5;
+
+            // todo: Use proper masking.
+            if let Some(mesh) = mesh_q.get_mut(child) {
+                for vertex in &mut mesh.vertices {
+                    let mut pos = Vec3::from_array(vertex.position).xy();
+
+                    pos = pos.zip_copied(min, f32::max);
+                    pos = pos.zip_copied(max, f32::min);
+
+                    vertex.position = [pos.x, pos.y, vertex.position[2]];
+                }
+            }
+        }
+    });
 }
 
 pub fn request_surface_texture(

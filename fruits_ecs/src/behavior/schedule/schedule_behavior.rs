@@ -54,14 +54,13 @@ impl ScheduleBehavior {
                     let job = move || {
                         let system = &systems[system_index];
                         let system_data = &system_datas[system_index];
-                    
+
                         {
                             let input = SystemInput {
                                 world_data: data,
                                 system_data: &mut system_data.try_lock().ok().unwrap(),
                             };
-                        
-                            
+
                             // Safety. Access is managed by OrderGraph and data usage.
                             unsafe {
                                 system.execute(&input);

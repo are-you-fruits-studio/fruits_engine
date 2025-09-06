@@ -1,10 +1,8 @@
-use std::collections::VecDeque;
-
 use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
@@ -119,7 +117,7 @@ pub fn calculate_global_transform(
     local_transform_q: WorldQuery<&LocalTransform>,
     mut global_transform_q: WorldQuery<&mut GlobalTransform>,
 ) {
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+    utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         for &ent in children {
             let parent_global_transform = match global_transform_q.get(parent) {
                 None => GlobalTransform::IDENTITY,
@@ -168,7 +166,7 @@ pub fn precalculate_global_rect_children_based(
     let window_size: [i32; 2] = render_state.size().into();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |parent, children| {
+    utils::hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |parent, children| {
         let Some((&local_rect, align_c)) = local_rect_q.get(parent) else {
             return;
         };
@@ -239,7 +237,7 @@ pub fn calculate_global_rect_parent_based(
     let window_size: [u32; 2] = render_state.size().into();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+    utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         for &ent in children {
             let parent_global_rect = global_rect_q.get(parent).copied().unwrap_or(GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 });
 
@@ -295,7 +293,7 @@ pub fn align_rect_children(
     let window_size: [i32; 2] = render_state.size().into();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+    utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         if children.is_empty() {
             return;
         }
@@ -398,7 +396,7 @@ pub fn calculate_global_disableable(
     local_disableable_q: WorldQuery<&LocalDisableableComponent>,
     mut global_disableable_q: WorldQuery<&mut GlobalDisableableComponent>,
 ) {
-    hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
+    utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         for &ent in children {
             let parent_global_disableable = global_disableable_q.get(parent).copied().unwrap_or_default();
 
@@ -412,165 +410,4 @@ pub fn calculate_global_disableable(
             global_disableable.is_disabled = parent_global_disableable.is_disabled || local_disableable.is_disabled;
         }
     });
-}
-
-fn hierarchy_iter_breadth_first_parent_to_child(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, Entity),
-) {
-    let mut ents_to_calc = q.iter()
-        .filter_map(|(e, c, _p)| {
-            let Some(child_component) = c else {
-                return Some((e, Entity::EMPTY));
-            };
-
-            if q.get(child_component.parent).is_none() {
-                return Some((e, Entity::EMPTY));
-            }
-            
-            None
-        })
-        .collect::<VecDeque<_>>();
-
-    while let Some((entity, parent)) = ents_to_calc.pop_front() {
-        let entity_parent_c = q.get(entity).unwrap().2;
-
-        if let Some(entity_parent_c) = entity_parent_c {
-            for &child in entity_parent_c.children.iter() {
-                if child == entity {
-                    continue;
-                }
-
-                let Some(child_child_c) = q.get(child).unwrap().1 else {
-                    continue;
-                };
-
-                if child_child_c.parent != entity {
-                    continue;
-                }
-
-                ents_to_calc.push_back((child, entity));
-            }
-        };
-
-        f(entity, parent);
-    }
-}
-
-/// f(optional parent, children)
-fn hierarchy_iter_depth_first_parent_to_child<R>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, &[Entity]) -> R,
-) {
-    hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
-        if is_moving_to_root {
-            // moving child_to_parent
-            return;
-        }
-
-        if q.get(src).is_none() {
-            // src does not exist - dst is root. Dst as child
-            f(Entity::EMPTY, &[dst]);
-        }
- 
-        let Some((_, _, p)) = q.get(dst) else {
-            // dst does not exist - src is root. Imposible while moving parent_to_child
-            return;
-        };
-
-        // dst as parent
-        let children = p
-            .map(|p| p.children.as_slice()).unwrap_or(&[]);
-
-        f(dst, children);
-    })
-}
-
-/// f(optional parent, children)
-fn hierarchy_iter_depth_first_child_to_parent<R>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, &[Entity]) -> R,
-) {
-    hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
-        if !is_moving_to_root {
-            // moving parent_to_child
-            return;
-        }
- 
-        let Some((_, _, p)) = q.get(src) else {
-            // src does not exist - dst is root. Imposible while moving child_to_parent
-            return;
-        };
-
-        // src as parent
-        let children = p
-            .map(|p| p.children.as_slice()).unwrap_or(&[]);
-
-        f(src, children);
-
-        if q.get(dst).is_none() {
-            // dst does not exist - src is root. Src as child
-            f(Entity::EMPTY, &[src]);
-        }
-    })
-}
-
-/// f(src, dst, is_moving_to_root)
-fn hierarchy_iter_depth_first<R>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, Entity, bool) -> R,
-) {
-    let roots = q.iter()
-        .filter_map(|(e, c, _p)| {
-            let Some(child_component) = c else {
-                return Some(e);
-            };
-
-            if q.get(child_component.parent).is_none() {
-                return Some(e);
-            }
-            
-            None
-        })
-        .collect::<Vec<_>>();
-
-    let get_children = |ent| -> &[Entity] {
-        let Some(p) = q.get(ent).map(|t| t.2).flatten() else {
-            return &[];
-        };
-        p.children.as_slice()
-    };
-
-    let mut stack = VecDeque::<(Entity, usize)>::new();
-
-    for root in roots {
-        f(Entity::EMPTY, root, false);
-
-        let mut entity = root;
-        let mut child_idx_to_check = 0;
-
-        loop {
-            let children = get_children(entity);
-
-            if child_idx_to_check < children.len() {
-                stack.push_back((entity, child_idx_to_check + 1));
-                let child_entity = children[child_idx_to_check];
-                f(entity, child_entity, false);
-                entity = child_entity;
-                child_idx_to_check = 0;
-                continue;
-            }
-
-            // todo: handle root
-            if let Some((parent_ent, parent_idx_to_check)) = stack.pop_back() {
-                f(entity, parent_ent, true);
-                entity = parent_ent;
-                child_idx_to_check = parent_idx_to_check;
-                continue;
-            }
-
-            f(entity, Entity::EMPTY, true);
-            break;
-        }
-    }
 }

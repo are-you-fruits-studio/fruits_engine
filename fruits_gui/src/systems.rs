@@ -2,7 +2,7 @@ use std::{net::{SocketAddr, TcpStream}, time::{Duration, Instant}};
 
 use fruits_engine::{prelude::*, utils::index_version_collection::VersionIndex};
 use fruits_debug::{msg_types, DebugConnectionResource};
-use fruits_reflection::refl_repr::*;
+use fruits_reflection::*;
 
 use crate::{events::HierarchyUpdateEvent, resources::{AssetsResource, RequestsResource}};
 

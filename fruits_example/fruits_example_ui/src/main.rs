@@ -83,6 +83,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent2, ImageComponent::default()).ok().unwrap();
+    ec.add_component(ent2, ChildrenRectMaskComponent).ok().unwrap();
 
     ec.add_component(ent3, ChildComponent { parent: ent2, }).ok().unwrap();
     ec.add_component(ent3, ParentComponent { children: vec![ent4], }).ok().unwrap();
@@ -110,7 +111,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     }).ok().unwrap();
     ec.add_component(ent4, TextComponent {
         font: font.clone(),
-        font_size: UiVal::Vh(0.1),
+        font_size: UiVal::Vh(0.15),
         text: String::from("Dashunia - myla pinhvinka"),
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Bottom,

@@ -1,5 +1,5 @@
 
-use fruits_reflection::{refl_map::{ReflMapStruct, ReflMapStructField, ReflMapType}, refl_repr::{ReflRepr, ReflReprPrimitive, ReflReprStruct, ReflReprFields}, refl_ty::{ReflTy, ReflTyId, ReflTyStruct}};
+use fruits_reflection::{ReflMapStruct, ReflMapStructField, ReflMapType, ReflRepr, ReflReprFields, ReflReprPrimitive, ReflReprStruct, ReflTy, ReflTyId, ReflTyStruct, ReflectTy};
 
 fn main() {
     fruits_reflection::registry_use_case()
@@ -53,7 +53,7 @@ fn use_case_repr() {
 
 //
 
-#[derive(Debug)]
+#[derive(Debug, ReflectTy)]
 struct ExampleStruct {
     pub age: u8,
     pub name: String,

@@ -20,7 +20,7 @@ impl EntitiesComponentsHolderUnsafe {
     pub unsafe fn query<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a self) -> EntitiesComponentsQuery<'a, A, F> {
         // Safety. Managed by caller.
         unsafe {
-            EntitiesComponentsQuery::new(self)
+            EntitiesComponentsQuery::<'a, A, F>::new(self)
         }
     }
 
@@ -312,9 +312,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
         for archetype_id in archetypes_with_rarest_component.iter() {
             let archetype = data.archetypes.by_id_ref(*archetype_id).unwrap();
             
-            let contains_all_components = required_components.clone().all(|c| {
-                archetype.contains_component_type(c)
-            });
+            let contains_all_components = required_components.clone().all(|c| archetype.contains_component_type(c));
 
             // Archetypes that are missing any required component are skipped.
             if contains_all_components && F::matches(archetype.layout()) {
@@ -373,6 +371,10 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
 
         let archetype = self.data.archetypes.by_id_ref(location.archetype_id)?;
 
+        if !F::matches(archetype.layout()) {
+            return None;
+        }
+
         <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::from_archetype(
             location.entity_archetype_index,
             unsafe { archetype.unsafe_archetype() },
@@ -386,6 +388,10 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesComponentsQuery<'d, A
         let location = self.data.entity_datas.get(entity)?;
 
         let archetype = self.data.archetypes.by_id_ref(location.archetype_id)?;
+
+        if !F::matches(archetype.layout()) {
+            return None;
+        }
 
         <A::Item<'static> as ArchetypeIteratorItem>::from_archetype(
             location.entity_archetype_index,
