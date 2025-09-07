@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::VecDeque};
 
 pub struct VersionCollection<T> {
     items: Vec<DataWithVersion<T>>,
-    free_places: VecDeque<usize>,
+    free_places: VecDeque<u32>,
     // reserved_places: VecDeque<usize>,
     count: usize,
 }
@@ -14,8 +14,8 @@ impl<T> Default for VersionCollection<T> {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VersionIndex {
-    pub index: usize,
-    pub version: usize,
+    pub index: u32,
+    pub version: u32,
 }
 
 impl Ord for VersionIndex {
@@ -34,7 +34,7 @@ impl PartialOrd for VersionIndex {
 }
 
 struct DataWithVersion<T> {
-    pub version: usize,
+    pub version: u32,
     pub data: Option<T>,
 }
 
@@ -49,22 +49,19 @@ impl<T> VersionCollection<T> {
 
     pub fn insert(&mut self, data: T) -> VersionIndex {
         if let Some(index) = self.free_places.pop_front() {
-            let version = self.items[index].version;
+            let item = &mut self.items[index as usize];
 
-            self.items[index] = DataWithVersion::<T> {
-                data: Some(data),
-                version,
-            };
+            item.data = Some(data);
             
-            self.count += 1;
+            self.count = self.count.checked_add(1).unwrap_or_else(|| panic!("VersionCollection count overflow"));
 
             return VersionIndex {
                 index,
-                version,
+                version: item.version,
             }
         }
 
-        let index: usize = self.items.len();
+        let index: u32 = self.items.len().try_into().unwrap_or_else(|_| panic!("VersionCollection count overflow"));
         // entities with version 0 cannot exist.
         let version = 1;
 
@@ -73,7 +70,7 @@ impl<T> VersionCollection<T> {
             version,
         });
 
-        self.count += 1;
+        self.count = self.count.checked_add(1).unwrap_or_else(|| panic!("VersionCollection count overflow"));
         
         VersionIndex {
             index,
@@ -101,7 +98,7 @@ impl<T> VersionCollection<T> {
     }
 
     pub fn get(&self, index: VersionIndex) -> Option<&T> {
-        let data_with_version = self.items.get(index.index)?;
+        let data_with_version = self.items.get(index.index as usize)?;
 
         if index.version != data_with_version.version {
             return None;
@@ -115,7 +112,7 @@ impl<T> VersionCollection<T> {
     }
 
     fn get_data_with_version_mut(&mut self, index: VersionIndex) -> Option<&mut DataWithVersion<T>> {
-        let data_with_version = self.items.get_mut(index.index)?;
+        let data_with_version = self.items.get_mut(index.index as usize)?;
 
         if index.version != data_with_version.version {
             return None;
@@ -125,7 +122,7 @@ impl<T> VersionCollection<T> {
     }
 
     pub fn contains_index(&self, index: VersionIndex) -> bool {
-        let Some(data_with_version) = self.items.get(index.index) else {
+        let Some(data_with_version) = self.items.get(index.index as usize) else {
             return false;
         };
 

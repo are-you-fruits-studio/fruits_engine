@@ -72,8 +72,8 @@ pub fn parse_debug_msg_system(
             let version_bytes: &[u8; 4] = &chunk[4..].try_into().unwrap();
 
             entities.push(Entity::from_version_index(VersionIndex {
-                index: u32::from_le_bytes(*index_bytes) as usize,
-                version: u32::from_le_bytes(*version_bytes) as usize,
+                index: u32::from_le_bytes(*index_bytes),
+                version: u32::from_le_bytes(*version_bytes),
             }));
         }
 
