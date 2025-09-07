@@ -24,10 +24,7 @@ impl ResourcesHolderUnsafe {
         Ok(())
     }
 
-    /// # Safety
-    /// 
-    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by ResourceHolderUnsafe.
-    pub unsafe fn get<R: Resource>(&self) -> Option<*mut R> {
+    pub fn get<R: Resource>(&self) -> Option<*mut R> {
         Some(self.resources.get(&TypeId::of::<R>())?.downcast_ref::<UnsafeCell<R>>().unwrap().get())
     }
 

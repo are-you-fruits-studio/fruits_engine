@@ -1,10 +1,9 @@
-use std::{marker::PhantomData, ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 
 use crate::*;
 
 pub struct Local<'e, S: SystemResource> {
-    data: SystemResourceGuard<S>,
-    _phantom: PhantomData<&'e mut S>,
+    data: &'e mut S,
 }
 
 impl<'e, S: SystemResource> Deref for Local<'e, S> {
@@ -29,9 +28,10 @@ unsafe impl<'e, S: SystemResource> SystemParam for Local<'e, S> {
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
-        Ok(Local {
-            data: input.system_data.get_or_create::<S>(),
-            _phantom: Default::default(),
-        })
+        unsafe {
+            Ok(Local {
+                data: &mut *input.system_data.get_or_create::<S>(),
+            })
+        }
     }
 }

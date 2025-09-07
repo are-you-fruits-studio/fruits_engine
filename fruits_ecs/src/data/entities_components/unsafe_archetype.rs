@@ -20,10 +20,7 @@ impl ChunkHandle {
         }
     }
 
-    /// # Safety
-    /// 
-    /// Unsafe for access - missing lifetimes. But leak-safe - has Drop impl.
-    pub unsafe fn get(&self) -> *mut u8 {
+    pub fn get(&self) -> *mut u8 {
         self.0
     }
 }
@@ -78,8 +75,8 @@ impl UnsafeArchetype {
 
             memory_ptr = memory_ptr.add(memory_ptr.align_offset(location.memory_align));
 
-            let memory_addr = memory_ptr as usize;
-            let chunk_addr = chunk_ptr as usize;
+            let memory_addr = memory_ptr.addr();
+            let chunk_addr = chunk_ptr.addr();
 
             if (memory_addr < chunk_addr) || (memory_addr + location.memory_size - 1 > chunk_addr + CHUNK_SIZE) {
                 panic!("fruits: memory out of bounds access");
