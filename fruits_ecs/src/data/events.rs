@@ -1,4 +1,4 @@
-use std::{any::{Any, TypeId}, cell::UnsafeCell, collections::HashMap};
+use std::{any::{Any, TypeId}, cell::UnsafeCell, collections::HashMap, sync::RwLock};
 
 pub trait Event : 'static + Send + Sync { }
 
@@ -28,47 +28,35 @@ impl<E: Event> AbstractEvents for VirtualEvents<E> {
 }
 
 pub struct EventsHolderUnsafe {
-    events: UnsafeCell<HashMap<TypeId, Box<dyn AbstractEvents>>>,
+    events: RwLock<HashMap<TypeId, Box<dyn AbstractEvents>>>,
 }
 impl EventsHolderUnsafe {
     pub fn new() -> Self {
         Self {
-            events: UnsafeCell::new(HashMap::new()),
+            events: RwLock::new(HashMap::new()),
         }
     }
 
-    /// # Safety
-    /// 
-    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
-    pub unsafe fn get<E: Event>(&self) -> Option<*mut Vec<E>> {
-        unsafe { 
-            let events = &mut *(self.events.get());
+    pub fn get<E: Event>(&self) -> Option<*mut Vec<E>> {
+        let events = &*self.events.read().unwrap();
 
-            Some(events.get(&TypeId::of::<E>())?.cell_as_any().downcast_ref::<UnsafeCell<Vec<E>>>().unwrap().get())
-        }
+        Some(events.get(&TypeId::of::<E>())?.cell_as_any().downcast_ref::<UnsafeCell<Vec<E>>>().unwrap().get())
     }
 
-    /// # Safety
-    /// 
-    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
-    pub unsafe fn get_or_create<E: Event>(&self) -> *mut Vec<E> {
+    pub fn get_or_create<E: Event>(&self) -> *mut Vec<E> {
+        let events = &mut *self.events.write().unwrap();
+
+        events
+            .entry(TypeId::of::<E>())
+            .or_insert_with(|| Box::new(VirtualEvents::<E>::new()))
+            .cell_as_any()
+            .downcast_ref::<UnsafeCell<Vec<E>>>().unwrap().get()
+    }
+
+    pub fn clear(&mut self) {
+        // Safety. Managed by lifetimes.
         unsafe {
-            let events = &mut *(self.events.get());
-
-            events
-                .entry(TypeId::of::<E>())
-                .or_insert_with(|| Box::new(VirtualEvents::<E>::new()))
-                .cell_as_any()
-                .downcast_ref::<UnsafeCell<Vec<E>>>().unwrap().get()
-        }
-    }
-
-    /// # Safety
-    /// 
-    /// Lifetimes and access sync should be managed by caller. Deallocation is managed by EventHolderUnsafe.
-    pub unsafe fn clear(&self) {
-        unsafe {
-            let events = &mut *(self.events.get());
+            let events = &mut *self.events.write().unwrap();
 
             for values in events.values() {
                 values.clear();
@@ -123,9 +111,6 @@ impl EventsHolder {
         }
     }
     pub fn clear(&mut self) {
-        // Safety. Lifetimes manage the access and syncing.
-        unsafe {
-            self.events.clear();
-        }
+        self.events.clear();
     }
 }
