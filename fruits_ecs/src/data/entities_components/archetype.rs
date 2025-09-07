@@ -69,7 +69,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: false, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails { is_mutable: false, is_required: true }));
     }
 }
 
@@ -124,7 +124,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: true, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails { is_mutable: true, is_required: true }));
     }
 }
 
@@ -188,7 +188,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: false, is_required: false }));
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails { is_mutable: false, is_required: false }));
     }
 }
 
@@ -252,7 +252,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails{ is_mutable: true, is_required: false }));
+        usage.add(DataUsageEntry::new_static::<C>(DataUsageDetails { is_mutable: true, is_required: false }));
     }
 }
 
@@ -303,7 +303,7 @@ unsafe impl ArchetypeIteratorItem for Entity {
     }
     
     fn fill_usage(usage: &mut PerTypeDataUsage) {
-        usage.add(DataUsageEntry::new_static::<Entity>(DataUsageDetails{ is_mutable: false, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<Entity>(DataUsageDetails { is_mutable: false, is_required: true }));
     }
     
 }

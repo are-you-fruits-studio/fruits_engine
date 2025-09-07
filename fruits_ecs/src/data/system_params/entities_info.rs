@@ -18,13 +18,13 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
     type Item<'b> = EntitiesInfo<'b>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_static::<Entity>(DataUsageDetails{ is_mutable: false, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<Entity>(DataUsageDetails { is_mutable: false, is_required: true }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(EntitiesInfo {
             // Safety. Managed by caller
-            ec: unsafe { input.world_data.entities_components() },
+            ec: unsafe { &*input.world_data.entities_components() },
         })
     }
 }

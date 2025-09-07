@@ -24,13 +24,13 @@ unsafe impl<'e, R: Resource> SystemParam for ResMut<'e, R> {
     type Item<'b> = ResMut<'b, R>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_static::<R>(DataUsageDetails{ is_mutable: true, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<R>(DataUsageDetails { is_mutable: true, is_required: true }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(ResMut {
             // Safety. Managed by caller.
-            res: unsafe { &mut *input.world_data.resources().get::<R>().ok_or("Resource missing.")? },
+            res: unsafe { &mut *(&*input.world_data.resources()).get::<R>().ok_or("Resource missing.")? },
         })
     }
 }
@@ -39,13 +39,13 @@ unsafe impl<'e, R: Resource> SystemParam for Option<ResMut<'e, R>> {
     type Item<'b> = Option<ResMut<'b, R>>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_static::<R>(DataUsageDetails{ is_mutable: true, is_required: false }));
+        usage.add(DataUsageEntry::new_static::<R>(DataUsageDetails { is_mutable: true, is_required: false }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
             // Safety. Managed by caller.
         Ok(unsafe {
-            input.world_data.resources().get::<R>().map(|r| { ResMut { res: &mut *r }})
+            (&*input.world_data.resources()).get::<R>().map(|r| { ResMut { res: &mut *r }})
         })
     }
 }

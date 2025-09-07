@@ -50,7 +50,7 @@ unsafe impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> SystemParam for WorldQ
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(WorldQuery {
             // Safety. Managed by caller.
-            q: unsafe { input.world_data.entities_components().query::<A::Item<'_>, F>() },
+            q: unsafe { (&*input.world_data.entities_components()).query::<A::Item<'_>, F>() },
         })
     }
 }

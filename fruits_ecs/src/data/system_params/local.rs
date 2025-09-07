@@ -25,7 +25,7 @@ unsafe impl<'e, S: SystemResource> SystemParam for Local<'e, S> {
     type Item<'b> = Local<'b, S>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_static::<S>(DataUsageDetails{ is_mutable: true, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<S>(DataUsageDetails { is_mutable: true, is_required: true }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {

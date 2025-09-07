@@ -23,13 +23,13 @@ unsafe impl<'e, E: Event> SystemParam for EvtMut<'e, E> {
     type Item<'b> = EvtMut<'b, E>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        usage.add(DataUsageEntry::new_static::<E>(DataUsageDetails{ is_mutable: true, is_required: true }));
+        usage.add(DataUsageEntry::new_static::<E>(DataUsageDetails { is_mutable: true, is_required: true }));
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(EvtMut {
             // Safety. Managed by caller.
-            evt: unsafe { &mut *input.world_data.events().get_or_create::<E>() },
+            evt: unsafe { &mut *(&*input.world_data.events()).get_or_create::<E>() },
         })
     }
 }
