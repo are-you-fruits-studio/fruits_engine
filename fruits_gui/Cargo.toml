@@ -4,7 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-fruits_serialization = { path = "../fruits_serialization" }
 fruits_engine = { path = "../../fruits_engine" }
-fruits_reflection = { path = "../fruits_reflection" }
-fruits_debug = { path = "../fruits_debug" }

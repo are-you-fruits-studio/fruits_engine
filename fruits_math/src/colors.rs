@@ -1,3 +1,4 @@
+// todo: to proc macros
 #[macro_export]
 macro_rules! rgb_u8 {
     ($v: literal) => {

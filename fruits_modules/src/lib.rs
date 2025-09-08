@@ -11,6 +11,11 @@ pub use render::*;
 pub use transform::*;
 pub use collision::*;
 
+pub mod utils {
+    pub use crate::render::utils::*;
+    pub use crate::transform::utils::*;
+}
+
 pub fn add_defult_modules_to(world: &mut WorldBuilder) {
     collision::add_module_to(world);
     transform::add_module_to(world);
