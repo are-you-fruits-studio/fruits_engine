@@ -20,6 +20,11 @@ pub struct StandardAssetsResource {
 }
 
 #[derive(Resource, Clone, Default)]
+pub struct SelectedFileResource {
+    pub path: OsString,
+}
+
+#[derive(Resource, Clone, Default)]
 pub struct InspectedFileResource {
     pub path: OsString,
 }

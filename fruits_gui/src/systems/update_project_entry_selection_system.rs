@@ -1,7 +1,7 @@
 use crate::*;
 
 pub fn update_project_entry_selection_system(
-    inspected_file: Res<InspectedFileResource>,
+    inspected_file: Res<SelectedFileResource>,
     mut entry_q: WorldQuery<(&ProjectWindowEntryComponent, &mut ImageComponent)>,
 ) {
     for (entry_c, image_c) in entry_q.iter_mut() {

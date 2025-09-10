@@ -1,4 +1,4 @@
-use crate::json_reflection::{JsonObject, JsonValue};
+use crate::json_repr::{JsonObject, JsonValue};
 
 const NULL_CHARS: &[char] = &['n', 'u', 'l', 'l'];
 
@@ -26,12 +26,12 @@ enum State {
 
 // todo: return some info about errors
 impl JsonValue {
-    pub fn parse(chars: &mut impl Iterator<Item = char>) -> JsonValue {
+    pub fn parse(chars: &mut impl Iterator<Item = char>) -> Option<JsonValue> {
         to_json_peekable(&mut chars.peekable())
     }
 }
 
-fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&mut I>) -> JsonValue {
+fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&mut I>) -> Option<JsonValue> {
     let mut state = State::None;
 
     loop {
@@ -39,7 +39,7 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
             match state {
                 State::None => {
                     let Some(c) = chars.next() else {
-                        panic!("invalid JSON");
+                        return None;
                     };
 
                     if c.is_whitespace() {
@@ -78,41 +78,41 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                         break 'm State::InsideArray(Vec::new(), InsideArrayState::Element);
                     }
 
-                    panic!("invalid JSON");
+                    return None;
                 },
                 State::InsideNull { matching_chars } => {
                     let Some(c) = chars.next() else {
-                        panic!("invalid JSON");
+                        return None;
                     };
 
                     if matching_chars >= (NULL_CHARS.len() - 1) {
-                        return JsonValue::Null;
+                        return Some(JsonValue::Null);
                     }
 
                     if c == NULL_CHARS[matching_chars] {
                         break 'm State::InsideNull { matching_chars: matching_chars + 1 };
                     }
 
-                    panic!("invalid JSON");
+                    return None;
                 },
                 State::InsideBool { result, compared_chars, matching_chars } => {
                     let Some(c) = chars.next() else {
-                        panic!("invalid JSON");
+                        return None;
                     };
 
                     if matching_chars >= (NULL_CHARS.len() - 1) {
-                        return JsonValue::Bool(result);
+                        return Some(JsonValue::Bool(result));
                     }
                     
                     if c == compared_chars[matching_chars] {
                         break 'm State::InsideBool { result, compared_chars, matching_chars: matching_chars + 1 };
                     }
 
-                    panic!("invalid JSON");
+                    return None;
                 },
                 State::InsideNumber { mut buf, mut contains_dot } => {
                     let Some(c) = chars.next() else {
-                        panic!("invalid JSON");
+                        return None;
                     };
                     
                     if c.is_ascii_digit() {
@@ -121,16 +121,16 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                         buf.push(c);
                         contains_dot = true;
                     } else {
-                        panic!("invalid JSON");
+                        return None;
                     }
 
                     let should_exit = chars.peek().map(|nc| !nc.is_ascii_digit() && *nc != '.').unwrap_or(true);
 
                     if should_exit {
                         if contains_dot {
-                            return JsonValue::Float(buf.parse().unwrap())
+                            return Some(JsonValue::Float(buf.parse().ok()?))
                         } else {
-                            return JsonValue::Int(buf.parse().unwrap())
+                            return Some(JsonValue::Int(buf.parse().ok()?))
                         }
                     } else {
                         break 'm State::InsideNumber { buf, contains_dot };
@@ -138,11 +138,11 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                 },
                 State::InsideString { mut buf } => {
                     let Some(c) = chars.next() else {
-                        panic!("invalid JSON");
+                        return None;
                     };
                     
                     if c == '"' {
-                        return JsonValue::String(buf);
+                        return Some(JsonValue::String(buf));
                     }
 
                     buf.push(c);
@@ -152,7 +152,7 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                     match inside_object_state {
                         InsideObjectState::BetweenFields => {
                             let Some(c) = chars.next() else {
-                                panic!("invalid JSON");
+                                return None;
                             };
                             
                             if c.is_whitespace() {
@@ -160,18 +160,18 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                             }
 
                             if c == '}' {
-                                return JsonValue::Object(JsonObject::new());
+                                return Some(JsonValue::Object(JsonObject::new()));
                             }
 
                             if c == '"' {
                                 break 'm State::InsideObject(json_object, InsideObjectState::FieldName(String::new()));
                             }
 
-                            panic!("invalid JSON");
+                            return None;
                         },
                         InsideObjectState::FieldName(mut name) => {
                             let Some(c) = chars.next() else {
-                                panic!("invalid JSON");
+                                return None;
                             };
                             
                             if c == '"' {
@@ -184,7 +184,7 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                         },
                         InsideObjectState::FieldBeforeColon(name) => {
                             let Some(c) = chars.next() else {
-                                panic!("invalid JSON");
+                                return None;
                             };
                             
                             if c.is_whitespace() {
@@ -193,15 +193,15 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
 
                             if c == ':' {
                                 // todo: remove recursion.
-                                json_object.push_field(name, to_json_peekable(chars)).ok().unwrap_or_else(|| panic!("invalid JSON"));
+                                json_object.push_field(name, to_json_peekable(chars)?).ok()?;
                                 break 'm State::InsideObject(json_object, InsideObjectState::FieldAfterValue);
                             }
 
-                            panic!("invalid JSON");
+                            return None;
                         },
                         InsideObjectState::FieldAfterValue => {
                             let Some(c) = chars.next() else {
-                                panic!("invalid JSON");
+                                return None;
                             };
                             
                             if c.is_whitespace() {
@@ -213,10 +213,10 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                             }
 
                             if c == '}' {
-                                return json_object.into();
+                                return Some(json_object.into());
                             }
 
-                            panic!("invalid JSON");
+                            return None;
                         },
                     }
                 },
@@ -224,20 +224,20 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                     match inside_array_state {
                         InsideArrayState::Element => {
                             let Some(&nc) = chars.peek() else {
-                                panic!("invalid JSON");
+                                return None;
                             };
 
                             if nc == ']' {
                                 chars.next();
-                                return JsonValue::Array(json_array);
+                                return Some(JsonValue::Array(json_array));
                             }
                             // todo: remove recursion.
-                            json_array.push(to_json_peekable(chars));
+                            json_array.push(to_json_peekable(chars)?);
                             break 'm State::InsideArray(json_array, InsideArrayState::Colon);
                         },
                         InsideArrayState::Colon => {
                             let Some(c) = chars.next() else {
-                                panic!("invalid JSON");
+                                return None;
                             };
 
                             if c.is_whitespace() {
@@ -249,10 +249,10 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                             }
 
                             if c == ']' {
-                                return JsonValue::Array(json_array);
+                                return Some(JsonValue::Array(json_array));
                             }
 
-                            panic!("invalid JSON");
+                            return None;
                         },
                     }
                 }

@@ -1,11 +1,13 @@
 use std::fmt::Debug;
 
+#[derive(Clone)]
 pub enum ReflRepr {
     Struct(ReflReprStruct),
     Enum(ReflReprEnum),
     Primitive(ReflReprPrimitive),
 }
 
+#[derive(Clone)]
 pub enum ReflReprPrimitive {
     Int(i128),
     Float(f64),
@@ -15,17 +17,20 @@ pub enum ReflReprPrimitive {
     Unit,
 }
 
+#[derive(Clone)]
 pub struct ReflReprStruct {
     pub name: String,
     pub fields: ReflReprFields,
 }
 
+#[derive(Clone)]
 pub enum ReflReprFields {
     Unit,
     Tuple(Vec<ReflRepr>),
     Named(Vec<(String, ReflRepr)>),
 }
 
+#[derive(Clone)]
 pub struct ReflReprEnum {
     pub name: String,
     pub variant: String,

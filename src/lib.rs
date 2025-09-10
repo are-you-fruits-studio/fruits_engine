@@ -5,6 +5,8 @@ pub mod prelude {
     pub use fruits_modules::*;
     pub use fruits_utils::*;
     pub use fruits_math::*;
+    pub use fruits_serialization::*;
+    pub use fruits_reflection::*;
 }
 
 pub mod app {
@@ -25,4 +27,12 @@ pub mod utils {
 
 pub mod math {
     pub use fruits_math::*;
+}
+
+pub mod serialization {
+    pub use fruits_serialization::*;
+}
+
+pub mod reflection {
+    pub use fruits_reflection::*;
 }

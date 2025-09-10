@@ -1,15 +1,15 @@
 use std::{hint::black_box, time::Instant};
 
 use dto::Person;
-use fruits_serialization::{json_reflection::{JsonObject, JsonValue}, GlobalSerializer};
+use fruits_serialization::{JsonObject, JsonValue, GlobalSerializer};
 use serializers::{PersonSerializer, ProfileSerializer};
 
 pub fn benchmark_serialization() {
     let mut serializer = GlobalSerializer::new();
 
-    fruits_serialization::terminal::register_default_terminals(&mut serializer);
-    fruits_serialization::terminal::register_self_and_related_default_terminals(&mut serializer, PersonSerializer);
-    fruits_serialization::terminal::register_self_and_related_default_terminals(&mut serializer, ProfileSerializer);
+    fruits_serialization::register_default_terminals(&mut serializer);
+    fruits_serialization::register_self_and_related_default_terminals(&mut serializer, PersonSerializer);
+    fruits_serialization::register_self_and_related_default_terminals(&mut serializer, ProfileSerializer);
 
     let count = 1000;
 
@@ -24,7 +24,7 @@ pub fn benchmark_serialization() {
 
     println!("deserialization parsing: {}ns", parsing_time.as_nanos() / count);
     
-    let json_value = JsonValue::parse(&mut TYPICAL_JSON.chars());
+    let json_value = JsonValue::parse(&mut TYPICAL_JSON.chars()).unwrap();
     
     let timer = Instant::now();
 
@@ -45,14 +45,14 @@ pub fn benchmark_serialization() {
 pub fn test_serialization() {
     let mut serializer = GlobalSerializer::new();
 
-    fruits_serialization::terminal::register_default_terminals(&mut serializer);
+    fruits_serialization::register_default_terminals(&mut serializer);
     
     serializer.register(PersonSerializer);
     serializer.register(ProfileSerializer);
 
     //
 
-    let sample_struct = serializer.deserialize::<Person>(&JsonValue::parse(&mut TYPICAL_JSON.chars())).unwrap();
+    let sample_struct = serializer.deserialize::<Person>(&JsonValue::parse(&mut TYPICAL_JSON.chars()).unwrap()).unwrap();
 
     let serialized = serializer.serialize(&sample_struct);
 
@@ -60,7 +60,7 @@ pub fn test_serialization() {
 
     //
 
-    let sample_struct = serializer.deserialize_virtual(&JsonValue::parse(&mut TYPICAL_JSON.chars())).unwrap();
+    let sample_struct = serializer.deserialize_virtual(&JsonValue::parse(&mut TYPICAL_JSON.chars()).unwrap()).unwrap();
 
     let serialized = serializer.serialize_virtual(&*sample_struct).unwrap();
 
@@ -112,7 +112,7 @@ mod dto {
 }
 
 mod serializers {
-    use fruits_serialization::{json_reflection::{JsonObject, JsonValue}, *};
+    use fruits_serialization::*;
 
     use super::dto::{Person, Profile};
 

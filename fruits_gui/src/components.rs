@@ -15,3 +15,6 @@ pub struct DebugNameComponent(pub String);
 pub struct ProjectWindowEntryComponent {
     pub path: OsString,
 }
+
+#[derive(Component)]
+pub struct SceneWindowContentComponent;

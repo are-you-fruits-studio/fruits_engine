@@ -37,7 +37,8 @@ fn main() {
             .add_child_system(prepare_ui_raycast_system)
             .add_child_system(check_button_system)
             .add_child_system(select_file_system)
-            .add_child_system(update_project_entry_selection_system);
+            .add_child_system(update_project_entry_selection_system)
+            .add_child_system(inspect_file_system);
 
         update.order_system(update_project_window_content_system).before_group(SYSTEM_GROUP_TRANSFORM);
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_RENDER);
@@ -79,6 +80,7 @@ fn init_system(
 
     res.insert(UiInteractionResource::default()).ok().unwrap();
     res.insert(UiRaycastResource::default()).ok().unwrap();
+    res.insert(SelectedFileResource::default()).ok().unwrap();
     res.insert(InspectedFileResource::default()).ok().unwrap();
 
     res.insert(StandardAssetsResource {

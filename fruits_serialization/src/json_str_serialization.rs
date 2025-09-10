@@ -3,7 +3,7 @@ use std::fmt::{Display, Write};
 // todo: automatic escape symbols
 // todo: support exp and other numeric formats
 
-use crate::json_reflection::JsonValue;
+use crate::*;
 
 #[derive(Copy, Clone)]
 pub struct JsonIndentState {
@@ -37,12 +37,12 @@ pub fn write(v: &JsonValue, w: &mut impl Write, indent_size: Option<usize>) -> R
 }
 
 fn write_preindented(v: &JsonValue, w: &mut impl Write, indent: Option<JsonIndentState>) -> Result<(), std::fmt::Error> {
-    match v {
-        JsonValue::Null => write!(w, "null"),
-        JsonValue::Bool(bool) => write!(w, "{bool}"),
-        JsonValue::Int(int) => write!(w, "{int}"),
-        JsonValue::Float(float) => write!(w, "{float}"),
-        JsonValue::String(string) => write!(w, "\"{string}\""),
+    Ok(match v {
+        JsonValue::Null => write!(w, "null")?,
+        JsonValue::Bool(bool) => write!(w, "{bool}")?,
+        JsonValue::Int(int) => write!(w, "{int}")?,
+        JsonValue::Float(float) => write!(w, "{float}")?,
+        JsonValue::String(string) => write!(w, "\"{string}\"")?,
         JsonValue::Array(json_array) => {
             if json_array.is_empty() {
                 return write!(w, "[]");
@@ -66,7 +66,7 @@ fn write_preindented(v: &JsonValue, w: &mut impl Write, indent: Option<JsonInden
                 write_preindented(ele, w, new_indent)?;
             }
             try_write_new_line_and_indents(w, indent)?;
-            write!(w, "]")
+            write!(w, "]")?;
         },
         JsonValue::Object(json_object) => {
             if json_object.field_names().len() == 0 {
@@ -95,9 +95,9 @@ fn write_preindented(v: &JsonValue, w: &mut impl Write, indent: Option<JsonInden
                 write_preindented(field_value, w, new_indent)?;
             }
             try_write_new_line_and_indents(w, indent)?;
-            write!(w, "}}")
+            write!(w, "}}")?;
         },
-    }
+    })
 }
 
 fn try_write_new_line_and_indents(w: &mut impl Write, indent: Option<JsonIndentState>) -> Result<(), std::fmt::Error> {
@@ -118,7 +118,7 @@ impl std::fmt::Debug for JsonValue {
     }
 }
 
-impl std::fmt::Debug for crate::json_reflection::JsonObject {
+impl std::fmt::Debug for crate::json_repr::JsonObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write(&self.clone().into(), f, None)
     }

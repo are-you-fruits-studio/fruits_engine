@@ -1,0 +1,48 @@
+{
+  "entities": [
+    {
+      "id": "1",
+      "components": [
+        {
+          "type": "GlobalRectComponent",
+          "data": {
+            "center": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "scale": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "z": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "components": [
+        {
+          "type": "GlobalRectComponent",
+          "data": {
+            "center": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "scale": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "z": 0.0
+          }
+        },
+        {
+          "type": "ChildComponent",
+          "data": {
+            "parent": "1"
+          }
+        }
+      ]
+    }
+  ]
+}

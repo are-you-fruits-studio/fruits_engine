@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{*, json_reflection::JsonValue};
+use crate::{*, json_repr::JsonValue};
 
 // todo: overflow check
 
