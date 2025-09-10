@@ -19,7 +19,7 @@ pub struct StandardAssetsResource {
     pub material_text: AssetHandle<StandardMaterial>,
 }
 
-#[derive(Resource, Clone)]
+#[derive(Resource, Clone, Default)]
 pub struct InspectedFileResource {
     pub path: OsString,
 }

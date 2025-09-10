@@ -26,6 +26,7 @@ pub fn update_project_window_content_system(
             spawn_project_window_entries(
                 ec,
                 &assets.material_text,
+                &assets.material_panel,
                 &font,
                 content,
                 entry,
@@ -37,11 +38,13 @@ pub fn update_project_window_content_system(
 fn spawn_project_window_entries(
     ec: &mut EntitiesComponentsHolder,
     material_text: &AssetHandle<StandardMaterial>,
+    material_panel: &AssetHandle<StandardMaterial>,
     font: &AssetHandle<Font>,
     parent: Entity,
     entry: &ProjectWindowDataEntry,
  ) {
     let ent_entry = ec.create_entity();
+    let ent_name_container = ec.create_entity();
     let ent_name = ec.create_entity();
 
     EntityComponentsBuilder::new(ec, ent_entry)
@@ -61,14 +64,33 @@ fn spawn_project_window_entries(
         });
     ec.get_component_mut::<ParentComponent>(parent).unwrap().children.push(ent_entry);
 
-    EntityComponentsBuilder::new(ec, ent_name)
-        .add_component(DebugNameComponent(String::from("ent_name")))
+    EntityComponentsBuilder::new(ec, ent_name_container)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
             scale: Vec2::new(Some(UiVal::Pd(1.0)), Some(UiVal::Px(20.0))),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry })
+        .add_component(ParentComponent { children: vec![] })
+        .add_component(ProjectWindowEntryComponent {
+            path: entry.path.clone(),
+        })
+        .add_component(BatchedMeshComponent::default())
+        .add_component(ButtonComponent)
+        .add_component(StandardMaterialComponent { material: material_panel.clone() })
+        .add_component(ImageComponent {
+            color: Vec4::splat(0.0),
+            ..Default::default()
+        });
+    ec.get_component_mut::<ParentComponent>(ent_entry).unwrap().children.push(ent_name_container);
+
+    EntityComponentsBuilder::new(ec, ent_name)
+        .add_component(DebugNameComponent(String::from("ent_name")))
+        .add_component(GlobalRectComponent::default())
+        .add_component(LocalRectComponent {
+            ..Default::default()
+        })
+        .add_component(ChildComponent { parent: ent_name_container })
         .add_component(BatchedMeshComponent::default())
         .add_component(StandardMaterialComponent { material: material_text.clone() })
         .add_component(TextComponent {
@@ -81,7 +103,6 @@ fn spawn_project_window_entries(
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,
         });
-    ec.get_component_mut::<ParentComponent>(ent_entry).unwrap().children.push(ent_name);
 
     if entry.children.is_empty() {
         return;
@@ -121,6 +142,7 @@ fn spawn_project_window_entries(
         spawn_project_window_entries(
             ec,
             material_text,
+            material_panel,
             font,
             ent_children_container,
             entry,

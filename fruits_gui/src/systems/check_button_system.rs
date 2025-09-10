@@ -9,7 +9,7 @@ pub fn check_button_system(
     let left_just_pressed = input.mouse.is_just_pressed(MouseButton::Left);
     let left_just_released = input.mouse.is_just_released(MouseButton::Left);
 
-    if !left_just_pressed && !left_just_released {
+    if !left_just_pressed {
         return;
     }
 

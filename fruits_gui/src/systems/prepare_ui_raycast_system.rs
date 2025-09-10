@@ -11,10 +11,12 @@ pub fn prepare_ui_raycast_system(
             continue;
         }
 
-        entries.push((CollisionAabb {
+        let aabb = CollisionAabb {
             center: rect.center.xyn(rect.z),
-            extents: rect.scale.xyn(1.0),
-        }, ent));
+            extents: (rect.scale * 0.5).xyn(1.0),
+        };
+
+        entries.push((aabb, ent));
     }
 
     raycast_res.bvh = Bvh::new(entries);
