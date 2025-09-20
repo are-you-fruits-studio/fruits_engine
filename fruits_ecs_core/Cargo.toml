@@ -1,0 +1,15 @@
+[package]
+name = "fruits_ecs_core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+
+[[bin]]
+name = "fruits_ecs_core"
+path = "src/main.rs"
+
+[dependencies]
+libloading = "0.8.8"
+fruits_ffi = { path = "../fruits_ffi" }

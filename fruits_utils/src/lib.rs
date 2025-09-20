@@ -8,3 +8,4 @@ pub mod mem;
 pub mod stack_vec;
 pub mod exec_on_drop;
 mod bit_array;
+pub mod types_registry;

@@ -1,6 +1,7 @@
 use fruits_ecs::{Component, Entity};
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
 
+// todo: support ffi
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct GlobalTransform {
     pub position: Vec3<f32>,
@@ -16,6 +17,7 @@ impl Default for GlobalTransform {
     fn default() -> Self { GlobalTransform::IDENTITY }
 }
 
+// todo: support ffi
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct LocalTransform {
     pub position: Vec3<f32>,
@@ -33,16 +35,19 @@ impl Default for LocalTransform {
     fn default() -> Self { LocalTransform::IDENTITY }
 }
 
+// todo: support ffi
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct ParentComponent {
     pub children: Vec<Entity>,
 }
 
+// todo: support ffi
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct ChildComponent {
     pub parent: Entity,
 }
 
+// todo: support ffi
 #[derive(Component, Copy, Clone, Debug, PartialEq, Default)]
 pub struct GlobalRectComponent {
     pub center: Vec2<f32>,
@@ -65,6 +70,7 @@ impl UiDirection {
     }
 }
 
+// todo: support ffi
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct LocalRectComponent {
     pub parent_padding_min: Vec2<UiVal>,
@@ -89,6 +95,7 @@ impl Default for LocalRectComponent {
     }
 }
 
+// todo: support ffi
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct RectChildAlignComponent {
     pub anchor: Vec2<f32>,

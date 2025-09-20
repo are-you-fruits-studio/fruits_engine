@@ -1,0 +1,10 @@
+[package]
+name = "fruits_ecs_core_sample_dylib"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+fruits_ecs_core = { path = "../fruits_ecs_core" }

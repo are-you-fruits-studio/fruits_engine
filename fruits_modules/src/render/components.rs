@@ -5,28 +5,33 @@ use crate::{asset::AssetHandle, render::{Font, StandardVertex}, transform::UiVal
 
 use super::assets::{StandardMaterial, StandardMesh};
 
+// todo: support ffi
 #[derive(Component)]
 pub struct StandardRenderComponent {
     pub mesh: AssetHandle<StandardMesh>,
     pub material: AssetHandle<StandardMaterial>,
 }
 
+// todo: support ffi
 #[derive(Component)]
 pub struct StandardMeshComponent {
     pub mesh: AssetHandle<StandardMesh>,
 }
 
+// todo: support ffi
 #[derive(Component, Default)]
 pub struct BatchedMeshComponent {
     pub vertices: Vec<StandardVertex>,
     pub indices: Vec<u16>,
 }
 
+// todo: support ffi
 #[derive(Component)]
 pub struct StandardMaterialComponent {
     pub material: AssetHandle<StandardMaterial>,
 }
 
+// todo: support ffi
 #[derive(Component)]
 pub struct CameraComponent {
     pub fov: f32,
@@ -34,6 +39,7 @@ pub struct CameraComponent {
     pub far: f32,
 }
 
+// todo: support ffi
 #[derive(Component)]
 pub struct TextComponent {
     pub font: AssetHandle<Font>,
@@ -46,6 +52,7 @@ pub struct TextComponent {
     pub color: Vec4<f32>,
 }
 
+// todo: support ffi
 #[derive(Component)]
 pub struct ImageComponent {
     pub is_y_inverted: bool,
@@ -84,6 +91,7 @@ pub enum VerticalAlign {
     Bottom,
 }
 
+// todo: support ffi
 #[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct GlobalDisableableComponent {
     pub is_disabled: bool,
@@ -95,6 +103,7 @@ impl Default for GlobalDisableableComponent {
         }
     }
 }
+// todo: support ffi
 #[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct LocalDisableableComponent {
     pub is_disabled: bool,
@@ -107,5 +116,6 @@ impl Default for LocalDisableableComponent {
     }
 }
 
+// todo: support ffi
 #[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub struct ChildrenRectMaskComponent;
