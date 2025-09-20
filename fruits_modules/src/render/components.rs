@@ -5,14 +5,14 @@ use crate::{asset::AssetHandle, render::{Font, StandardVertex}, transform::UiVal
 
 use super::assets::{StandardMaterial, StandardMesh};
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component)]
 pub struct StandardRenderComponent {
     pub mesh: AssetHandle<StandardMesh>,
     pub material: AssetHandle<StandardMaterial>,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component)]
 pub struct StandardMeshComponent {
     pub mesh: AssetHandle<StandardMesh>,
@@ -25,13 +25,13 @@ pub struct BatchedMeshComponent {
     pub indices: Vec<u16>,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component)]
 pub struct StandardMaterialComponent {
     pub material: AssetHandle<StandardMaterial>,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component)]
 pub struct CameraComponent {
     pub fov: f32,
@@ -39,7 +39,7 @@ pub struct CameraComponent {
     pub far: f32,
 }
 
-// todo: support ffi
+// todo: support ffi (String is not ffi-safe)
 #[derive(Component)]
 pub struct TextComponent {
     pub font: AssetHandle<Font>,
@@ -52,13 +52,13 @@ pub struct TextComponent {
     pub color: Vec4<f32>,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component)]
 pub struct ImageComponent {
     pub is_y_inverted: bool,
     pub color: Vec4<f32>,
     pub fill_amt: f32,
-    pub fill_settings: Option<ImageFillSettings>,
+    pub fill_settings: ImageFillSettings,
 }
 impl Default for ImageComponent {
     fn default() -> Self {
@@ -66,17 +66,19 @@ impl Default for ImageComponent {
             is_y_inverted: true,
             color: Vec4::splat(1.0),
             fill_amt: 1.0,
-            fill_settings: None,
+            fill_settings: ImageFillSettings::RadialCenter,
         }
     }
 }
 
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub enum ImageFillSettings {
     // todo: add more variants and details.
     RadialCenter,
 }
 
+#[repr(C)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum HorizontalAlign {
     Left,
@@ -84,6 +86,7 @@ pub enum HorizontalAlign {
     Right,
 }
 
+#[repr(C)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum VerticalAlign {
     Top,
@@ -91,7 +94,7 @@ pub enum VerticalAlign {
     Bottom,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct GlobalDisableableComponent {
     pub is_disabled: bool,
@@ -103,7 +106,7 @@ impl Default for GlobalDisableableComponent {
         }
     }
 }
-// todo: support ffi
+#[repr(C)]
 #[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct LocalDisableableComponent {
     pub is_disabled: bool,
@@ -116,6 +119,6 @@ impl Default for LocalDisableableComponent {
     }
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub struct ChildrenRectMaskComponent;

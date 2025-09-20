@@ -70,7 +70,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent_text, StandardMaterialComponent { material: material.clone(), }).ok().unwrap();
     ec.add_component(ent_text, TextComponent {
         font: font.clone(),
-        font_size: UiVal::Px(0.4),
+        font_size: UiVal::px(0.4),
         text: String::from("Dashunia - myla pinhvinka"),
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Middle,

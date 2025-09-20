@@ -101,7 +101,7 @@ pub fn update_hierarchy(
 
     let layout = LayoutGlobalData {
         font,
-        font_size: UiVal::Px(15.0),
+        font_size: UiVal::px(15.0),
         indent_size: 15.0,
         line_height: 20.0,
         material,

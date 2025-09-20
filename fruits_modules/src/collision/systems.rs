@@ -7,7 +7,7 @@ pub fn update_collision_world(
     q: WorldQuery<(Entity, &ColliderComponent, Option<&GlobalTransform>)>
 ) {
     let iter = q.iter().map(|(e, c, t)| {
-        let mut shape = c.shape;
+        let mut shape = c.shape.into_shape();
 
         if let Some(t) = t {
             shape = shape.apply_matrix_lossy(t.scale_rotation.into_4x4_with_offset(t.position));

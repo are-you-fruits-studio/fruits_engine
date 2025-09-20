@@ -1,5 +1,5 @@
 use core::f32;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, Res, ResMut, WithFilter, WorldData, WorldQuery};
@@ -660,10 +660,9 @@ pub fn update_image_batched_mesh(
         };
 
         match &image_c.fill_settings {
-            None => standard_fill_f(mesh_c),
             _ if fill_amt == 1.0 => standard_fill_f(mesh_c),
             _ if fill_amt == 0.0 => clear_fill_f(mesh_c),
-            Some(ImageFillSettings::RadialCenter) => {
+            ImageFillSettings::RadialCenter => {
                 let uvs = [
                     [0.5, 0.5],
                     [0.5, 1.0],
@@ -742,14 +741,9 @@ pub fn update_masked_batched_mesh(
                     let min = (p.center - p.scale * 0.5).zip_copied(c.center - c.scale * 0.5, f32::max);
                     let max = (p.center + p.scale * 0.5).zip_copied(c.center + c.scale * 0.5, f32::min);
 
-                    let mut center = (min + max) * 0.5;
-                    let mut scale = max - min;
+                    let center = (min + max) * 0.5;
+                    let scale = max - min;
 
-                    // if scale.map(|s| s < 0.0).any() {
-                    //     center = Vec2::splat(0.0);
-                    //     scale = Vec2::splat(0.0);
-                    // }
-                    
                     GlobalRectComponent {
                         center,
                         scale,

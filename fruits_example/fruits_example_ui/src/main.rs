@@ -65,8 +65,8 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent1, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent1, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent1, LocalRectComponent {
-        parent_padding_min: Vec2::new(UiVal::Pw(0.5), UiVal::Ph(0.5)),
-        parent_padding_max: Vec2::new(UiVal::Pw(0.5), UiVal::Ph(0.5)),
+        parent_padding_min: Vec2::new(UiVal::pw(0.5), UiVal::ph(0.5)),
+        parent_padding_max: Vec2::new(UiVal::pw(0.5), UiVal::ph(0.5)),
         z: 0.0,
         ..Default::default()
     }).ok().unwrap();
@@ -77,8 +77,8 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent2, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent2, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent2, LocalRectComponent {
-        parent_padding_min: Vec2::new(UiVal::Px(-100.0), UiVal::Px(-100.0)),
-        parent_padding_max: Vec2::new(UiVal::Px(-100.), UiVal::Px(-100.0)),
+        parent_padding_min: Vec2::new(UiVal::px(-100.0), UiVal::px(-100.0)),
+        parent_padding_max: Vec2::new(UiVal::px(-100.), UiVal::px(-100.0)),
         z: -10.0,
         ..Default::default()
     }).ok().unwrap();
@@ -91,8 +91,8 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent3, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent3, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent3, LocalRectComponent {
-        parent_padding_min: Vec2::new(UiVal::Px(10.0), UiVal::Px(10.0)),
-        parent_padding_max: Vec2::new(UiVal::Vmin(0.1), UiVal::Vmin(0.1)),
+        parent_padding_min: Vec2::new(UiVal::px(10.0), UiVal::px(10.0)),
+        parent_padding_max: Vec2::new(UiVal::vmin(0.1), UiVal::vmin(0.1)),
         z: -10.0,
         ..Default::default()
     }).ok().unwrap();
@@ -111,7 +111,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     }).ok().unwrap();
     ec.add_component(ent4, TextComponent {
         font: font.clone(),
-        font_size: UiVal::Vh(0.15),
+        font_size: UiVal::vh(0.15),
         text: String::from("Dashunia - myla pinhvinka"),
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Bottom,
@@ -137,7 +137,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent10, RectChildAlignComponent {
         direction: UiDirection::Vertical,
         anchor: Vec2::new(0.5, 0.5),
-        min_gap: UiVal::Vd(0.1),
+        min_gap: UiVal::vd(0.1),
         spacing: UiSpacing::Chunk,
         ..Default::default()
     }).ok().unwrap();
@@ -151,7 +151,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     ec.add_component(ent11, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent11, LocalRectComponent {
-        scale: Vec2::splat(Some(UiVal::Px(50.0))),
+        scale: Vec2::splat(Some(UiVal::px(50.0))),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent11, ChildComponent { parent: ent10 }).ok().unwrap();
@@ -164,7 +164,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     ec.add_component(ent12, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent12, LocalRectComponent {
-        scale: Vec2::splat(Some(UiVal::Px(40.0))),
+        scale: Vec2::splat(Some(UiVal::px(40.0))),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent12, ChildComponent { parent: ent10 }).ok().unwrap();
@@ -177,7 +177,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     ec.add_component(ent13, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent13, LocalRectComponent {
-        scale: Vec2::splat(Some(UiVal::Px(70.0))),
+        scale: Vec2::splat(Some(UiVal::px(70.0))),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent13, ChildComponent { parent: ent10 }).ok().unwrap();

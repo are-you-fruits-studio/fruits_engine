@@ -72,7 +72,7 @@ fn create_button_entity(ec: &mut EntitiesComponentsHolder, pos: Vec3<f32>, scale
         shape: CollisionShape::Aabb(CollisionAabb {
             center: Vec3::splat(0.0),
             extents: Vec3::splat(0.0),
-        })
+        }).into()
     }).ok().unwrap();
 }
 
@@ -80,12 +80,14 @@ fn update_colliders(
     mut q: WorldQuery<(&GlobalTransform, &LocalTransform, &mut ColliderComponent)>,
 ) {
     for (global_transform, local_transform, collider) in q.iter_mut() {
-        let CollisionShape::Aabb(collision_aabb) = &mut collider.shape else {
+        let CollisionShape::Aabb(mut collision_aabb) = collider.shape.into() else {
             todo!();
         };
 
         collision_aabb.center = global_transform.position;
         collision_aabb.extents = local_transform.scale * 0.5;
+
+        collider.shape = CollisionShape::from(collision_aabb).into_ffi();
     }
 }
 
@@ -126,7 +128,7 @@ fn draw_gizmo_components(
     mut gizmos: ResMut<GizmosResource>,
 ) {
     for (gizmo, collider) in q.iter() {
-        let CollisionShape::Aabb(collision_aabb) = collider.shape else {
+        let CollisionShape::Aabb(collision_aabb) = collider.shape.into() else {
             todo!();
         };
 

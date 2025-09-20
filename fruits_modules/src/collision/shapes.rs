@@ -1,6 +1,90 @@
+use std::fmt::Debug;
+
 use fruits_math::{Mat4, Quat, Vec3};
 
 use crate::collision::LineBoundType;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+union CollisionShapeFfiUnion {
+    point: Vec3<f32>,
+    line: CollisionLine,
+    aabb: CollisionAabb,
+    rotated_box: CollisionBox,
+    sphere: CollisionSphere,
+    triangle: [Vec3<f32>; 3],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd, Ord)]
+enum CollisionShapeFfiDet {
+    Point,
+    Line,
+    Aabb,
+    Box,
+    Sphere,
+    Triangle,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct CollisionShapeFfi {
+    det: CollisionShapeFfiDet,
+    val: CollisionShapeFfiUnion,
+}
+
+impl Debug for CollisionShapeFfi {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let shape: CollisionShape = (*self).into();
+
+        f.debug_struct("CollisionShapeFfi").field("shape", &shape).finish()
+    }
+}
+
+impl CollisionShapeFfi {
+    pub const fn into_shape(self) -> CollisionShape {
+        unsafe {
+            match self.det {
+                CollisionShapeFfiDet::Point => CollisionShape::Point(self.val.point),
+                CollisionShapeFfiDet::Line => CollisionShape::Line(self.val.line),
+                CollisionShapeFfiDet::Aabb => CollisionShape::Aabb(self.val.aabb),
+                CollisionShapeFfiDet::Box => CollisionShape::Box(self.val.rotated_box),
+                CollisionShapeFfiDet::Sphere => CollisionShape::Sphere(self.val.sphere),
+                CollisionShapeFfiDet::Triangle => CollisionShape::Triangle(self.val.triangle),
+            }
+        }
+    }
+}
+
+impl CollisionShape {
+    pub const fn into_ffi(self) -> CollisionShapeFfi {
+        type ShapeUnion = CollisionShapeFfiUnion;
+        type ShapeDet = CollisionShapeFfiDet;
+
+        match self {
+            CollisionShape::Point(v) => CollisionShapeFfi { det: ShapeDet::Point, val: ShapeUnion { point: v } },
+            CollisionShape::Line(v) => CollisionShapeFfi { det: ShapeDet::Line, val: ShapeUnion { line: v } },
+            CollisionShape::Aabb(v) => CollisionShapeFfi { det: ShapeDet::Aabb, val: ShapeUnion { aabb: v } },
+            CollisionShape::Box(v) => CollisionShapeFfi { det: ShapeDet::Box, val: ShapeUnion { rotated_box: v } },
+            CollisionShape::Sphere(v) => CollisionShapeFfi { det: ShapeDet::Sphere, val: ShapeUnion { sphere: v } },
+            CollisionShape::Triangle(v) => CollisionShapeFfi { det: ShapeDet::Triangle, val: ShapeUnion { triangle: v } },
+        }
+    } 
+}
+
+impl From<CollisionShape> for CollisionShapeFfi {
+    fn from(value: CollisionShape) -> Self {
+        value.into_ffi()
+    }
+}
+
+impl From<CollisionShapeFfi> for CollisionShape {
+    fn from(value: CollisionShapeFfi) -> Self {
+        value.into_shape()
+    }
+}
+
+//
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CollisionShape {
@@ -18,6 +102,11 @@ impl From<CollisionAabb> for CollisionShape { fn from(value: CollisionAabb) -> S
 impl From<CollisionBox> for CollisionShape { fn from(value: CollisionBox) -> Self { Self::Box(value) } }
 impl From<CollisionSphere> for CollisionShape { fn from(value: CollisionSphere) -> Self { Self::Sphere(value) } }
 impl From<[Vec3<f32>; 3]> for CollisionShape { fn from(value: [Vec3<f32>; 3]) -> Self { Self::Triangle(value) } }
+
+impl CollisionLine { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Line(self) } }
+impl CollisionAabb { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Aabb(self) } }
+impl CollisionBox { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Box(self) } }
+impl CollisionSphere { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Sphere(self) } }
 
 impl CollisionShape {
     pub fn to_aab(&self) -> CollisionAabb {
@@ -95,6 +184,7 @@ impl CollisionShape {
     }
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionBox {
     pub center: Vec3<f32>,
@@ -102,6 +192,7 @@ pub struct CollisionBox {
     pub rotation: Quat<f32>,
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionAabb {
     pub center: Vec3<f32>,
@@ -150,6 +241,7 @@ impl CollisionAabb {
     }
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionLine {
     pub start: Vec3<f32>,
@@ -157,6 +249,7 @@ pub struct CollisionLine {
     pub bounds: LineBoundType,
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionSphere {
     pub center: Vec3<f32>,

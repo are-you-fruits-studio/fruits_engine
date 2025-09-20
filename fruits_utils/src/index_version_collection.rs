@@ -12,6 +12,7 @@ impl<T> Default for VersionCollection<T> {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VersionIndex {
     pub index: u32,

@@ -50,7 +50,7 @@ fn spawn_project_window_entries(
     EntityComponentsBuilder::new(ec, ent_entry)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::Pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: parent })
@@ -58,7 +58,7 @@ fn spawn_project_window_entries(
         .add_component(RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
-            min_gap: UiVal::Px(0.0),
+            min_gap: UiVal::px(0.0),
             spacing: UiSpacing::Chunk,
             ..Default::default()
         });
@@ -67,7 +67,7 @@ fn spawn_project_window_entries(
     EntityComponentsBuilder::new(ec, ent_name_container)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::Pd(1.0)), Some(UiVal::Px(20.0))),
+            scale: Vec2::new(Some(UiVal::pd(1.0)), Some(UiVal::px(20.0))),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry })
@@ -96,7 +96,7 @@ fn spawn_project_window_entries(
         .add_component(TextComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#000000ff").unwrap()),
             font: font.clone(),
-            font_size: UiVal::Px(18.0),
+            font_size: UiVal::px(18.0),
             is_y_inverted: true,
             text: entry.name.clone(),
             horizontal_spacing: 0.0,
@@ -115,7 +115,7 @@ fn spawn_project_window_entries(
         .add_component(DebugNameComponent(String::from("ent_children")))
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::Pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry });
@@ -124,8 +124,8 @@ fn spawn_project_window_entries(
     EntityComponentsBuilder::new(ec, ent_children_container)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            parent_padding_min: Vec2::new(UiVal::Px(20.0), UiVal::Px(0.0)),
-            scale: Vec2::new(Some(UiVal::Pd(1.0)), None),
+            parent_padding_min: Vec2::new(UiVal::px(20.0), UiVal::px(0.0)),
+            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_children })
@@ -133,7 +133,7 @@ fn spawn_project_window_entries(
         .add_component(RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
-            min_gap: UiVal::Px(0.0),
+            min_gap: UiVal::px(0.0),
             spacing: UiSpacing::Chunk,
             ..Default::default()
         });

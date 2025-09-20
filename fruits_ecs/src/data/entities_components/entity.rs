@@ -5,6 +5,7 @@ use fruits_utils::index_version_collection::{
     VersionIndex,
 };
 
+#[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Entity(VersionIndex);
 

@@ -2,7 +2,7 @@ use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, GizmoLine, GizmosResource, RectChildAlignComponent, RenderSpace, UiDirection, UiSpacing, UiVal};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
