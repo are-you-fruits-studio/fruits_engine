@@ -60,12 +60,9 @@ impl<T> FfiSliceRef<T> {
     
     // todo
     pub unsafe fn from_slice(slice: &[T]) -> Self {
-        // todo
-        unsafe {
-            Self {
-                len: slice.len() as u64,
-                ptr: (&raw const *slice) as *const T,
-            }
+        Self {
+            len: slice.len() as u64,
+            ptr: (&raw const *slice) as *const T,
         }
     }
 }
