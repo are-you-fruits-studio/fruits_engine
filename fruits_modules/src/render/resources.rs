@@ -9,11 +9,13 @@ use crate::{asset::AssetHandle, render::{Font, StandardTexture, StandardVertex}}
 
 use super::GizmoLine;
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct SurfaceTextureResource {
     pub texture: Option<SurfaceTexture>,
 }
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct GizmosResource {
     lines: HashMap<RenderSpace, Vec<GizmoLine>>,
@@ -41,6 +43,7 @@ impl Default for GizmosResource {
     }
 }
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct GizmosRenderResource {
     pub vertex_buffer: Buffer,
@@ -52,6 +55,7 @@ pub struct GizmosRenderResource {
     pub colors_cpu_buffer: Box<[Vec4<f32>]>,
 }
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct DepthTextureResource {
     pub texture: Texture,
@@ -59,6 +63,7 @@ pub struct DepthTextureResource {
     pub sampler: Sampler,
 }
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct StandardRenderResource {
     pub pipeline_layout: PipelineLayout,
@@ -72,9 +77,11 @@ pub struct StandardRenderResource {
     pub unlit: MaterialStandardRenderResourceData,
 }
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct BatchedVertexCpuBufferResource(pub Box<[StandardVertex]>);
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct StandardRenderAssetsResource {
     pub texture_white: AssetHandle<StandardTexture>,
@@ -92,6 +99,7 @@ pub struct MaterialStandardRenderResourceData {
     pub render_pipeline: RenderPipeline,
 }
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct ScreenSpaceResource {
     pub near: f32,

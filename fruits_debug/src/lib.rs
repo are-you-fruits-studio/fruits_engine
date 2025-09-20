@@ -216,11 +216,13 @@ pub fn debug_connection_send_system(
     connection_res.last_msg_time = Some(Instant::now());
 }
 
+// todo: support ffi
 #[derive(Resource, Default)]
 pub struct DebugServerResource {
     listener: Option<TcpListener>,
 }
 
+// todo: support ffi
 #[derive(Resource, Default)]
 pub struct DebugConnectionResource {
     pub active_stream: Option<TcpStream>,

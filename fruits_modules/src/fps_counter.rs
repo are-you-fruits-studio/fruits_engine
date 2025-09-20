@@ -9,6 +9,7 @@ pub fn add_module_to(world: &mut WorldBuilder) {
     world.behavior_mut().get_mut(Schedule::Update).add_system(count_fps);
 }
 
+// todo: support ffi
 #[derive(Resource, Default)]
 pub struct FpsResource {
     last_frame_times_s: VecDeque<f64>,

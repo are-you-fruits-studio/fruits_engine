@@ -4,6 +4,7 @@ use fruits_ecs::Resource;
 
 use crate::render_app_state::RenderAppState;
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct RenderStateResource(RenderAppState);
 

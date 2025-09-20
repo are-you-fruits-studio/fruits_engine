@@ -3,6 +3,7 @@ use fruits_ecs::Resource;
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
+// todo: support ffi
 #[derive(Resource)]
 pub struct InputResource {
     pub keyboard: KeyboardInputStorage,
