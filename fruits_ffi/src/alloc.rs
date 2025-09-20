@@ -8,14 +8,14 @@ pub struct FfiAllocator {
 }
 
 impl FfiAllocator {
-    pub fn from_system() -> Self {
+    pub const fn from_system() -> Self {
         Self {
             alloc_fn: Self::c_alloc_system,
             dealloc_fn: Self::c_dealloc_system,
         }
     }
 
-    pub fn from_global() -> Self {
+    pub const fn from_global() -> Self {
         Self {
             alloc_fn: Self::c_alloc_global,
             dealloc_fn: Self::c_dealloc_global,

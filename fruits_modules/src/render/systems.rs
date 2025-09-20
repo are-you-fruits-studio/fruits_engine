@@ -587,8 +587,8 @@ pub fn update_text_batched_mesh(
 
         let start_pos = center - text_scale * 0.5;
 
-        mesh_c.vertices.resize(chars_count * VERTICES_PER_CHAR, StandardVertex::default());
-        mesh_c.indices.resize(chars_count * INDICES_PER_CHAR, 0);
+        mesh_c.vertices.resize((chars_count * VERTICES_PER_CHAR) as u64, StandardVertex::default());
+        mesh_c.indices.resize((chars_count * INDICES_PER_CHAR) as u64, 0);
 
         for (i, character) in text_c.text.chars().enumerate() {
             let char_uvs = font.characters_uv.get(&character).unwrap_or(&font.mising_character_uv);
@@ -692,8 +692,8 @@ pub fn update_image_batched_mesh(
                 
                 let slices = 1 + ((fill_amt * 8.0).floor() as usize).clamp(0, 7);
 
-                mesh_c.vertices.resize(3 + slices, StandardVertex::default());
-                mesh_c.indices.resize(slices * 3, 0);
+                mesh_c.vertices.resize(3 + slices as u64, StandardVertex::default());
+                mesh_c.indices.resize(slices as u64 * 3, 0);
 
                 mesh_c.vertices[0] = StandardVertex { color, normal, uv: uvs[0], position: poss[0] };
                 mesh_c.vertices[1] = StandardVertex { color, normal, uv: uvs[1], position: poss[1] };

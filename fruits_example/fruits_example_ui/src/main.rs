@@ -60,7 +60,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     let ent3 = ec.create_entity();
     let ent4 = ec.create_entity();
 
-    ec.add_component(ent1, ParentComponent { children: vec![ent2], }).ok().unwrap();
+    ec.add_component(ent1, ParentComponent { children: vec![ent2].into(), }).ok().unwrap();
     ec.add_component(ent1, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent1, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent1, GlobalRectComponent::default()).ok().unwrap();
@@ -72,7 +72,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     }).ok().unwrap();
 
     ec.add_component(ent2, ChildComponent { parent: ent1, }).ok().unwrap();
-    ec.add_component(ent2, ParentComponent { children: vec![ent3], }).ok().unwrap();
+    ec.add_component(ent2, ParentComponent { children: vec![ent3].into(), }).ok().unwrap();
     ec.add_component(ent2, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent2, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent2, GlobalRectComponent::default()).ok().unwrap();
@@ -86,7 +86,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent2, ChildrenRectMaskComponent).ok().unwrap();
 
     ec.add_component(ent3, ChildComponent { parent: ent2, }).ok().unwrap();
-    ec.add_component(ent3, ParentComponent { children: vec![ent4], }).ok().unwrap();
+    ec.add_component(ent3, ParentComponent { children: vec![ent4].into(), }).ok().unwrap();
     ec.add_component(ent3, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent3, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent3, GlobalRectComponent::default()).ok().unwrap();
@@ -141,7 +141,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         spacing: UiSpacing::Chunk,
         ..Default::default()
     }).ok().unwrap();
-    ec.add_component(ent10, ParentComponent { children: vec![ent11, ent12, ent13] }).ok().unwrap();
+    ec.add_component(ent10, ParentComponent { children: vec![ent11, ent12, ent13].into() }).ok().unwrap();
     ec.add_component(ent10, BatchedMeshComponent::default()).ok().unwrap();
     ec.add_component(ent10, StandardMaterialComponent { material: material_white.clone(), }).ok().unwrap();
     ec.add_component(ent10, ImageComponent {

@@ -65,7 +65,7 @@ fn spawn_scene_window_entry(
             ..Default::default()
         })
         .add_component(ChildComponent { parent: parent })
-        .add_component(ParentComponent { children: vec![] })
+        .add_component(ParentComponent { children: vec![].into() })
         .add_component(RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
@@ -82,7 +82,7 @@ fn spawn_scene_window_entry(
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry })
-        .add_component(ParentComponent { children: vec![] })
+        .add_component(ParentComponent { children: vec![].into() })
         .add_component(BatchedMeshComponent::default())
         .add_component(ButtonComponent)
         .add_component(StandardMaterialComponent { material: material_panel.clone() })

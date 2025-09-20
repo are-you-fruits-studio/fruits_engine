@@ -12,7 +12,7 @@ pub struct FfiVec<T> {
 }
 
 impl<T> FfiVec<T> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         let cap = if std::mem::size_of::<T>() == 0 {
             ZERO_SIZED_CAP
         } else {
@@ -129,7 +129,7 @@ impl<T> FfiVec<T> {
                 let new_ptr = self.allocator.alloc(size_of_t * new_cap, align_of_t);
 
                 if std::mem::size_of::<T>() != 0 && self.cap != 0 {
-                    std::ptr::copy(self.ptr as *const T, new_ptr as *mut T, self.len as usize);
+                    std::ptr::copy_nonoverlapping(self.ptr as *const T, new_ptr as *mut T, self.len as usize);
 
                     self.allocator.dealloc(self.ptr as *mut u8, size_of_t * self.cap, align_of_t);
                 }
@@ -140,7 +140,7 @@ impl<T> FfiVec<T> {
         }
 
         unsafe {
-            self.ptr.offset(self.len as isize).write(v);
+            self.ptr.add(self.len as usize).write(v);
         }
 
         self.len += 1;
@@ -159,7 +159,7 @@ impl<T> FfiVec<T> {
             })
         } else {
             Some(unsafe {
-                self.ptr.offset(self.len as isize).read()
+                self.ptr.add(self.len as usize).read()
             })
         }
     }
@@ -170,6 +170,77 @@ impl<T> FfiVec<T> {
 
     pub fn get_mut(&mut self, idx: u64) -> Option<&mut T> {
         self.as_slice_mut().get_mut(idx as usize)
+    }
+
+    pub fn swap_remove(&mut self, idx: u64) -> Option<T> {
+        if idx >= self.len {
+            return None;
+        }
+
+        unsafe {
+            let item = self.ptr.add(idx as usize).read();
+            
+            self.len -= 1;
+
+            std::ptr::copy(self.ptr.add(self.len as usize), self.ptr.add(idx as usize), 1);
+
+            Some(item)
+        }
+    }
+
+    pub fn remove(&mut self, idx: u64) -> Option<T> {
+        if idx >= self.len {
+            return None;
+        }
+
+        unsafe {
+            let item = self.ptr.add(idx as usize).read();
+
+            let moved_count = self.len - 1 - idx;
+
+            std::ptr::copy(self.ptr.add(idx as usize + 1), self.ptr.add(idx as usize), moved_count as usize);
+
+            self.len -= 1;
+
+            Some(item)
+        }
+    }
+
+    pub fn clear(&mut self) {
+        if self.len == 0 {
+            return;
+        }
+
+        let ptr = if std::mem::size_of::<T>() == 0 {
+            std::ptr::NonNull::dangling().as_ptr()
+        } else {
+            self.ptr
+        };
+
+        unsafe {
+            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, self.len as usize));
+        }
+
+        self.len = 0;
+    }
+}
+
+impl<T: Clone> FfiVec<T> {
+    pub fn resize(&mut self, new_len: u64, value: T) {
+        // todo: optimize
+        while self.len > new_len {
+            self.pop();
+        }
+        
+        while self.len < new_len {
+            self.push(value.clone());
+        }
+    }
+}
+
+impl<T> Default for FfiVec<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -276,8 +347,8 @@ impl<T: Clone> Clone for FfiVec<T> {
             let new_ptr = self.allocator.alloc(std::mem::size_of::<T>() as u64 * self.len, std::mem::align_of::<T>() as u64) as *mut T;
 
             for i in 0..self.len {
-                let cloned = (&*self.ptr.offset(i as isize)).clone();
-                new_ptr.offset(i as isize).write(cloned)
+                let cloned = (&*self.ptr.add(i as usize)).clone();
+                new_ptr.add(i as usize).write(cloned)
             }
 
             Self {
@@ -286,6 +357,84 @@ impl<T: Clone> Clone for FfiVec<T> {
                 len: self.len,
                 allocator: self.allocator,
             }
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for FfiVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl<T: Eq> Eq for FfiVec<T> { }
+
+impl<T> FromIterator<T> for FfiVec<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        // todo: optimize
+        let mut vec = FfiVec::new();
+
+        for item in iter {
+            vec.push(item);    
+        }
+
+        vec
+    }
+}
+
+impl<T> IntoIterator for FfiVec<T> {
+    type Item = T;
+
+    type IntoIter = FfiVecIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FfiVecIntoIter {
+            vec: self,
+            idx: 0,
+        }
+    }
+}
+
+pub struct FfiVecIntoIter<T> {
+    vec: FfiVec<T>,
+    idx: u64,
+}
+
+impl<T> Iterator for FfiVecIntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx >= self.vec.len {
+            return None;
+        }
+
+        unsafe {
+            let item = self.vec.ptr.add(self.idx as usize).read();
+
+            self.idx += 1;
+
+            Some(item)
+        }
+    }
+}
+
+impl<T> Drop for FfiVecIntoIter<T> {
+    fn drop(&mut self) {
+        let ptr = if std::mem::size_of::<T>() == 0 {
+            std::ptr::NonNull::dangling().as_ptr()
+        } else {
+            self.vec.ptr
+        };
+
+        let count = self.vec.len - self.idx;
+
+        // todo
+        unsafe {
+            let ptr = ptr.add(self.idx as usize);
+
+            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, count as usize));
+
+            self.vec.len = 0;
         }
     }
 }

@@ -1,4 +1,5 @@
 use fruits_ecs::Component;
+use fruits_ffi::FfiVec;
 use fruits_math::Vec4;
 
 use crate::{asset::AssetHandle, render::{Font, StandardVertex}, transform::UiVal};
@@ -18,11 +19,11 @@ pub struct StandardMeshComponent {
     pub mesh: AssetHandle<StandardMesh>,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component, Default)]
 pub struct BatchedMeshComponent {
-    pub vertices: Vec<StandardVertex>,
-    pub indices: Vec<u16>,
+    pub vertices: FfiVec<StandardVertex>,
+    pub indices: FfiVec<u16>,
 }
 
 #[repr(C)]

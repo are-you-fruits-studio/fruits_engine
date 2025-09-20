@@ -1,4 +1,5 @@
 use fruits_ecs::{Component, Entity};
+use fruits_ffi::FfiVec;
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
 
 #[repr(C)]
@@ -38,7 +39,7 @@ impl Default for LocalTransform {
 // todo: support ffi
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct ParentComponent {
-    pub children: Vec<Entity>,
+    pub children: FfiVec<Entity>,
 }
 
 #[repr(C)]

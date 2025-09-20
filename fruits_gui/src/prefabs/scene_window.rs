@@ -135,7 +135,7 @@ pub fn scene_window(world: &mut WorldData) -> Entity {
             spacing: UiSpacing::Chunk,
             ..Default::default()
         })
-        .add_component(ParentComponent { children: vec![] })
+        .add_component(ParentComponent { children: vec![].into() })
         .add_component(SceneWindowContentComponent);
 
     ent_root

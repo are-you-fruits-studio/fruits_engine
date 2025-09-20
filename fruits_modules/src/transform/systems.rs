@@ -1,5 +1,6 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
+use fruits_ffi::FfiVec;
 use fruits_math::{Mat3, Vec2};
 
 use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
@@ -58,7 +59,7 @@ pub fn adjust_component_sets(
         WithoutFilter<ParentComponent>,
     )>().iter());
     for e in buffer.drain(..) {
-        entities_components.add_component(e, ParentComponent { children: Vec::new(), }).ok().unwrap();
+        entities_components.add_component(e, ParentComponent { children: FfiVec::new(), }).ok().unwrap();
     }
 
     //
@@ -105,7 +106,7 @@ pub fn update_parents_remove_invalid_children(
         }
 
         for &index in indices_to_remove.iter() {
-            parent.children.remove(index);
+            parent.children.remove(index as u64);
         }
 
         indices_to_remove.clear();

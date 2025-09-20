@@ -54,7 +54,7 @@ fn spawn_project_window_entries(
             ..Default::default()
         })
         .add_component(ChildComponent { parent: parent })
-        .add_component(ParentComponent { children: vec![] })
+        .add_component(ParentComponent { children: vec![].into() })
         .add_component(RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
@@ -71,7 +71,7 @@ fn spawn_project_window_entries(
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry })
-        .add_component(ParentComponent { children: vec![] })
+        .add_component(ParentComponent { children: vec![].into() })
         .add_component(ProjectWindowEntryComponent {
             path: entry.path.clone(),
         })
@@ -129,7 +129,7 @@ fn spawn_project_window_entries(
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_children })
-        .add_component(ParentComponent { children: vec![] })
+        .add_component(ParentComponent { children: vec![].into() })
         .add_component(RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
