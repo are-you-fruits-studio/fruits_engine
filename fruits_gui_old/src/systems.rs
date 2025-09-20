@@ -2,6 +2,7 @@ use std::{net::{SocketAddr, TcpStream}, time::{Duration, Instant}};
 
 use fruits_engine::{prelude::*, utils::index_version_collection::VersionIndex};
 use fruits_debug::{msg_types, DebugConnectionResource};
+use fruits_ffi::FfiString;
 use fruits_reflection::*;
 
 use crate::{events::HierarchyUpdateEvent, resources::{AssetsResource, RequestsResource}};
@@ -109,7 +110,7 @@ pub fn update_hierarchy(
 
     for (i, ent) in hierarchy_evt.entities.iter().enumerate() {
         let vi = ent.version_index();
-        spawn_text(ec, &layout, format!("entity::{{ i: {}, v: {} }}", vi.index, vi.version), i, 0);
+        spawn_text(ec, &layout, format!("entity::{{ i: {}, v: {} }}", vi.index, vi.version).into(), i, 0);
     }
 }
 
@@ -122,7 +123,7 @@ fn spawn_repr_texts(
 ) {
     match &repr {
         ReflRepr::Struct(repr) => {
-            spawn_text(ec, layout, repr.name.clone(), *line, *indent);
+            spawn_text(ec, layout, repr.name.clone().into(), *line, *indent);
             *line += 1;
             *indent += 1;
 
@@ -130,7 +131,7 @@ fn spawn_repr_texts(
                 ReflReprFields::Unit => (),
                 ReflReprFields::Named(fields_named) => {
                     for (field_name, field_repr) in fields_named {
-                        spawn_text(ec, layout, field_name.clone(), *line, *indent);
+                        spawn_text(ec, layout, field_name.clone().into(), *line, *indent);
                         *line += 1;
                         
                         *indent += 1;
@@ -140,7 +141,7 @@ fn spawn_repr_texts(
                 },
                 ReflReprFields::Tuple(fields_tuple) => {
                     for (i, field_repr) in fields_tuple.iter().enumerate() {
-                        spawn_text(ec, layout, i.to_string(), *line, *indent);
+                        spawn_text(ec, layout, i.to_string().into(), *line, *indent);
                         *line += 1;
 
                         *indent += 1;
@@ -156,27 +157,27 @@ fn spawn_repr_texts(
         ReflRepr::Primitive(refl_repr_primitive) => {
             match refl_repr_primitive {
                 ReflReprPrimitive::Int(repr) => {
-                    spawn_text(ec, layout, repr.to_string(), *line, *indent);
+                    spawn_text(ec, layout, repr.to_string().into(), *line, *indent);
                     *line += 1;
                 },
                 ReflReprPrimitive::Float(repr) => {
-                    spawn_text(ec, layout, repr.to_string(), *line, *indent);
+                    spawn_text(ec, layout, repr.to_string().into(), *line, *indent);
                     *line += 1;
                 },
                 ReflReprPrimitive::Char(repr) => {
-                    spawn_text(ec, layout, repr.to_string(), *line, *indent);
+                    spawn_text(ec, layout, repr.to_string().into(), *line, *indent);
                     *line += 1;
                 },
                 ReflReprPrimitive::Str(repr) => {
-                    spawn_text(ec, layout, repr.to_string(), *line, *indent);
+                    spawn_text(ec, layout, repr.to_string().into(), *line, *indent);
                     *line += 1;
                 },
                 ReflReprPrimitive::Bool(repr) => {
-                    spawn_text(ec, layout, repr.to_string(), *line, *indent);
+                    spawn_text(ec, layout, repr.to_string().into(), *line, *indent);
                     *line += 1;
                 },
                 ReflReprPrimitive::Unit => {
-                    spawn_text(ec, layout, String::from("()"), *line, *indent);
+                    spawn_text(ec, layout, String::from("()").into(), *line, *indent);
                     *line += 1;
                 },
             }
@@ -195,7 +196,7 @@ pub struct LayoutGlobalData {
 fn spawn_text(
     ec: &mut EntitiesComponentsHolder,
     layout: &LayoutGlobalData,
-    text: String,
+    text: FfiString,
     line: usize,
     indent: usize,
 ) {

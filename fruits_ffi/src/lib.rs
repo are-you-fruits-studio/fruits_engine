@@ -1,10 +1,12 @@
 mod vec;
 mod alloc;
 mod slice;
+mod string;
 
 pub use vec::*;
 pub use alloc::*;
 pub use slice::*;
+pub use string::*;
 
 // example
 #[unsafe(no_mangle)]

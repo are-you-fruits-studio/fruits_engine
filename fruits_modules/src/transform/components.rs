@@ -36,7 +36,7 @@ impl Default for LocalTransform {
     fn default() -> Self { LocalTransform::IDENTITY }
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct ParentComponent {
     pub children: FfiVec<Entity>,

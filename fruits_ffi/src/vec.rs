@@ -79,7 +79,7 @@ impl<T> FfiVec<T> {
         self.cap
     }
 
-    pub fn as_slice(&self) -> &[T] {
+    pub const fn as_slice(&self) -> &[T] {
         if self.len == 0 {
             return &[];
         }
@@ -96,7 +96,7 @@ impl<T> FfiVec<T> {
         }
     }
 
-    pub fn as_slice_mut(&mut self) -> &mut [T] {
+    pub const fn as_slice_mut(&mut self) -> &mut [T] {
         if self.len == 0 {
             return &mut [];
         }

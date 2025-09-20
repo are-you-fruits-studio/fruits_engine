@@ -8,3 +8,4 @@ fruits_serialization = { path = "../fruits_serialization" }
 fruits_engine = { path = "../../fruits_engine" }
 fruits_reflection = { path = "../fruits_reflection" }
 fruits_debug = { path = "../fruits_debug" }
+fruits_ffi = { path = "../fruits_ffi" }

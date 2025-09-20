@@ -1,5 +1,5 @@
 use fruits_ecs::Component;
-use fruits_ffi::FfiVec;
+use fruits_ffi::{FfiString, FfiVec};
 use fruits_math::Vec4;
 
 use crate::{asset::AssetHandle, render::{Font, StandardVertex}, transform::UiVal};
@@ -44,7 +44,7 @@ pub struct CameraComponent {
 #[derive(Component)]
 pub struct TextComponent {
     pub font: AssetHandle<Font>,
-    pub text: String,
+    pub text: FfiString,
     pub font_size: UiVal,
     pub horizontal_align: HorizontalAlign,
     pub vertical_align: VerticalAlign,
