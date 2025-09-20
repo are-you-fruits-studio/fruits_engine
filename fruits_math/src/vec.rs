@@ -314,7 +314,7 @@ macro_rules! vec_impl {
                 &mut self.as_array_mut()[i]
             }
         }
-        
+
         unsafe impl<T: AllBitVariationsValid> AllBitVariationsValid for $V<T> { }
         unsafe impl<T: AllBitsInit> AllBitsInit for $V<T> { }
     };

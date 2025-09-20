@@ -131,7 +131,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent10, LocalRectComponent {
         pivot: Vec2::splat(0.0),
         anchor: Vec2::splat(0.0),
-        scale: Vec2::new(None, None),
+        scale: Vec2::new(None.into(), None.into()),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent10, RectChildAlignComponent {
@@ -151,7 +151,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     ec.add_component(ent11, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent11, LocalRectComponent {
-        scale: Vec2::splat(Some(UiVal::px(50.0))),
+        scale: Vec2::splat(UiVal::px(50.0).into()),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent11, ChildComponent { parent: ent10 }).ok().unwrap();
@@ -164,7 +164,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     ec.add_component(ent12, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent12, LocalRectComponent {
-        scale: Vec2::splat(Some(UiVal::px(40.0))),
+        scale: Vec2::splat(UiVal::px(40.0).into()),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent12, ChildComponent { parent: ent10 }).ok().unwrap();
@@ -177,7 +177,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     ec.add_component(ent13, GlobalRectComponent::default()).ok().unwrap();
     ec.add_component(ent13, LocalRectComponent {
-        scale: Vec2::splat(Some(UiVal::px(70.0))),
+        scale: Vec2::splat(UiVal::px(70.0).into()),
         ..Default::default()
     }).ok().unwrap();
     ec.add_component(ent13, ChildComponent { parent: ent10 }).ok().unwrap();

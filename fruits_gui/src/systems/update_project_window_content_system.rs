@@ -50,7 +50,7 @@ fn spawn_project_window_entries(
     EntityComponentsBuilder::new(ec, ent_entry)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: parent })
@@ -67,7 +67,7 @@ fn spawn_project_window_entries(
     EntityComponentsBuilder::new(ec, ent_name_container)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::pd(1.0)), Some(UiVal::px(20.0))),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry })
@@ -115,7 +115,7 @@ fn spawn_project_window_entries(
         .add_component(DebugNameComponent(String::from("ent_children")))
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry });
@@ -125,7 +125,7 @@ fn spawn_project_window_entries(
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
             parent_padding_min: Vec2::new(UiVal::px(20.0), UiVal::px(0.0)),
-            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_children })

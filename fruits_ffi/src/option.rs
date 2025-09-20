@@ -49,6 +49,14 @@ impl<T> FfiOption<T> {
             }
         }
     }
+
+    pub const fn is_some(&self) -> bool {
+        self.is_init
+    }
+
+    pub const fn is_none(&self) -> bool {
+        !self.is_init
+    }
 }
 
 impl<T: Debug> Debug for FfiOption<T> {
@@ -75,5 +83,35 @@ impl<T> From<FfiOption<T>> for Option<T> {
         value.into_option()
     }
 }
+
+impl<T> From<T> for FfiOption<T> {
+    fn from(value: T) -> Self {
+        Some(value).into()
+    }
+}
+
+impl<T: Copy> Copy for FfiOption<T> { }
+
+impl<T: Clone> Clone for FfiOption<T> {
+    fn clone(&self) -> Self {
+        match self.as_ref() {
+            Some(v) => Self::from_option(Some(v.clone())),
+            None => Self::from_option(None),
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for FfiOption<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.as_ref(), other.as_ref()) {
+            (None, None) => true,
+            (None, Some(_)) => false,
+            (Some(_), None) => false,
+            (Some(l), Some(r)) => l == r,
+        }
+    }
+}
+
+impl<T: Eq> Eq for FfiOption<T> { }
 
 // todo: impl standard traits

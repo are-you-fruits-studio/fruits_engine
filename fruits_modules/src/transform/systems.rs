@@ -1,6 +1,6 @@
 use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
-use fruits_ffi::FfiVec;
+use fruits_ffi::{FfiOption, FfiVec};
 use fruits_math::{Mat3, Vec2};
 
 use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
@@ -172,7 +172,7 @@ pub fn calculate_global_rect_scale_hierarchy_independent(
 
     for (local_rect, global_rect) in rect_q.iter_mut() {
         let scale = Vec2::from_fn(|i| {
-            local_rect.scale[i].map(|v| v.into_px_without_parent(window_size).map(|v| v[i]))
+            local_rect.scale[i].into_option().map(|v| v.into_px_without_parent(window_size).map(|v| v[i]))
                 .flatten()
                 .unwrap_or(0.0)
         });
@@ -199,7 +199,7 @@ pub fn calculate_global_rect_scale_children_based(
             return;
         };
 
-        let mut child_based_scale = if local_rect.scale.as_array().iter().all(Option::is_some) {
+        let mut child_based_scale = if local_rect.scale.as_array().iter().all(FfiOption::is_some) {
             Vec2::splat(0.0)
         } else {
             let mut max = Vec2::splat(0.0);
@@ -294,7 +294,7 @@ pub fn calculate_global_rect_scale_parent_based(
             };
 
             let final_scale = Vec2::from_fn(|i| {
-                local_rect.scale[i]
+                local_rect.scale[i].into_option()
                     .map(|v| ui_val_to_px(v)[i])
                     .unwrap_or(global_rect.scale[i])
             });

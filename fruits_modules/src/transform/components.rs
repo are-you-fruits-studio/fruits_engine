@@ -1,5 +1,5 @@
 use fruits_ecs::{Component, Entity};
-use fruits_ffi::FfiVec;
+use fruits_ffi::{FfiOption, FfiVec};
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
 
 #[repr(C)]
@@ -72,7 +72,7 @@ impl UiDirection {
     }
 }
 
-// todo: support ffi (Option is not ffi-safe)
+#[repr(C)]
 #[derive(Component, Copy, Clone, Debug, PartialEq)]
 pub struct LocalRectComponent {
     pub parent_padding_min: Vec2<UiVal>,
@@ -80,7 +80,7 @@ pub struct LocalRectComponent {
     pub offset: Vec2<UiVal>,
     pub anchor: Vec2<f32>,
     pub pivot: Vec2<f32>,
-    pub scale: Vec2<Option<UiVal>>,
+    pub scale: Vec2<FfiOption<UiVal>>,
     pub z: f32,
 }
 impl Default for LocalRectComponent {
@@ -91,7 +91,7 @@ impl Default for LocalRectComponent {
             offset: Vec2::splat(UiVal::px(0.0)),
             anchor: Vec2::splat(0.5),
             pivot: Vec2::splat(0.5),
-            scale: Vec2::new(Some(UiVal::pw(1.0)), Some(UiVal::ph(1.0))),
+            scale: Vec2::new(Some(UiVal::pw(1.0)), Some(UiVal::ph(1.0))).map(Into::into),
             z: -1.0,
         }
     }

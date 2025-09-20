@@ -61,7 +61,7 @@ fn spawn_scene_window_entry(
     EntityComponentsBuilder::new(ec, ent_entry)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: parent })
@@ -78,7 +78,7 @@ fn spawn_scene_window_entry(
     EntityComponentsBuilder::new(ec, ent_name_container)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            scale: Vec2::new(Some(UiVal::pd(1.0)), Some(UiVal::px(20.0))),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_entry })

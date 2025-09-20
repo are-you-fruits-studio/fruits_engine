@@ -27,7 +27,7 @@ pub fn project_window(world: &mut WorldData) -> Entity {
         .add_component(LocalRectComponent {
             anchor: Vec2::new(0.0, 0.5),
             pivot: Vec2::new(0.0, 0.5),
-            scale: Vec2::new(Some(UiVal::pd(0.5)), Some(UiVal::pd(1.0))),
+            scale: Vec2::new(Some(UiVal::pd(0.5)).into(), Some(UiVal::pd(1.0)).into()),
             ..Default::default()
         })
         .add_component(BatchedMeshComponent::default())
@@ -57,7 +57,7 @@ pub fn project_window(world: &mut WorldData) -> Entity {
         .add_component(LocalRectComponent {
             anchor: Vec2::new(0.5, 0.0),
             pivot: Vec2::new(0.5, 0.0),
-            scale: Vec2::new(Some(UiVal::pd(1.0)), Some(UiVal::px(20.0))),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_bordered_root })
@@ -124,7 +124,7 @@ pub fn project_window(world: &mut WorldData) -> Entity {
         .add_component(LocalRectComponent {
             anchor: Vec2::new(0.0, 0.0),
             pivot: Vec2::new(0.0, 0.0),
-            scale: Vec2::new(Some(UiVal::pd(1.0)), None),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_scroll_view })
