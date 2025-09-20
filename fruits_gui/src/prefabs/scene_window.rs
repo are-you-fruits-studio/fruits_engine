@@ -84,7 +84,7 @@ pub fn scene_window(world: &mut WorldData) -> Entity {
             font: font.clone(),
             font_size: UiVal::px(18.0),
             is_y_inverted: true,
-            text: String::from("Scene"),
+            text: String::from("Scene").into(),
             horizontal_spacing: 0.0,
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,

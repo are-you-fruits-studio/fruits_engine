@@ -71,7 +71,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     ec.add_component(ent_text, TextComponent {
         font: font.clone(),
         font_size: UiVal::px(0.4),
-        text: String::from("Dashunia - myla pinhvinka"),
+        text: String::from("Dashunia - myla pinhvinka").into(),
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Middle,
         is_y_inverted: false,

@@ -40,7 +40,7 @@ pub struct CameraComponent {
     pub far: f32,
 }
 
-// todo: support ffi (String is not ffi-safe)
+#[repr(C)]
 #[derive(Component)]
 pub struct TextComponent {
     pub font: AssetHandle<Font>,

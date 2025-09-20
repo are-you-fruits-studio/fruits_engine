@@ -98,7 +98,7 @@ fn spawn_project_window_entries(
             font: font.clone(),
             font_size: UiVal::px(18.0),
             is_y_inverted: true,
-            text: entry.name.clone(),
+            text: entry.name.clone().into(),
             horizontal_spacing: 0.0,
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,
