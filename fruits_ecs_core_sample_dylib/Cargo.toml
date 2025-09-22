@@ -8,3 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 fruits_ecs_core = { path = "../fruits_ecs_core" }
+fruits_engine = { path = "../../fruits_engine" }

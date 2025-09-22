@@ -1,0 +1,7 @@
+use crate::{ResourcesHolderUnsafeFfi, TypesRegistryAccessFfi};
+
+#[repr(C)]
+pub struct AppInitCtxFfi {
+    pub res_ref: *mut ResourcesHolderUnsafeFfi,
+    pub types: TypesRegistryAccessFfi,
+}

@@ -451,9 +451,6 @@ pub fn calculate_global_rect_pos(
 
                     let child_center_perp_dir = parent_global_c.center[dir_perp_axis] + (child_global_c.scale[dir_perp_axis] - parent_global_c.scale[dir_perp_axis]) * (0.5 - align_c.anchor[dir_perp_axis]);
 
-                    if child_global_c.scale[dir_axis] < 0.0 {
-                        dbg!(child_global_c.scale[dir_axis]); 
-                    }
                     child_global_c.center[dir_axis] = child_start_dir + child_global_c.scale[dir_axis] * 0.5;
                     child_global_c.center[dir_perp_axis] = child_center_perp_dir;
 

@@ -1,20 +1,23 @@
 use std::{alloc::GlobalAlloc, collections::HashMap, ffi::c_void, ptr::NonNull};
 
-use crate::{types_registry::TypesRegistryRef, TypesRegistryCache};
+use crate::{types_registry::TypesRegistryAccess, TypesRegistryCache};
+
 
 #[repr(C)]
-pub struct ResourcesHolderUnsafeRefFfi {
+pub struct ResourcesHolderUnsafeFfi {
     data: *mut c_void,
     insert_fn: unsafe extern "C" fn(*mut c_void, u64) -> *mut c_void,
     get_fn: unsafe extern "C" fn(*mut c_void, u64) -> *mut c_void,
+    drop_fn: unsafe extern "C" fn(*mut c_void),
 }
 
-impl ResourcesHolderUnsafeRefFfi {
-    pub unsafe fn from_unsafe(resources: &mut ResourcesHolderUnsafe) -> Self {
+impl ResourcesHolderUnsafeFfi {
+    pub fn from_unsafe(resources: ResourcesHolderUnsafe) -> Self {
         Self {
-            data: &raw mut *resources as *mut c_void,
+            data: Box::into_raw(Box::new(resources)) as *mut c_void,
             get_fn: Self::ffi_get,
             insert_fn: Self::ffi_insert,
+            drop_fn: Self::ffi_drop,
         }
     }
 
@@ -53,14 +56,32 @@ impl ResourcesHolderUnsafeRefFfi {
             result.map(|p| p.as_ptr()).unwrap_or(std::ptr::null_mut()) as *mut c_void
         }
     }
+
+    pub unsafe extern "C" fn ffi_drop(this_ref: *mut c_void) {
+        // todo
+        unsafe {
+            drop(Box::from_raw(this_ref as *mut ResourcesHolderUnsafe));
+        }
+    }
 }
 
+impl Drop for ResourcesHolderUnsafeFfi {
+    fn drop(&mut self) {
+        // todo
+        unsafe {
+            (self.drop_fn)(self.data);
+        }
+    }
+}
+
+//
+
 pub struct ResourcesHolderUnsafe {
-    types: TypesRegistryRef,
+    types: TypesRegistryAccess,
     resources: HashMap<u64, NonNull<u8>>,
 }
 impl ResourcesHolderUnsafe {
-    pub fn new(types: TypesRegistryRef) -> Self {
+    pub fn new(types: TypesRegistryAccess) -> Self {
         Self {
             types,
             resources: HashMap::new(),
@@ -117,13 +138,13 @@ unsafe impl Sync for ResourcesHolderUnsafe { }
 //
 
 // todo: depend on the ffi version instead
-pub struct ResourcesHolderRef {
+pub struct ResourcesHolderRef<'r> {
     types: TypesRegistryCache,
-    res: ResourcesHolderUnsafeRefFfi,
+    res: &'r mut ResourcesHolderUnsafeFfi,
 }
 
-impl ResourcesHolderRef {
-    pub unsafe fn from_ffi(res: ResourcesHolderUnsafeRefFfi, types: TypesRegistryCache) -> Self {
+impl<'r> ResourcesHolderRef<'r> {
+    pub fn from_ffi(res: &'r mut ResourcesHolderUnsafeFfi, types: TypesRegistryCache) -> Self {
         Self {
             res,
             types,
