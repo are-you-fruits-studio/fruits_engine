@@ -23,6 +23,7 @@ pub struct TypeData {
 #[repr(C)]
 pub struct TypesRegistryAccessFfi {
     data: *mut c_void,
+    clone_fn: unsafe extern "C" fn(*const c_void) -> *mut c_void,
     len_fn: unsafe extern "C" fn(*const c_void) -> u64,
     get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<StoredTypeData>,
     get_by_name_fn: unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData>,
@@ -30,13 +31,15 @@ pub struct TypesRegistryAccessFfi {
     drop_fn: unsafe extern "C" fn(*mut c_void),
 }
 
-
 //
 
 impl TypesRegistryAccessFfi {
-    pub fn from_registry(types: TypesRegistryAccess) -> Self {
+    pub fn new() -> Self {
+        let types = TypesRegistryAccessNative::new();
+
         Self {
             data: Box::into_raw(Box::new(types)) as *mut c_void,
+            clone_fn: Self::ffi_clone,
             len_fn: Self::ffi_len,
             get_fn: Self::ffi_get,
             get_by_name_fn: Self::ffi_get_by_name,
@@ -45,13 +48,13 @@ impl TypesRegistryAccessFfi {
         }
     }
 
-    pub unsafe fn len(&self) -> u64 {
+    pub fn len(&self) -> u64 {
         unsafe {
             (self.len_fn)((&raw const *self) as *const c_void)
         }
     }
 
-    pub unsafe fn get(&self, id: u64) -> Option<StoredTypeData> {
+    pub fn get(&self, id: u64) -> Option<StoredTypeData> {
         unsafe {
             let this = self.data;
 
@@ -61,7 +64,7 @@ impl TypesRegistryAccessFfi {
         }
     }
 
-    pub unsafe fn get_by_name(&self, name: &str) -> Option<StoredTypeData> {
+    pub fn get_by_name(&self, name: &str) -> Option<StoredTypeData> {
         unsafe {
             let this = self.data;
             let name_utf8_len = name.len() as u64;
@@ -73,7 +76,7 @@ impl TypesRegistryAccessFfi {
         }
     }
 
-    pub unsafe fn try_register(&self, name: &str, data: TypeData) -> Option<u64> {
+    pub fn try_register(&self, name: &str, data: TypeData) -> Option<u64> {
         unsafe {
             let this = self.data;
             let name_utf8_len = name.len() as u64;
@@ -85,10 +88,18 @@ impl TypesRegistryAccessFfi {
         }
     }
 
-    
+    unsafe extern "C" fn ffi_clone(this: *const c_void) -> *mut c_void {
+        unsafe {
+            let this = &*(this as *const TypesRegistryAccessNative);
+            
+            let cloned = this.clone();
+            
+            Box::into_raw(Box::new(cloned)) as *mut c_void
+        }
+    }
     unsafe extern "C" fn ffi_len(this: *const c_void) -> u64 {
         unsafe {
-            let this = &*(this as *const TypesRegistryAccess);
+            let this = &*(this as *const TypesRegistryAccessNative);
 
             let result = this.len();
 
@@ -97,7 +108,7 @@ impl TypesRegistryAccessFfi {
     }
     unsafe extern "C" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<StoredTypeData> {
         unsafe {
-            let this = &*(this as *const TypesRegistryAccess);
+            let this = &*(this as *const TypesRegistryAccessNative);
 
             let result = this.get(id);
 
@@ -106,7 +117,7 @@ impl TypesRegistryAccessFfi {
     }
     unsafe extern "C" fn ffi_get_by_name(this: *const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData> {
         unsafe {
-            let this = &*(this as *const TypesRegistryAccess);
+            let this = &*(this as *const TypesRegistryAccessNative);
             let name_utf8 = std::slice::from_raw_parts(name_utf8_ref as *const u8, name_utf8_len as usize);
             let Ok(name) = str::from_utf8(name_utf8) else {
                 return FfiOption::from_option(None);
@@ -119,7 +130,7 @@ impl TypesRegistryAccessFfi {
     }
     unsafe extern "C" fn ffi_try_register(this: *const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64, data: TypeData) -> FfiOption<u64> {
         unsafe {
-            let this = &*(this as *const TypesRegistryAccess);
+            let this = &*(this as *const TypesRegistryAccessNative);
             let name_utf8 = std::slice::from_raw_parts(name_utf8_ref as *const u8, name_utf8_len as usize);
             let Ok(name) = str::from_utf8(name_utf8) else {
                 return None.into();
@@ -133,7 +144,7 @@ impl TypesRegistryAccessFfi {
     pub unsafe extern "C" fn ffi_drop(this_ref: *mut c_void) {
         // todo
         unsafe {
-            drop(Box::from_raw(this_ref as *mut TypesRegistryAccess));
+            drop(Box::from_raw(this_ref as *mut TypesRegistryAccessNative));
         }
     }
     // todo
@@ -149,6 +160,24 @@ impl Drop for TypesRegistryAccessFfi {
     }
 }
 
+impl Clone for TypesRegistryAccessFfi {
+    fn clone(&self) -> Self {
+        unsafe {
+            let data = (self.clone_fn)(self.data);
+   
+            Self {
+                data,
+                clone_fn: self.clone_fn,
+                len_fn: self.len_fn,
+                get_fn: self.get_fn,
+                get_by_name_fn: self.get_by_name_fn,
+                try_register_fn: self.try_register_fn,
+                drop_fn: self.drop_fn,
+            }
+        }
+    }
+}
+
 //
 
 struct TypesRegistryData {
@@ -156,11 +185,11 @@ struct TypesRegistryData {
     types: Vec<StoredTypeData>,
 }
 
-pub struct TypesRegistryAccess {
+struct TypesRegistryAccessNative {
     data: Arc<RwLock<TypesRegistryData>>,
 }
 
-impl Clone for TypesRegistryAccess {
+impl Clone for TypesRegistryAccessNative {
     fn clone(&self) -> Self {
         Self {
             data: Arc::clone(&self.data),
@@ -168,7 +197,7 @@ impl Clone for TypesRegistryAccess {
     }
 }
 
-impl TypesRegistryAccess {
+impl TypesRegistryAccessNative {
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(TypesRegistryData {

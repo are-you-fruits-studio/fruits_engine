@@ -4,8 +4,9 @@ use fruits_engine::prelude::*;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn init_app(ctx: AppInitCtxFfi) {
     let res_ref = unsafe { &mut *ctx.res_ref };
+    let types_ref = unsafe { &*ctx.types_ref };
 
-    let types = TypesRegistryCache::new(ctx.types);
+    let types = TypesRegistryCache::new(types_ref.clone());
 
     let resources_holder_ref = ResourcesHolderRef::from_ffi(res_ref, types);
 
@@ -27,4 +28,10 @@ fn app_custom_init(mut res: ResourcesHolderRef) {
 #[derive(Resource)]
 pub struct AgeResource {
     age: u8,
+}
+
+impl Drop for AgeResource {
+    fn drop(&mut self) {
+        println!("AgeResource drop");
+    }
 }

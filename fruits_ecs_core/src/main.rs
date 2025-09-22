@@ -38,30 +38,29 @@ fn lib_loading_example() {
         libloading::Library::new("D:/Projects/Hobby/fruits_engine/target/debug/fruits_ecs_core_sample_dylib").unwrap()
     };
     
-    let init_app_symbol = unsafe {
-        lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"init_app").unwrap()
-    };
-
-    let types = TypesRegistryAccess::new();
-    let res = ResourcesHolderUnsafe::new(types.clone());
-    
-    unsafe {
-        let mut res_ffi = ResourcesHolderUnsafeFfi::from_unsafe(res);
-        let types_ffi = TypesRegistryAccessFfi::from_registry(types);
-
-        let ctx = AppInitCtxFfi {
-            res_ref: &raw mut res_ffi,
-            types: types_ffi,
+    {
+        let init_app_symbol = unsafe {
+            lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"init_app").unwrap()
         };
 
-        init_app_symbol(ctx);
+        let types = TypesRegistryAccessFfi::new();
+        let mut res = ResourcesHolderUnsafeFfi::new(types.clone());
+
+        unsafe {
+            let ctx = AppInitCtxFfi {
+                res_ref: &raw mut res,
+                types_ref: &raw const types,
+            };
+
+            init_app_symbol(ctx);
+        }
     }
 
     lib.close().unwrap();
 }
 
 fn unsafe_example() {
-    let types = TypesRegistryAccess::new();
+    let types = TypesRegistryAccessFfi::new();
 
     unsafe extern "C" fn example_struct_drop_fn(p: *mut std::ffi::c_void) {
         unsafe { std::ptr::drop_in_place(p as *mut ExampleStruct) }
@@ -72,7 +71,7 @@ fn unsafe_example() {
         drop_fn: Some(example_struct_drop_fn),
     }).unwrap();
 
-    let mut res = ResourcesHolderUnsafe::new(types);
+    let mut res = ResourcesHolderUnsafeFfi::new(types);
 
     unsafe {
         (res.insert(example_struct_id).unwrap().as_ptr() as *mut ExampleStruct).write(ExampleStruct {
@@ -92,27 +91,25 @@ fn unsafe_example() {
 }
 
 fn safe_example() {
-    let types = TypesRegistryAccess::new();
-    let types_ffi = TypesRegistryAccessFfi::from_registry(types.clone());
-    let types_cache = TypesRegistryCache::new(types_ffi);
+    let types = TypesRegistryAccessFfi::new();
+    let types_cache = TypesRegistryCache::new(types.clone());
     
-    let res_unsafe = ResourcesHolderUnsafe::new(types.clone());
-    let mut res_ffi = ResourcesHolderUnsafeFfi::from_unsafe(res_unsafe);
-    let mut res = ResourcesHolderRef::from_ffi(&mut res_ffi, types_cache);
+    let mut res = ResourcesHolderUnsafeFfi::new(types.clone());
+    let mut res_ref = ResourcesHolderRef::from_ffi(&mut res, types_cache);
     
-    res.insert(ExampleStruct {
+    res_ref.insert(ExampleStruct {
         name: String::from("Peter"),
         age: 44,
     }).ok().unwrap();
     
     {
-        let example = res.get::<ExampleStruct>().unwrap();
+        let example = res_ref.get::<ExampleStruct>().unwrap();
 
         dbg!(&example.age);
         dbg!(&example.name);
     };
 
-    drop(res);
+    drop(res_ref);
 }
 
 pub struct ExampleStruct {

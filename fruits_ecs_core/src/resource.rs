@@ -1,6 +1,6 @@
 use std::{alloc::GlobalAlloc, collections::HashMap, ffi::c_void, ptr::NonNull};
 
-use crate::{types_registry::TypesRegistryAccess, TypesRegistryCache};
+use crate::{TypesRegistryAccessFfi, TypesRegistryCache};
 
 
 #[repr(C)]
@@ -12,9 +12,11 @@ pub struct ResourcesHolderUnsafeFfi {
 }
 
 impl ResourcesHolderUnsafeFfi {
-    pub fn from_unsafe(resources: ResourcesHolderUnsafe) -> Self {
+    pub fn new(types: TypesRegistryAccessFfi) -> Self {
+        let res = ResourcesHolderUnsafeNative::new(types);
+
         Self {
-            data: Box::into_raw(Box::new(resources)) as *mut c_void,
+            data: Box::into_raw(Box::new(res)) as *mut c_void,
             get_fn: Self::ffi_get,
             insert_fn: Self::ffi_insert,
             drop_fn: Self::ffi_drop,
@@ -38,7 +40,7 @@ impl ResourcesHolderUnsafeFfi {
     pub unsafe extern "C" fn ffi_insert(this_ref_mut: *mut c_void, id: u64) -> *mut c_void {
         // todo
         unsafe {
-            let this = &mut *(this_ref_mut as *mut ResourcesHolderUnsafe);
+            let this = &mut *(this_ref_mut as *mut ResourcesHolderUnsafeNative);
 
             let result = this.insert(id);
 
@@ -49,7 +51,7 @@ impl ResourcesHolderUnsafeFfi {
     pub unsafe extern "C" fn ffi_get(this_ref: *mut c_void, id: u64) -> *mut c_void {
         // todo
         unsafe {
-            let this = &*(this_ref as *mut ResourcesHolderUnsafe);
+            let this = &*(this_ref as *mut ResourcesHolderUnsafeNative);
 
             let result = this.get(id);
 
@@ -60,7 +62,7 @@ impl ResourcesHolderUnsafeFfi {
     pub unsafe extern "C" fn ffi_drop(this_ref: *mut c_void) {
         // todo
         unsafe {
-            drop(Box::from_raw(this_ref as *mut ResourcesHolderUnsafe));
+            drop(Box::from_raw(this_ref as *mut ResourcesHolderUnsafeNative));
         }
     }
 }
@@ -76,12 +78,12 @@ impl Drop for ResourcesHolderUnsafeFfi {
 
 //
 
-pub struct ResourcesHolderUnsafe {
-    types: TypesRegistryAccess,
+struct ResourcesHolderUnsafeNative {
+    types: TypesRegistryAccessFfi,
     resources: HashMap<u64, NonNull<u8>>,
 }
-impl ResourcesHolderUnsafe {
-    pub fn new(types: TypesRegistryAccess) -> Self {
+impl ResourcesHolderUnsafeNative {
+    pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
             types,
             resources: HashMap::new(),
@@ -115,7 +117,7 @@ impl ResourcesHolderUnsafe {
     }
 }
 
-impl Drop for ResourcesHolderUnsafe {
+impl Drop for ResourcesHolderUnsafeNative {
     fn drop(&mut self) {
         for (&id, &mem) in self.resources.iter() {
             let type_data = self.types.get(id).unwrap();
@@ -132,8 +134,8 @@ impl Drop for ResourcesHolderUnsafe {
 
 // todo?
 // Safety. It is safe itself. Ptr usage is managed by caller
-unsafe impl Send for ResourcesHolderUnsafe { }
-unsafe impl Sync for ResourcesHolderUnsafe { }
+unsafe impl Send for ResourcesHolderUnsafeNative { }
+unsafe impl Sync for ResourcesHolderUnsafeNative { }
 
 //
 
