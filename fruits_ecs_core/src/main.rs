@@ -59,37 +59,6 @@ fn lib_loading_example() {
     lib.close().unwrap();
 }
 
-fn unsafe_example() {
-    let types = TypesRegistryAccessFfi::new();
-
-    unsafe extern "C" fn example_struct_drop_fn(p: *mut std::ffi::c_void) {
-        unsafe { std::ptr::drop_in_place(p as *mut ExampleStruct) }
-    }
-    let example_struct_id = types.try_register(std::any::type_name::<ExampleStruct>(), TypeData {
-        size: std::mem::size_of::<ExampleStruct>() as u64,
-        align: std::mem::align_of::<ExampleStruct>() as u64,
-        drop_fn: Some(example_struct_drop_fn),
-    }).unwrap();
-
-    let mut res = ResourcesHolderUnsafeFfi::new(types);
-
-    unsafe {
-        (res.insert(example_struct_id).unwrap().as_ptr() as *mut ExampleStruct).write(ExampleStruct {
-            name: String::from("Peter"),
-            age: 44,
-        });
-    }
-
-    unsafe {
-        let example = &*(res.get(example_struct_id).unwrap().as_ptr() as *mut ExampleStruct);
-
-        dbg!(&example.age);
-        dbg!(&example.name);
-    };
-
-    drop(res);
-}
-
 fn safe_example() {
     let types = TypesRegistryAccessFfi::new();
     let types_cache = TypesRegistryCache::new(types.clone());

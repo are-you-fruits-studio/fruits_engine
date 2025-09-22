@@ -42,6 +42,8 @@ fn panic_invalid_usage() -> ! {
     panic!("fruits: Invalid system DataUsage.");
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct DataUsageDetails {
     pub is_mutable: bool,
     pub is_required: bool,
