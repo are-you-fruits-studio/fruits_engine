@@ -42,9 +42,11 @@ unsafe impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> SystemParam for WorldQ
     type Item<'b> = WorldQuery<'b, A::Item<'b>, F>;
 
     fn fill_data_usage(usage: &mut DataUsage) {
-        if let DataUsage::PerType(per_type) = usage {
-            A::fill_usage(per_type);
-        }
+        let DataUsage::PerType(per_type) = usage else {
+            panic!("fruits: Invalid system DataUsage.");
+        };
+
+        A::fill_usage(per_type);
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
