@@ -2,7 +2,7 @@ use std::{alloc::Layout, sync::Mutex};
 
 pub const CHUNK_SIZE: usize = 1024 * 12;
 
-pub const CHUNK_LAOUT: Layout = {
+pub const CHUNK_LAYOUT: Layout = {
     let Ok(layout) = Layout::from_size_align(CHUNK_SIZE, 1) else { panic!("invalid chunk layout") };
     layout
 };
@@ -16,7 +16,11 @@ impl ChunkHandle {
     pub fn new() -> Self {
         // Safety. Unsafe for access - missing lifetimes. But leak-safe - has Drop impl.
         unsafe {
-            ChunkHandle(std::alloc::alloc(CHUNK_LAOUT))
+            let ptr = std::alloc::alloc(CHUNK_LAYOUT);
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(CHUNK_LAYOUT);
+            }
+            ChunkHandle(ptr)
         }
     }
 
@@ -28,7 +32,7 @@ impl Drop for ChunkHandle {
     fn drop(&mut self) {
         // Safety. Unsafe for access - missing lifetimes. But leak-safe.
         unsafe {
-            std::alloc::dealloc(self.0, CHUNK_LAOUT);
+            std::alloc::dealloc(self.0, CHUNK_LAYOUT);
         }
     }
 }

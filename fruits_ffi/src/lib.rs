@@ -3,14 +3,14 @@ mod alloc;
 mod slice;
 mod string;
 mod option;
-mod drop;
+mod boxed;
 
 pub use vec::*;
 pub use alloc::*;
 pub use slice::*;
 pub use string::*;
 pub use option::*;
-pub use drop::*;
+pub use boxed::*;
 
 // example
 #[unsafe(no_mangle)]

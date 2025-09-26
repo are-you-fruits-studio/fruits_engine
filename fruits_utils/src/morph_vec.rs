@@ -32,7 +32,12 @@ impl<T> MorphVec<T> {
 
             // Safety. Memory is freed in Drip and realloc.
             self.buf = unsafe {
-                std::alloc::alloc(Layout::from_size_align(size, 1).unwrap())
+                let layout = Layout::from_size_align(size, 1).unwrap();
+                let ptr = std::alloc::alloc(layout);
+                if ptr.is_null() {
+                    std::alloc::handle_alloc_error(layout);
+                }
+                ptr
             };
             self.cap_bytes = size;
         } else if self.len == cap {
@@ -40,7 +45,12 @@ impl<T> MorphVec<T> {
 
             // Safety. Memory is freed in Drip and realloc.
             let new_buf = unsafe {
-                std::alloc::alloc(Layout::from_size_align(size, 1).unwrap())
+                let layout = Layout::from_size_align(size, 1).unwrap();
+                let ptr = std::alloc::alloc(layout);
+                if ptr.is_null() {
+                    std::alloc::handle_alloc_error(layout);
+                }
+                ptr
             };
 
             // Safety. Alignment is added to the buffer size on realloc.

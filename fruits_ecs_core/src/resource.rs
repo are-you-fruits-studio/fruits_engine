@@ -2,7 +2,6 @@ use std::{alloc::GlobalAlloc, collections::HashMap, ffi::c_void, ptr::NonNull};
 
 use crate::{TypesRegistryAccessFfi, TypesRegistryCache};
 
-
 #[repr(C)]
 pub struct ResourcesHolderUnsafeFfi {
     data: *mut c_void,
@@ -139,14 +138,53 @@ unsafe impl Sync for ResourcesHolderUnsafeNative { }
 
 //
 
-// todo: depend on the ffi version instead
-pub struct ResourcesHolderRef<'r> {
+pub struct ResourcesHolderTypedUnsafeRef<'r> {
     types: TypesRegistryCache,
     res: &'r mut ResourcesHolderUnsafeFfi,
 }
 
-impl<'r> ResourcesHolderRef<'r> {
+impl<'r> ResourcesHolderTypedUnsafeRef<'r> {
     pub fn from_ffi(res: &'r mut ResourcesHolderUnsafeFfi, types: TypesRegistryCache) -> Self {
+        Self {
+            res,
+            types,
+        }
+    }
+
+    pub fn get<T: 'static>(&self) -> Option<*mut T> {
+        let type_id = self.types.get_or_register::<T>();
+
+        unsafe {
+            let mem = self.res.get(type_id)?;
+
+            Some(mem.as_ptr() as *mut T)
+        }
+    }
+    
+    pub fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
+        let type_id = self.types.get_or_register::<T>();
+
+        unsafe {
+            let Some(mem) = self.res.insert(type_id) else {
+                return Err(data);
+            };
+            
+            (mem.as_ptr() as *mut T).write(data);
+        }
+
+        Ok(())
+    }
+}
+
+//
+
+pub struct ResourcesHolderRef<'r> {
+    types: &'r TypesRegistryCache,
+    res: &'r mut ResourcesHolderUnsafeFfi,
+}
+
+impl<'r> ResourcesHolderRef<'r> {
+    pub fn from_ffi(res: &'r mut ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
             types,

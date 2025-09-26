@@ -45,14 +45,30 @@ fn lib_loading_example() {
 
         let types = TypesRegistryAccessFfi::new();
         let mut res = ResourcesHolderUnsafeFfi::new(types.clone());
+        let mut systems = SystemScheduleFfi::new();
+        let mut native_data = None.into();
 
         unsafe {
             let ctx = AppInitCtxFfi {
-                res_ref: &raw mut res,
+                res_mut: &raw mut res,
                 types_ref: &raw const types,
+                systems_mut: &raw mut systems,
+                native_data_mut: &raw mut native_data,
             };
 
             init_app_symbol(ctx);
+        }
+
+        {
+            let system_ctx = SystemCtxFfi {
+                res_mut: &raw mut res,
+                types_ref: &raw const types,
+                native_data_mut: &raw mut native_data,
+            };
+
+            for _ in 0..3 {
+                systems.execute(system_ctx);
+            }
         }
     }
 
@@ -64,7 +80,7 @@ fn safe_example() {
     let types_cache = TypesRegistryCache::new(types.clone());
     
     let mut res = ResourcesHolderUnsafeFfi::new(types.clone());
-    let mut res_ref = ResourcesHolderRef::from_ffi(&mut res, types_cache);
+    let mut res_ref = ResourcesHolderRef::from_ffi(&mut res, &types_cache);
     
     res_ref.insert(ExampleStruct {
         name: String::from("Peter"),

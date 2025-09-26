@@ -199,7 +199,7 @@ pub fn calculate_global_rect_scale_children_based(
             return;
         };
 
-        let mut child_based_scale = if local_rect.scale.as_array().iter().all(FfiOption::is_some) {
+        let mut child_based_scale = if local_rect.scale.as_array().iter().all(|v| v.is_some()) {
             Vec2::splat(0.0)
         } else {
             let mut max = Vec2::splat(0.0);
