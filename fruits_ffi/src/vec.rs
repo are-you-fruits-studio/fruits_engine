@@ -1,14 +1,116 @@
-use std::{fmt::Debug, ops::{Deref, DerefMut}};
+use std::{ffi::c_void, fmt::Debug, marker::PhantomData, ops::{Deref, DerefMut}};
 
 use crate::FfiAllocator;
 
-// todo
 #[repr(C)]
-pub struct FfiVec<T> {
-    ptr: *mut T,
+struct FfiRawVec {
+    ptr: *mut u8,
     cap: u64,
     len: u64,
     allocator: FfiAllocator,
+}
+
+//
+
+#[repr(C)]
+pub struct FfiOpaqueVec {
+    vec: FfiRawVec,
+    element_size: u64,
+    element_align: u64,
+    drop_fn: Option<unsafe extern "C" fn(*mut c_void)>,
+}
+
+impl FfiOpaqueVec {
+    pub const fn new(element_size: u64, element_align: u64, drop_fn: Option<unsafe extern "C" fn(*mut c_void)>) -> Self {
+        let cap = if element_size == 0 {
+            ZERO_SIZED_CAP
+        } else {
+            0
+        };
+
+        Self {
+            vec: FfiRawVec {
+                allocator: FfiAllocator::from_global(),
+                cap,
+                len: 0,
+                ptr: std::ptr::null_mut(),
+            },
+            element_size,
+            element_align,
+            drop_fn,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        if self.vec.len == 0 {
+            return;
+        }
+
+        if let Some(drop_fn) = self.drop_fn {
+            let ptr = if self.element_size == 0 {
+                std::ptr::NonNull::dangling().as_ptr()
+            } else {
+                self.vec.ptr
+            };
+
+            unsafe {
+                for i in 0..self.vec.len {
+                    drop_fn(ptr.add((i * self.element_size) as usize) as *mut c_void)
+                }
+            }
+        }
+
+        self.vec.len = 0;
+    }
+
+    pub unsafe fn as_vec<T>(&self) -> &FfiVec<T> {
+        unsafe { std::mem::transmute::<&FfiRawVec, &FfiVec<T>>(&self.vec) }
+    }
+
+    pub unsafe fn as_vec_mut<T>(&mut self) -> &mut FfiVec<T> {
+        unsafe { std::mem::transmute::<&mut FfiRawVec, &mut FfiVec<T>>(&mut self.vec) }
+    }
+
+    pub unsafe fn as_vec_ptr<T>(this: *mut Self) -> *mut FfiVec<T> {
+        unsafe { (&raw mut (*this).vec) as *mut FfiVec<T> }
+    }
+}
+
+impl Drop for FfiOpaqueVec {
+    fn drop(&mut self) {
+        if self.vec.cap == 0 {
+            return;
+        }
+
+        let ptr = if self.element_size == 0 {
+            std::ptr::NonNull::dangling().as_ptr()
+        } else {
+            self.vec.ptr
+        };
+        
+        // todo
+        unsafe {
+            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, self.vec.len as usize));
+            
+            // todo: exec on drop for guaranteed dealloc?
+            if self.element_size != 0 {
+                self.vec.allocator.dealloc(
+                    self.vec.ptr,
+                    self.element_size * self.vec.cap,
+                    self.element_align,
+                );
+            }
+        }
+    }
+}
+
+//
+
+// todo
+#[repr(transparent)]
+pub struct FfiVec<T> {
+    vec: FfiRawVec,
+    _phantom: PhantomData<T>,
 }
 
 impl<T> FfiVec<T> {
@@ -20,10 +122,13 @@ impl<T> FfiVec<T> {
         };
 
         Self {
-            allocator: FfiAllocator::from_global(),
-            cap,
-            len: 0,
-            ptr: std::ptr::null_mut(),
+            vec: FfiRawVec {
+                allocator: FfiAllocator::from_global(),
+                cap,
+                len: 0,
+                ptr: std::ptr::null_mut(),
+            },
+            _phantom: PhantomData,
         }
     }
 
@@ -37,32 +142,41 @@ impl<T> FfiVec<T> {
             cap = ZERO_SIZED_CAP;
         } else {
             ptr = unsafe {
-                allocator.alloc(std::mem::size_of::<T>() as u64 * cap, std::mem::align_of::<T>() as u64) as *mut T
+                allocator.alloc(std::mem::size_of::<T>() as u64 * cap, std::mem::align_of::<T>() as u64)
             };
         }
 
         Self {
-            allocator,
-            cap,
-            len: 0,
-            ptr,
+            vec: FfiRawVec {
+                allocator,
+                cap,
+                len: 0,
+                ptr,
+            },
+            _phantom: PhantomData,
         }
     }
 
     pub fn from_vec(mut vec: Vec<T>) -> Self {
         let ffi_vec = if std::mem::size_of::<T>() == 0 {
             Self {
-                ptr: std::ptr::null_mut(),
-                cap: ZERO_SIZED_CAP,
-                len: vec.len() as u64,
-                allocator: FfiAllocator::from_global(),
+                vec: FfiRawVec {
+                    ptr: std::ptr::null_mut(),
+                    cap: ZERO_SIZED_CAP,
+                    len: vec.len() as u64,
+                    allocator: FfiAllocator::from_global(),
+                },
+                _phantom: PhantomData,
             }
         } else {
             Self {
-                ptr: vec.as_mut_ptr(),
-                cap: vec.capacity() as u64,
-                len: vec.len() as u64,
-                allocator: FfiAllocator::from_global(),
+                vec: FfiRawVec {
+                    ptr: vec.as_mut_ptr() as *mut u8,
+                    cap: vec.capacity() as u64,
+                    len: vec.len() as u64,
+                    allocator: FfiAllocator::from_global(),
+                },
+                _phantom: PhantomData,
             }
         };
 
@@ -72,86 +186,90 @@ impl<T> FfiVec<T> {
     }
 
     pub fn len(&self) -> u64 {
-        self.len
+        self.vec.len
     }
 
     pub fn capacity(&self) -> u64 {
-        self.cap
+        self.vec.cap
     }
 
     pub const fn as_slice(&self) -> &[T] {
-        if self.len == 0 {
+        if self.vec.len == 0 {
             return &[];
         }
 
         let ptr = if std::mem::size_of::<T>() == 0 {
             std::ptr::NonNull::dangling().as_ptr()
         } else {
-            self.ptr
+            self.vec.ptr
         };
         
         // todo
         unsafe {
-            std::slice::from_raw_parts(ptr, self.len as usize)
+            std::slice::from_raw_parts(ptr as *mut T, self.vec.len as usize)
         }
     }
 
+    unsafe fn get_element_ptr(&self, idx: u64) -> *mut T {
+        unsafe { (self.vec.ptr as *mut T).add(idx as usize) }
+    }
+
     pub const fn as_slice_mut(&mut self) -> &mut [T] {
-        if self.len == 0 {
+        if self.vec.len == 0 {
             return &mut [];
         }
 
         let ptr = if std::mem::size_of::<T>() == 0 {
             std::ptr::NonNull::dangling().as_ptr()
         } else {
-            self.ptr
+            self.vec.ptr
         };
 
         // todo
         unsafe {
-            std::slice::from_raw_parts_mut(ptr, self.len as usize)
+            std::slice::from_raw_parts_mut(ptr as *mut T, self.vec.len as usize)
         }
     }
 
     pub fn push(&mut self, v: T) {
         if std::mem::size_of::<T>() == 0 {
-            self.len += 1;
+            self.vec.len += 1;
             return;
         }
 
-        if self.len == self.cap {
-            let new_cap = if self.cap == 0 { 4 } else { self.cap * 2 };
+        if self.vec.len == self.vec.cap {
+            let new_cap = if self.vec.cap == 0 { 4 } else { self.vec.cap * 2 };
 
             let size_of_t = std::mem::size_of::<T>() as u64;
             let align_of_t = std::mem::align_of::<T>() as u64;
 
             unsafe {
-                let new_ptr = self.allocator.alloc(size_of_t * new_cap, align_of_t);
+                let new_ptr = self.vec.allocator.alloc(size_of_t * new_cap, align_of_t);
 
-                if std::mem::size_of::<T>() != 0 && self.cap != 0 {
-                    std::ptr::copy_nonoverlapping(self.ptr as *const T, new_ptr as *mut T, self.len as usize);
+                if std::mem::size_of::<T>() != 0 && self.vec.cap != 0 {
+                    std::ptr::copy_nonoverlapping(self.vec.ptr as *const T, new_ptr as *mut T, self.vec.len as usize);
 
-                    self.allocator.dealloc(self.ptr as *mut u8, size_of_t * self.cap, align_of_t);
+                    self.vec.allocator.dealloc(self.vec.ptr as *mut u8, size_of_t * self.vec.cap, align_of_t);
                 }
 
-                self.ptr = new_ptr as *mut T;
-                self.cap = new_cap;
+                self.vec.ptr = new_ptr;
+                self.vec.cap = new_cap;
             }
         }
 
         unsafe {
-            self.ptr.add(self.len as usize).write(v);
+            self.get_element_ptr(self.vec.len).write(v);
         }
 
-        self.len += 1;
+        self.vec.len += 1;
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        if self.len == 0 {
+        if self.vec.len == 0 {
             return None;
         }
 
-        self.len -= 1;
+        self.vec.len -= 1;
 
         if std::mem::size_of::<T>() == 0 {
             Some(unsafe {
@@ -159,7 +277,7 @@ impl<T> FfiVec<T> {
             })
         } else {
             Some(unsafe {
-                self.ptr.add(self.len as usize).read()
+                self.get_element_ptr(self.vec.len).read()
             })
         }
     }
@@ -173,66 +291,74 @@ impl<T> FfiVec<T> {
     }
 
     pub fn swap_remove(&mut self, idx: u64) -> Option<T> {
-        if idx >= self.len {
+        if idx >= self.vec.len {
             return None;
         }
 
         unsafe {
-            let item = self.ptr.add(idx as usize).read();
+            let item = self.get_element_ptr(idx).read();
             
-            self.len -= 1;
+            self.vec.len -= 1;
 
-            std::ptr::copy(self.ptr.add(self.len as usize), self.ptr.add(idx as usize), 1);
+            std::ptr::copy(
+                self.get_element_ptr(self.vec.len),
+                self.get_element_ptr(idx),
+                1,
+            );
 
             Some(item)
         }
     }
 
     pub fn remove(&mut self, idx: u64) -> Option<T> {
-        if idx >= self.len {
+        if idx >= self.vec.len {
             return None;
         }
 
         unsafe {
-            let item = self.ptr.add(idx as usize).read();
+            let item = self.get_element_ptr(idx).read();
 
-            let moved_count = self.len - 1 - idx;
+            let moved_count = self.vec.len - 1 - idx;
 
-            std::ptr::copy(self.ptr.add(idx as usize + 1), self.ptr.add(idx as usize), moved_count as usize);
+            std::ptr::copy(
+                self.get_element_ptr(idx + 1),
+                self.get_element_ptr(idx),
+                moved_count as usize,
+            );
 
-            self.len -= 1;
+            self.vec.len -= 1;
 
             Some(item)
         }
     }
 
     pub fn clear(&mut self) {
-        if self.len == 0 {
+        if self.vec.len == 0 {
             return;
         }
 
         let ptr = if std::mem::size_of::<T>() == 0 {
             std::ptr::NonNull::dangling().as_ptr()
         } else {
-            self.ptr
+            self.vec.ptr
         };
 
         unsafe {
-            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, self.len as usize));
+            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, self.vec.len as usize));
         }
 
-        self.len = 0;
+        self.vec.len = 0;
     }
 }
 
 impl<T: Clone> FfiVec<T> {
     pub fn resize(&mut self, new_len: u64, value: T) {
         // todo: optimize
-        while self.len > new_len {
+        while self.vec.len > new_len {
             self.pop();
         }
         
-        while self.len < new_len {
+        while self.vec.len < new_len {
             self.push(value.clone());
         }
     }
@@ -246,7 +372,7 @@ impl<T> Default for FfiVec<T> {
 
 impl<T: Clone> FfiVec<T> {
     pub fn clone_to_vec(&self) -> Vec<T> {
-        let mut vec = Vec::with_capacity(self.len as usize);
+        let mut vec = Vec::with_capacity(self.vec.len as usize);
 
         for item in self {
             vec.push(item.clone());
@@ -258,23 +384,27 @@ impl<T: Clone> FfiVec<T> {
 
 impl<T> Drop for FfiVec<T> {
     fn drop(&mut self) {
-        if self.cap == 0 {
+        if self.vec.cap == 0 {
             return;
         }
 
         let ptr = if std::mem::size_of::<T>() == 0 {
             std::ptr::NonNull::dangling().as_ptr()
         } else {
-            self.ptr
+            self.vec.ptr
         };
         
         // todo
         unsafe {
-            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, self.len as usize));
+            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, self.vec.len as usize));
             
             // todo: exec on drop for guaranteed dealloc?
             if std::mem::size_of::<T>() != 0 {
-                self.allocator.dealloc(self.ptr as *mut u8, std::mem::size_of::<T>() as u64 * self.cap, std::mem::align_of::<T>() as u64);
+                self.vec.allocator.dealloc(
+                    self.vec.ptr,
+                    std::mem::size_of::<T>() as u64 * self.vec.cap,
+                    std::mem::align_of::<T>() as u64,
+                );
             }
         }
     }
@@ -330,33 +460,43 @@ impl<T: Clone> Clone for FfiVec<T> {
     fn clone(&self) -> Self {
         if std::mem::size_of::<T>() == 0 {
             unsafe {
-                for _ in 0..self.len {
+                for _ in 0..self.vec.len {
                     std::mem::forget((&*std::ptr::NonNull::<T>::dangling().as_ptr()).clone());
                 }
 
                 return Self {
-                    ptr: self.ptr,
-                    cap: self.len,
-                    len: self.len,
-                    allocator: self.allocator,
+                    vec: FfiRawVec {
+                        ptr: self.vec.ptr,
+                        cap: self.vec.len,
+                        len: self.vec.len,
+                        allocator: self.vec.allocator,
+                    },
+                    _phantom: PhantomData,
                 };
             }
         }
 
         unsafe {
-            let new_ptr = self.allocator.alloc(std::mem::size_of::<T>() as u64 * self.len, std::mem::align_of::<T>() as u64) as *mut T;
+            let new_ptr = self.vec.allocator.alloc(
+                std::mem::size_of::<T>() as u64 * self.vec.len,
+                std::mem::align_of::<T>() as u64,
+            ) as *mut T;
 
-            for i in 0..self.len {
-                let cloned = (&*self.ptr.add(i as usize)).clone();
+            for i in 0..self.vec.len {
+                
+                let cloned = (&*self.get_element_ptr(i)).clone();
                 new_ptr.add(i as usize).write(cloned)
             }
 
-            Self {
-                ptr: new_ptr,
-                cap: self.len,
-                len: self.len,
-                allocator: self.allocator,
-            }
+            return Self {
+                vec: FfiRawVec {
+                    ptr: new_ptr as *mut u8,
+                    cap: self.vec.len,
+                    len: self.vec.len,
+                    allocator: self.vec.allocator,
+                },
+                _phantom: PhantomData,
+            };
         }
     }
 }
@@ -404,12 +544,12 @@ impl<T> Iterator for FfiVecIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.idx >= self.vec.len {
+        if self.idx >= self.vec.vec.len {
             return None;
         }
 
         unsafe {
-            let item = self.vec.ptr.add(self.idx as usize).read();
+            let item = self.vec.get_element_ptr(self.idx).read();
 
             self.idx += 1;
 
@@ -423,10 +563,10 @@ impl<T> Drop for FfiVecIntoIter<T> {
         let ptr = if std::mem::size_of::<T>() == 0 {
             std::ptr::NonNull::dangling().as_ptr()
         } else {
-            self.vec.ptr
+            self.vec.vec.ptr
         };
 
-        let count = self.vec.len - self.idx;
+        let count = self.vec.vec.len - self.idx;
 
         // todo
         unsafe {
@@ -434,7 +574,7 @@ impl<T> Drop for FfiVecIntoIter<T> {
 
             std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(ptr, count as usize));
 
-            self.vec.len = 0;
+            self.vec.vec.len = 0;
         }
     }
 }

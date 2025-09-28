@@ -44,13 +44,15 @@ fn lib_loading_example() {
         };
 
         let types = TypesRegistryAccessFfi::new();
-        let mut res = ResourcesHolderUnsafeFfi::new(types.clone());
+
+        let mut world = WorldDataUnsafeFfi::new(types.clone());
+    
         let mut systems = SystemScheduleFfi::new();
         let mut native_data = None.into();
 
         unsafe {
             let ctx = AppInitCtxFfi {
-                res_mut: &raw mut res,
+                world_mut: &raw mut world,
                 types_ref: &raw const types,
                 systems_mut: &raw mut systems,
                 native_data_mut: &raw mut native_data,
@@ -61,7 +63,7 @@ fn lib_loading_example() {
 
         {
             let system_ctx = SystemCtxFfi {
-                res_mut: &raw mut res,
+                world_mut: &raw mut world,
                 types_ref: &raw const types,
                 native_data_mut: &raw mut native_data,
             };
@@ -73,37 +75,4 @@ fn lib_loading_example() {
     }
 
     lib.close().unwrap();
-}
-
-fn safe_example() {
-    let types = TypesRegistryAccessFfi::new();
-    let types_cache = TypesRegistryCache::new(types.clone());
-    
-    let mut res = ResourcesHolderUnsafeFfi::new(types.clone());
-    let mut res_ref = ResourcesHolderRef::from_ffi(&mut res, &types_cache);
-    
-    res_ref.insert(ExampleStruct {
-        name: String::from("Peter"),
-        age: 44,
-    }).ok().unwrap();
-    
-    {
-        let example = res_ref.get::<ExampleStruct>().unwrap();
-
-        dbg!(&example.age);
-        dbg!(&example.name);
-    };
-
-    drop(res_ref);
-}
-
-pub struct ExampleStruct {
-    pub name: String,
-    pub age: u8,
-}
-
-impl Drop for ExampleStruct {
-    fn drop(&mut self) {
-        println!("ExampleStruct drop");
-    }
 }

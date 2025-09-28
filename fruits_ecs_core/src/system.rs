@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use fruits_ffi::{FfiOpaqueBox, FfiOption, FfiString};
 
-use crate::{DataUsage, ResourcesHolderUnsafeFfi, TypesRegistryAccessFfi};
+use crate::{DataUsage, TypesRegistryAccessFfi, WorldDataUnsafeFfi};
 
 #[repr(C)]
 pub struct SystemFfi {
@@ -56,7 +56,7 @@ impl SystemFfi {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SystemCtxFfi {
-    pub res_mut: *mut ResourcesHolderUnsafeFfi,
+    pub world_mut: *mut WorldDataUnsafeFfi,
     pub types_ref: *const TypesRegistryAccessFfi,
     pub native_data_mut: *mut FfiOption<FfiOpaqueBox>,
 }

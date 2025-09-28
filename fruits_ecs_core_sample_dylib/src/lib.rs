@@ -4,7 +4,7 @@ use fruits_ffi::FfiOpaqueBox;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn init_app(ctx: AppInitCtxFfi) {
-    let res_mut = unsafe { &mut *ctx.res_mut };
+    let world_mut = unsafe { &mut *ctx.world_mut };
     let types_ref = unsafe { &*ctx.types_ref };
     let systems_mut = unsafe { &mut *ctx.systems_mut };
     let native_data = unsafe { &mut *ctx.native_data_mut };
@@ -12,18 +12,18 @@ pub unsafe extern "C" fn init_app(ctx: AppInitCtxFfi) {
     let types = TypesRegistryCache::new(types_ref.clone());
 
     {
-        let resources_holder_ref = ResourcesHolderRef::from_ffi(res_mut, &types);
+        let world = WorldDataUnsafeMut::new(world_mut, types.clone()).into_safe();
 
-        app_custom_init(resources_holder_ref, systems_mut);
+        app_custom_init(world, systems_mut);
     }
 
     *native_data = Some(FfiOpaqueBox::new(types)).into();
 }
 
-fn app_custom_init(mut res: ResourcesHolderRef, systems: &mut SystemScheduleFfi) {
+fn app_custom_init(mut world: WorldDataMut, systems: &mut SystemScheduleFfi) {
     println!("hello from cdylib!");
 
-    res.insert(AgeResource { age: 24 }).ok().unwrap();
+    world.resources_mut().insert(AgeResource { age: 24 }).ok().unwrap();
 
     systems.insert(SystemFfi::new(hello_system));
     systems.insert(SystemFfi::new(ffi_system_wrapper));
@@ -45,7 +45,7 @@ pub fn hello_system(ctx: SystemCtxFfi) {
 }
 
 pub fn ffi_system_wrapper(ctx: SystemCtxFfi) {
-    let res = unsafe { &mut *ctx.res_mut };
+    let world = unsafe { &mut *ctx.world_mut };
     let native_data = unsafe { &mut *ctx.native_data_mut };
 
     let Some(native_data) = native_data.as_mut() else {
@@ -54,38 +54,17 @@ pub fn ffi_system_wrapper(ctx: SystemCtxFfi) {
 
     let types = unsafe { &mut *(native_data.as_ptr() as *mut TypesRegistryCache) };
 
-    let mut res = ResourcesHolderRef::from_ffi(res, types);
+    let world = WorldDataUnsafeMut::new(world, types.clone()).into_safe();
 
-    customer_system(&mut res);
+    customer_system(world);
 }
 
-pub fn customer_system(res: &mut ResourcesHolderRef) {
-    res.get_mut::<AgeResource>().unwrap().age = 33;
+pub fn customer_system(mut world: WorldDataMut) {
+    world.resources_mut().get_mut::<AgeResource>().unwrap().age = 33;
 
-    println!("age: {}", res.get::<AgeResource>().unwrap().age);
+    println!("age: {}", world.resources_mut().get::<AgeResource>().unwrap().age);
 
-    res.get_mut::<AgeResource>().unwrap().age = 85;
+    world.resources_mut().get_mut::<AgeResource>().unwrap().age = 85;
 
-    println!("age: {}", res.get::<AgeResource>().unwrap().age);
+    println!("age: {}", world.resources_mut().get::<AgeResource>().unwrap().age);
 }
-
-// todo: potential data access for lib
-
-// todo
-// pub struct WorldRef<'r> { }
-// impl<'r> WorldRef<'r> {
-//     pub fn data(&'r self) -> WorldDataRef<'r> { todo!() }
-//     pub fn behavior(&'r self) -> WorldBehaviorRef<'r> { todo!() }
-// }
-
-// pub struct WorldDataRef<'r> { }
-// impl<'r> WorldDataRef<'r> {
-//     pub fn resources(&'r self) -> ResourcesHolderRef<'r> { todo!() }
-//     pub fn entities(&'r self) ->  { todo!() }
-//     pub fn events(&'r self) ->  { todo!() }
-// }
-
-// pub struct WorldBehaviorRef<'r> { }
-// impl<'r> WorldBehaviorRef<'r> {
-
-// }

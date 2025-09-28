@@ -256,6 +256,7 @@ impl TypesRegistryAccessNative {
 
 //
 
+#[derive(Clone)]
 pub struct TypesRegistryCache {
     cache: Arc<RwLock<HashMap<TypeId, u64>>>,
     registry: TypesRegistryAccessFfi,
