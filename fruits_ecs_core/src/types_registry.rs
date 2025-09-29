@@ -18,6 +18,20 @@ pub struct TypeData {
     pub drop_fn: Option<unsafe extern "C" fn(*mut c_void)>,
 }
 
+impl TypeData {
+    pub fn of<T: 'static>() -> Self {
+        unsafe extern "C" fn example_struct_drop_fn<D: 'static>(p: *mut c_void) {
+            unsafe { std::ptr::drop_in_place(p as *mut D) }
+        }
+
+        Self {
+            size: std::mem::size_of::<T>() as u64,
+            align: std::mem::align_of::<T>() as u64,
+            drop_fn: Some(example_struct_drop_fn::<T>),
+        }
+    }
+}
+
 //
 
 #[repr(C)]
@@ -279,10 +293,12 @@ impl TypesRegistryCache {
         }
     }
 
-    pub fn get<T: 'static>(&self) -> Option<u64> {
-        let cache = self.cache.read().unwrap();
+    pub fn get_with_type_id(&self, type_id: &TypeId) -> Option<u64> {
+        self.cache.read().unwrap().get(type_id).copied()
+    }
 
-        cache.get(&TypeId::of::<T>()).copied()
+    pub fn get<T: 'static>(&self) -> Option<u64> {
+        self.get_with_type_id(&TypeId::of::<T>())
     }
 
     pub fn try_register<T: 'static>(&self) -> Option<u64> {
@@ -292,15 +308,7 @@ impl TypesRegistryCache {
             return None;
         }
 
-        unsafe extern "C" fn example_struct_drop_fn<D: 'static>(p: *mut c_void) {
-            unsafe { std::ptr::drop_in_place(p as *mut D) }
-        }
-
-        let id = unsafe { self.registry.try_register(std::any::type_name::<T>(), TypeData {
-            size: std::mem::size_of::<T>() as u64,
-            align: std::mem::align_of::<T>() as u64,
-            drop_fn: Some(example_struct_drop_fn::<T>),
-        }) };
+        let id = self.registry.try_register(std::any::type_name::<T>(), TypeData::of::<T>());
 
         if let Some(id) = id {
             cache.insert(TypeId::of::<T>(), id);
@@ -308,12 +316,10 @@ impl TypesRegistryCache {
             return Some(id);
         }
 
-        unsafe {
-            if let Some(id) = self.registry.get_by_name(std::any::type_name::<T>()).map(|t| t.id) {
-                cache.insert(TypeId::of::<T>(), id);
-            
-                return Some(id);
-            }
+        if let Some(id) = self.registry.get_by_name(std::any::type_name::<T>()).map(|t| t.id) {
+            cache.insert(TypeId::of::<T>(), id);
+        
+            return Some(id);
         }
 
         None
@@ -321,6 +327,10 @@ impl TypesRegistryCache {
 
     pub fn get_or_register<T: 'static>(&self) -> u64 {
         self.get::<T>().unwrap_or_else(|| self.try_register::<T>().unwrap())
+    }
+
+    pub unsafe fn registry(&self) -> &TypesRegistryAccessFfi {
+        &self.registry
     }
 
     // todo

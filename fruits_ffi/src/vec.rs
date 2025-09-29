@@ -1,4 +1,4 @@
-use std::{ffi::c_void, fmt::Debug, marker::PhantomData, ops::{Deref, DerefMut}};
+use std::{ffi::c_void, fmt::Debug, marker::PhantomData, ops::{Deref, DerefMut, Index, IndexMut}};
 
 use crate::FfiAllocator;
 
@@ -576,6 +576,20 @@ impl<T> Drop for FfiVecIntoIter<T> {
 
             self.vec.vec.len = 0;
         }
+    }
+}
+
+impl<T> Index<usize> for FfiVec<T> {
+    type Output = T;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.as_slice()[idx]
+    }
+}
+
+impl<T> IndexMut<usize> for FfiVec<T> {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.as_slice_mut()[idx]
     }
 }
 

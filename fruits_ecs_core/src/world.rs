@@ -85,8 +85,8 @@ impl<'w> WorldDataMut<'w> {
 // what lib needs:
 // - structural
 //     - data
-//         - safe resources
-//         - safe events
+//         + safe resources
+//         + safe events
 //         - safe components
 //         - Res
 //         - ResMut

@@ -1,37 +1,44 @@
 use std::ffi::c_void;
 
-use fruits_ffi::{FfiDroppable, FfiOpaqueVec};
+use fruits_ffi::{FfiDroppable, FfiOpaqueVec, FfiTypedDroppable};
 
 use crate::{evt_native::EventsHolderNative, TypesRegistryAccessFfi};
 
 #[repr(C)]
-pub struct EventsHolderUnsafeFfi {
-    data: FfiDroppable,
+struct EventsHolderUnsafeFfiVTable {
     get_fn: unsafe extern "C" fn(*const c_void, type_id: u64) -> *mut FfiOpaqueVec,
     get_or_create_fn: unsafe extern "C" fn(*const c_void, type_id: u64) -> *mut FfiOpaqueVec,
     clear_fn: unsafe extern "C" fn(*const c_void),
+}
+
+#[repr(C)]
+pub struct EventsHolderUnsafeFfi {
+    data: FfiDroppable,
+    vtable: FfiTypedDroppable<EventsHolderUnsafeFfiVTable>,
 }
 
 impl EventsHolderUnsafeFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
             data: FfiDroppable::new(EventsHolderNative::new(types)),
-            get_fn: Self::ffi_get,
-            get_or_create_fn: Self::ffi_get_or_create,
-            clear_fn: Self::ffi_clear,
+            vtable: FfiTypedDroppable::new(EventsHolderUnsafeFfiVTable {
+                get_fn: Self::ffi_get,
+                get_or_create_fn: Self::ffi_get_or_create,
+                clear_fn: Self::ffi_clear,
+            }),
         }
     }
 
     pub fn get(&self, type_id: u64) -> *mut FfiOpaqueVec {
-        unsafe { (self.get_fn)(self.data.get(), type_id) }
+        unsafe { (self.vtable.get_fn)(self.data.get(), type_id) }
     }
 
     pub fn get_or_create(&self, type_id: u64) -> *mut FfiOpaqueVec {
-        unsafe { (self.get_or_create_fn)(self.data.get(), type_id) }
+        unsafe { (self.vtable.get_or_create_fn)(self.data.get(), type_id) }
     }
 
     pub fn clear(&self) {
-        unsafe { (self.clear_fn)(self.data.get()) }
+        unsafe { (self.vtable.clear_fn)(self.data.get()) }
     }
 
     unsafe extern "C" fn ffi_get(this: *const c_void, type_id: u64) -> *mut FfiOpaqueVec {

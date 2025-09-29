@@ -6,6 +6,7 @@ mod system;
 mod system_schedule;
 mod world;
 mod event;
+mod entity;
 
 pub use resource::*;
 pub use types_registry::*;
@@ -15,6 +16,7 @@ pub use system::*;
 pub use system_schedule::*;
 pub use world::*;
 pub use event::*;
+pub use entity::*;
 
 // todo:
 // - Components

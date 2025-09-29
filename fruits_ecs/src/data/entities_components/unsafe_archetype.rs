@@ -3,10 +3,11 @@ use std::{alloc::Layout, sync::Mutex};
 pub const CHUNK_SIZE: usize = 1024 * 12;
 
 pub const CHUNK_LAYOUT: Layout = {
-    let Ok(layout) = Layout::from_size_align(CHUNK_SIZE, 1) else { panic!("invalid chunk layout") };
+    let Ok(layout) = Layout::from_size_align(CHUNK_SIZE, 64) else { panic!("invalid chunk layout") };
     layout
 };
 
+#[repr(transparent)]
 pub struct ChunkHandle(*mut u8);
 
 unsafe impl Send for ChunkHandle { }

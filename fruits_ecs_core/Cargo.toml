@@ -13,3 +13,4 @@ path = "src/main.rs"
 [dependencies]
 libloading = "0.8.8"
 fruits_ffi = { path = "../fruits_ffi" }
+fruits_utils = { path = "../fruits_utils" }
