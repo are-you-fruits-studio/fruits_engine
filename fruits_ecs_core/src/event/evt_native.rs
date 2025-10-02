@@ -32,7 +32,7 @@ impl EventsHolderNative {
 
         events
             .entry(type_id)
-            .or_insert_with(|| UnsafeCell::new(FfiOpaqueVec::new(type_data.data.size, type_data.data.align, type_data.data.drop_fn)))
+            .or_insert_with(|| UnsafeCell::new(FfiOpaqueVec::new(type_data.size, type_data.align, type_data.drop_fn)))
             .get()
     }
 

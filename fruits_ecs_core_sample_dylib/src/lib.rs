@@ -12,7 +12,7 @@ pub unsafe extern "C" fn init_app(ctx: AppInitCtxFfi) {
     let types = TypesRegistryCache::new(types_ref.clone());
 
     {
-        let world = WorldDataUnsafeMut::new(world_mut, types.clone()).into_safe();
+        let world = WorldDataUnsafeMut::new(world_mut, &types).into_safe();
 
         app_custom_init(world, systems_mut);
     }
@@ -54,7 +54,7 @@ pub fn ffi_system_wrapper(ctx: SystemCtxFfi) {
 
     let types = unsafe { &mut *(native_data.as_ptr() as *mut TypesRegistryCache) };
 
-    let world = WorldDataUnsafeMut::new(world, types.clone()).into_safe();
+    let world = WorldDataUnsafeMut::new(world, &types).into_safe();
 
     customer_system(world);
 }

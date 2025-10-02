@@ -69,12 +69,12 @@ pub fn parse_debug_msg_system(
         let mut entities = Vec::new();
 
         for chunk in msg.1.chunks_exact(8) {
-            let index_bytes: &[u8; 4] = &chunk[..4].try_into().unwrap();
-            let version_bytes: &[u8; 4] = &chunk[4..].try_into().unwrap();
+            let index_bytes: &[u8; 8] = &chunk[..4].try_into().unwrap();
+            let version_bytes: &[u8; 8] = &chunk[4..].try_into().unwrap();
 
             entities.push(Entity::from_version_index(VersionIndex {
-                index: u32::from_le_bytes(*index_bytes),
-                version: u32::from_le_bytes(*version_bytes),
+                index: u64::from_le_bytes(*index_bytes),
+                version: u64::from_le_bytes(*version_bytes),
             }));
         }
 

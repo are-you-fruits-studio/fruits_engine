@@ -27,6 +27,14 @@ impl DataUsage {
             is_global: true,
         }
     }
+
+    pub fn into_elements(self) -> Option<FfiVec<DataUsageEntry>> {
+        if self.is_global {
+            None
+        } else {
+            Some(self.elements)
+        }
+    }
 }
 
 pub struct DataUsageBuilder {

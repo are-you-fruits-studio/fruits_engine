@@ -1,4 +1,4 @@
-use crate::{evt_ffi::EventsHolderUnsafeFfi, evt_safe::EventsHolderRef, evt_unsafe::EventsHolderUnsafeRef, res_ffi::ResourcesHolderUnsafeFfi, res_safe::{ResourcesHolderMut, ResourcesHolderRef}, res_unsafe::{ResourcesHolderUnsafeMut, ResourcesHolderUnsafeRef}, TypesRegistryAccessFfi, TypesRegistryCache};
+use crate::{entities_holder::{ent_holder_ffi::EntitiesHolderUnsafeFfi, ent_holder_safe::{EntitiesHolderMut, EntitiesHolderRef}, ent_holder_unsafe::{EntitiesHolderUnsafeMut, EntitiesHolderUnsafeRef}}, evt_ffi::EventsHolderUnsafeFfi, evt_safe::EventsHolderRef, evt_unsafe::EventsHolderUnsafeRef, res_ffi::ResourcesHolderUnsafeFfi, res_safe::{ResourcesHolderMut, ResourcesHolderRef}, res_unsafe::{ResourcesHolderUnsafeMut, ResourcesHolderUnsafeRef}, TypesRegistryAccessFfi, TypesRegistryCache};
 
 // todo: access modifiers
 // todo: unsafe modifiers
@@ -7,13 +7,15 @@ use crate::{evt_ffi::EventsHolderUnsafeFfi, evt_safe::EventsHolderRef, evt_unsaf
 pub struct WorldDataUnsafeFfi {
     pub res: ResourcesHolderUnsafeFfi,
     pub evt: EventsHolderUnsafeFfi,
+    pub ent: EntitiesHolderUnsafeFfi,
 }
 
 impl WorldDataUnsafeFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
             res: ResourcesHolderUnsafeFfi::new(types.clone()),
-            evt: EventsHolderUnsafeFfi::new(types)
+            evt: EventsHolderUnsafeFfi::new(types.clone()),
+            ent: EntitiesHolderUnsafeFfi::new(types),
         }
     }
 }
@@ -22,28 +24,28 @@ impl WorldDataUnsafeFfi {
 
 pub struct WorldDataUnsafeMut<'w> {
     world: &'w mut WorldDataUnsafeFfi,
-    types: TypesRegistryCache,
+    types: &'w TypesRegistryCache,
 }
 
 impl<'w> WorldDataUnsafeMut<'w> {
-    pub fn new(world: &'w mut WorldDataUnsafeFfi, types: TypesRegistryCache) -> Self {
+    pub fn new(world: &'w mut WorldDataUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
         Self {
             world,
             types,
         }
     }
 
-    pub fn resources<'r>(&'r self) -> ResourcesHolderUnsafeRef<'r> where 'w : 'r { ResourcesHolderUnsafeRef::new(&self.world.res, self.types.clone()) }
-    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderUnsafeMut<'r> where 'w : 'r { ResourcesHolderUnsafeMut::new(&mut self.world.res, self.types.clone()) }
-    pub fn components<'r>(&'r self) -> ! where 'w : 'r { todo!() }
-    pub fn components_mut<'r>(&'r mut self) -> ! where 'w : 'r { todo!() }
-    pub fn events<'r>(&'r self) -> EventsHolderUnsafeRef<'r> where 'w : 'r { EventsHolderUnsafeRef::new(&self.world.evt, self.types.clone()) }
+    pub fn resources<'r>(&'r self) -> ResourcesHolderUnsafeRef<'r> where 'w : 'r { ResourcesHolderUnsafeRef::new(&self.world.res, self.types) }
+    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderUnsafeMut<'r> where 'w : 'r { ResourcesHolderUnsafeMut::new(&mut self.world.res, self.types) }
+    pub fn components<'r>(&'r self) -> EntitiesHolderUnsafeRef<'r> where 'w : 'r { EntitiesHolderUnsafeRef::new(&self.world.ent, self.types) }
+    pub fn components_mut<'r>(&'r mut self) -> EntitiesHolderUnsafeMut<'r> where 'w : 'r { EntitiesHolderUnsafeMut::new(&mut self.world.ent, self.types) }
+    pub fn events<'r>(&'r self) -> EventsHolderUnsafeRef<'r> where 'w : 'r { EventsHolderUnsafeRef::new(&self.world.evt, self.types) }
     pub fn as_tuple_mut<'r>(&'r mut self) -> ! where 'w : 'r { todo!() }
 
     pub fn as_mut(&'w mut self) -> WorldDataUnsafeMut<'w> {
         WorldDataUnsafeMut {
             world: self.world,
-            types: self.types.clone(),
+            types: self.types,
         }
     }
 
@@ -68,8 +70,8 @@ pub struct WorldDataMut<'w> {
 impl<'w> WorldDataMut<'w> {
     pub fn resources<'r>(&'r self) -> ResourcesHolderRef<'r> where 'w : 'r { self.world.resources().into_safe() }
     pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderMut<'r> where 'w : 'r { self.world.resources_mut().into_safe() }
-    pub fn components<'r>(&'r self) -> ! where 'w : 'r { todo!() }
-    pub fn components_mut<'r>(&'r mut self) -> ! where 'w : 'r { todo!() }
+    pub fn components<'r>(&'r self) -> EntitiesHolderRef<'r> where 'w : 'r { unsafe { self.world.components().into_safe() } }
+    pub fn components_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r> where 'w : 'r { unsafe { self.world.components_mut().into_safe() } }
     pub fn events<'r>(&'r self) -> EventsHolderRef<'r> where 'w : 'r { self.world.events().into_safe() }
     pub fn as_tuple_mut<'r>(&'r mut self) -> ! where 'w : 'r { todo!() }
 
@@ -87,7 +89,7 @@ impl<'w> WorldDataMut<'w> {
 //     - data
 //         + safe resources
 //         + safe events
-//         - safe components
+//         + safe entities
 //         - Res
 //         - ResMut
 //         - Evt

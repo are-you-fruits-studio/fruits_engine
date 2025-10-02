@@ -39,7 +39,7 @@ pub struct TypesRegistryAccessFfi {
     data: *mut c_void,
     clone_fn: unsafe extern "C" fn(*const c_void) -> *mut c_void,
     len_fn: unsafe extern "C" fn(*const c_void) -> u64,
-    get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<StoredTypeData>,
+    get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<TypeData>,
     get_by_name_fn: unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData>,
     try_register_fn: unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64, data: TypeData) -> FfiOption<u64>,
     drop_fn: unsafe extern "C" fn(*mut c_void),
@@ -68,7 +68,7 @@ impl TypesRegistryAccessFfi {
         }
     }
 
-    pub fn get(&self, id: u64) -> Option<StoredTypeData> {
+    pub fn get(&self, id: u64) -> Option<TypeData> {
         unsafe {
             let this = self.data;
 
@@ -120,7 +120,7 @@ impl TypesRegistryAccessFfi {
             result as u64
         }
     }
-    unsafe extern "C" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<StoredTypeData> {
+    unsafe extern "C" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<TypeData> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
 
@@ -237,12 +237,12 @@ impl TypesRegistryAccessNative {
         result
     }
 
-    pub fn get(&self, id: u64) -> Option<StoredTypeData> {
+    pub fn get(&self, id: u64) -> Option<TypeData> {
         let self_data = self.data.read().unwrap();
 
         let result = self_data.types.get(id as usize).copied();
 
-        result
+        result.map(|t| t.data)
     }
 
     pub fn get_by_name(&self, name: &str) -> Option<StoredTypeData> {

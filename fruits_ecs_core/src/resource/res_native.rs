@@ -26,8 +26,8 @@ impl ResourcesHolderNative {
         // todo
         let mem = unsafe {
             let Some(layout) = std::alloc::Layout::from_size_align(
-                type_data.data.size as usize,
-                type_data.data.align as usize,
+                type_data.size as usize,
+                type_data.align as usize,
             ).ok() else {
                 return std::ptr::null_mut();
             };
@@ -52,13 +52,13 @@ impl Drop for ResourcesHolderNative {
 
             // todo
             unsafe {
-                if let Some(drop_fn) = type_data.data.drop_fn {
+                if let Some(drop_fn) = type_data.drop_fn {
                     drop_fn(mem as *mut c_void);
                 }
 
                 let layout = std::alloc::Layout::from_size_align(
-                    type_data.data.size as usize,
-                    type_data.data.align as usize,
+                    type_data.size as usize,
+                    type_data.align as usize,
                 ).ok().unwrap();
 
                 std::alloc::dealloc(mem, layout)

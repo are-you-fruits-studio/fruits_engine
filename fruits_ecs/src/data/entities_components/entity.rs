@@ -68,7 +68,7 @@ impl WorldEntities {
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.0.len() as usize
     }
 
     pub fn is_empty(&self) -> bool {

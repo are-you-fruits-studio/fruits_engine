@@ -2,9 +2,9 @@ use std::{cmp::Ordering, collections::VecDeque};
 
 pub struct VersionCollection<T> {
     items: Vec<DataWithVersion<T>>,
-    free_places: VecDeque<u32>,
+    free_places: VecDeque<u64>,
     // reserved_places: VecDeque<usize>,
-    count: usize,
+    count: u64,
 }
 impl<T> Default for VersionCollection<T> {
     fn default() -> Self {
@@ -15,8 +15,8 @@ impl<T> Default for VersionCollection<T> {
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VersionIndex {
-    pub index: u32,
-    pub version: u32,
+    pub index: u64,
+    pub version: u64,
 }
 
 impl Ord for VersionIndex {
@@ -35,7 +35,7 @@ impl PartialOrd for VersionIndex {
 }
 
 struct DataWithVersion<T> {
-    pub version: u32,
+    pub version: u64,
     pub data: Option<T>,
 }
 
@@ -62,7 +62,7 @@ impl<T> VersionCollection<T> {
             }
         }
 
-        let index: u32 = self.items.len().try_into().unwrap_or_else(|_| panic!("VersionCollection count overflow"));
+        let index: u64 = self.items.len().try_into().unwrap_or_else(|_| panic!("VersionCollection count overflow"));
         // entities with version 0 cannot exist.
         let version = 1;
 
@@ -130,7 +130,7 @@ impl<T> VersionCollection<T> {
         index.version == data_with_version.version
     }
 
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> u64 {
         self.count
     }
 

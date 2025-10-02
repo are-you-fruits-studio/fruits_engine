@@ -4,7 +4,7 @@ use std::{
 
 use fruits_ffi::{FfiDroppable, FfiVec};
 
-use crate::{entity::{archetype_raw::{ArchetypeItemPhysicalLocation, CHUNK_SIZE}, unique_components_set::UniqueComponentsSet}, meta::Entity, StoredTypeData, TypeData};
+use crate::{entity::{archetype::archt_raw::{ArchetypeItemPhysicalLocation, CHUNK_SIZE}, unique_components_set::UniqueComponentsSet}, meta::Entity, StoredTypeData, TypeData, TypesRegistryAccessFfi};
 
 #[repr(C)]
 struct ArchetypeLayoutItemsMap {
@@ -72,15 +72,17 @@ impl ArchetypeComponentLayout {
 
 #[repr(C)]
 pub struct ArchetypeLayout {
+    types: TypesRegistryAccessFfi,
     components_list: FfiVec<ArchetypeComponentLayout>,
     components_map: ArchetypeLayoutItemsMap,
+    components_set: UniqueComponentsSet,
     entities_per_chunk_count: u64,
 }
 
 impl ArchetypeLayout {
-    pub fn from_components(components_set: UniqueComponentsSet) -> Self {
+    pub fn new(types: TypesRegistryAccessFfi, components_set: UniqueComponentsSet) -> Self {
         let entity_data = TypeData::of::<Entity>();
-        let entities_per_chunk_count = Self::to_entities_per_chunk_count(&components_set);
+        let entities_per_chunk_count = Self::to_entities_per_chunk_count(&components_set, &types);
 
         let mut components_map = HashMap::new();
         let mut components_list = FfiVec::new();
@@ -88,7 +90,9 @@ impl ArchetypeLayout {
 
         offset += entity_data.size * entities_per_chunk_count + entity_data.align.max(1) - 1;
 
-        for (order, StoredTypeData { id: component_id, data: component_type }) in components_set.components().iter().enumerate() {
+        for (order, &component_id) in components_set.components().iter().enumerate() {
+            let component_type = types.get(component_id).unwrap();
+
             let order = order as u64;
             let align = component_type.align;
 
@@ -101,16 +105,16 @@ impl ArchetypeLayout {
                 aligned_offset += align - overshoot;
             }
 
-            components_map.insert(*component_id, ArchetypeItemLayout {
-                type_data: *component_type,
+            components_map.insert(component_id, ArchetypeItemLayout {
+                type_data: component_type,
                 chunk_offset: aligned_offset,
                 order: order + 1,
             });
 
             components_list.push(ArchetypeComponentLayout {
                 type_data: StoredTypeData {
-                    id: *component_id,
-                    data: *component_type,
+                    id: component_id,
+                    data: component_type,
                 },
                 chunk_offset: aligned_offset,
                 order: order + 1,
@@ -120,15 +124,17 @@ impl ArchetypeLayout {
         }
 
         Self {
+            types,
             components_list,
             components_map: ArchetypeLayoutItemsMap::new(components_map),
+            components_set,
             entities_per_chunk_count,
         }
     }
 
-    fn to_entities_per_chunk_count(components_set: &UniqueComponentsSet) -> u64 {
+    fn to_entities_per_chunk_count(components_set: &UniqueComponentsSet, types: &TypesRegistryAccessFfi) -> u64 {
         let entity_data = TypeData::of::<Entity>();
-        let components = components_set.components().iter().map(|t| &t.data).chain(std::iter::once(&entity_data));
+        let components = components_set.components().iter().map(|t| types.get(*t).unwrap()).chain(std::iter::once(entity_data));
 
         let padding_sum = components.clone().map(|t| t.align.max(1) - 1).sum::<u64>();
         let size_sum = components.map(|t| t.size).sum::<u64>();
@@ -138,6 +144,10 @@ impl ArchetypeLayout {
 
     pub fn components(&self) -> &[ArchetypeComponentLayout] {
         &self.components_list
+    }
+
+    pub fn components_set(&self) -> &UniqueComponentsSet {
+        &self.components_set
     }
 
     pub fn entity_item_layout(&self) -> ArchetypeItemLayout {

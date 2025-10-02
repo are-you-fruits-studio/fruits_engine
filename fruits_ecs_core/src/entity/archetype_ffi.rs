@@ -1,19 +1,19 @@
 use std::ffi::c_void;
 
-use crate::{entity::{archetype_layout::{ArchetypeItemLayout, ArchetypeLayout}, archetype_raw::{ArchetypeItemPhysicalLocation, ArchetypeRaw}, unique_components_set::UniqueComponentsSet}, meta::Entity};
+use crate::{entity::{archetype::{archt_layout::{ArchetypeItemLayout, ArchetypeLayout}, archt_raw::{ArchetypeItemPhysicalLocation, ArchetypeRaw}}, unique_components_set::UniqueComponentsSet}, meta::Entity};
 
 #[repr(C)]
-pub struct ArchetypeUnsafeIteratorItem {
+pub struct ArchetypeUnsafeFfiIteratorItem {
     pub chunk_ptr: *mut u8,
     pub chunk_entity_idx: u64,
 }
 
-pub struct ArchetypeUnsafeIterator<'a> {
+pub struct ArchetypeUnsafeFfiIterator<'a> {
     archetype: &'a ArchetypeUnsafeFfi,
     entity_archetype_idx: u64,
 }
 
-impl<'a> ArchetypeUnsafeIterator<'a> {
+impl<'a> ArchetypeUnsafeFfiIterator<'a> {
     pub fn new(archetype: &'a ArchetypeUnsafeFfi) -> Self {
         Self {
             archetype,
@@ -22,8 +22,8 @@ impl<'a> ArchetypeUnsafeIterator<'a> {
     }
 }
 
-impl<'a> Iterator for ArchetypeUnsafeIterator<'a> {
-    type Item = ArchetypeUnsafeIteratorItem;
+impl<'a> Iterator for ArchetypeUnsafeFfiIterator<'a> {
+    type Item = ArchetypeUnsafeFfiIteratorItem;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.entity_archetype_idx >= self.archetype.alive_entities_count {
@@ -35,7 +35,7 @@ impl<'a> Iterator for ArchetypeUnsafeIterator<'a> {
 
         self.entity_archetype_idx += 1;
 
-        Some(ArchetypeUnsafeIteratorItem {
+        Some(ArchetypeUnsafeFfiIteratorItem {
             chunk_ptr,
             chunk_entity_idx: chunk_entity,
         })
@@ -64,8 +64,8 @@ impl ArchetypeUnsafeFfi {
         self.layout.get_component(type_id).is_some()
     }
 
-    pub fn iter<'a>(&'a self) -> ArchetypeUnsafeIterator<'a> {
-        ArchetypeUnsafeIterator::new(&self)
+    pub fn iter<'a>(&'a self) -> ArchetypeUnsafeFfiIterator<'a> {
+        ArchetypeUnsafeFfiIterator::new(&self)
     }
 
     pub fn entities_count(&self) -> u64 {

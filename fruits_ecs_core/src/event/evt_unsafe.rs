@@ -26,11 +26,11 @@ fn events_holder_unsafe_get_or_create<E: 'static>(evt: &EventsHolderUnsafeFfi, t
 
 pub struct EventsHolderUnsafeRef<'e> {
     evt: &'e EventsHolderUnsafeFfi,
-    types: TypesRegistryCache,
+    types: &'e TypesRegistryCache,
 }
 
 impl<'e> EventsHolderUnsafeRef<'e> {
-    pub fn new(evt: &'e EventsHolderUnsafeFfi, types: TypesRegistryCache) -> Self {
+    pub fn new(evt: &'e EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
         Self {
             evt,
             types,
@@ -54,7 +54,7 @@ impl<'e> EventsHolderUnsafeRef<'e> {
     {
         EventsHolderUnsafeRef {
             evt: self.evt,
-            types: self.types.clone(),
+            types: self.types,
         }
     }
 

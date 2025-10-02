@@ -1,3 +1,4 @@
+
 use crate::{res_ffi::ResourcesHolderUnsafeFfi, res_safe::{ResourcesHolder, ResourcesHolderMut, ResourcesHolderRef}, TypesRegistryCache};
 
 fn resources_holder_typed_unsafe_get<T: 'static>(types: &TypesRegistryCache, res: &ResourcesHolderUnsafeFfi) -> Option<*mut T> {
@@ -33,8 +34,8 @@ fn resources_holder_typed_unsafe_insert<T: 'static>(types: &TypesRegistryCache, 
 // todo: refactor to use real references instead of lifetimed structs.
 
 pub struct ResourcesHolderUnsafe {
-    types: TypesRegistryCache,
     res: ResourcesHolderUnsafeFfi,
+    types: TypesRegistryCache,
 }
 
 impl ResourcesHolderUnsafe {
@@ -56,14 +57,14 @@ impl ResourcesHolderUnsafe {
     pub fn as_mut<'r>(&'r mut self) -> ResourcesHolderUnsafeMut<'r> {
         ResourcesHolderUnsafeMut {
             res: &mut self.res,
-            types: self.types.clone(),
+            types: &self.types,
         }
     }
 
     pub fn as_ref<'r>(&'r self) -> ResourcesHolderUnsafeRef<'r> {
         ResourcesHolderUnsafeRef {
             res: &self.res,
-            types: self.types.clone(),
+            types: &self.types,
         }
     }
 
@@ -73,12 +74,12 @@ impl ResourcesHolderUnsafe {
 }
 
 pub struct ResourcesHolderUnsafeMut<'r> {
-    types: TypesRegistryCache,
     res: &'r mut ResourcesHolderUnsafeFfi,
+    types: &'r TypesRegistryCache,
 }
 
 impl<'r> ResourcesHolderUnsafeMut<'r> {
-    pub fn new(res: &'r mut ResourcesHolderUnsafeFfi, types: TypesRegistryCache) -> Self {
+    pub fn new(res: &'r mut ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
             types,
@@ -96,14 +97,14 @@ impl<'r> ResourcesHolderUnsafeMut<'r> {
     pub fn as_mut(&'r mut self) -> ResourcesHolderUnsafeMut<'r> {
         ResourcesHolderUnsafeMut {
             res: &mut self.res,
-            types: self.types.clone(),
+            types: self.types,
         }
     }
 
     pub fn as_ref(&'r self) -> ResourcesHolderUnsafeRef<'r> {
         ResourcesHolderUnsafeRef {
             res: &self.res,
-            types: self.types.clone(),
+            types: self.types,
         }
     }
 
@@ -113,12 +114,12 @@ impl<'r> ResourcesHolderUnsafeMut<'r> {
 }
 
 pub struct ResourcesHolderUnsafeRef<'r> {
-    types: TypesRegistryCache,
     res: &'r ResourcesHolderUnsafeFfi,
+    types: &'r TypesRegistryCache,
 }
 
 impl<'r> ResourcesHolderUnsafeRef<'r> {
-    pub fn new(res: &'r ResourcesHolderUnsafeFfi, types: TypesRegistryCache) -> Self {
+    pub fn new(res: &'r ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
             types,
@@ -132,7 +133,7 @@ impl<'r> ResourcesHolderUnsafeRef<'r> {
     pub fn as_ref(&'r self) -> ResourcesHolderUnsafeRef<'r> {
         ResourcesHolderUnsafeRef {
             res: &self.res,
-            types: self.types.clone(),
+            types: self.types,
         }
     }
 

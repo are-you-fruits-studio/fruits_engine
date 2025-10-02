@@ -1,6 +1,6 @@
 use std::alloc::Layout;
 
-use fruits_ffi::FfiVec;
+use fruits_ffi::{FfiAllocator, FfiVec};
 
 pub const CHUNK_SIZE: u64 = 1024 * 12;
 pub const CHUNK_ALIGN: u64 = 64;
@@ -20,8 +20,7 @@ pub struct ArchetypeItemPhysicalLocation {
 #[repr(C)]
 pub struct ArchetypeRaw {
     chunks: FfiVec<*mut u8>,
-    chunk_alloc_fn: unsafe extern "C" fn() -> *mut u8,
-    chunk_dealloc_fn: unsafe extern "C" fn(*mut u8),
+    alloc: FfiAllocator,
 }
 
 unsafe impl Send for ArchetypeRaw { }
@@ -29,24 +28,9 @@ unsafe impl Sync for ArchetypeRaw { }
 
 impl ArchetypeRaw {
     pub fn new() -> Self {
-        unsafe extern "C" fn ffi_chunk_alloc() -> *mut u8 {
-            unsafe {
-                let ptr = std::alloc::alloc(CHUNK_LAYOUT);
-                if ptr.is_null() {
-                    std::alloc::handle_alloc_error(CHUNK_LAYOUT);
-                }
-                ptr
-            }
-        }
-
-        unsafe extern "C" fn ffi_chunk_dealloc(ptr: *mut u8) {
-            unsafe { std::alloc::dealloc(ptr, CHUNK_LAYOUT) };
-        }
-
         Self {
             chunks: FfiVec::new(),
-            chunk_alloc_fn: ffi_chunk_alloc,
-            chunk_dealloc_fn: ffi_chunk_dealloc,
+            alloc: FfiAllocator::from_global(),
         }
     }
 
@@ -72,12 +56,12 @@ impl ArchetypeRaw {
     }
 
     pub fn push_chunk(&mut self) {
-        self.chunks.push(unsafe { (self.chunk_alloc_fn)() });
+        self.chunks.push(unsafe { self.alloc.alloc(CHUNK_SIZE, CHUNK_ALIGN) });
     }
 
     pub fn pop_chunk(&mut self) {
         if let Some(ptr) = self.chunks.pop() {
-            unsafe { std::alloc::dealloc(ptr, CHUNK_LAYOUT) };
+            unsafe { self.alloc.dealloc(ptr, CHUNK_SIZE, CHUNK_ALIGN) };
         }
     }
 }
@@ -87,7 +71,7 @@ impl Drop for ArchetypeRaw {
         // Safety. Unsafe for access - missing lifetimes. But leak-safe.
         unsafe {
             for &ptr in &self.chunks {
-                std::alloc::dealloc(ptr, CHUNK_LAYOUT);
+                self.alloc.dealloc(ptr, CHUNK_SIZE, CHUNK_ALIGN);
             }
         }
     }

@@ -1,20 +1,18 @@
 use std::{
-    collections::BTreeMap,
+    collections::BTreeSet,
     hash::Hash
 };
 
 use fruits_ffi::FfiVec;
 
-use crate::*;
-
 #[repr(transparent)]
 #[derive(Clone, Default, Debug)]
 pub struct UniqueComponentsSet {
-    components: FfiVec<StoredTypeData>,
+    components: FfiVec<u64>,
 }
 
 impl UniqueComponentsSet {
-    pub fn components(&self) -> &[StoredTypeData] {
+    pub fn components(&self) -> &[u64] {
         &self.components
     }
 }
@@ -22,7 +20,7 @@ impl UniqueComponentsSet {
 impl Hash for UniqueComponentsSet {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for component_id in &self.components {
-            component_id.id.hash(state);
+            component_id.hash(state);
         }
     }
 }
@@ -34,7 +32,7 @@ impl PartialEq for UniqueComponentsSet {
         }
 
         for i in 0..(self.components.len() as usize) {
-            if self.components[i].id != other.components[i].id {
+            if self.components[i] != other.components[i] {
                 return false;
             }
         }
@@ -49,32 +47,44 @@ impl Eq for UniqueComponentsSet { }
 
 #[derive(Clone, Default, Debug)]
 pub struct UniqueComponentsSetBuilder {
-    components: BTreeMap<u64, TypeData>,
+    components: BTreeSet<u64>,
 }
 
 impl UniqueComponentsSetBuilder {
     pub fn new() -> Self {
         Self {
-            components: BTreeMap::new(),
+            components: BTreeSet::new(),
         }
     }
 
-    pub fn components(&self) -> &BTreeMap<u64, TypeData> {
+    pub fn from_set(set: &UniqueComponentsSet) -> Self {
+        Self {
+            components: set.components.iter().copied().collect(),
+        }
+    }
+
+    pub fn components(&self) -> &BTreeSet<u64> {
         &self.components
     }
 
-    pub fn insert(&mut self, type_data: StoredTypeData) -> bool {
-        self.components.insert(type_data.id, type_data.data).is_none()
+    pub fn insert(&mut self, type_id: u64) -> bool {
+        self.components.insert(type_id)
     }
 
     pub fn remove(&mut self, type_id: u64) -> bool {
-        self.components.remove(&type_id).is_some()
+        self.components.remove(&type_id)
+    }
+
+    pub fn build(&self) -> UniqueComponentsSet {
+        UniqueComponentsSet {
+            components: self.components.iter().copied().collect(),
+        }
     }
 }
 
 impl Hash for UniqueComponentsSetBuilder {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for component_id in self.components.keys() {
+        for component_id in &self.components {
             component_id.hash(state);
         }
     }
@@ -86,7 +96,7 @@ impl PartialEq for UniqueComponentsSetBuilder {
             return false;
         }
 
-        self.components.keys().all(|c| other.components.contains_key(c))
+        self.components.iter().all(|c| other.components.contains(c))
     }
 }
 
