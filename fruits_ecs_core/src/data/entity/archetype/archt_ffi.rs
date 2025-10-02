@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use crate::{entity::{archetype::{archt_layout::ArchetypeLayout, archt_raw::{ArchetypeItemPhysicalLocation, ArchetypeRaw}}, unique_components_set::UniqueComponentsSet}, meta::Entity, TypesRegistryAccessFfi};
+use crate::*;
 
 #[repr(C)]
 pub struct ArchetypeUnsafeFfiIteratorItem {
@@ -30,8 +30,14 @@ impl<'a> Iterator for ArchetypeUnsafeFfiIterator<'a> {
             return None;
         }
 
-        let chunk_entity = self.archetype.layout.entity_in_chunk_index(self.entity_archetype_idx);
-        let chunk_ptr = self.archetype.archetype.get_chunk(self.archetype.layout.chunk_index(self.entity_archetype_idx));
+        let chunk_entity = self
+            .archetype
+            .layout
+            .entity_in_chunk_index(self.entity_archetype_idx);
+        let chunk_ptr = self
+            .archetype
+            .archetype
+            .get_chunk(self.archetype.layout.chunk_index(self.entity_archetype_idx));
 
         self.entity_archetype_idx += 1;
 
@@ -80,9 +86,9 @@ impl ArchetypeUnsafeFfi {
 
         Some(unsafe {
             let physical_location = self.layout.entity_memory_physical_location(entity_index);
-            
+
             let memory = self.archetype.get_memory(&physical_location);
-            
+
             (memory as *const Entity).read()
         })
     }
@@ -91,13 +97,15 @@ impl ArchetypeUnsafeFfi {
         if entity_index >= self.alive_entities_count {
             return None;
         }
-        
+
         if self.layout.get_component(component_id).is_none() {
             return None;
         }
 
-        let physical_location = self.layout.component_memory_physical_location(entity_index, component_id);
-        
+        let physical_location = self
+            .layout
+            .component_memory_physical_location(entity_index, component_id);
+
         Some(self.archetype.get_memory(&physical_location))
     }
 
@@ -105,7 +113,9 @@ impl ArchetypeUnsafeFfi {
         // todo: initialize components
         let entity_in_archetype_index = self.alive_entities_count;
 
-        if self.layout.chunk_index(entity_in_archetype_index) as u64 >= self.archetype.chunks_count() {
+        if self.layout.chunk_index(entity_in_archetype_index) as u64
+            >= self.archetype.chunks_count()
+        {
             self.archetype.push_chunk();
         }
 
@@ -118,10 +128,12 @@ impl ArchetypeUnsafeFfi {
         let entity_in_archetype_index = self.create_place_for_entity();
 
         unsafe {
-            let entity_location = self.layout.entity_memory_physical_location(entity_in_archetype_index);
-            
+            let entity_location = self
+                .layout
+                .entity_memory_physical_location(entity_in_archetype_index);
+
             let memory = self.archetype.get_memory(&entity_location);
-            
+
             (memory as *mut Entity).write(entity);
         }
     }
@@ -140,10 +152,12 @@ impl ArchetypeUnsafeFfi {
             let item_layout = item_layout.into_item_layout();
 
             unsafe {
-                let location = self.layout.memory_physical_location(entity_index, &item_layout);
+                let location = self
+                    .layout
+                    .memory_physical_location(entity_index, &item_layout);
 
                 let memory = self.archetype.get_memory(&location);
-                
+
                 drop_fn(memory as *mut c_void);
             }
         }
@@ -160,10 +174,14 @@ impl ArchetypeUnsafeFfi {
         let last_index = self.alive_entities_count - 1;
 
         if entity_index != last_index {
-            let last_components_locations = Self::get_items_locations_iter(&self.layout, last_index, &self.layout);
-            let entity_components_locations = Self::get_items_locations_iter(&self.layout, entity_index, &self.layout);
+            let last_components_locations =
+                Self::get_items_locations_iter(&self.layout, last_index, &self.layout);
+            let entity_components_locations =
+                Self::get_items_locations_iter(&self.layout, entity_index, &self.layout);
 
-            for ((src_location, size), (dst_location, _)) in last_components_locations.zip(entity_components_locations) {
+            for ((src_location, size), (dst_location, _)) in
+                last_components_locations.zip(entity_components_locations)
+            {
                 unsafe {
                     std::ptr::copy_nonoverlapping(
                         self.archetype.get_memory(&src_location),
@@ -178,7 +196,7 @@ impl ArchetypeUnsafeFfi {
 
         let last_entity = unsafe {
             let last_enity_memory = self.archetype.get_memory(&last_entity_location);
-            
+
             (last_enity_memory as *const Entity).read()
         };
 
@@ -188,21 +206,35 @@ impl ArchetypeUnsafeFfi {
     }
 
     /// Returns the last entity from src archetype before the movement.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// Memory is automatically deallocated. Needs manual lifetime-management.
-    pub unsafe fn add_component(src: &mut Self, dst: &mut Self, src_entity_index: u64, component_ptr: *mut u8, component_id: u64) -> Option<Entity> {
-        if !ArchetypeLayout::is_component_the_only_difference(&dst.layout, &src.layout, component_id) {
+    pub unsafe fn add_component(
+        src: &mut Self,
+        dst: &mut Self,
+        src_entity_index: u64,
+        component_ptr: *mut u8,
+        component_id: u64,
+    ) -> Option<Entity> {
+        if !ArchetypeLayout::is_component_the_only_difference(
+            &dst.layout,
+            &src.layout,
+            component_id,
+        ) {
             return None;
         }
 
         let dst_entity_index = dst.create_place_for_entity();
 
-        let src_components_locations = Self::get_items_locations_iter(&src.layout, src_entity_index, &src.layout);
-        let dst_components_locations = Self::get_items_locations_iter(&src.layout, dst_entity_index, &dst.layout);
+        let src_components_locations =
+            Self::get_items_locations_iter(&src.layout, src_entity_index, &src.layout);
+        let dst_components_locations =
+            Self::get_items_locations_iter(&src.layout, dst_entity_index, &dst.layout);
 
-        for ((src_location, size), (dst_location, _)) in src_components_locations.zip(dst_components_locations) {
+        for ((src_location, size), (dst_location, _)) in
+            src_components_locations.zip(dst_components_locations)
+        {
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     src.archetype.get_memory(&src_location),
@@ -213,47 +245,73 @@ impl ArchetypeUnsafeFfi {
         }
 
         let item_layout = dst.layout.get_component(component_id).unwrap();
-        let added_component_location = dst.layout.memory_physical_location(dst_entity_index, item_layout);
+        let added_component_location = dst
+            .layout
+            .memory_physical_location(dst_entity_index, item_layout);
 
         unsafe {
             let added_mem = dst.archetype.get_memory(&added_component_location);
-            
+
             std::ptr::copy_nonoverlapping(
                 component_ptr,
                 added_mem,
                 item_layout.type_data.size as usize,
             );
         }
-        
+
         Some(src.erase_entity(src_entity_index).unwrap())
     }
 
-    fn get_items_locations_iter<'l>(componens_layout: &'l ArchetypeLayout, entity_in_archetype_index: u64, memory_layout: &'l ArchetypeLayout) -> impl Iterator<Item = (ArchetypeItemPhysicalLocation, usize)> + 'l {
+    fn get_items_locations_iter<'l>(
+        componens_layout: &'l ArchetypeLayout,
+        entity_in_archetype_index: u64,
+        memory_layout: &'l ArchetypeLayout,
+    ) -> impl Iterator<Item = (ArchetypeItemPhysicalLocation, usize)> + 'l {
         componens_layout
             .components()
             .iter()
             .map(move |t| {
                 let item_layout = memory_layout.get_component(t.type_data.id).unwrap();
-                (memory_layout.memory_physical_location(entity_in_archetype_index, item_layout), item_layout.type_data.size as usize)
-            } )
+                (
+                    memory_layout.memory_physical_location(entity_in_archetype_index, item_layout),
+                    item_layout.type_data.size as usize,
+                )
+            })
             .chain(std::iter::once({
                 let item_layout = memory_layout.entity_item_layout();
-                (memory_layout.entity_memory_physical_location(entity_in_archetype_index), item_layout.type_data.size as usize)
+                (
+                    memory_layout.entity_memory_physical_location(entity_in_archetype_index),
+                    item_layout.type_data.size as usize,
+                )
             }))
     }
 
     /// Returns the last entity from src archetype before the movement.
-    pub unsafe fn remove_component(src: &mut Self, dst: &mut Self, src_entity_index: u64, component_ptr: *mut u8, component_id: u64) -> Option<Entity> {
-        if !ArchetypeLayout::is_component_the_only_difference(&src.layout, &dst.layout, component_id) {
+    pub unsafe fn remove_component(
+        src: &mut Self,
+        dst: &mut Self,
+        src_entity_index: u64,
+        component_ptr: *mut u8,
+        component_id: u64,
+    ) -> Option<Entity> {
+        if !ArchetypeLayout::is_component_the_only_difference(
+            &src.layout,
+            &dst.layout,
+            component_id,
+        ) {
             return None;
         }
 
         let dst_entity_index = dst.create_place_for_entity();
 
-        let src_components_locations = Self::get_items_locations_iter(&dst.layout, src_entity_index, &src.layout);
-        let dst_components_locations = Self::get_items_locations_iter(&dst.layout, dst_entity_index, &dst.layout);
+        let src_components_locations =
+            Self::get_items_locations_iter(&dst.layout, src_entity_index, &src.layout);
+        let dst_components_locations =
+            Self::get_items_locations_iter(&dst.layout, dst_entity_index, &dst.layout);
 
-        for ((src_location, size), (dst_location, _)) in src_components_locations.zip(dst_components_locations) {
+        for ((src_location, size), (dst_location, _)) in
+            src_components_locations.zip(dst_components_locations)
+        {
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     src.archetype.get_memory(&src_location),
@@ -263,10 +321,12 @@ impl ArchetypeUnsafeFfi {
             }
         }
 
-        // Safety: Managed by caller. 
+        // Safety: Managed by caller.
         unsafe {
             let item_layout = src.layout.get_component(component_id).unwrap();
-            let removed_component_location = src.layout.memory_physical_location(dst_entity_index, item_layout);
+            let removed_component_location = src
+                .layout
+                .memory_physical_location(dst_entity_index, item_layout);
             let removed_ptr = src.archetype.get_memory(&removed_component_location);
 
             std::ptr::copy_nonoverlapping(

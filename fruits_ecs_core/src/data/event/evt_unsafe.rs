@@ -1,6 +1,6 @@
 use fruits_ffi::{FfiOpaqueVec, FfiVec};
 
-use crate::{evt_ffi::EventsHolderUnsafeFfi, evt_safe::EventsHolderRef, TypesRegistryCache};
+use crate::*;
 
 fn events_holder_unsafe_get<E: 'static>(evt: &EventsHolderUnsafeFfi, types: &TypesRegistryCache) -> Option<*mut FfiVec<E>> {
     let type_id = types.get_or_register::<E>();

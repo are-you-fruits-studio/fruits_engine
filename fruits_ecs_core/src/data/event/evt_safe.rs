@@ -1,6 +1,6 @@
 use fruits_ffi::FfiVec;
 
-use crate::evt_unsafe::EventsHolderUnsafeRef;
+use crate::*;
 
 #[repr(transparent)]
 pub struct EventsHolderRef<'e> {

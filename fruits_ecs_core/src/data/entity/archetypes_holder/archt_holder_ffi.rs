@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use fruits_ffi::{FfiDroppable, FfiOptionCopy, FfiTypedDroppable, FfiVec};
 
-use crate::{entity::{archetype::archt_ffi::ArchetypeUnsafeFfi, archetypes_holder::archt_holder_native::ArchetypesHolderNative, unique_components_set::UniqueComponentsSet}, TypesRegistryAccessFfi};
+use crate::*;
 
 #[repr(C)]
 struct ArchetypesHolderFfiVTable {

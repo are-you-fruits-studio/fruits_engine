@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use fruits_ffi::{FfiDroppable, FfiOpaqueVec, FfiTypedDroppable};
 
-use crate::{evt_native::EventsHolderNative, TypesRegistryAccessFfi};
+use crate::*;
 
 #[repr(C)]
 struct EventsHolderUnsafeFfiVTable {

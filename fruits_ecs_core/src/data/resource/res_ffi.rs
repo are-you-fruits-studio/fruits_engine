@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use fruits_ffi::{FfiDroppable, FfiTypedDroppable};
 
-use crate::{res_native::ResourcesHolderNative, TypesRegistryAccessFfi};
+use crate::*;
 
 #[repr(C)]
 struct ResourcesHolderUnsafeFfiVTable {

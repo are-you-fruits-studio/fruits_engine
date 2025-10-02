@@ -1,6 +1,6 @@
 use std::{any::TypeId, marker::PhantomData, mem::MaybeUninit};
 
-use crate::{entity::{archetype::{archt_ffi::{ArchetypeUnsafeFfi, ArchetypeUnsafeFfiIterator, ArchetypeUnsafeFfiIteratorItem}, archt_layout::ArchetypeLayout}, unique_components_set::UniqueComponentsSet}, meta::Entity, *};
+use crate::*;
 
 pub trait Component : 'static { }
 

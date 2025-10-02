@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{entity::{archetype::{archt_ffi::ArchetypeUnsafeFfiIteratorItem, archt_layout::ArchetypeLayout, archt_unsafe::{ArchetypeIterator, ArchetypeIteratorItem, ArchetypeUnsafeRef, Component}}, archetypes_holder::archt_holder_ffi::ArchetypesHolderFfi, entities_holder::ent_holder_unsafe::EntitiesHolderUnsafeRef}, meta::Entity, *};
+use crate::*;
 
 pub struct EntitiesHolderQuery<'d, A: ArchetypeIteratorItem, F: QueryFilter = ()> {
     entities: EntitiesHolderUnsafeRef<'d>,

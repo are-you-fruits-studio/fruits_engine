@@ -1,4 +1,4 @@
-use crate::{entity::{archetype::archt_ffi::ArchetypeUnsafeFfi, archetypes_holder::archt_holder_ffi::ArchetypesHolderFfi, unique_components_set::{UniqueComponentsSet, UniqueComponentsSetBuilder}}, meta::{EntitiesMetadataFfi, Entity, EntityLocation}, *};
+use crate::*;
 
 pub struct EntitiesHolderUnsafeFfi {
     archetypes: ArchetypesHolderFfi,

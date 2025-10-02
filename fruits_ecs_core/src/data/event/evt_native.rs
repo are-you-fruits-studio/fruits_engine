@@ -2,7 +2,7 @@ use std::{cell::UnsafeCell, collections::HashMap, sync::RwLock};
 
 use fruits_ffi::FfiOpaqueVec;
 
-use crate::TypesRegistryAccessFfi;
+use crate::*;
 
 pub struct EventsHolderNative {
     events: RwLock<HashMap<u64, UnsafeCell<FfiOpaqueVec>>>,

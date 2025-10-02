@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use fruits_ffi::FfiVec;
 
-use crate::{entity::{archetype::archt_ffi::ArchetypeUnsafeFfi, unique_components_set::UniqueComponentsSet}, TypesRegistryAccessFfi};
+use crate::*;
 
 pub struct ArchetypesHolderNative {
     types: TypesRegistryAccessFfi,

@@ -1,6 +1,6 @@
 use std::mem::MaybeUninit;
 
-use crate::{entity::{archetype::archt_unsafe::{ArchetypeIteratorItem, Component}, entities_holder::{ent_holder_ffi::EntitiesHolderUnsafeFfi, ent_holder_query::{EntitiesHolderQuery, QueryFilter}, ent_holder_safe::{EntitiesHolder, EntitiesHolderMut, EntitiesHolderRef}}}, meta::Entity, *};
+use crate::*;
 
 fn entities_holder_unsafe_create_entity(
     entities: &mut EntitiesHolderUnsafeFfi,

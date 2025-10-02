@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ffi::c_void};
 
-use crate::TypesRegistryAccessFfi;
+use crate::*;
 
 pub struct ResourcesHolderNative {
     types: TypesRegistryAccessFfi,

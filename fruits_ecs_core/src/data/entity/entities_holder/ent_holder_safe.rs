@@ -1,7 +1,4 @@
-
-use crate::{entity::{archetype::archt_unsafe::{ArchetypeIteratorItem, Component}, entities_holder::{ent_holder_query::{EntitiesHolderQuery, QueryFilter}, ent_holder_unsafe::{EntitiesHolderUnsafe, EntitiesHolderUnsafeMut, EntitiesHolderUnsafeRef}}}, meta::Entity, TypesRegistryCache};
-
-//
+use crate::*;
 
 #[repr(transparent)]
 pub struct EntitiesHolder {

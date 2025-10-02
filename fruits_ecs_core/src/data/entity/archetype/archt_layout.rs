@@ -4,7 +4,7 @@ use std::{
 
 use fruits_ffi::{FfiDroppable, FfiVec};
 
-use crate::{entity::{archetype::archt_raw::{ArchetypeItemPhysicalLocation, CHUNK_SIZE}, unique_components_set::UniqueComponentsSet}, meta::Entity, StoredTypeData, TypeData, TypesRegistryAccessFfi};
+use crate::*;
 
 #[repr(C)]
 struct ArchetypeLayoutItemsMap {
