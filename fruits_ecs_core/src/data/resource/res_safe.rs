@@ -13,7 +13,8 @@ impl ResourcesHolder {
     }
 
     pub fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
-        self.res.insert(data)
+        // todo
+        unsafe { self.res.insert(data) }
     }
 
     pub fn get<T: 'static>(&self) -> Option<&T> {
@@ -50,7 +51,8 @@ impl<'r> ResourcesHolderMut<'r> {
     }
 
     pub fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
-        self.res.insert(data)
+        // todo
+        unsafe { self.res.insert(data) }
     }
 
     pub fn get<T: 'static>(&self) -> Option<&T> {

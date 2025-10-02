@@ -1,9 +1,11 @@
 use crate::*;
 
-fn resources_holder_typed_unsafe_get<T: 'static>(types: &TypesRegistryCache, res: &ResourcesHolderUnsafeFfi) -> Option<*mut T> {
+unsafe fn resources_holder_typed_unsafe_get<T: 'static>(types: &TypesRegistryCache, res: *const ResourcesHolderUnsafeFfi) -> Option<*mut T> {
     let type_id = types.get_or_register::<T>();
-
+    
     unsafe {
+        let res = &*res;
+
         let mem = res.get(type_id);
 
         if mem.is_null() {
@@ -14,10 +16,12 @@ fn resources_holder_typed_unsafe_get<T: 'static>(types: &TypesRegistryCache, res
     }
 }
 
-fn resources_holder_typed_unsafe_insert<T: 'static>(types: &TypesRegistryCache, res: &mut ResourcesHolderUnsafeFfi, data: T) -> Result<(), T> {
+unsafe fn resources_holder_typed_unsafe_insert<T: 'static>(types: &TypesRegistryCache, res: *mut ResourcesHolderUnsafeFfi, data: T) -> Result<(), T> {
     let type_id = types.get_or_register::<T>();
 
     unsafe {
+        let res = &mut *res;
+
         let mem = res.insert(type_id);
         
         if mem.is_null() {
@@ -45,12 +49,12 @@ impl ResourcesHolderUnsafe {
         }
     }
 
-    pub fn get<T: 'static>(&self) -> Option<*mut T> {
-        resources_holder_typed_unsafe_get(&self.types, &self.res)
+    pub unsafe fn get<T: 'static>(&self) -> Option<*mut T> {
+        unsafe { resources_holder_typed_unsafe_get(&self.types, &raw const self.res) }
     }
     
-    pub fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
-        resources_holder_typed_unsafe_insert(&self.types, &mut self.res, data)
+    pub unsafe fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
+        unsafe { resources_holder_typed_unsafe_insert(&self.types, &raw mut self.res, data) }
     }
 
     pub fn as_mut<'r>(&'r mut self) -> ResourcesHolderUnsafeMut<'r> {
@@ -72,37 +76,39 @@ impl ResourcesHolderUnsafe {
     }
 }
 
+//
+
 pub struct ResourcesHolderUnsafeMut<'r> {
-    res: &'r mut ResourcesHolderUnsafeFfi,
+    res: *mut ResourcesHolderUnsafeFfi,
     types: &'r TypesRegistryCache,
 }
 
 impl<'r> ResourcesHolderUnsafeMut<'r> {
-    pub fn new(res: &'r mut ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
+    pub fn new(res: *mut ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
             types,
         }
     }
 
-    pub fn get<T: 'static>(&self) -> Option<*mut T> {
-        resources_holder_typed_unsafe_get(&self.types, &self.res)
+    pub unsafe fn get<T: 'static>(&self) -> Option<*mut T> {
+        unsafe { resources_holder_typed_unsafe_get(&self.types, self.res) }
     }
     
-    pub fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
-        resources_holder_typed_unsafe_insert(&self.types, self.res, data)
+    pub unsafe fn insert<T: 'static>(&mut self, data: T) -> Result<(), T> {
+        unsafe { resources_holder_typed_unsafe_insert(&self.types, self.res, data) }
     }
 
     pub fn as_mut(&'r mut self) -> ResourcesHolderUnsafeMut<'r> {
         ResourcesHolderUnsafeMut {
-            res: &mut self.res,
+            res: self.res,
             types: self.types,
         }
     }
 
     pub fn as_ref(&'r self) -> ResourcesHolderUnsafeRef<'r> {
         ResourcesHolderUnsafeRef {
-            res: &self.res,
+            res: self.res,
             types: self.types,
         }
     }
@@ -113,25 +119,25 @@ impl<'r> ResourcesHolderUnsafeMut<'r> {
 }
 
 pub struct ResourcesHolderUnsafeRef<'r> {
-    res: &'r ResourcesHolderUnsafeFfi,
+    res: *const ResourcesHolderUnsafeFfi,
     types: &'r TypesRegistryCache,
 }
 
 impl<'r> ResourcesHolderUnsafeRef<'r> {
-    pub fn new(res: &'r ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
+    pub fn new(res: *const ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
             types,
         }
     }
 
-    pub fn get<T: 'static>(&self) -> Option<*mut T> {
-        resources_holder_typed_unsafe_get(&self.types, &self.res)
+    pub unsafe fn get<T: 'static>(&self) -> Option<*mut T> {
+        unsafe { resources_holder_typed_unsafe_get(&self.types, self.res) }
     }
 
     pub fn as_ref(&'r self) -> ResourcesHolderUnsafeRef<'r> {
         ResourcesHolderUnsafeRef {
-            res: &self.res,
+            res: self.res,
             types: self.types,
         }
     }

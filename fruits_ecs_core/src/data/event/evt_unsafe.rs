@@ -25,12 +25,12 @@ fn events_holder_unsafe_get_or_create<E: 'static>(evt: &EventsHolderUnsafeFfi, t
 //
 
 pub struct EventsHolderUnsafeRef<'e> {
-    evt: &'e EventsHolderUnsafeFfi,
+    evt: *const EventsHolderUnsafeFfi,
     types: &'e TypesRegistryCache,
 }
 
 impl<'e> EventsHolderUnsafeRef<'e> {
-    pub fn new(evt: &'e EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
+    pub fn new(evt: *const EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
         Self {
             evt,
             types,

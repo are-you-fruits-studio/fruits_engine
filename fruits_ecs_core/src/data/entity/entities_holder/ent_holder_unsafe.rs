@@ -284,6 +284,11 @@ impl<'e> EntitiesHolderUnsafeRef<'e> {
         unsafe { EntitiesHolderQuery::<'a, A, F>::new(self.as_ref()) }
     }
 
+    // todo
+    pub unsafe fn into_query<A: ArchetypeIteratorItem, F: QueryFilter>(self) -> EntitiesHolderQuery<'e, A, F> {
+        unsafe { EntitiesHolderQuery::<'e, A, F>::new(self) }
+    }
+
     pub fn entities_count(&self) -> u64 {
         self.entities.entities_count()
     }

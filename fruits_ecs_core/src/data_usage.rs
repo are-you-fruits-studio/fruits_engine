@@ -9,6 +9,7 @@ pub struct DataUsageDetails {
     pub is_required: bool,
 }
 
+#[repr(C)]
 pub struct DataUsageEntry {
     pub type_id: u64,
     pub details: DataUsageDetails,
@@ -38,16 +39,24 @@ impl DataUsage {
 }
 
 pub struct DataUsageBuilder {
-    details: HashMap<u64, DataUsageDetails>
+    details: HashMap<u64, DataUsageDetails>,
+    is_global: bool,
 }
 impl DataUsageBuilder {
     pub fn new() -> Self {
         Self {
             details: HashMap::new(),
+            is_global: false,
         }
     }
 
     pub fn add(&mut self, usage: DataUsageEntry) {
+        if self.is_global {
+            // todo
+            println!("fruits: Invalid system DataUsage.");
+            panic!("fruits: Invalid system DataUsage.");
+        }
+
         let Some(value) = self.details.get_mut(&usage.type_id) else {
             self.details.insert(usage.type_id, usage.details);
             return;
@@ -62,9 +71,23 @@ impl DataUsageBuilder {
         value.is_required |= usage.details.is_required;
     }
 
+    pub fn can_add_anything(&self) -> bool {
+        !self.is_global
+    }
+
+    pub fn add_all_mutable(&mut self) {
+        if !self.details.is_empty() || self.is_global {
+            // todo
+            println!("fruits: Invalid system DataUsage.");
+            panic!("fruits: Invalid system DataUsage.");
+        }
+
+        self.is_global = true;
+    }
+
     pub fn build(&self) -> DataUsage {
         DataUsage {
-            is_global: false,
+            is_global: self.is_global,
             elements: self.details.iter().map(|(&type_id, &details)| DataUsageEntry {
                 details,
                 type_id,
