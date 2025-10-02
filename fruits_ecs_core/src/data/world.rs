@@ -36,9 +36,9 @@ impl<'w> WorldDataUnsafeMut<'w> {
     }
 
     pub fn resources<'r>(&'r self) -> ResourcesHolderUnsafeRef<'r> where 'w : 'r { ResourcesHolderUnsafeRef::new(&self.world.res, self.types) }
-    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderUnsafeMut<'r> where 'w : 'r { ResourcesHolderUnsafeMut::new(&mut self.world.res, self.types) }
+    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderUnsafeRef<'r> where 'w : 'r { ResourcesHolderUnsafeRef::new(&mut self.world.res, self.types) }
     pub fn entities<'r>(&'r self) -> EntitiesHolderUnsafeRef<'r> where 'w : 'r { EntitiesHolderUnsafeRef::new(&self.world.ent, self.types) }
-    pub fn entities_mut<'r>(&'r mut self) -> EntitiesHolderUnsafeMut<'r> where 'w : 'r { EntitiesHolderUnsafeMut::new(&mut self.world.ent, self.types) }
+    pub fn entities_mut<'r>(&'r mut self) -> EntitiesHolderUnsafeRef<'r> where 'w : 'r { EntitiesHolderUnsafeRef::new(&mut self.world.ent, self.types) }
     pub fn events<'r>(&'r self) -> EventsHolderUnsafeRef<'r> where 'w : 'r { EventsHolderUnsafeRef::new(&self.world.evt, self.types) }
     pub fn as_tuple_mut<'r>(&'r mut self) -> ! where 'w : 'r { todo!() }
 

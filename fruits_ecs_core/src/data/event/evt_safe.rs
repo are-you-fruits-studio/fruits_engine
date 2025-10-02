@@ -29,14 +29,14 @@ impl<'e> EventsHolderRef<'e> {
     }
 
     pub fn clear(&mut self) {
-        self.evt.clear();
+        unsafe { self.evt.clear(); }
     }
 
     pub fn as_ref<'r>(&'r mut self) -> EventsHolderRef<'r>
         where 'e: 'r
     {
         EventsHolderRef {
-            evt: self.evt.as_ref(),
+            evt: self.evt.clone(),
         }
     }
 }

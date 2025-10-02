@@ -24,7 +24,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             components.remove(entity_id_idx as u64);
         }
 
-        let archetypes = data.as_ffi().archetypes();
+        let archetypes = data.ffi().archetypes();
 
         if components.is_empty() {
             // Query is with entities only (should iterate all entities).
@@ -118,7 +118,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         where 'd: 'r,
     {
         unsafe {
-            let entities_ffi = self.entities.as_ffi();
+            let entities_ffi = self.entities.ffi();
             let location = entities_ffi.entities_meta().get(entity)?;
 
             let archetype = entities_ffi.archetypes().by_id_ref(location.archetype_id)?;
@@ -151,7 +151,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         where 'd: 'r,
     {
         unsafe {
-            let entities_ffi = self.entities.as_ffi();
+            let entities_ffi = self.entities.ffi();
             let location = entities_ffi.entities_meta().get(entity)?;
 
             let archetype = entities_ffi.archetypes().by_id_ref(location.archetype_id)?;
@@ -182,7 +182,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
     fn archetypes_iter<'a>(&'a self) -> ArchetypesIter<'a> {
         unsafe {
-            ArchetypesIter::new(&self.entities.as_ffi().archetypes(), self.entities.types(), self.archetype_indices.iter())
+            ArchetypesIter::new(&self.entities.ffi().archetypes(), self.entities.types(), self.archetype_indices.iter())
         }
     }
 }

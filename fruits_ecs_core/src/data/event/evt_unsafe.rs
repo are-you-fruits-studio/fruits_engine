@@ -2,28 +2,9 @@ use fruits_ffi::{FfiOpaqueVec, FfiVec};
 
 use crate::*;
 
-fn events_holder_unsafe_get<E: 'static>(evt: &EventsHolderUnsafeFfi, types: &TypesRegistryCache) -> Option<*mut FfiVec<E>> {
-    let type_id = types.get_or_register::<E>();
-
-    let result = evt.get(type_id);
-
-    if result.is_null() {
-        None
-    } else {
-        Some(unsafe { FfiOpaqueVec::as_vec_ptr(result) })
-    }
-}
-
-fn events_holder_unsafe_get_or_create<E: 'static>(evt: &EventsHolderUnsafeFfi, types: &TypesRegistryCache) -> *mut FfiVec<E> {
-    let type_id = types.get_or_register::<E>();
-    
-    let result = evt.get_or_create(type_id);
-
-    unsafe { FfiOpaqueVec::as_vec_ptr(result) }
-}
-
 //
 
+#[derive(Clone)]
 pub struct EventsHolderUnsafeRef<'e> {
     evt: *const EventsHolderUnsafeFfi,
     types: &'e TypesRegistryCache,
@@ -37,25 +18,28 @@ impl<'e> EventsHolderUnsafeRef<'e> {
         }
     }
 
-    pub fn get<E: 'static>(&self) -> Option<*mut FfiVec<E>> {
-        events_holder_unsafe_get(&self.evt, &self.types)
-    }
-
-    pub fn get_or_create<E: 'static>(&self) -> *mut FfiVec<E> {
-        events_holder_unsafe_get_or_create(&self.evt, &self.types)
-    }
-
-    pub fn clear(&self) {
-        self.evt.clear();
-    }
-
-    pub fn as_ref<'r>(&'r self) -> EventsHolderUnsafeRef<'r>
-        where 'e: 'r
-    {
-        EventsHolderUnsafeRef {
-            evt: self.evt,
-            types: self.types,
+    pub unsafe fn get<E: 'static>(&self) -> Option<*mut FfiVec<E>> {
+        unsafe {
+            let result = (&*self.evt).get((&self.types).get_or_register::<E>());
+    
+            if result.is_null() {
+                None
+            } else {
+                Some(FfiOpaqueVec::as_vec_ptr(result))
+            }
         }
+    }
+
+    pub unsafe fn get_or_create<E: 'static>(&self) -> *mut FfiVec<E> {
+        unsafe {
+            let result = (&*self.evt).get_or_create(self.types.get_or_register::<E>());
+    
+            FfiOpaqueVec::as_vec_ptr(result)
+        }
+    }
+
+    pub unsafe fn clear(&self) {
+        unsafe { (&*self.evt).clear(); }
     }
 
     pub fn into_safe(self) -> EventsHolderRef<'e> {
