@@ -76,6 +76,9 @@ impl<T> Drop for FfiBox<T> {
     }
 }
 
+unsafe impl<T: Send> Send for FfiBox<T> { }
+unsafe impl<T: Sync> Sync for FfiBox<T> { }
+
 //
 
 #[repr(C)]

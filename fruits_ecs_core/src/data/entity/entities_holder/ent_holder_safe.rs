@@ -6,48 +6,62 @@ pub struct EntitiesHolderMut<'e> {
 }
 
 impl<'e> EntitiesHolderMut<'e> {
-    pub fn query<'a, A: ArchetypeIteratorItem>(&'a self) -> EntitiesHolderQuery<'a, A::Item<'a>> {
-        // Safety. Managed with lifetimes.
-        unsafe { self.data.query::<'a, A>() }
+    pub fn new(data: EntitiesHolderUnsafeRef<'e>) -> Self {
+        Self {
+            data,
+        }
     }
 
-    pub fn query_filtered<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a self) -> EntitiesHolderQuery<'a, A::Item<'a>, F> {
+    pub fn query<'r, A: ArchetypeIteratorItem>(&'r self) -> EntitiesHolderQuery<'r, A::ReadOnlyItem<'r>>
+        where 'e: 'r
+    {
         // Safety. Managed with lifetimes.
-        unsafe { self.data.query::<'a, A, F>() }
+        unsafe { self.data.clone().into_query::<A::ReadOnlyItem<'r>, ()>() }
     }
 
-    pub fn query_mut<'a, A: ArchetypeIteratorItem>(&'a mut self) -> EntitiesHolderQuery<'a, A::ReadOnlyItem<'a>> {
+    pub fn query_filtered<'r, A: ArchetypeIteratorItem, F: QueryFilter>(&'r self) -> EntitiesHolderQuery<'r, A::ReadOnlyItem<'r>, F>
+        where 'e: 'r
+    {
         // Safety. Managed with lifetimes.
-        unsafe { self.data.query::<'a, A>() }
+        unsafe { self.data.clone().into_query::<A::ReadOnlyItem<'r>, F>() }
     }
 
-    pub fn query_filtered_mut<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a mut self) -> EntitiesHolderQuery<'a, A::ReadOnlyItem<'a>, F> {
+    pub fn query_mut<'r, A: ArchetypeIteratorItem>(&'r mut self) -> EntitiesHolderQuery<'r, A::Item<'r>>
+        where 'e: 'r
+    {
         // Safety. Managed with lifetimes.
-        unsafe { self.data.query::<'a, A, F>() }
+        unsafe { self.data.clone().into_query::<A::Item<'r>, ()>() }
+    }
+
+    pub fn query_filtered_mut<'r, A: ArchetypeIteratorItem, F: QueryFilter>(&'r mut self) -> EntitiesHolderQuery<'r, A::Item<'r>, F>
+        where 'e: 'r
+    {
+        // Safety. Managed with lifetimes.
+        unsafe { self.data.clone().into_query::<A::Item<'r>, F>() }
     }
 
     pub fn entities_count(&self) -> u64 {
-        self.data.entities_count()
+        unsafe { self.data.entities_count() }
     }
 
     pub fn contains_entity(&self, entity: Entity) -> bool {
-        self.data.contains_entity(entity)
+        unsafe { self.data.contains_entity(entity) }
     }
 
     pub fn create_entity(&mut self) -> Entity {
-        self.data.create_entity()
+        unsafe { self.data.create_entity() }
     }
 
     pub fn destroy_entity(&mut self, entity: Entity) -> bool {
-        self.data.destroy_entity(entity)
+        unsafe { self.data.destroy_entity(entity) }
     }
 
     pub fn add_component<C: Component>(&mut self, entity: Entity, component: C) -> Result<(), C> {
-        self.data.add_component(entity, component)
+        unsafe { self.data.add_component(entity, component) }
     }
 
     pub fn remove_component<C: Component>(&mut self, entity: Entity) -> Option<C> {
-        self.data.remove_component(entity)
+        unsafe { self.data.remove_component(entity) }
     }
 
     pub fn get_component<C: Component>(&self, entity: Entity) -> Option<&C> {
@@ -63,13 +77,17 @@ impl<'e> EntitiesHolderMut<'e> {
     pub fn as_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r>
         where 'e: 'r
     {
-        unsafe { EntitiesHolderUnsafeRef::from_safe_mut(self).as_mut().into_safe() }
+        EntitiesHolderMut {
+            data: self.data.clone(),
+        }
     }
 
     pub fn as_ref<'r>(&'r self) -> EntitiesHolderRef<'r>
         where 'e: 'r
     {
-        unsafe { EntitiesHolderUnsafeRef::from_safe_ref(self).as_ref().into_safe() }
+        EntitiesHolderRef {
+            data: self.data.clone(),
+        }
     }
 }
 
@@ -81,26 +99,32 @@ pub struct EntitiesHolderRef<'e> {
 }
 
 impl<'e> EntitiesHolderRef<'e> {
-    pub fn query<'a, A: ArchetypeIteratorItem>(&'a self) -> EntitiesHolderQuery<'a, A::Item<'a>> {
-        // Safety. Managed with lifetimes.
-        unsafe {
-            EntitiesHolderQuery::new(self.data.as_ref())
+    pub fn new(data: EntitiesHolderUnsafeRef<'e>) -> Self {
+        Self {
+            data,
         }
     }
 
-    pub fn query_filtered<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a self) -> EntitiesHolderQuery<'a, A::Item<'a>, F> {
+    pub fn query<'r, A: ArchetypeIteratorItem>(&'r self) -> EntitiesHolderQuery<'r, A::ReadOnlyItem<'r>>
+        where 'e: 'r
+    {
         // Safety. Managed with lifetimes.
-        unsafe {
-            EntitiesHolderQuery::new(self.data.as_ref())
-        }
+        unsafe { self.data.clone().into_query::<A::ReadOnlyItem<'r>, ()>() }
+    }
+
+    pub fn query_filtered<'r, A: ArchetypeIteratorItem, F: QueryFilter>(&'r self) -> EntitiesHolderQuery<'r, A::ReadOnlyItem<'r>, F>
+        where 'e: 'r
+    {
+        // Safety. Managed with lifetimes.
+        unsafe { self.data.clone().into_query::<A::ReadOnlyItem<'r>, F>() }
     }
 
     pub fn entities_count(&self) -> u64 {
-        self.data.entities_count()
+        unsafe { self.data.entities_count() }
     }
 
     pub fn contains_entity(&self, entity: Entity) -> bool {
-        self.data.contains_entity(entity)
+        unsafe { self.data.contains_entity(entity) }
     }
 
     pub fn get_component<C: Component>(&self, entity: Entity) -> Option<&C> {
@@ -111,6 +135,8 @@ impl<'e> EntitiesHolderRef<'e> {
     pub fn as_ref<'r>(&'r self) -> EntitiesHolderRef<'r>
         where 'e: 'r
     {
-        unsafe { EntitiesHolderUnsafeRef::from_safe_ref(self).as_ref().into_safe() }
+        EntitiesHolderRef {
+            data: self.data.clone(),
+        }
     }
 }

@@ -41,3 +41,6 @@ impl SystemResourcesHolderUnsafeFfi {
         }
     }
 }
+
+unsafe impl Send for SystemResourcesHolderUnsafeFfi { }
+unsafe impl Sync for SystemResourcesHolderUnsafeFfi { }

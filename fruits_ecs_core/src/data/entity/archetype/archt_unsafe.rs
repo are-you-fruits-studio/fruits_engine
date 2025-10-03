@@ -210,12 +210,14 @@ pub struct ArchetypeIterator<'a, A: ArchetypeIteratorItem> {
 
 impl<'a, A: ArchetypeIteratorItem> ArchetypeIterator<'a, A> {
     pub unsafe fn new(archetype: ArchetypeUnsafeRef<'a>) -> Self {
-        let iter_state = unsafe { A::prepare_iter_state(archetype.archetype.layout(), &archetype.types) };
-        
-        Self {
-            iter: archetype.archetype.iter(),
-            iter_state,
-            _phantom: Default::default(),
+        unsafe {
+            let archetype_ffi = &*archetype.archetype;
+
+            Self {
+                iter_state: A::prepare_iter_state(archetype_ffi.layout(), archetype.types),
+                iter: archetype_ffi.iter(),
+                _phantom: Default::default(),
+            }
         }
     }
 }
@@ -234,267 +236,96 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for ArchetypeIterator<'a, A> {
 
 //
 
-fn archetype_unsafe_contains_component_type(archetype: &ArchetypeUnsafeFfi, types: &TypesRegistryCache, type_id: &TypeId) -> bool {
-    let Some(type_id) = types.get_with_type_id(type_id) else {
-        return false;
-    };
-
-    archetype.contains_component_type(type_id)
-}
-
-fn archetype_unsafe_iter<'a, A: ArchetypeIteratorItem>(archetype: ArchetypeUnsafeRef<'a>) -> ArchetypeIterator<'a, A> {
-    unsafe { ArchetypeIterator::new(archetype) }
-}
-
-fn archetype_unsafe_get_component_ptr<C: 'static>(archetype: &ArchetypeUnsafeFfi, types: &TypesRegistryCache, entity_index: u64) -> Option<*mut C> {
-    archetype.get_component_ptr(entity_index, types.get_or_register::<C>()).map(|p| p as *mut C)
-}
-
-/// Returns the last entity from src archetype before the movement.
-fn archetype_unsafe_add_component<C: 'static>(
-    src: &mut ArchetypeUnsafeFfi,
-    dst: &mut ArchetypeUnsafeFfi,
-    types: &TypesRegistryCache,
-    src_entity_index: u64,
-    component: C,
-) -> Result<Entity, C> {
-    unsafe {
-        let mut component = MaybeUninit::new(component);
-
-        if let Some(entity) = ArchetypeUnsafeFfi::add_component(
-            src,
-            dst,
-            src_entity_index,
-            component.as_mut_ptr() as *mut u8,
-            types.get_or_register::<C>(),
-        ) {
-            Ok(entity)
-        } else {
-            Err(component.assume_init())
-        }
-    }
-}
-
-/// Returns the last entity from src archetype before the movement.
-fn archetype_unsafe_remove_component<C: 'static>(
-    src: &mut ArchetypeUnsafeFfi,
-    dst: &mut ArchetypeUnsafeFfi,
-    types: &TypesRegistryCache,
-    src_entity_index: u64,
-) -> Option<(Entity, C)> {
-    unsafe {
-        let mut component = MaybeUninit::<C>::uninit();
-
-        if let Some(entity) = ArchetypeUnsafeFfi::remove_component(
-            src,
-            dst,
-            src_entity_index,
-            component.as_mut_ptr() as *mut u8,
-            types.get_or_register::<C>(),
-        ) {
-            Some((entity, component.assume_init()))
-        } else {
-            None
-        }
-    }
-}
-
-//
-
-pub struct ArchetypeUnsafe {
-    archetype: ArchetypeUnsafeFfi,
-    types: TypesRegistryCache,
-}
-
-impl ArchetypeUnsafe {
-    pub fn new(components_set: UniqueComponentsSet, types: TypesRegistryCache) -> Self {
-        Self {
-            archetype: ArchetypeUnsafeFfi::new(unsafe { types.registry().clone() }, components_set),
-            types,
-        }
-    }
-
-    pub fn contains_component_type(&self, type_id: &TypeId) -> bool {
-        archetype_unsafe_contains_component_type(&self.archetype, &self.types, type_id)
-    }
-
-    pub fn iter<'a, A: ArchetypeIteratorItem>(&'a self) -> ArchetypeIterator<'a, A> {
-        // todo: threading guards
-        unsafe {
-            ArchetypeIterator::new(self.as_ref())
-        }
-    }
-
-    pub fn entities_count(&self) -> u64 {
-        self.archetype.entities_count()
-    }
-
-    pub fn get_entity(&self, entity_index: u64) -> Option<Entity> {
-        self.archetype.get_entity(entity_index)
-    }
-
-    pub fn get_component_ptr<C: 'static>(&self, entity_index: u64) -> Option<*mut C> {
-        archetype_unsafe_get_component_ptr(&self.archetype, &self.types, entity_index)
-    }
-
-    pub fn create_entity(&mut self, entity: Entity) {
-        self.archetype.create_entity(entity)
-    }
-
-    /// Returns the last entity before the destroy.
-    pub fn destroy_entity(&mut self, entity_index: u64) -> Option<Entity> {
-        self.archetype.destroy_entity(entity_index)
-    }
-
-    /// Returns the last entity from src archetype before the movement.
-    pub fn add_component<C: 'static>(src: &mut Self, dst: &mut Self, src_entity_index: u64, component: C) -> Result<Entity, C> {
-        archetype_unsafe_add_component::<C>(&mut src.archetype, &mut dst.archetype, &src.types, src_entity_index, component)
-    }
-
-    /// Returns the last entity from src archetype before the movement.
-    pub fn remove_component<C: 'static>(src: &mut Self, dst: &mut Self, src_entity_index: u64) -> Option<(Entity, C)> {
-        archetype_unsafe_remove_component::<C>(&mut src.archetype, &mut dst.archetype, &src.types, src_entity_index)
-    }
-
-    pub unsafe fn ffi_archetype(&self) -> &ArchetypeUnsafeFfi {
-        &self.archetype
-    }
-
-    pub fn as_mut<'a>(&'a mut self) -> ArchetypeUnsafeMut<'a> {
-        ArchetypeUnsafeMut::new(&mut self.archetype, &self.types)
-    }
-
-    pub fn as_ref<'a>(&'a self) -> ArchetypeUnsafeRef<'a> {
-        ArchetypeUnsafeRef::new(&self.archetype, &self.types)
-    }
-}
-
-//
-
-pub struct ArchetypeUnsafeMut<'a> {
-    archetype: &'a mut ArchetypeUnsafeFfi,
-    types: &'a TypesRegistryCache,
-}
-
-impl<'a> ArchetypeUnsafeMut<'a> {
-    pub fn new(archetype: &'a mut ArchetypeUnsafeFfi, types: &'a TypesRegistryCache) -> Self {
-        Self {
-            archetype,
-            types,
-        }
-    }
-
-    pub fn contains_component_type(&self, type_id: &TypeId) -> bool {
-        archetype_unsafe_contains_component_type(self.archetype, &self.types, type_id)
-    }
-
-    pub fn iter<'r, A: ArchetypeIteratorItem>(&'r self) -> ArchetypeIterator<'r, A>
-        where 'a: 'r
-    {
-        // todo: threading guards
-        unsafe {
-            ArchetypeIterator::new(self.as_ref())
-        }
-    }
-
-    pub fn entities_count(&self) -> u64 {
-        self.archetype.entities_count()
-    }
-
-    pub fn get_entity(&self, entity_index: u64) -> Option<Entity> {
-        self.archetype.get_entity(entity_index)
-    }
-
-    pub fn get_component_ptr<C: 'static>(&self, entity_index: u64) -> Option<*mut C> {
-        archetype_unsafe_get_component_ptr(self.archetype, &self.types, entity_index)
-    }
-
-    pub fn create_entity(&mut self, entity: Entity) {
-        self.archetype.create_entity(entity)
-    }
-
-    /// Returns the last entity before the destroy.
-    pub fn destroy_entity(&mut self, entity_index: u64) -> Option<Entity> {
-        self.archetype.destroy_entity(entity_index)
-    }
-
-    /// Returns the last entity from src archetype before the movement.
-    pub fn add_component<C: 'static>(src: &mut Self, dst: &mut Self, src_entity_index: u64, component: C) -> Result<Entity, C> {
-        archetype_unsafe_add_component::<C>(src.archetype, dst.archetype, &src.types, src_entity_index, component)
-    }
-
-    /// Returns the last entity from src archetype before the movement.
-    pub fn remove_component<C: 'static>(src: &mut Self, dst: &mut Self, src_entity_index: u64) -> Option<(Entity, C)> {
-        archetype_unsafe_remove_component::<C>(src.archetype, dst.archetype, &src.types, src_entity_index)
-    }
-
-    pub unsafe fn ffi_archetype(&self) -> &ArchetypeUnsafeFfi {
-        &self.archetype
-    }
-
-    pub fn as_mut<'r>(&'r mut self) -> ArchetypeUnsafeMut<'r>
-        where 'a: 'r
-    {
-        ArchetypeUnsafeMut::new(self.archetype, &self.types)
-    }
-
-    pub fn as_ref<'r>(&'r self) -> ArchetypeUnsafeRef<'r>
-        where 'a: 'r
-    {
-        ArchetypeUnsafeRef::new(self.archetype, &self.types)
-    }
-}
-
-//
-
+#[derive(Clone)]
 pub struct ArchetypeUnsafeRef<'a> {
-    archetype: &'a ArchetypeUnsafeFfi,
+    archetype: *mut ArchetypeUnsafeFfi,
     types: &'a TypesRegistryCache,
 }
 
 impl<'a> ArchetypeUnsafeRef<'a> {
-    pub fn new(archetype: &'a ArchetypeUnsafeFfi, types: &'a TypesRegistryCache) -> Self {
+    pub fn new(archetype: *mut ArchetypeUnsafeFfi, types: &'a TypesRegistryCache) -> Self {
         Self {
             archetype,
             types,
         }
     }
 
-    pub fn contains_component_type(&self, type_id: &TypeId) -> bool {
-        archetype_unsafe_contains_component_type(self.archetype, &self.types, type_id)
+    pub unsafe fn contains_component_type(&self, type_id: &TypeId) -> bool {
+        unsafe {
+            let Some(type_id) = self.types.get_with_type_id(type_id) else {
+                return false;
+            };
+
+            (&*self.archetype).contains_component_type(type_id)
+        }
     }
 
-    pub fn iter<'r, A: ArchetypeIteratorItem>(&'r self) -> ArchetypeIterator<'r, A>
-        where 'a: 'r
-    {
-        archetype_unsafe_iter(self.as_ref())
+    pub unsafe fn into_iter<A: ArchetypeIteratorItem>(self) -> ArchetypeIterator<'a, A> {
+        unsafe { ArchetypeIterator::new(self) }
     }
 
-    // todo: merge with iter
-    pub fn into_iter<A: ArchetypeIteratorItem>(self) -> ArchetypeIterator<'a, A> {
-        archetype_unsafe_iter(self)
+    pub unsafe fn entities_count(&self) -> u64 {
+        unsafe { (&*self.archetype).entities_count() }
     }
 
-    pub fn entities_count(&self) -> u64 {
-        self.archetype.entities_count()
+    pub unsafe fn get_entity(&self, entity_index: u64) -> Option<Entity> {
+        unsafe { (&*self.archetype).get_entity(entity_index) }
     }
 
-    pub fn get_entity(&self, entity_index: u64) -> Option<Entity> {
-        self.archetype.get_entity(entity_index)
+    pub unsafe fn get_component_ptr<C: 'static>(&self, entity_index: u64) -> Option<*mut C> {
+        unsafe {
+            (&*self.archetype).get_component_ptr(entity_index, self.types.get_or_register::<C>()).map(|p| p as *mut C)
+        }
     }
 
-    pub fn get_component_ptr<C: 'static>(&self, entity_index: u64) -> Option<*mut C> {
-        archetype_unsafe_get_component_ptr(self.archetype, &self.types, entity_index)
+    pub unsafe fn create_entity(&mut self, entity: Entity) {
+        unsafe { (&mut *self.archetype).create_entity(entity) }
     }
 
-    pub unsafe fn ffi_archetype(&self) -> &ArchetypeUnsafeFfi {
-        &self.archetype
+    /// Returns the last entity before the destroy.
+    pub unsafe fn destroy_entity(&mut self, entity_index: u64) -> Option<Entity> {
+        unsafe { (&mut *self.archetype).destroy_entity(entity_index) }
     }
 
-    pub fn as_ref<'r>(&'r self) -> ArchetypeUnsafeRef<'r>
-        where 'a: 'r
-    {
-        ArchetypeUnsafeRef::new(self.archetype, &self.types)
+    /// Returns the last entity from src archetype before the movement.
+    pub unsafe fn add_component<C: 'static>(src: &mut Self, dst: &mut Self, src_entity_index: u64, component: C) -> Result<Entity, C> {
+        unsafe {
+            let mut component = MaybeUninit::new(component);
+
+            if let Some(entity) = ArchetypeUnsafeFfi::add_component(
+                &mut *src.archetype,
+                &mut *dst.archetype,
+                src_entity_index,
+                component.as_mut_ptr() as *mut u8,
+                src.types.get_or_register::<C>(),
+            ) {
+                Ok(entity)
+            } else {
+                Err(component.assume_init())
+            }
+        }
+    }
+
+    /// Returns the last entity from src archetype before the movement.
+    pub unsafe fn remove_component<C: 'static>(src: &mut Self, dst: &mut Self, src_entity_index: u64) -> Option<(Entity, C)> {
+        unsafe {
+            let mut component = MaybeUninit::<C>::uninit();
+
+            if let Some(entity) = ArchetypeUnsafeFfi::remove_component(
+                &mut *src.archetype,
+                &mut *dst.archetype,
+                src_entity_index,
+                component.as_mut_ptr() as *mut u8,
+                src.types.get_or_register::<C>(),
+            ) {
+                Some((entity, component.assume_init()))
+            } else {
+                None
+            }
+        }
+    }
+
+    pub unsafe fn ffi(&self) -> *mut ArchetypeUnsafeFfi {
+        self.archetype
     }
 }
-

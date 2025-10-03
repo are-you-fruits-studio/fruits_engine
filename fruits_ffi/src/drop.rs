@@ -154,3 +154,6 @@ impl<T: Ord> Ord for FfiTypedDroppable<T> {
         self.get().cmp(other.get())
     }
 }
+
+unsafe impl<T: Send> Send for FfiTypedDroppable<T> { }
+unsafe impl<T: Sync> Sync for FfiTypedDroppable<T> { }

@@ -1,10 +1,10 @@
-use std::{fmt::{Debug, Display, Write}, ops::{Deref, DerefMut}};
+use std::{borrow::Borrow, fmt::{Debug, Display, Write}, hash::Hash, ops::{Deref, DerefMut}};
 
 use crate::FfiVec;
 
 // todo
 #[repr(C)]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FfiString {
     data: FfiVec<u8>,
 }
@@ -85,5 +85,32 @@ impl Write for FfiString {
 }
 
 impl Eq for FfiString { }
+
+impl Hash for FfiString {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
+
+impl PartialOrd for FfiString {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.as_str().partial_cmp(other.as_str())
+    }
+}
+
+impl Ord for FfiString {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_str().cmp(other.as_str())
+    }
+}
+
+impl Borrow<str> for FfiString {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+unsafe impl Send for FfiString { }
+unsafe impl Sync for FfiString { }
 
 // todo: impl standard traits

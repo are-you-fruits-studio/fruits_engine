@@ -1,31 +1,12 @@
-use std::ffi::c_void;
+use std::{ffi::c_void, marker::PhantomData};
 
-use fruits_ffi::{FfiDroppable, FfiOpaqueBox, FfiOption, FfiString};
+use fruits_ffi::{FfiDroppable, FfiString};
 
 use crate::*;
 
 pub struct SystemInput<'a> {
     pub world_data: WorldDataUnsafeRef<'a>,
     pub system_data: SystemResourcesUnsafeHolderRef<'a>,
-}
-
-//
-
-fn system_with_marker_into_system_ffi<S: SystemWithMarker<M>, M: 'static>(system: S) -> SystemFfi {
-    SystemFfi::new(move |ctx| {
-        unsafe {
-            let world = &mut *ctx.world_mut;
-            let system_data = &mut *ctx.system_data;
-            let types = &*((&mut *ctx.native_data_mut).as_mut().unwrap().as_ptr() as *const TypesRegistryCache);
-
-            let system_input = SystemInput {
-                world_data: WorldDataUnsafeRef::new(world, types),
-                system_data: SystemResourcesUnsafeHolderRef::new(system_data, types),
-            };
-
-            system.execute(system_input);
-        }
-    })
 }
 
 //
@@ -117,29 +98,52 @@ system_with_marker_impl!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, 
 
 //
 
+struct SystemNativeData<S: SystemWithMarker<M>, M: 'static> {
+    system: S,
+    types: TypesRegistryCache,
+    _phantom: PhantomData<fn(M) -> M>,
+}
 
 #[repr(C)]
 pub struct SystemFfi {
     system_name: FfiString,
     data_usage: DataUsage,
-    system_data: FfiDroppable,
+    system_native_data: FfiDroppable,
     execute_fn: unsafe extern "C" fn(*const c_void, SystemCtxFfi),
 }
 
 impl SystemFfi {
-    pub fn new<F: Fn(SystemCtxFfi)>(f: F) -> Self {
-        unsafe extern "C" fn ffi_execute<D: Fn(SystemCtxFfi)>(system_data: *const c_void, ctx: SystemCtxFfi) {
+    pub fn new<S: SystemWithMarker<M>, M: 'static>(system: S, types: TypesRegistryCache) -> Self {
+        unsafe extern "C" fn ffi_execute<S: SystemWithMarker<M>, M: 'static>(system_native_data: *const c_void, ctx: SystemCtxFfi) {
             unsafe {
-                (&*(system_data as *const D))(ctx);
+                let system_native_data = &*(system_native_data as *const SystemNativeData<S, M>);
+
+                let world = &mut *ctx.world_mut;
+                let system_data = &mut *ctx.system_data;
+                let types = &system_native_data.types;
+
+                let system_input = SystemInput {
+                    world_data: WorldDataUnsafeRef::new(world, types),
+                    system_data: SystemResourcesUnsafeHolderRef::new(system_data, types),
+                };
+
+                system_native_data.system.execute(system_input);
             }
         }
 
+        let mut data_usage = DataUsageBuilder::new();
+
+        system.fill_data_usage(&mut data_usage, &types);
+
         Self {
-            // todo: use actual data usage.
-            data_usage: DataUsage::global_mut(),
-            execute_fn: ffi_execute::<F>,
-            system_data: FfiDroppable::new(f),
-            system_name: FfiString::from_string(String::from(std::any::type_name::<F>())),
+            data_usage: data_usage.build(),
+            execute_fn: ffi_execute::<S, M>,
+            system_native_data: FfiDroppable::new(SystemNativeData::<S, M> {
+                system,
+                types,
+                _phantom: PhantomData,
+            }),
+            system_name: FfiString::from_string(String::from(std::any::type_name::<S>())),
         }
     }
 
@@ -157,14 +161,17 @@ impl SystemFfi {
 
     pub fn execute(&self, ctx: SystemCtxFfi) {
         unsafe {
-            (self.execute_fn)(self.system_data.get(), ctx)
+            (self.execute_fn)(self.system_native_data.get(), ctx)
         }
     }
 
-    pub fn system_name(&self) -> &str {
-        self.system_name.as_str()
+    pub fn system_name(&self) -> &FfiString {
+        &self.system_name
     }
 }
+
+unsafe impl Send for SystemFfi { }
+unsafe impl Sync for SystemFfi { }
 
 // todo
 #[repr(C)]
@@ -172,6 +179,4 @@ impl SystemFfi {
 pub struct SystemCtxFfi {
     pub world_mut: *mut WorldDataUnsafeFfi,
     pub system_data: *mut SystemResourcesHolderUnsafeFfi,
-    pub types_ref: *const TypesRegistryAccessFfi,
-    pub native_data_mut: *mut FfiOption<FfiOpaqueBox>,
 }

@@ -16,10 +16,8 @@ impl<'e> EntitiesHolderUnsafeRef<'e> {
         }
     }
 
-    pub unsafe fn query<'r, A: ArchetypeIteratorItem, F: QueryFilter>(&'r self) -> EntitiesHolderQuery<'r, A, F>
-        where 'e: 'r
-    {
-        unsafe { EntitiesHolderQuery::<'r, A, F>::new(self.clone()) }
+    pub unsafe fn into_query<A: ArchetypeIteratorItem, F: QueryFilter>(self) -> EntitiesHolderQuery<'e, A, F> {
+        unsafe { EntitiesHolderQuery::<'e, A, F>::new(self.clone()) }
     }
 
     pub unsafe fn entities_count(&self) -> u64 {

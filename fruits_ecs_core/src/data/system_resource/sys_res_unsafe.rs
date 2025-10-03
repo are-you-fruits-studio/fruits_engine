@@ -27,15 +27,19 @@ pub struct SystemResourcesUnsafeHolder {
 }
 
 impl SystemResourcesUnsafeHolder {
-    pub fn new(res: SystemResourcesHolderUnsafeFfi, types: TypesRegistryCache) -> Self {
+    pub fn new(types: TypesRegistryCache) -> Self {
         Self {
-            res,
+            res: SystemResourcesHolderUnsafeFfi::new(unsafe { types.registry().clone() }),
             types,
         }
     }
 
     pub fn get_or_insert<T: 'static + Default>(&self) -> *mut T {
         resources_holder_typed_get_or_insert(&self.res, &self.types)
+    }
+
+    pub unsafe fn ffi(&mut self) -> *mut SystemResourcesHolderUnsafeFfi {
+        &raw mut self.res
     }
     
     pub fn as_mut<'r>(&'r mut self) -> SystemResourcesUnsafeHolderMut<'r> {

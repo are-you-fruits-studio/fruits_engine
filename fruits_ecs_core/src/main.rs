@@ -48,7 +48,7 @@ fn lib_loading_example() {
         let mut world = WorldDataUnsafeFfi::new(types.clone());
     
         let mut systems = SystemScheduleFfi::new();
-        let mut native_data = None.into();
+        let mut native_data = LibNativeData::new();
 
         unsafe {
             let ctx = AppInitCtxFfi {
@@ -65,7 +65,7 @@ fn lib_loading_example() {
             let system_ctx = SystemCtxFfi {
                 world_mut: &raw mut world,
                 types_ref: &raw const types,
-                native_data_mut: &raw mut native_data,
+                native_data_ref: &raw mut native_data,
             };
 
             for _ in 0..3 {

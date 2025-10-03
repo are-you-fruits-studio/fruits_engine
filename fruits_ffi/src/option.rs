@@ -120,6 +120,9 @@ macro_rules! impl_option {
         }
         
         impl<T: Eq$( + $B)?> Eq for $I<T> { }
+        
+        unsafe impl<T: Send$( + $B)?> Send for $I<T> { }
+        unsafe impl<T: Sync$( + $B)?> Sync for $I<T> { }
     };
 }
 

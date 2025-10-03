@@ -192,6 +192,9 @@ impl Clone for TypesRegistryAccessFfi {
     }
 }
 
+unsafe impl Send for TypesRegistryAccessFfi { }
+unsafe impl Sync for TypesRegistryAccessFfi { }
+
 //
 
 struct TypesRegistryData {

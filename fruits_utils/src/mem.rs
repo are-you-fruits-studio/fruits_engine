@@ -1,5 +1,7 @@
 // todo: use trait to control what type support such transmute.
 
+use std::ops::Deref;
+
 pub fn as_bytes_slice<T: AllBitsInit>(v: &[T]) -> &[u8] {
     unsafe {
         v.align_to::<u8>().1
@@ -39,3 +41,30 @@ unsafe impl<T: AllBitVariationsValid> AllBitVariationsValid for [T] { }
 
 unsafe impl<const N: usize, T: AllBitsInit> AllBitsInit for [T; N] { }
 unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for [T; N] { }
+
+//
+
+#[repr(transparent)]
+pub struct ReadOnly<T>(T);
+
+impl<T> ReadOnly<T> {
+    pub fn new(v: T) -> Self {
+        Self(v)
+    }
+
+    pub fn as_ref(&self) -> &T {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
+impl<T> Deref for ReadOnly<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0  
+    }
+}

@@ -36,6 +36,14 @@ impl DataUsage {
             Some(self.elements)
         }
     }
+
+    pub fn as_elements(&self) -> Option<&FfiVec<DataUsageEntry>> {
+        if self.is_global {
+            None
+        } else {
+            Some(&self.elements)
+        }
+    }
 }
 
 pub struct DataUsageBuilder {

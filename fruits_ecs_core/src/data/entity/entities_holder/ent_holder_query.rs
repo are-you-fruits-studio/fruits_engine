@@ -24,7 +24,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             components.remove(entity_id_idx as u64);
         }
 
-        let archetypes = data.ffi().archetypes();
+        let archetypes = unsafe { (&*data.ffi()).archetypes() };
 
         if components.is_empty() {
             // Query is with entities only (should iterate all entities).
@@ -105,20 +105,25 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     }
 
     pub fn len(&self) -> u64 {
-        self.archetypes_iter()
-            .map(|a| a.entities_count())
-            .sum()
+        unsafe {
+            self.archetypes_iter()
+                .map(|a| a.entities_count())
+                .sum()
+        }
     }
 
     pub fn is_empty(&self) -> bool {
-        !self.archetypes_iter().any(|a| a.entities_count() > 0)
+        unsafe {
+            !self.archetypes_iter().any(|a| a.entities_count() > 0)
+        }
     }
 
     pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
         where 'd: 'r,
     {
         unsafe {
-            let entities_ffi = self.entities.ffi();
+            let entities_ffi = &*self.entities.ffi();
+
             let location = entities_ffi.entities_meta().get(entity)?;
 
             let archetype = entities_ffi.archetypes().by_id_ref(location.archetype_id)?;
@@ -151,7 +156,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         where 'd: 'r,
     {
         unsafe {
-            let entities_ffi = self.entities.ffi();
+            let entities_ffi = &*self.entities.ffi();
+
             let location = entities_ffi.entities_meta().get(entity)?;
 
             let archetype = entities_ffi.archetypes().by_id_ref(location.archetype_id)?;
@@ -182,7 +188,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
     fn archetypes_iter<'a>(&'a self) -> ArchetypesIter<'a> {
         unsafe {
-            ArchetypesIter::new(&self.entities.ffi().archetypes(), self.entities.types(), self.archetype_indices.iter())
+            ArchetypesIter::new((&*self.entities.ffi()).archetypes(), self.entities.types(), self.archetype_indices.iter())
         }
     }
 }
@@ -194,7 +200,8 @@ struct ArchetypesIter<'a> {
 }
 
 impl<'a> ArchetypesIter<'a> {
-    pub fn new(archetypes: &'a ArchetypesHolderFfi, types: &'a TypesRegistryCache, iter: std::slice::Iter<'a, u64>) -> Self {
+    /// Only for readonly archetypes access
+    pub unsafe fn new(archetypes: &'a ArchetypesHolderFfi, types: &'a TypesRegistryCache, iter: std::slice::Iter<'a, u64>) -> Self {
         Self {
             archetypes,
             types,
@@ -207,7 +214,7 @@ impl<'a> Iterator for ArchetypesIter<'a> {
     type Item = ArchetypeUnsafeRef<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(ArchetypeUnsafeRef::<'a>::new(self.archetypes.by_id_ref(*self.iter.next()?).unwrap(), self.types))
+        Some(ArchetypeUnsafeRef::<'a>::new((&raw const *self.archetypes.by_id_ref(*self.iter.next()?).unwrap()) as *mut ArchetypeUnsafeFfi, self.types))
     }
 }
 
@@ -233,7 +240,7 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
             if let Some(iter2) = &mut self.iter2 && let item @ Some(_) = iter2.next() {
                 return item;
             } else if let Some(iter_item) = self.iter.next() {
-                self.iter2 = Some(iter_item.into_iter::<A::ReadOnlyItem<'static>>());
+                self.iter2 = Some(unsafe { iter_item.into_iter::<A::ReadOnlyItem<'static>>() });
             } else {
                 return None;
             }
@@ -263,7 +270,7 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
             if let Some(iter2) = &mut self.iter2 && let item @ Some(_) = iter2.next() {
                 return item;
             } else if let Some(iter_item) = self.iter.next() {
-                self.iter2 = Some(iter_item.into_iter::<A::Item<'static>>());
+                self.iter2 = Some(unsafe { iter_item.into_iter::<A::Item<'static>>() });
             } else {
                 return None;
             }

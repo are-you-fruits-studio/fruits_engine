@@ -12,12 +12,12 @@ pub unsafe extern "C" fn init_app(ctx: AppInitCtxFfi) {
     let types = TypesRegistryCache::new(types_ref.clone());
 
     {
-        let world = WorldDataUnsafeMut::new(world_mut, &types).into_safe();
+        let world = WorldDataUnsafeRef::new(world_mut, &types).into_safe_mut();
 
         app_custom_init(world, systems_mut);
     }
 
-    *native_data = Some(FfiOpaqueBox::new(types)).into();
+    native_data.set(types);
 }
 
 fn app_custom_init(mut world: WorldDataMut, systems: &mut SystemScheduleFfi) {
@@ -46,7 +46,7 @@ pub fn hello_system(ctx: SystemCtxFfi) {
 
 pub fn ffi_system_wrapper(ctx: SystemCtxFfi) {
     let world = unsafe { &mut *ctx.world_mut };
-    let native_data = unsafe { &mut *ctx.native_data_mut };
+    let native_data = unsafe { &mut *ctx.native_data_ref };
 
     let Some(native_data) = native_data.as_mut() else {
         return;
@@ -54,7 +54,7 @@ pub fn ffi_system_wrapper(ctx: SystemCtxFfi) {
 
     let types = unsafe { &mut *(native_data.as_ptr() as *mut TypesRegistryCache) };
 
-    let world = WorldDataUnsafeMut::new(world, &types).into_safe();
+    let world = WorldDataUnsafeRef::new(world, &types).into_safe_mut();
 
     customer_system(world);
 }

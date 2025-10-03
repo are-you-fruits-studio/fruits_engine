@@ -593,6 +593,9 @@ impl<T> IndexMut<usize> for FfiVec<T> {
     }
 }
 
+unsafe impl<T: Send> Send for FfiVec<T> { }
+unsafe impl<T: Sync> Sync for FfiVec<T> { }
+
 const ZERO_SIZED_CAP: u64 = {
     let max_64 = u64::MAX as u64;
     let max_size = usize::MAX as u64;

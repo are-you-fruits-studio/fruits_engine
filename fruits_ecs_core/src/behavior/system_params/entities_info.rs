@@ -6,11 +6,11 @@ pub struct EntitiesInfo<'e> {
 
 impl<'e> EntitiesInfo<'e> {
     pub fn exists(&self, entity: Entity) -> bool {
-        self.ec.contains_entity(entity)
+        unsafe { self.ec.contains_entity(entity) }
     }
     
     pub fn entities_count(&self) -> u64 {
-        self.ec.entities_count()
+        unsafe { self.ec.entities_count() }
     }
 }
 
