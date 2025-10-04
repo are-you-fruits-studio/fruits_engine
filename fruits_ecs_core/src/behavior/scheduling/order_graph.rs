@@ -1,31 +1,37 @@
 use std::collections::VecDeque;
 
+use fruits_ffi::FfiVec;
+
+#[repr(C)]
 pub struct OrderGraph {
-    directions: Vec<Vec<usize>>,
-    directors_count: Vec<usize>,
-    initial_nodes: Vec<usize>,
+    directions: FfiVec<FfiVec<u64>>,
+    directors_count: FfiVec<u64>,
+    initial_nodes: FfiVec<u64>,
 }
 
 impl OrderGraph {
-    pub fn new(
-        directions: Vec<Vec<usize>>,
-    ) -> Option<Self> {
-        let mut directors_count = vec![0_usize; directions.len()];
+    pub fn new(directions: FfiVec<FfiVec<u64>>) -> Option<Self> {
+        let mut directors_count = FfiVec::from_vec(vec![0_u64; directions.len() as usize]);
 
         for (src, dst) in directions.iter().enumerate() {
             for &directed_node in dst.iter() {
-                if directed_node == src {
+                if directed_node == src as u64 {
                     return None;
                 }
 
-                directors_count[directed_node] += 1;
+                directors_count[directed_node as usize] += 1;
             }
-            if dst.contains(&src) {
+            if dst.contains(&(src as u64)) {
                 return None;
             }
         }
 
-        let initial_nodes = directors_count.iter().enumerate().filter(|(_, c)| **c == 0).map(|(i, _)| i).collect();
+        let initial_nodes = directors_count
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| **c == 0)
+            .map(|(i, _)| i as u64)
+            .collect();
 
         // todo: Add graph validation.
 
@@ -42,9 +48,9 @@ impl OrderGraph {
 }
 
 pub struct OrderGraphIterator {
-    directions: Vec<Vec<usize>>,
-    queue: VecDeque<usize>,
-    unvisited_directors_count: Vec<usize>,
+    directions: FfiVec<FfiVec<u64>>,
+    queue: VecDeque<u64>,
+    unvisited_directors_count: FfiVec<u64>,
     processing_count: usize,
 }
 
@@ -71,14 +77,14 @@ impl OrderGraphIterator {
 
         self.processing_count += 1;
 
-        Some(node)
+        Some(node as usize)
     }
 
     pub fn end(&mut self, node: usize) {
         self.processing_count -= 1;
 
         for direction in self.directions[node].iter() {
-            let direction_directors_count = &mut self.unvisited_directors_count[*direction];
+            let direction_directors_count = &mut self.unvisited_directors_count[*direction as usize];
     
             *direction_directors_count -= 1;
 

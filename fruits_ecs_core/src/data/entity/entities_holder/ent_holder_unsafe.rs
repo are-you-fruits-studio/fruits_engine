@@ -36,7 +36,7 @@ impl<'e> EntitiesHolderUnsafeRef<'e> {
         unsafe { (&mut *self.entities).destroy_entity(entity) }
     }
 
-    pub unsafe fn add_component<C: Component>(&mut self, entity: Entity, component: C) -> Result<(), C> {
+    pub unsafe fn add_component<C: 'static>(&mut self, entity: Entity, component: C) -> Result<(), C> {
         unsafe {
             let mut component = MaybeUninit::new(component);
 
@@ -52,7 +52,7 @@ impl<'e> EntitiesHolderUnsafeRef<'e> {
         }
     }
 
-    pub unsafe fn remove_component<C: Component>(&mut self, entity: Entity) -> Option<C> {
+    pub unsafe fn remove_component<C: 'static>(&mut self, entity: Entity) -> Option<C> {
         unsafe {
             let mut component = MaybeUninit::<C>::uninit();
 
@@ -68,7 +68,7 @@ impl<'e> EntitiesHolderUnsafeRef<'e> {
         }
     }
 
-    pub unsafe fn get_component_ptr<C: Component>(&self, entity: Entity) -> Option<*mut C> {
+    pub unsafe fn get_component_ptr<C: 'static>(&self, entity: Entity) -> Option<*mut C> {
         unsafe { (&*self.entities).get_component_ptr(entity, (&self.types).get_or_register::<C>()).map(|p| p as *mut C) }
     }
 

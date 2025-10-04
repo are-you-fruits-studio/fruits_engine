@@ -1,9 +1,8 @@
 
-use crate::{SystemScheduleFfi, TypesRegistryAccessFfi, WorldDataUnsafeFfi};
+use crate::{TypesRegistryAccessFfi, WorldBuilderUnsafeFfi};
 
 #[repr(C)]
 pub struct AppInitCtxFfi {
     pub types_ref: *const TypesRegistryAccessFfi,
-    pub world_mut: *mut WorldDataUnsafeFfi,
-    pub systems_mut: *mut SystemScheduleFfi,
+    pub world_mut: *mut WorldBuilderUnsafeFfi,
 }

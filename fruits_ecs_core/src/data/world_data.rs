@@ -72,22 +72,34 @@ pub struct WorldDataMut<'w> {
 }
 
 impl<'w> WorldDataMut<'w> {
-    pub fn resources<'r>(&'r self) -> ResourcesHolderRef<'r> where 'w : 'r {
+    pub fn resources<'r>(&'r self) -> ResourcesHolderRef<'r>
+        where 'w : 'r
+    {
         ResourcesHolderRef::new(self.world.resources())
     }
-    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderMut<'r> where 'w : 'r {
+    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderMut<'r>
+        where 'w : 'r
+    {
         ResourcesHolderMut::new(self.world.resources())
     }
-    pub fn components<'r>(&'r self) -> EntitiesHolderRef<'r> where 'w : 'r {
+    pub fn entities<'r>(&'r self) -> EntitiesHolderRef<'r>
+        where 'w : 'r
+    {
         EntitiesHolderRef::new(self.world.entities())
     }
-    pub fn components_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r> where 'w : 'r {
+    pub fn entities_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r>
+        where 'w : 'r
+    {
         EntitiesHolderMut::new(self.world.entities())
     }
-    pub fn events<'r>(&'r self) -> EventsHolderRef<'r> where 'w : 'r {
+    pub fn events<'r>(&'r self) -> EventsHolderRef<'r>
+        where 'w : 'r
+    {
         self.world.events().into_safe()
     }
-    pub fn as_tuple_mut<'r>(&'r mut self) -> ! where 'w : 'r { todo!() }
+    pub fn as_tuple_mut<'r>(&'r mut self) -> !
+        where 'w : 'r { todo!()
+    }
 
     pub fn as_mut(&'w mut self) -> WorldDataMut<'w> {
         WorldDataMut {

@@ -1,37 +1,56 @@
 use fruits_ecs_core::*;
-use fruits_engine::prelude::*;
-use fruits_ffi::FfiOpaqueBox;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn init_app(ctx: AppInitCtxFfi) {
-    let world_mut = unsafe { &mut *ctx.world_mut };
+    let world = unsafe { &mut *ctx.world_mut };
     let types_ref = unsafe { &*ctx.types_ref };
-    let systems_mut = unsafe { &mut *ctx.systems_mut };
-    let native_data = unsafe { &mut *ctx.native_data_mut };
 
     let types = TypesRegistryCache::new(types_ref.clone());
 
     {
-        let world = WorldDataUnsafeRef::new(world_mut, &types).into_safe_mut();
+        let world = WorldBuilderMut::new(world, &types);
 
-        app_custom_init(world, systems_mut);
+        app_custom_init(world);
     }
-
-    native_data.set(types);
 }
 
-fn app_custom_init(mut world: WorldDataMut, systems: &mut SystemScheduleFfi) {
+fn app_custom_init(mut world: WorldBuilderMut) {
     println!("hello from cdylib!");
 
-    world.resources_mut().insert(AgeResource { age: 24 }).ok().unwrap();
+    let mut world_data = world.data();
 
-    systems.insert(SystemFfi::new(hello_system));
-    systems.insert(SystemFfi::new(ffi_system_wrapper));
+    let mut res = world_data.resources_mut();
+    
+    res.insert(AgeResource { age: 24 }).ok().unwrap();
+
+    //
+
+    let mut ent = world_data.entities_mut();
+    
+    let e1 = ent.create_entity();
+
+    ent.add_component(e1, NameComponent { name: String::from("Serhii") });
+
+    //
+
+    let mut world_behavior = world.behavior();
+
+    let mut update = world_behavior.get_mut(Schedule::Update);
+
+    update.insert_system(hello_system);
+    update.insert_system(ffi_system_wrapper);
 }
 
-#[derive(Resource)]
+// todo
+// #[derive(Resource)]
 pub struct AgeResource {
     age: u8,
+}
+
+// todo
+// #[derive(Component)]
+pub struct NameComponent {
+    name: String,
 }
 
 impl Drop for AgeResource {
@@ -40,26 +59,11 @@ impl Drop for AgeResource {
     }
 }
 
-pub fn hello_system(ctx: SystemCtxFfi) {
+pub fn hello_system() {
     println!("Hello from dll system!");
 }
 
-pub fn ffi_system_wrapper(ctx: SystemCtxFfi) {
-    let world = unsafe { &mut *ctx.world_mut };
-    let native_data = unsafe { &mut *ctx.native_data_ref };
-
-    let Some(native_data) = native_data.as_mut() else {
-        return;
-    };
-
-    let types = unsafe { &mut *(native_data.as_ptr() as *mut TypesRegistryCache) };
-
-    let world = WorldDataUnsafeRef::new(world, &types).into_safe_mut();
-
-    customer_system(world);
-}
-
-pub fn customer_system(mut world: WorldDataMut) {
+pub fn ffi_system_wrapper(mut world: ExclusiveWorldAccess) {
     world.resources_mut().get_mut::<AgeResource>().unwrap().age = 33;
 
     println!("age: {}", world.resources_mut().get::<AgeResource>().unwrap().age);

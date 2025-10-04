@@ -1,14 +1,22 @@
 use std::collections::{HashMap, HashSet};
 
-use fruits_ffi::FfiString;
+use fruits_ffi::{FfiString, FfiVec};
 use fruits_utils::graph::Graph;
 
 use crate::*;
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
+pub enum OrderEntryType {
+    System,
+    Group,
+}
+
+#[repr(C)]
 #[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
-pub enum OrderEntry {
-    System(FfiString),
-    Group(FfiString),
+pub struct OrderEntry {
+    pub entry_type: OrderEntryType,
+    pub id: FfiString,
 }
 
 pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &HashSet<(FfiString, FfiString)>) -> OrderGraph {
@@ -72,12 +80,15 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
         analyzed_systems.insert(system_index);
     }
 
-    let directions = directions.into_iter().map(|v| v.into_iter().collect::<Vec<_>>()).collect::<Vec<_>>();
+    let directions = directions.into_iter().map(|v| v.into_iter().map(|i| i as u64).collect::<FfiVec<_>>()).collect::<FfiVec<_>>();
 
     OrderGraph::new(directions).unwrap()
 }
 
-pub fn sort_systems_by_order(mut systems: HashMap<FfiString, SystemFfi>, systems_ordering: &HashSet<(FfiString, FfiString)>) -> Vec<SystemFfi> {
+pub fn sort_systems_by_order(
+    mut systems: HashMap<FfiString, SystemFfi>,
+    systems_ordering: &HashSet<(FfiString, FfiString)>,
+) -> FfiVec<SystemFfi> {
     let mut graph = Graph::new();
 
     for (src, dst) in systems_ordering.iter() {
@@ -90,7 +101,7 @@ pub fn sort_systems_by_order(mut systems: HashMap<FfiString, SystemFfi>, systems
         graph.insert_node(ty.clone());
     }
 
-    graph.to_vec().into_iter().map(|t| systems.remove(&t).unwrap()).collect::<Vec<_>>()
+    graph.to_vec().into_iter().map(|t| systems.remove(&t).unwrap()).collect::<FfiVec<_>>()
 }
 
 pub fn flatten_ordering(
@@ -123,11 +134,11 @@ fn get_systems<'a>(
     single_value_buffer: &'a mut HashSet<FfiString>,
 ) -> &'a HashSet<FfiString>
 {
-    match node {
-        OrderEntry::Group(group) => &flat_groups[&group],
-        OrderEntry::System(system) => {
+    match node.entry_type {
+        OrderEntryType::Group => &flat_groups[&node.id],
+        OrderEntryType::System => {
             single_value_buffer.clear();
-            single_value_buffer.insert(system.clone());
+            single_value_buffer.insert(node.id.clone());
             single_value_buffer
         }
     }
@@ -142,8 +153,8 @@ fn flatten_groups(
         group_hierarchy.insert_node(parent_group.clone());
         
         for group_child in group_children {
-            if let OrderEntry::Group(child_group) = group_child {
-                group_hierarchy.insert_edge(parent_group.clone(), child_group.clone());
+            if let OrderEntryType::Group = group_child.entry_type {
+                group_hierarchy.insert_edge(parent_group.clone(), group_child.id.clone());
             }
         }
     }
@@ -154,10 +165,10 @@ fn flatten_groups(
         let mut flat_group_children = HashSet::<FfiString>::new();
         
         for group_child in groups.get(&group).iter().copied().flatten() {
-            match group_child {
-                OrderEntry::System(child_handler) => _ = flat_group_children.insert(child_handler.clone()),
-                OrderEntry::Group(child_group) => {
-                    for ele in &flat_groups[child_group] {
+            match group_child.entry_type {
+                OrderEntryType::System => _ = flat_group_children.insert(group_child.id.clone()),
+                OrderEntryType::Group => {
+                    for ele in &flat_groups[&group_child.id] {
                         flat_group_children.insert(ele.clone());
                     }
                 },

@@ -56,20 +56,20 @@ impl<'e> EntitiesHolderMut<'e> {
         unsafe { self.data.destroy_entity(entity) }
     }
 
-    pub fn add_component<C: Component>(&mut self, entity: Entity, component: C) -> Result<(), C> {
+    pub fn add_component<C: 'static>(&mut self, entity: Entity, component: C) -> Result<(), C> {
         unsafe { self.data.add_component(entity, component) }
     }
 
-    pub fn remove_component<C: Component>(&mut self, entity: Entity) -> Option<C> {
+    pub fn remove_component<C: 'static>(&mut self, entity: Entity) -> Option<C> {
         unsafe { self.data.remove_component(entity) }
     }
 
-    pub fn get_component<C: Component>(&self, entity: Entity) -> Option<&C> {
+    pub fn get_component<C: 'static>(&self, entity: Entity) -> Option<&C> {
         // Safety. Managed with lifetimes.
         unsafe { self.data.get_component_ptr(entity).map(|p| &*p) }
     }
 
-    pub fn get_component_mut<C: Component>(&mut self, entity: Entity) -> Option<&mut C> {
+    pub fn get_component_mut<C: 'static>(&mut self, entity: Entity) -> Option<&mut C> {
         // Safety. Managed with lifetimes.
         unsafe { self.data.get_component_ptr(entity).map(|p| &mut *p) }
     }
@@ -127,7 +127,7 @@ impl<'e> EntitiesHolderRef<'e> {
         unsafe { self.data.contains_entity(entity) }
     }
 
-    pub fn get_component<C: Component>(&self, entity: Entity) -> Option<&C> {
+    pub fn get_component<C: 'static>(&self, entity: Entity) -> Option<&C> {
         // Safety. Managed with lifetimes.
         unsafe { self.data.get_component_ptr(entity).map(|p| &*p) }
     }

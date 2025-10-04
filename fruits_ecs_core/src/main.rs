@@ -45,31 +45,24 @@ fn lib_loading_example() {
 
         let types = TypesRegistryAccessFfi::new();
 
-        let mut world = WorldDataUnsafeFfi::new(types.clone());
+        let mut world = WorldBuilderUnsafeFfi::new(types.clone());
     
-        let mut systems = SystemScheduleFfi::new();
-        let mut native_data = LibNativeData::new();
-
         unsafe {
             let ctx = AppInitCtxFfi {
                 world_mut: &raw mut world,
                 types_ref: &raw const types,
-                systems_mut: &raw mut systems,
-                native_data_mut: &raw mut native_data,
             };
 
             init_app_symbol(ctx);
         }
 
         {
-            let system_ctx = SystemCtxFfi {
-                world_mut: &raw mut world,
-                types_ref: &raw const types,
-                native_data_ref: &raw mut native_data,
-            };
+            let mut world = world.build();
 
-            for _ in 0..3 {
-                systems.execute(system_ctx);
+            world.execute_iteration(Schedule::Start);
+
+            for _ in 0..100 {
+                world.execute_iteration(Schedule::Update);
             }
         }
     }

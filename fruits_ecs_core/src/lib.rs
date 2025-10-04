@@ -3,16 +3,13 @@ mod init_ctx;
 mod data_usage;
 mod data;
 mod behavior;
+mod world;
 
 pub use types_registry::*;
 pub use init_ctx::*;
 pub use data_usage::*;
 pub use data::*;
 pub use behavior::*;
-
-// todo:
-// - Components
-// - Events
-// - SystemResources
+pub use world::*;
 
 // todo: fix mods use in the whole crate

@@ -159,7 +159,7 @@ impl SystemFfi {
 
     // }
 
-    pub fn execute(&self, ctx: SystemCtxFfi) {
+    pub unsafe fn execute(&self, ctx: SystemCtxFfi) {
         unsafe {
             (self.execute_fn)(self.system_native_data.get(), ctx)
         }

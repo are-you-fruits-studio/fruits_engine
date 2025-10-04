@@ -11,34 +11,61 @@ impl Schedule {
     pub const fn index(self) -> usize { self as usize }
 }
 
-pub struct WorldBehaviorBuilder {
-    schedule_behaviors: [ScheduleBehaviorBuilder; Schedule::COUNT],
+//
+
+#[repr(C)]
+pub struct WorldBehaviorBuilderFfi {
+    schedules: [SystemsHolderBuilderFfi; Schedule::COUNT],
 }
 
-impl WorldBehaviorBuilder {
-    pub fn new(types: TypesRegistryCache) -> Self {
+impl WorldBehaviorBuilderFfi {
+    pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
-            schedule_behaviors: core::array::from_fn(|_| ScheduleBehaviorBuilder::new(types.clone())),
+            schedules: core::array::from_fn(|_| SystemsHolderBuilderFfi::new(types.clone())),
         }
     }
 
-    pub fn get_mut(&mut self, schedule: Schedule) -> &mut ScheduleBehaviorBuilder {
-        &mut self.schedule_behaviors[schedule.index()]
+    pub fn get_mut(&mut self, schedule: Schedule) -> &mut SystemsHolderBuilderFfi {
+        &mut self.schedules[schedule.index()]
     }
 
-    pub fn build(self) -> WorldBehavior {
-        WorldBehavior {
-            schedule_behaviors: self.schedule_behaviors.map(|b| b.build()),
+    pub fn build(self) -> WorldBehaviorFfi {
+        WorldBehaviorFfi {
+            schedules: self.schedules.map(|mut b| b.build()),
         }
     }
 }
 
-pub struct WorldBehavior {
-    schedule_behaviors: [SystemsHolder; Schedule::COUNT],
+//
+
+pub struct WorldBehaviorFfi {
+    schedules: [SystemsHolderFfi; Schedule::COUNT],
 }
 
-impl WorldBehavior {
-    pub fn get(&self, schedule: Schedule) -> &SystemsHolder {
-        &self.schedule_behaviors[schedule.index()]
+impl WorldBehaviorFfi {
+    pub fn get_mut(&mut self, schedule: Schedule) -> &mut SystemsHolderFfi {
+        &mut self.schedules[schedule.index()]
+    }
+}
+
+//
+
+pub struct WorldBehaviorBuilderMut<'w> {
+    world: &'w mut WorldBehaviorBuilderFfi,
+    types: &'w TypesRegistryCache,
+}
+
+impl<'w> WorldBehaviorBuilderMut<'w> {
+    pub fn new(world: &'w mut WorldBehaviorBuilderFfi, types: &'w TypesRegistryCache) -> Self {
+        Self {
+            world,
+            types,
+        }
+    }
+
+    pub fn get_mut<'r>(&'r mut self, schedule: Schedule) -> SystemsHolderBuilderMut<'r>
+        where 'w: 'r
+    {
+        SystemsHolderBuilderMut::new(self.world.get_mut(schedule), self.types)
     }
 }
