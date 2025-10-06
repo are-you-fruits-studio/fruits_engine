@@ -49,7 +49,7 @@ pub struct TextComponent {
     pub horizontal_align: HorizontalAlign,
     pub vertical_align: VerticalAlign,
     pub is_y_inverted: bool,
-    pub horizontal_spacing: f32,
+    pub horizontal_spacing: UiVal,
     pub color: Vec4<f32>,
 }
 

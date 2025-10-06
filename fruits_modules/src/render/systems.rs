@@ -7,7 +7,7 @@ use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
 
-use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent};
+use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent, UiVal};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
@@ -557,7 +557,12 @@ pub fn update_text_batched_mesh(
 
         let rect = rect_c.copied().unwrap_or(GlobalRectComponent { center: Vec2::splat(0.0), scale: Vec2::splat(0.0), z: 0.0 });
 
-        let font_size = text_c.font_size.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size)[1];
+        let ui_val_to_px_fn = |ui_val: UiVal| {
+            ui_val.into_px(rect_c.map(|r| r.scale).unwrap_or(window_size), window_size)
+        };
+
+        let font_size = ui_val_to_px_fn(text_c.font_size)[1];
+        let horizontal_spacing = ui_val_to_px_fn(text_c.horizontal_spacing)[1];
         
         let mut quad_scale = Vec2::new(font_size * font.character_ratio, font_size);
 
@@ -565,7 +570,7 @@ pub fn update_text_batched_mesh(
 
         let mut text_scale = quad_scale;
         text_scale.x *= chars_count as f32;
-        text_scale.x += (usize::max(chars_count, 1) - 1) as f32 * text_c.horizontal_spacing;
+        text_scale.x += (usize::max(chars_count, 1) - 1) as f32 * horizontal_spacing;
 
         let center = Vec2::new(
             match text_c.horizontal_align {
@@ -594,8 +599,8 @@ pub fn update_text_batched_mesh(
             let char_uvs = font.characters_uv.get(&character).unwrap_or(&font.mising_character_uv);
             
             let pos = [
-                start_pos + Vec2::new((i + 0) as f32, 0.0) * quad_scale + Vec2::X * text_c.horizontal_spacing * i as f32,
-                start_pos + Vec2::new((i + 1) as f32, 1.0) * quad_scale + Vec2::X * text_c.horizontal_spacing * i as f32,
+                start_pos + Vec2::new((i + 0) as f32, 0.0) * quad_scale + Vec2::X * horizontal_spacing * i as f32,
+                start_pos + Vec2::new((i + 1) as f32, 1.0) * quad_scale + Vec2::X * horizontal_spacing * i as f32,
             ];
 
             mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex { color, normal, uv: [char_uvs[0][0], char_uvs[0][1]], position: [pos[0][0], pos[1][1], rect.z] };

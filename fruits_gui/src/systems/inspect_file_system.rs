@@ -107,7 +107,7 @@ fn spawn_scene_window_entry(
             font_size: UiVal::px(18.0),
             is_y_inverted: true,
             text: String::from("todo").into(),
-            horizontal_spacing: 0.0,
+            horizontal_spacing: UiVal::px(0.0),
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,
         });

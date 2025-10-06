@@ -213,7 +213,7 @@ fn spawn_text(
         font_size: layout.font_size,
         horizontal_align: HorizontalAlign::Left,
         vertical_align: VerticalAlign::Middle,
-        horizontal_spacing: 0.0,
+        horizontal_spacing: UiVal::px(0.0),
         is_y_inverted: true,
         text,
         color: Vec4::splat(1.0),

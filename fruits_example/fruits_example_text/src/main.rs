@@ -75,7 +75,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         horizontal_align: HorizontalAlign::Middle,
         vertical_align: VerticalAlign::Middle,
         is_y_inverted: false,
-        horizontal_spacing: 0.2,
+        horizontal_spacing: UiVal::px(0.2),
         color: Vec4::splat(1.0),
     }).ok().unwrap();
 }
