@@ -5,8 +5,8 @@ use fruits_ffi::{FfiDroppable, FfiString};
 use crate::*;
 
 pub struct SystemInput<'a> {
-    pub world_data: WorldDataUnsafeRef<'a>,
-    pub system_data: SystemResourcesUnsafeHolderRef<'a>,
+    pub world_data: WorldDataRef<'a>,
+    pub system_data: SystemResourcesHolderRef<'a>,
 }
 
 //
@@ -118,13 +118,12 @@ impl SystemFfi {
             unsafe {
                 let system_native_data = &*(system_native_data as *const SystemNativeData<S, M>);
 
-                let world = &mut *ctx.world_mut;
                 let system_data = &mut *ctx.system_data;
                 let types = &system_native_data.types;
 
                 let system_input = SystemInput {
-                    world_data: WorldDataUnsafeRef::new(world, types),
-                    system_data: SystemResourcesUnsafeHolderRef::new(system_data, types),
+                    world_data: WorldDataRef::new(ctx.world_mut, types),
+                    system_data: SystemResourcesHolderRef::new(system_data, types),
                 };
 
                 system_native_data.system.execute(system_input);

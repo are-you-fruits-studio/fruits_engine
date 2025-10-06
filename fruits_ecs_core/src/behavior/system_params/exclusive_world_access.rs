@@ -22,14 +22,14 @@ impl<'w> DerefMut for ExclusiveWorldAccess<'w> {
 unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
     type Item<'e> = ExclusiveWorldAccess<'e>;
 
-    fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
+    fn fill_data_usage(usage: &mut DataUsageBuilder, _types: &TypesRegistryCache) {
         usage.add_all_mutable();
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(ExclusiveWorldAccess {
             // Safety. Managed by caller
-            world: unsafe { input.world_data.clone().into_safe_mut() },
+            world: unsafe { input.world_data.into_mut() },
         })
     }
 }

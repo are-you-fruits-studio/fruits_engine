@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use crate::*;
 
 pub struct EntitiesHolderQuery<'d, A: ArchetypeIteratorItem, F: QueryFilter = ()> {
-    entities: EntitiesHolderUnsafeRef<'d>,
+    entities: &'d EntitiesHolderUnsafeFfi,
+    types: &'d TypesRegistryCache,
     archetype_indices: Vec<u64>,
     _phantom: (PhantomData<fn(A::Item<'static>) -> A::Item<'static>>, PhantomData<fn(F) -> F>),
 }
@@ -12,27 +13,28 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     /// # Safety
     /// 
     /// No access sync - needs to be managed by caller.
-    pub(crate) unsafe fn new(data: EntitiesHolderUnsafeRef<'d>) -> Self {
+    pub(crate) unsafe fn new(entities: &'d EntitiesHolderUnsafeFfi, types: &'d TypesRegistryCache) -> Self {
         let mut usage = DataUsageBuilder::new();
 
-        A::fill_usage(&mut usage, data.types());
+        A::fill_usage(&mut usage, types);
         
         let mut components = usage.build().into_elements().unwrap();
 
-        let entity_type_id = data.types().get_or_register::<Entity>();
+        let entity_type_id = types.get_or_register::<Entity>();
         if let Some(entity_id_idx) = components.iter().position(|x| x.type_id == entity_type_id) {
             components.remove(entity_id_idx as u64);
         }
 
-        let archetypes = unsafe { (&*data.ffi()).archetypes() };
+        let archetypes = entities.archetypes();
 
         if components.is_empty() {
             // Query is with entities only (should iterate all entities).
             return Self {
                 archetype_indices: (0..archetypes.len())
-                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), data.types()))
+                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), types))
                     .collect::<Vec<_>>(),
-                entities: data,
+                entities,
+                types,
                 _phantom: Default::default(),
             };
         }
@@ -45,7 +47,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             let Some(archetypes_with_component) = archetypes.ids_by_component(component) else {
                 // Query is with some required component that no archetype has (should iterate none).
                 return Self {
-                    entities: data,
+                    entities,
+                    types,
                     archetype_indices: Vec::new(),
                     _phantom: Default::default(),
                 };
@@ -65,9 +68,10 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             // Query has optional components only (should iterate all entities).
             return Self {
                 archetype_indices: (0..archetypes.len())
-                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), data.types()))
+                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), types))
                     .collect::<Vec<_>>(),
-                entities: data,
+                entities,
+                types,
                 _phantom: Default::default(),
             };
         };
@@ -80,13 +84,14 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             let contains_all_components = required_components.clone().all(|c| archetype.contains_component_type(c));
 
             // Archetypes that are missing any required component are skipped.
-            if contains_all_components && F::matches(archetype.layout(), data.types()) {
+            if contains_all_components && F::matches(archetype.layout(), types) {
                 suitable_archetypes.push(*archetype_id);
             }
         }
 
         Self {
-            entities: data,
+            entities,
+            types,
             archetype_indices: suitable_archetypes,
             _phantom: Default::default(),
         }
@@ -122,13 +127,11 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         where 'd: 'r,
     {
         unsafe {
-            let entities_ffi = &*self.entities.ffi();
+            let location = self.entities.entities_meta().get(entity)?;
 
-            let location = entities_ffi.entities_meta().get(entity)?;
+            let archetype = self.entities.archetypes().by_id_ref(location.archetype_id)?;
 
-            let archetype = entities_ffi.archetypes().by_id_ref(location.archetype_id)?;
-
-            if !F::matches(archetype.layout(), self.entities.types()) {
+            if !F::matches(archetype.layout(), self.types) {
                 return None;
             }
 
@@ -145,7 +148,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
                 chunk_entity_idx: archetype.layout().entity_in_chunk_index(location.entity_archetype_index),
             };
 
-            let mut iter_state = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.entities.types());
+            let mut iter_state = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.types);
             let item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::next(&iter_item, &mut iter_state);
 
             Some(item)
@@ -156,13 +159,11 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         where 'd: 'r,
     {
         unsafe {
-            let entities_ffi = &*self.entities.ffi();
+            let location = self.entities.entities_meta().get(entity)?;
 
-            let location = entities_ffi.entities_meta().get(entity)?;
+            let archetype = self.entities.archetypes().by_id_ref(location.archetype_id)?;
 
-            let archetype = entities_ffi.archetypes().by_id_ref(location.archetype_id)?;
-
-            if !F::matches(archetype.layout(), self.entities.types()) {
+            if !F::matches(archetype.layout(), self.types) {
                 return None;
             }
 
@@ -179,7 +180,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
                 chunk_entity_idx: archetype.layout().entity_in_chunk_index(location.entity_archetype_index),
             };
 
-            let mut iter_state = <A::Item<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.entities.types());
+            let mut iter_state = <A::Item<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.types);
             let item = <A::Item<'static> as ArchetypeIteratorItem>::next(&iter_item, &mut iter_state);
 
             Some(item)
@@ -188,7 +189,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
     fn archetypes_iter<'a>(&'a self) -> ArchetypesIter<'a> {
         unsafe {
-            ArchetypesIter::new((&*self.entities.ffi()).archetypes(), self.entities.types(), self.archetype_indices.iter())
+            ArchetypesIter::new(self.entities.archetypes(), self.types, self.archetype_indices.iter())
         }
     }
 }

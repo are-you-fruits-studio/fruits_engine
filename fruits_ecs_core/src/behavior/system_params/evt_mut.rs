@@ -34,7 +34,7 @@ unsafe impl<'e, E: 'static> SystemParam for EvtMut<'e, E> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(EvtMut {
             // Safety. Managed by caller.
-            evt: unsafe { &mut *input.world_data.events().get_or_create::<E>() },
+            evt: unsafe { &mut *input.world_data.events().get_ptr::<E>() },
         })
     }
 }

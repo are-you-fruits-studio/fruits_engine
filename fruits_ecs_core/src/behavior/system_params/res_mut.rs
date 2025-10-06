@@ -33,7 +33,7 @@ unsafe impl<'e, R: 'static> SystemParam for ResMut<'e, R> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(ResMut {
             // Safety. Managed by caller.
-            res: unsafe { &mut *input.world_data.resources().get::<R>().ok_or("Resource missing.")? },
+            res: unsafe { &mut *input.world_data.resources().get_ptr::<R>().ok_or("Resource missing.")? },
         })
     }
 }
@@ -51,7 +51,7 @@ unsafe impl<'e, R: 'static> SystemParam for Option<ResMut<'e, R>> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
             // Safety. Managed by caller.
         Ok(unsafe {
-            input.world_data.resources().get::<R>().map(|r| { ResMut { res: &mut *r }})
+            input.world_data.resources().get_ptr::<R>().map(|r| { ResMut { res: &mut *r }})
         })
     }
 }

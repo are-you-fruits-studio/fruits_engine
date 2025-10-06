@@ -1,4 +1,4 @@
-use crate::{Schedule, TypesRegistryAccessFfi, TypesRegistryCache, WorldBehaviorBuilderFfi, WorldBehaviorBuilderMut, WorldBehaviorFfi, WorldDataMut, WorldDataUnsafeFfi, WorldDataUnsafeRef};
+use crate::{Schedule, TypesRegistryAccessFfi, TypesRegistryCache, WorldBehaviorBuilderFfi, WorldBehaviorBuilderMut, WorldBehaviorFfi, WorldDataMut, WorldDataUnsafeFfi};
 
 #[repr(C)]
 pub struct WorldBuilderUnsafeFfi {
@@ -52,7 +52,7 @@ impl<'w> WorldBuilderMut<'w> {
     pub fn data<'r>(&'r mut self) -> WorldDataMut<'r>
         where 'w: 'r
     {
-        unsafe { WorldDataUnsafeRef::new(&raw mut self.world.data, self.types).into_safe_mut() }
+        unsafe { WorldDataMut::new(&raw mut self.world.data, self.types) }
     }
 
     pub fn behavior<'r>(&'r mut self) -> WorldBehaviorBuilderMut<'r>

@@ -1,16 +1,16 @@
 use crate::*;
 
 pub struct EntitiesInfo<'e> {
-    ec: EntitiesHolderUnsafeRef<'e>,
+    ec: EntitiesHolderRef<'e>,
 }
 
 impl<'e> EntitiesInfo<'e> {
     pub fn exists(&self, entity: Entity) -> bool {
-        unsafe { self.ec.contains_entity(entity) }
+        self.ec.contains_entity(entity)
     }
     
     pub fn entities_count(&self) -> u64 {
-        unsafe { self.ec.entities_count() }
+        self.ec.entities_count()
     }
 }
 

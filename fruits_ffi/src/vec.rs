@@ -14,6 +14,7 @@ struct FfiRawVec {
 
 #[repr(C)]
 pub struct FfiOpaqueVec {
+    // vec field needs to be first + repr(C) for transmute
     vec: FfiRawVec,
     element_size: u64,
     element_align: u64,
@@ -72,7 +73,7 @@ impl FfiOpaqueVec {
     }
 
     pub unsafe fn as_vec_ptr<T>(this: *mut Self) -> *mut FfiVec<T> {
-        unsafe { (&raw mut (*this).vec) as *mut FfiVec<T> }
+        this as *mut FfiVec<T>
     }
 }
 

@@ -27,7 +27,7 @@ unsafe impl<'e, E: 'static> SystemParam for Evt<'e, E> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(Evt {
             // Safety. Managed by caller.
-            evt: unsafe { input.world_data.events().get::<E>().map(|p| (&*p).as_slice()).unwrap_or(&[]) },
+            evt: input.world_data.events().get::<E>(),
         })
     }
 }

@@ -27,7 +27,7 @@ unsafe impl<'e, R: 'static> SystemParam for Res<'e, R> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(Res {
             // Safety. Managed by caller.
-            res: unsafe { &*input.world_data.resources().get::<R>().ok_or("Resource missing.")? },
+            res: unsafe { &*input.world_data.resources().get_ptr::<R>().ok_or("Resource missing.")? },
         })
     }
 }
@@ -45,7 +45,7 @@ unsafe impl<'e, R: 'static> SystemParam for Option<Res<'e, R>> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
             // Safety. Managed by caller.
         Ok(unsafe {
-            input.world_data.resources().get::<R>().map(|r| { Res { res: &*r }})
+            input.world_data.resources().get_ptr::<R>().map(|r| { Res { res: &*r }})
         })
     }
 }

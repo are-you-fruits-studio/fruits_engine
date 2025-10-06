@@ -20,13 +20,14 @@ fn resources_holder_typed_get_or_insert<'a, T: 'static + Default>(
 }
 
 // todo: refactor to use real references instead of lifetimed structs.
+// todo: check types registry compatibility.
 
-pub struct SystemResourcesUnsafeHolder {
+pub struct SystemResourcesHolder {
     res: SystemResourcesHolderUnsafeFfi,
     types: TypesRegistryCache,
 }
 
-impl SystemResourcesUnsafeHolder {
+impl SystemResourcesHolder {
     pub fn new(types: TypesRegistryCache) -> Self {
         Self {
             res: SystemResourcesHolderUnsafeFfi::new(unsafe { types.registry().clone() }),
@@ -42,15 +43,15 @@ impl SystemResourcesUnsafeHolder {
         &raw mut self.res
     }
     
-    pub fn as_mut<'r>(&'r mut self) -> SystemResourcesUnsafeHolderMut<'r> {
-        SystemResourcesUnsafeHolderMut {
+    pub fn as_mut<'r>(&'r mut self) -> SystemResourcesHolderMut<'r> {
+        SystemResourcesHolderMut {
             res: &mut self.res,
             types: &self.types,
         }
     }
 
-    pub fn as_ref<'r>(&'r self) -> SystemResourcesUnsafeHolderRef<'r> {
-        SystemResourcesUnsafeHolderRef {
+    pub fn as_ref<'r>(&'r self) -> SystemResourcesHolderRef<'r> {
+        SystemResourcesHolderRef {
             res: &self.res,
             types: &self.types,
         }
@@ -59,12 +60,12 @@ impl SystemResourcesUnsafeHolder {
 
 //
 
-pub struct SystemResourcesUnsafeHolderMut<'r> {
+pub struct SystemResourcesHolderMut<'r> {
     res: &'r mut SystemResourcesHolderUnsafeFfi,
     types: &'r TypesRegistryCache,
 }
 
-impl<'r> SystemResourcesUnsafeHolderMut<'r> {
+impl<'r> SystemResourcesHolderMut<'r> {
     pub fn new(res: &'r mut SystemResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
@@ -76,15 +77,15 @@ impl<'r> SystemResourcesUnsafeHolderMut<'r> {
         resources_holder_typed_get_or_insert(self.res, &self.types)
     }
 
-    pub fn as_mut(&'r mut self) -> SystemResourcesUnsafeHolderMut<'r> {
-        SystemResourcesUnsafeHolderMut {
+    pub fn as_mut(&'r mut self) -> SystemResourcesHolderMut<'r> {
+        SystemResourcesHolderMut {
             res: &mut self.res,
             types: self.types,
         }
     }
 
-    pub fn as_ref(&'r self) -> SystemResourcesUnsafeHolderRef<'r> {
-        SystemResourcesUnsafeHolderRef {
+    pub fn as_ref(&'r self) -> SystemResourcesHolderRef<'r> {
+        SystemResourcesHolderRef {
             res: self.res,
             types: self.types,
         }
@@ -93,12 +94,13 @@ impl<'r> SystemResourcesUnsafeHolderMut<'r> {
 
 //
 
-pub struct SystemResourcesUnsafeHolderRef<'r> {
+#[derive(Copy, Clone)]
+pub struct SystemResourcesHolderRef<'r> {
     res: &'r SystemResourcesHolderUnsafeFfi,
     types: &'r TypesRegistryCache,
 }
 
-impl<'r> SystemResourcesUnsafeHolderRef<'r> {
+impl<'r> SystemResourcesHolderRef<'r> {
     pub fn new(res: &'r SystemResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
         Self {
             res,
@@ -106,14 +108,7 @@ impl<'r> SystemResourcesUnsafeHolderRef<'r> {
         }
     }
 
-    pub fn get_or_insert<T: 'static + Default>(&self) -> *mut T {
+    pub fn get_or_insert<T: 'static + Default>(self) -> *mut T {
         resources_holder_typed_get_or_insert(self.res, &self.types)
-    }
-
-    pub fn as_ref(&'r self) -> SystemResourcesUnsafeHolderRef<'r> {
-        SystemResourcesUnsafeHolderRef {
-            res: self.res,
-            types: self.types,
-        }
     }
 }
