@@ -2,7 +2,7 @@ workspace = { members = [ "fruits_alloc_monitor", "fruits_app", "fruits_example/
 
 [package]
 name = "fruits_engine"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 
 [lib]
