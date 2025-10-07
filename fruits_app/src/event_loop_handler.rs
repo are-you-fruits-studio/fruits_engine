@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use fruits_ecs::{Schedule, World, WorldBuilder};
+use gilrs::Gilrs;
 use wgpu::*;
 use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, WindowEvent}, event_loop::ActiveEventLoop, keyboard::PhysicalKey, window::{WindowAttributes, WindowId}};
 
@@ -11,6 +12,7 @@ enum EventLoopHandlerState {
     Starting,
     Polling {
         world: World,
+        gamepad_host: Option<Gilrs>,
     },
 }
 
@@ -49,8 +51,15 @@ impl ApplicationHandler for EventLoopHandler {
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 
+        let gamepad_host = Gilrs::new();
+
+        if let Err(err) = &gamepad_host {
+            eprintln!("ayf: Failed to init Gilrs(gamepad). {}", err);
+        }
+
         self.0 = EventLoopHandlerState::Polling {
             world,
+            gamepad_host: gamepad_host.ok(),
         };
     }
 
@@ -82,7 +91,7 @@ impl ApplicationHandler for EventLoopHandler {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        let EventLoopHandlerState::Polling { world} = &mut self.0 else {
+        let EventLoopHandlerState::Polling { world, gamepad_host } = &mut self.0 else {
             return;
         };
 
@@ -139,6 +148,20 @@ impl ApplicationHandler for EventLoopHandler {
                 render_state.surface().configure(&render_state.device(), render_state.surface_config());
             }
             WindowEvent::RedrawRequested => {
+                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
+
+                if let Some(gamepad_host) = gamepad_host {
+                    while let Some(gamepad_evt) = gamepad_host.next_event() {
+                        match gamepad_evt.event {
+                            gilrs::EventType::ButtonPressed(button, _) => input.gamepad.press(button),
+                            gilrs::EventType::ButtonReleased(button, _) => input.gamepad.release(button),
+                            gilrs::EventType::AxisChanged(axis, axis_value, _) => input.gamepad.write_axis(axis, axis_value),
+                            // todo: handle other gamepad events
+                            _ => (),
+                        }
+                    }
+                }
+
                 // println!("ayf: redraw start");
                 world.execute_iteration(Schedule::Update);
 
@@ -147,6 +170,7 @@ impl ApplicationHandler for EventLoopHandler {
                 let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();
+                input.gamepad.clear_frame();
 
                 let render_state = world.data().resources_mut().get_mut::<RenderStateResource>().unwrap();
                 render_state.window().request_redraw();

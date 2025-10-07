@@ -12,4 +12,5 @@ crate-type = ["lib"]
 pollster = "0.4.0"
 winit = "0.30.12"
 wgpu = "26.0.1"
+gilrs = "0.11.0"
 fruits_ecs = { path = "../fruits_ecs" }
