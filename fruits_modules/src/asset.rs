@@ -16,7 +16,7 @@ pub struct AssetStorageResource<T> {
 }
 impl<T: 'static + Send + Sync> Resource for AssetStorageResource<T> { }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug)]
 pub struct AssetHandle<T> {
     index: VersionIndex,

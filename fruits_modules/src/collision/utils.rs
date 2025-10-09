@@ -1,28 +1,33 @@
+use fruits_ffi::{FfiBox, FfiOption};
+
 use crate::collision::{overlaps, CollisionAabb, CollisionShape};
 
 // todo: recursion to iteration
 
+#[repr(C)]
 #[derive(Default, Debug)]
 pub struct Bvh<T> {
-    root: Option<BvhNode<T>>,
+    root: FfiOption<BvhNode<T>>,
 }
 
+#[repr(C)]
 #[derive(Debug)]
 struct BvhNode<T> {
     aabb: CollisionAabb,
     core: BvhNodeCore<T>,
 }
 
+#[repr(C)]
 #[derive(Debug)]
 enum BvhNodeCore<T> {
     Leaf(T),
-    Branch(Box<[BvhNode<T>; 2]>),
+    Branch(FfiBox<[BvhNode<T>; 2]>),
 }
 
 impl<T> Bvh<T> {
     pub fn new(values: Vec<(CollisionAabb, T)>) -> Self {
         Self {
-            root: BvhNode::new(values, 0),
+            root: BvhNode::new(values, 0).into(),
         }
     }
 
@@ -33,7 +38,7 @@ impl<T> Bvh<T> {
 
 impl<T: Clone> Bvh<T> {
     pub fn query(&self, query: CollisionShape, hits: &mut Vec<T>) {
-        let Some(root) = &self.root else {
+        let Some(root) = self.root.as_ref() else {
             return;
         };
 
@@ -71,7 +76,7 @@ impl<T> BvhNode<T> {
 
         Some(BvhNode {
             aabb,
-            core: BvhNodeCore::Branch(Box::new([left, right]))
+            core: BvhNodeCore::Branch(FfiBox::new([left, right]))
         })
     }
 }

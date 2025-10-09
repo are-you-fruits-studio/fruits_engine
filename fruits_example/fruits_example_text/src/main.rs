@@ -1,6 +1,6 @@
 use std::{fmt::Write, time::Instant};
 
-use fruits_engine::prelude::{fps_counter::FpsResource, *};
+use fruits_engine::prelude::*;
 
 fn main() {
     let mut app = App::new();
@@ -81,16 +81,13 @@ fn init(mut world: ExclusiveWorldAccess) {
 }
 
 fn write_time_into_text(
-    fps_res: Res<FpsResource>,
     time: Res<TimeResource>,
     mut text_q: WorldQuery<&mut TextComponent>
 ) {
-    let fps = (fps_res.last_frame_times_s().len() as f64 / fps_res.last_frame_times_s().iter().copied().sum::<f64>()).round() as usize;
-
     for text_c in text_q.iter_mut() {
         text_c.text.clear();
 
-        write!(text_c.text, "{} | {:.2}", fps, time.time).unwrap();
+        write!(text_c.text, "{:.2}", time.time).unwrap();
     }
 }
 

@@ -81,6 +81,12 @@ macro_rules! impl_option {
             }
         }
     
+        impl<T$(: $B)?> Default for $I<T> {
+            fn default() -> Self {
+                Self::from_option(None)
+            }
+        }
+    
         impl<T$(: $B)?> From<Option<T>> for $I<T> {
             fn from(value: Option<T>) -> Self {
                 Self::from_option(value)

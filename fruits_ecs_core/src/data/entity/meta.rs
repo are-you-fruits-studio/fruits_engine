@@ -44,7 +44,6 @@ pub struct EntityLocation {
     pub entity_archetype_index: u64,
 }
 
-// todo: ffi
 #[derive(Default)]
 pub struct EntitiesMetadataNative(VersionCollection<EntityLocation>);
 

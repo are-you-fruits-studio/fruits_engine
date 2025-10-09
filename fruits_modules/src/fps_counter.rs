@@ -6,12 +6,11 @@ use fruits_ecs::{ResMut, Resource, Schedule, WorldBuilder};
 pub fn add_module_to(world: &mut WorldBuilder) {
     world.data_mut().resources_mut().insert(FpsResource::default()).ok().unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).add_system(count_fps);
+    world.behavior_mut().get_mut(Schedule::Update).add_system(count_fps_system);
 }
 
-// todo: support ffi
 #[derive(Resource, Default)]
-pub struct FpsResource {
+struct FpsResource {
     last_frame_times_s: VecDeque<f64>,
     last_frame_time: Option<Instant>,
     last_print_time: Option<Instant>,
@@ -31,7 +30,7 @@ impl FpsResource {
     }
 }
 
-pub fn count_fps(
+fn count_fps_system(
     mut res: ResMut<FpsResource>,
 ) {
     const MAX_FRAMES: usize = 100;

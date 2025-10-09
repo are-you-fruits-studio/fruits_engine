@@ -80,7 +80,6 @@ impl ArchetypesHolderNative {
     pub fn id_by_components(&self, components: &UniqueComponentsSet) -> Option<u64> {
         self.archetype_id_by_components.get(components).copied()
     }
-    // todo: return ffiVec ref
     pub fn ids_by_component(&self, component: u64) -> Option<&FfiVec<u64>> {
         self.archetype_ids_by_component.get(&component).map(|t| &t.1)
     }

@@ -2,7 +2,7 @@ use fruits_ecs::{Entity, Resource};
 
 use crate::collision::*;
 
-// todo: support ffi
+#[repr(transparent)]
 #[derive(Resource, Default)]
 pub struct CollisionWorldResource {
     // todo: support full CollisionShape.

@@ -1,4 +1,4 @@
-use std::{ffi::c_void, mem::ManuallyDrop, ops::{Deref, DerefMut}};
+use std::{ffi::c_void, fmt::Debug, mem::ManuallyDrop, ops::{Deref, DerefMut}};
 
 use crate::{FfiOpaqueMemory, FfiTypedMemory};
 
@@ -48,23 +48,27 @@ impl<T> FfiBox<T> {
             }
         }
     }
+
+    pub fn as_ref(&self) -> &T {
+        unsafe { &*self.mem.as_ptr() }
+    }
+
+    pub fn as_mut(&self) -> &mut T {
+        unsafe { &mut *self.mem.as_ptr() }
+    }
 }
 
 impl<T> Deref for FfiBox<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe {
-            &*self.mem.as_ptr()
-        }
+        self.as_ref()
     }
 }
 
 impl<T> DerefMut for FfiBox<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe {
-            &mut *self.mem.as_ptr()
-        }
+        self.as_mut()
     }
 }
 
@@ -73,6 +77,12 @@ impl<T> Drop for FfiBox<T> {
         unsafe {
             self.mem.as_ptr().drop_in_place();
         }
+    }
+}
+
+impl<T: Debug> Debug for FfiBox<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&**self, f)
     }
 }
 
