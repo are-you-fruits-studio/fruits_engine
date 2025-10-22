@@ -111,30 +111,32 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                     return None;
                 },
                 State::InsideNumber { mut buf, mut contains_dot } => {
-                    let Some(c) = chars.next() else {
-                        return None;
+                    let exit_fn = || {
+                        Some(if contains_dot {
+                            JsonValue::Float(buf.parse().ok()?)
+                        } else {
+                            JsonValue::Int(buf.parse().ok()?)
+                        })
                     };
-                    
+
+                    let Some(&c) = chars.peek() else {
+                        return exit_fn();
+                    };
+
                     if c.is_ascii_digit() {
+                        chars.next();
                         buf.push(c);
                     } else if c == '.' && !contains_dot {
+                        chars.next();
                         buf.push(c);
                         contains_dot = true;
+                    } else if c.is_whitespace() || c == ',' || c == '}' {
+                        return exit_fn();
                     } else {
                         return None;
                     }
 
-                    let should_exit = chars.peek().map(|nc| !nc.is_ascii_digit() && *nc != '.').unwrap_or(true);
-
-                    if should_exit {
-                        if contains_dot {
-                            return Some(JsonValue::Float(buf.parse().ok()?))
-                        } else {
-                            return Some(JsonValue::Int(buf.parse().ok()?))
-                        }
-                    } else {
-                        break 'm State::InsideNumber { buf, contains_dot };
-                    }
+                    break 'm State::InsideNumber { buf, contains_dot };
                 },
                 State::InsideString { mut buf } => {
                     let Some(c) = chars.next() else {
