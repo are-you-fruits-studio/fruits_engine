@@ -1,4 +1,4 @@
-use crate::json_repr::{JsonObject, JsonValue};
+use crate::{json_repr::{JsonObject, JsonValue}, JsonNumber};
 
 const NULL_CHARS: &[char] = &['n', 'u', 'l', 'l'];
 
@@ -113,9 +113,9 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                 State::InsideNumber { mut buf, mut contains_dot } => {
                     let exit_fn = || {
                         Some(if contains_dot {
-                            JsonValue::Float(buf.parse().ok()?)
+                            JsonNumber::F(buf.parse().ok()?).into()
                         } else {
-                            JsonValue::Int(buf.parse().ok()?)
+                            JsonNumber::I(buf.parse().ok()?).into()
                         })
                     };
 

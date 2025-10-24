@@ -3,6 +3,7 @@ mod json_str_deserialization;
 mod json_str_serialization;
 mod json_map;
 mod json_map_terminal;
+mod json_static;
 
 pub use {
     json_repr::*,
@@ -10,4 +11,7 @@ pub use {
     json_str_serialization::*,
     json_map::*,
     json_map_terminal::*,
+    json_static::*,
 };
+
+pub use fruits_serialization_macros::*;

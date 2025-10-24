@@ -9,3 +9,4 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
+fruits_serialization_macros = { path = "../fruits_serialization_macros" }

@@ -40,8 +40,7 @@ fn write_preindented(v: &JsonValue, w: &mut impl Write, indent: Option<JsonInden
     Ok(match v {
         JsonValue::Null => write!(w, "null")?,
         JsonValue::Bool(bool) => write!(w, "{bool}")?,
-        JsonValue::Int(int) => write!(w, "{int}")?,
-        JsonValue::Float(float) => write!(w, "{float}")?,
+        JsonValue::Number(number) => write!(w, "{number}")?,
         JsonValue::String(string) => write!(w, "\"{string}\"")?,
         JsonValue::Array(json_array) => {
             if json_array.is_empty() {

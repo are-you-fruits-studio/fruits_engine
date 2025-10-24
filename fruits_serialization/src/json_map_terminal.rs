@@ -38,19 +38,19 @@ impl Serializer for StrSerializer {
 }
 
 macro_rules! primitive_terminal_serializer {
-    ($name: ident, $type: ident, $json_type: ident, $convert_type: ident) => {
+    ($name: ident, $deserialized: ident, $json_type: ident, $convert_type: ident) => {
         #[derive(Copy, Clone, Default)]
         pub struct $name;
         impl Serializer for $name {
-            type Deserialized = $type;
+            type Deserialized = $deserialized;
 
             fn serialize(&self, _ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
-                Ok(JsonValue::$json_type(*value as $convert_type))
+                Ok(JsonValue::$json_type((*value).into()))
             }
         
             fn deserialize(&self, _ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
                 if let JsonValue::$json_type(value) = value {
-                    Ok(*value as Self::Deserialized)
+                    Ok((*value).into())
                 } else{
                     Err(DeserializationError::InvalidInput)
                 }
@@ -60,20 +60,19 @@ macro_rules! primitive_terminal_serializer {
 }
 
 primitive_terminal_serializer!(BoolSerializer, bool, Bool, bool);
-primitive_terminal_serializer!(USizeSerializer, usize, Int, i64);
-primitive_terminal_serializer!(ISizeSerializer, isize, Int, i64);
-primitive_terminal_serializer!(U8Serializer, u8, Int, i64);
-primitive_terminal_serializer!(I8Serializer, i8, Int, i64);
-primitive_terminal_serializer!(U16Serializer, u16, Int, i64);
-primitive_terminal_serializer!(I16Serializer, i16, Int, i64);
-primitive_terminal_serializer!(U32Serializer, u32, Int, i64);
-primitive_terminal_serializer!(I32Serializer, i32, Int, i64);
-primitive_terminal_serializer!(U64Serializer, u64, Int, i64);
-primitive_terminal_serializer!(I64Serializer, i64, Int, i64);
-primitive_terminal_serializer!(U128Serializer, u128, Int, i64);
-primitive_terminal_serializer!(I128Serializer, i128, Int, i64);
-primitive_terminal_serializer!(F32Serializer, f32, Float, f64);
-primitive_terminal_serializer!(F64Serializer, f64, Float, f64);
+primitive_terminal_serializer!(USizeSerializer, usize, Number, i128);
+primitive_terminal_serializer!(ISizeSerializer, isize, Number, i128);
+primitive_terminal_serializer!(U8Serializer, u8, Number, i128);
+primitive_terminal_serializer!(I8Serializer, i8, Number, i128);
+primitive_terminal_serializer!(U16Serializer, u16, Number, i128);
+primitive_terminal_serializer!(I16Serializer, i16, Number, i128);
+primitive_terminal_serializer!(U32Serializer, u32, Number, i128);
+primitive_terminal_serializer!(I32Serializer, i32, Number, i128);
+primitive_terminal_serializer!(U64Serializer, u64, Number, i128);
+primitive_terminal_serializer!(I64Serializer, i64, Number, i128);
+primitive_terminal_serializer!(I128Serializer, i128, Number, i128);
+primitive_terminal_serializer!(F32Serializer, f32, Number, f64);
+primitive_terminal_serializer!(F64Serializer, f64, Number, f64);
 
 #[derive(Copy, Clone)]
 pub struct VecSerializer<T>(PhantomData<T>);
@@ -184,7 +183,6 @@ pub fn register_default_terminals(global: &mut crate::GlobalSerializer) {
     register_self_and_related_default_terminals(global, I32Serializer);
     register_self_and_related_default_terminals(global, U64Serializer);
     register_self_and_related_default_terminals(global, I64Serializer);
-    register_self_and_related_default_terminals(global, U128Serializer);
     register_self_and_related_default_terminals(global, I128Serializer);
     register_self_and_related_default_terminals(global, F32Serializer);
     register_self_and_related_default_terminals(global, F64Serializer);
