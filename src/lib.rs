@@ -8,10 +8,13 @@ pub mod prelude {
     pub use fruits_math_macros::*;
     pub use fruits_serialization::*;
     pub use fruits_reflection::*;
+    pub use fruits_entry_point::*;
 }
 
 pub mod app {
     pub use fruits_app::*;
+    pub use fruits_entry_point::*;
+    pub use fruits_app_launcher::*;
 }
 
 pub mod ecs {
@@ -37,4 +40,8 @@ pub mod serialization {
 
 pub mod reflection {
     pub use fruits_reflection::*;
+}
+
+pub mod asset {
+    pub use fruits_asset::*;
 }

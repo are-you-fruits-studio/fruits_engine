@@ -18,12 +18,9 @@ pub trait ReflectTy: 'static {
     fn refl_ty() -> ReflTy;
 }
 
-pub trait ReflectTyVal: 'static {
-    fn refl_ty_val(&self) -> ReflTy;
-}
-
-impl<T: ReflectTy> ReflectTyVal for T {
-    fn refl_ty_val(&self) -> ReflTy {
-        T::refl_ty()
-    }
+// todo
+trait Reflect: 'static {
+    fn refl_ty() -> ReflTy;
+    fn to_refl_repr(&self) -> ReflRepr;
+    fn from_refl_repr(repr: &ReflRepr) -> Self;
 }

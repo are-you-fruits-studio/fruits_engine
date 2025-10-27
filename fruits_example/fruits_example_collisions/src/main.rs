@@ -5,16 +5,16 @@ use fruits_engine::prelude::*;
 fn main() {
     let mut app = App::new();
 
-    add_defult_modules_to(app.ecs_mut());
-    fruits_engine::modules::fps_counter::add_module_to(app.ecs_mut());
+    add_defult_modules_to(app.ecs_mut().as_mut());
+    fruits_engine::modules::fps_counter::add_module_to(app.ecs_mut().as_mut());
 
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Start).add_system(init);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Start).insert_system(init);
 
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(move_camera);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(draw_collisions);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_colliders);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(draw_gizmo_components);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(raycast_mouse);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(move_camera);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(draw_collisions);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(update_colliders);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(draw_gizmo_components);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(raycast_mouse);
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(raycast_mouse).before_system(draw_gizmo_components);
     app.ecs_mut().behavior_mut().get_mut(Schedule::Update).order_system(draw_gizmo_components).before_group(SYSTEM_GROUP_RENDER);
@@ -31,7 +31,7 @@ struct GizmoComponent {
 fn init(
     mut world: ExclusiveWorldAccess,
 ) {
-    let ec = world.entities_components_mut();
+    let mut ec = world.entities_mut();
 
     let camera = ec.create_entity();
 
@@ -47,7 +47,7 @@ fn init(
     for x in 0..100 {
         for y in 0..100 {
             create_button_entity(
-                ec,
+                ec.as_mut(),
                 Vec3::new(15.0 * x as f32, 15.0 * y as f32, 0.0),
                 Vec3::new(9.0, 9.0, 0.1),
             );
@@ -55,7 +55,7 @@ fn init(
     }
 }
 
-fn create_button_entity(ec: &mut EntitiesComponentsHolder, pos: Vec3<f32>, scale: Vec3<f32>) {
+fn create_button_entity(mut ec: EntitiesHolderMut, pos: Vec3<f32>, scale: Vec3<f32>) {
     let e = ec.create_entity();
 
     ec.add_component(e, LocalTransform {

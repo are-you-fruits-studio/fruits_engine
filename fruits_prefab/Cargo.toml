@@ -1,0 +1,7 @@
+[package]
+name = "fruits_prefab"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fruits_ecs = { path = "../fruits_ecs" }

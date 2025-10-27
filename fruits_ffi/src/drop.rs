@@ -157,3 +157,43 @@ impl<T: Ord> Ord for FfiTypedDroppable<T> {
 
 unsafe impl<T: Send> Send for FfiTypedDroppable<T> { }
 unsafe impl<T: Sync> Sync for FfiTypedDroppable<T> { }
+
+//
+
+#[repr(transparent)]
+pub struct FfiStaticRef<T: 'static> {
+    data: *const T,
+}
+
+impl<T: 'static> FfiStaticRef<T> {
+    pub const fn new(data: &'static T) -> Self {
+        Self {
+            data: data,
+        }
+    }
+
+    pub const fn get(&self) -> &'static T {
+        unsafe { &*self.data }
+    }
+}
+
+impl<T: 'static> Clone for FfiStaticRef<T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data
+        }
+    }
+}
+
+impl<T: 'static> Copy for FfiStaticRef<T> { }
+
+impl<T: 'static> Deref for FfiStaticRef<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.get()
+    }
+}
+
+unsafe impl<T: 'static> Send for FfiStaticRef<T> where &'static T: Send { }
+unsafe impl<T: 'static> Sync for FfiStaticRef<T> where &'static T: Sync { }

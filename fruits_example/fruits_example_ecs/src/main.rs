@@ -5,13 +5,19 @@ use fruits_engine::prelude::*;
 fn main() {
     let mut app = App::new();
 
+    let world = app.ecs_mut();
+
+    let mut world_behavior = world.behavior_mut();
+
+    world_behavior.get_mut(Schedule::Update).insert_system(create_and_destroy_entity);
+    world_behavior.get_mut(Schedule::Update).insert_system(test_resource_existence);
+    world_behavior.get_mut(Schedule::Update).insert_system(test_optionals);
+
     //app.ecs_mut().data_mut().resources_mut().insert(SomeResource).ok().unwrap();
 
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(create_and_destroy_entity);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(test_resource_existence);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(test_optionals);
+    let mut world_data = world.data_mut();
 
-    let ec = app.ecs_mut().data_mut().entities_components_mut();
+    let mut ec = world_data.entities_mut();
 
     for i in 0..10 {
         let e = ec.create_entity();
@@ -29,7 +35,7 @@ fn main() {
 fn create_and_destroy_entity(
     mut w: ExclusiveWorldAccess,
 ) {
-    let ec = w.entities_components_mut();
+    let mut ec = w.entities_mut();
 
     let e = ec.create_entity();
 

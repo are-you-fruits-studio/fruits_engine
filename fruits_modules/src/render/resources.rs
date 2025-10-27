@@ -4,10 +4,12 @@ use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
-
 use crate::{asset::AssetHandle, render::{Font, StandardTexture, StandardVertex}};
 
 use super::GizmoLine;
+
+mod render_state;
+pub use render_state::*;
 
 // todo: support ffi
 #[derive(Resource)]
@@ -67,7 +69,6 @@ pub struct DepthTextureResource {
 #[derive(Resource)]
 pub struct StandardRenderResource {
     pub pipeline_layout: PipelineLayout,
-    pub bind_group_layout_standard_texture: BindGroupLayout,
     pub batched_vertex_buffer: Buffer,
     pub instance_buffer: Buffer,
     pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
@@ -121,3 +122,5 @@ pub enum RenderSpace {
     Window,
     World,
 }
+
+//

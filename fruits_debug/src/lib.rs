@@ -9,11 +9,11 @@ pub fn add_module_to(world: &mut WorldBuilder) {
     world.data_mut().resources_mut().insert(DebugConnectionResource::default()).ok().unwrap();
 
     world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP)
-        .add_child_system(host_debug_server)
-        .add_child_system(debug_connection_recv_system)
-        .add_child_system(debug_connection_send_system)
-        .add_child_system(generate_response_system)
-        .add_child_system(debug_connection_ping_system);
+        .insert_child_system(host_debug_server)
+        .insert_child_system(debug_connection_recv_system)
+        .insert_child_system(debug_connection_send_system)
+        .insert_child_system(generate_response_system)
+        .insert_child_system(debug_connection_ping_system);
 
     world.behavior_mut().get_mut(Schedule::Update).order_system(host_debug_server).before_system(debug_connection_recv_system);
     world.behavior_mut().get_mut(Schedule::Update).order_system(host_debug_server).before_system(debug_connection_send_system);
@@ -27,9 +27,9 @@ pub fn add_module_as_client_to(world: &mut WorldBuilder) {
     world.data_mut().resources_mut().insert(DebugConnectionResource::default()).ok().unwrap();
 
     world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP)
-        .add_child_system(debug_connection_recv_system)
-        .add_child_system(debug_connection_send_system)
-        .add_child_system(debug_connection_ping_system);
+        .insert_child_system(debug_connection_recv_system)
+        .insert_child_system(debug_connection_send_system)
+        .insert_child_system(debug_connection_ping_system);
 }
 
 pub mod msg_types {
@@ -39,7 +39,7 @@ pub mod msg_types {
 pub fn generate_response_system(
     mut world: ExclusiveWorldAccess,
 ) {
-    let (res, ec, _evt) = world.as_tuple_mut();
+    let (mut res, ec, _evt) = world.as_tuple_mut();
 
     let connection_res = res.get_mut::<DebugConnectionResource>().unwrap();
 

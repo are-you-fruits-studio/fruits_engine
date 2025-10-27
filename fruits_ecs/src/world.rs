@@ -1,60 +1,158 @@
-use crate::*;
+use crate::{Schedule, TypesRegistryAccessFfi, TypesRegistryCache, WorldBehaviorBuilderFfi, WorldBehaviorBuilderMut, WorldBehaviorFfi, WorldDataMut, WorldDataRef, WorldDataUnsafeFfi};
 
-pub struct World {
-    data: WorldData,
-    behavior: WorldBehavior,
+#[repr(C)]
+pub struct WorldBuilderUnsafeFfi {
+    data: WorldDataUnsafeFfi,
+    behavior: WorldBehaviorBuilderFfi,
 }
 
-impl World {
-    pub fn new(data: WorldData, behavior: WorldBehavior) -> Self {
+impl WorldBuilderUnsafeFfi {
+    pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
-            data,
-            behavior,
+            data: WorldDataUnsafeFfi::new(types.clone()),
+            behavior: WorldBehaviorBuilderFfi::new(types),
         }
     }
 
-    pub fn execute_iteration(&mut self, schedule: Schedule) {
-        // println!("ayf: iteration {:?} start", schedule);
-        self.behavior.get(schedule).execute_iteration(&mut self.data);
-        // println!("ayf: iteration {:?} end", schedule);
-    }
-
-    pub fn data(&mut self) -> &mut WorldData {
-        &mut self.data
+    pub fn build(self) -> WorldUnsafeFfi {
+        WorldUnsafeFfi {
+            data: self.data,
+            behavior: self.behavior.build(),
+        }
     }
 }
 
-#[derive(Default)]
+#[repr(C)]
+pub struct WorldUnsafeFfi {
+    data: WorldDataUnsafeFfi,
+    behavior: WorldBehaviorFfi,
+}
+
+impl WorldUnsafeFfi {
+    pub fn execute_iteration(&mut self, schedule: Schedule) {
+        self.behavior.get_mut(schedule).execute_iteration(&raw mut self.data);
+    }
+}
+
+//
+
+pub struct World {
+    world: WorldUnsafeFfi,
+    types: TypesRegistryCache,
+}
+
+impl World {
+    pub fn data<'r>(&'r self) -> WorldDataRef<'r> {
+        unsafe { WorldDataRef::new(&raw const self.world.data as *mut WorldDataUnsafeFfi, &self.types) }
+    }
+    pub fn data_mut<'r>(&'r mut self) -> WorldDataMut<'r> {
+        unsafe { WorldDataMut::new(&raw mut self.world.data, &self.types) }
+    }
+    pub fn execute_iteration(&mut self, schedule: Schedule) {
+        self.world.execute_iteration(schedule)
+    }
+    pub fn as_mut<'r>(&'r mut self) -> WorldMut<'r> {
+        WorldMut {
+            world: &mut self.world,
+            types: &self.types,
+        }
+    }
+}
+
+pub struct WorldMut<'w> {
+    world: &'w mut WorldUnsafeFfi,
+    types: &'w TypesRegistryCache,
+}
+
+impl<'w> WorldMut<'w> {
+    pub fn data<'r>(&'r self) -> WorldDataRef<'r>
+        where 'w: 'r
+    {
+        unsafe { WorldDataRef::new(&raw const self.world.data as *mut WorldDataUnsafeFfi, self.types) }
+    }
+    pub fn data_mut<'r>(&'r mut self) -> WorldDataMut<'r>
+        where 'w: 'r
+    {
+        unsafe { WorldDataMut::new(&raw mut self.world.data, self.types) }
+    }
+    pub fn execute_iteration(&mut self, schedule: Schedule) {
+        self.world.execute_iteration(schedule)
+    }
+}
+
 pub struct WorldBuilder {
-    data: WorldData,
-    behavior: WorldBehaviorBuilder,
+    world: WorldBuilderUnsafeFfi,
+    types: TypesRegistryCache,
 }
 
 impl WorldBuilder {
     pub fn new() -> Self {
+        let types = TypesRegistryAccessFfi::new();
+
         Self {
-            behavior: WorldBehaviorBuilder::new(),
-            data: WorldData::new(),
+            world: WorldBuilderUnsafeFfi::new(types.clone()),
+            types: TypesRegistryCache::new(types),
         }
     }
 
-    pub fn behavior(&self) -> &WorldBehaviorBuilder {
-        &self.behavior
+    pub fn data_mut<'r>(&'r mut self) -> WorldDataMut<'r> {
+        unsafe { WorldDataMut::new(&raw mut self.world.data, &self.types) }
     }
 
-    pub fn behavior_mut(&mut self) -> &mut WorldBehaviorBuilder {
-        &mut self.behavior
-    }
-
-    pub fn data(&self) -> &WorldData {
-        &self.data
-    }
-
-    pub fn data_mut(&mut self) -> &mut WorldData {
-        &mut self.data
+    pub fn behavior_mut<'r>(&'r mut self) -> WorldBehaviorBuilderMut<'r> {
+        WorldBehaviorBuilderMut::new(&mut self.world.behavior, &self.types)
     }
 
     pub fn build(self) -> World {
-        World::new(self.data, self.behavior.build())
+        World {
+            world: self.world.build(),
+            types: self.types,
+        }
+    }
+
+    pub fn as_mut<'r>(&'r mut self) -> WorldBuilderMut<'r> {
+        WorldBuilderMut {
+            world: &mut self.world,
+            types: &self.types,
+        }
+    }
+
+    pub unsafe fn into_raw_parts(&mut self) -> (&mut WorldBuilderUnsafeFfi, &TypesRegistryCache) {
+        (&mut self.world, &self.types)
+    }
+}
+
+pub struct WorldBuilderMut<'w> {
+    world: &'w mut WorldBuilderUnsafeFfi,
+    types: &'w TypesRegistryCache,
+}
+
+impl<'w> WorldBuilderMut<'w> {
+    pub fn new(world: &'w mut WorldBuilderUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
+        Self {
+            world,
+            types,
+        }
+    }
+
+    pub fn data_mut<'r>(&'r mut self) -> WorldDataMut<'r>
+        where 'w: 'r
+    {
+        unsafe { WorldDataMut::new(&raw mut self.world.data, self.types) }
+    }
+
+    pub fn behavior_mut<'r>(&'r mut self) -> WorldBehaviorBuilderMut<'r>
+        where 'w: 'r
+    {
+        WorldBehaviorBuilderMut::new(&mut self.world.behavior, self.types)
+    }
+
+    pub fn as_mut<'r>(&'r mut self) -> WorldBuilderMut<'r>
+        where 'w: 'r
+    {
+        WorldBuilderMut {
+            world: self.world,
+            types: self.types,
+        }
     }
 }

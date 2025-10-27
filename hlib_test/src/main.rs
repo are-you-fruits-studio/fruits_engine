@@ -3,39 +3,23 @@ use std::collections::HashMap;
 use fruits_serialization::*;
 
 fn main() {
-    let json = Person::<i32>::default().to_json();
-    dbg!(&json);
+    const RAW_DATA: &str = "
+v 0.123 0.234 0.345 1.0
 
-    print!("\n>>>\n");
+vt 0.500 1 [0]
 
-    let person = Person::<f64>::from_json(&json);
-    dbg!(&person);
+vn 0.707 0.000 0.707
 
-    print!("\n>>>\n");
+vp 0.310000 3.210000 2.100000
 
-    let mut person = Person::<i32>::default();
-    let json = JsonValue::parse(&mut r#"{ "name": "hui", "short": { "2": "Bad" } }"#.chars()).unwrap();
-    person.fill_partially_from_json(&json);
-    dbg!(&person);
-}
+# Polygonal face element (see below)
+f 1 2 3
+f 3/1 4/2 5/3
+f 6/4/1 3/5/3 7/6/5
+f 7//1 8//2 9//3
+    ";
 
-#[derive(JsonSerializable, Default, Debug)]
-struct Person<T: JsonSerializable> {
-    name: String,
-    age: u32,
-    feature: T,
-    data: (),
-    short: ShortPerson,
-    costs: HashMap<SomeType, usize>,
-    default_ty: SomeType,
-}
+    let obj = fruits_wavefront::parse_obj(RAW_DATA);
 
-#[derive(JsonSerializable, Debug, Default)]
-struct ShortPerson(String, u32, SomeType);
-
-#[derive(JsonSerializable, Debug, Default, PartialEq, Eq, Hash)]
-enum SomeType {
-    #[default]
-    Good,
-    Bad,
+    dbg!(obj);
 }

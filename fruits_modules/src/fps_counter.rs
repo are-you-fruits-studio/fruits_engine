@@ -1,12 +1,12 @@
 use std::{collections::VecDeque, time::Instant};
 
-use fruits_ecs::{ResMut, Resource, Schedule, WorldBuilder};
+use fruits_ecs::{ResMut, Resource, Schedule, WorldBuilderMut};
 
 
-pub fn add_module_to(world: &mut WorldBuilder) {
+pub fn add_module_to(mut world: WorldBuilderMut) {
     world.data_mut().resources_mut().insert(FpsResource::default()).ok().unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).add_system(count_fps_system);
+    world.behavior_mut().get_mut(Schedule::Update).insert_system(count_fps_system);
 }
 
 #[derive(Resource, Default)]

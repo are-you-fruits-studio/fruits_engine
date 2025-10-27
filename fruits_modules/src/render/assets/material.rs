@@ -101,7 +101,7 @@ impl Default for UnlitMaterial {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum StandardMaterial {
     Lit(LitMaterial),
     Unlit(UnlitMaterial),

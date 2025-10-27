@@ -1,9 +1,8 @@
-use fruits_app::RenderStateResource;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
-use fruits_ffi::{FfiOption, FfiVec};
+use fruits_ffi::FfiVec;
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, UiDirection, UiSpacing, UiVal};
+use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, RenderApiResource, UiDirection, UiSpacing, UiVal};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
@@ -13,7 +12,7 @@ pub fn adjust_component_sets(
     // todo: do the same with rects?
     let mut buffer = Vec::new();
 
-    let entities_components = world.entities_components_mut();
+    let mut entities_components = world.entities_mut();
 
     // local without global
 
@@ -118,7 +117,7 @@ pub fn update_parents_remove_invalid_children(
 pub fn update_parents_add_missing_children(
     mut world: ExclusiveWorldAccess,
 ) {
-    let ec = world.entities_components_mut();
+    let mut ec = world.entities_mut();
 
     let children = ec
         .query::<(Entity, &ChildComponent)>()
@@ -164,7 +163,7 @@ pub fn calculate_global_transform(
 
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
 pub fn calculate_global_rect_scale_hierarchy_independent(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     mut rect_q: WorldQuery<(&LocalRectComponent, &mut GlobalRectComponent)>,
 ) {
     let window_size: [u32; 2] = render_state.size().into();
@@ -183,13 +182,12 @@ pub fn calculate_global_rect_scale_hierarchy_independent(
 
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
 pub fn calculate_global_rect_scale_children_based(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     local_rect_q: WorldQuery<(&LocalRectComponent, Option<&RectChildAlignComponent>)>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
-    let window_size: [i32; 2] = render_state.size().into();
-    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
+    let window_size = Vec2::from_array(render_state.size().map(|v| v as f32));
 
     utils::hierarchy_iter_depth_first_child_to_parent(&hierarchy_q, |parent, children| {
         let Some((&local_rect, align_c)) = local_rect_q.get(parent) else {
@@ -254,7 +252,7 @@ pub fn calculate_global_rect_scale_children_based(
 
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_rect_scale_parent_based(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
@@ -311,14 +309,13 @@ pub fn calculate_global_rect_scale_parent_based(
 }
 
 pub fn calculate_global_rect_pos(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
     align_q: WorldQuery<&RectChildAlignComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
-    let window_size: [i32; 2] = render_state.size().into();
-    let window_size = Vec2::from_array(window_size.map(|v| v as f32));
+    let window_size = Vec2::from_array(render_state.size().map(|v| v as f32));
 
     utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
         if children.is_empty() {

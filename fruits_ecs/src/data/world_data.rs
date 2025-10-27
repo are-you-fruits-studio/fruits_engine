@@ -1,132 +1,154 @@
-use std::cell::UnsafeCell;
-
 use crate::*;
 
-#[derive(Default)]
-struct WorldDataStorage {
-    resources: ResourcesHolderUnsafe,
-    entities_components: EntitiesComponentsHolderUnsafe,
-    events: EventsHolderUnsafe,
+// todo: access modifiers
+// todo: unsafe modifiers
+
+#[repr(C)]
+pub struct WorldDataUnsafeFfi {
+    pub res: ResourcesHolderUnsafeFfi,
+    pub evt: EventsHolderUnsafeFfi,
+    pub ent: EntitiesHolderUnsafeFfi,
 }
-impl WorldDataStorage {
-    pub fn new() -> Self {
+
+impl WorldDataUnsafeFfi {
+    pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
-            resources: ResourcesHolderUnsafe::new(),
-            entities_components: EntitiesComponentsHolderUnsafe::new(),
-            events: EventsHolderUnsafe::new(),
+            res: ResourcesHolderUnsafeFfi::new(types.clone()),
+            evt: EventsHolderUnsafeFfi::new(types.clone()),
+            ent: EntitiesHolderUnsafeFfi::new(types),
         }
     }
 }
 
-#[repr(transparent)]
-pub struct WorldDataUnsafe {
-    data: UnsafeCell<WorldDataStorage>,
+//
+
+pub struct WorldDataMut<'w> {
+    world: *mut WorldDataUnsafeFfi,
+    types: &'w TypesRegistryCache,
 }
-impl WorldDataUnsafe {
-    pub fn new() -> Self {
+
+impl<'w> WorldDataMut<'w> {
+    pub unsafe fn new(world: *mut WorldDataUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
         Self {
-            data: UnsafeCell::new(WorldDataStorage::new()),
+            world,
+            types,
         }
     }
 
-    /// # Safety
-    /// 
-    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
-    pub unsafe fn resources(&self) -> *mut ResourcesHolderUnsafe {
-        // Safety. Managed by caller.
-        unsafe { &raw mut (*self.data.get()).resources }
+    pub fn resources<'r>(&'r self) -> ResourcesHolderRef<'r> where 'w : 'r {
+        unsafe { ResourcesHolderRef::new(&(&*self.world).res, self.types) }
+    }
+    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderMut<'r> where 'w : 'r {
+        unsafe { ResourcesHolderMut::new(&mut (&mut *self.world).res, self.types) }
+    }
+    pub fn entities<'r>(&'r self) -> EntitiesHolderRef<'r> where 'w : 'r {
+        unsafe { EntitiesHolderRef::new(&(&*self.world).ent, self.types) }
+    }
+    pub fn entities_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r> where 'w : 'r {
+        unsafe { EntitiesHolderMut::new(&mut (&mut *self.world).ent, self.types) }
+    }
+    pub fn events<'r>(&'r self) -> EventsHolderRef<'r> where 'w : 'r {
+        unsafe { EventsHolderRef::new(&(&*self.world).evt, self.types) }
+    }
+    pub fn events_mut<'r>(&'r mut self) -> EventsHolderMut<'r> where 'w : 'r {
+        unsafe { EventsHolderMut::new(&mut (&mut *self.world).evt, self.types) }
     }
 
-    /// # Safety
-    /// 
-    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
-    pub unsafe fn entities_components(&self) -> *mut EntitiesComponentsHolderUnsafe {
-        // Safety. Managed by caller.
-        unsafe { &raw mut (*self.data.get()).entities_components }
+    pub unsafe fn ffi(&self) -> *mut WorldDataUnsafeFfi {
+        self.world
     }
 
-    /// # Safety
-    /// 
-    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
-    pub unsafe fn events(&self) -> *mut EventsHolderUnsafe {
-        // Safety. Managed by caller.
-        unsafe { &raw mut (*self.data.get()).events }
-    }
-
-    /// # Safety
-    /// 
-    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
-    pub unsafe fn from_safe_mut(world: &mut WorldData) -> &mut Self {
-        &mut world.data
-    }
-
-    /// # Safety
-    /// 
-    /// Ensure it never breaks shared-mut ref rules (multiple shared refs or single mut ref).
-    pub unsafe fn as_safe_mut(&self) -> &mut WorldData {
-        // Safety. Transmute is safe, because of repr(transparent). Lifetimes safety is managed by caller
-        unsafe { &mut *(self.data.get() as *mut WorldData) }
-    }
-}
-
-impl Default for WorldDataUnsafe {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// Safety. Data struct isn't changed - internals support threaded access and send.
-unsafe impl Send for WorldDataUnsafe { }
-unsafe impl Sync for WorldDataUnsafe { }
-
-#[derive(Default)]
-#[repr(transparent)]
-pub struct WorldData {
-    data: WorldDataUnsafe,
-}
-
-impl WorldData {
-    pub fn new() -> Self {
-        Self {
-            data: WorldDataUnsafe::new(),
+    pub fn as_tuple_mut<'r>(&'r mut self) -> (ResourcesHolderMut<'r>, EntitiesHolderMut<'r>, EventsHolderMut<'r>) where 'w : 'r {
+        unsafe {
+            let world = &mut *self.world;
+            (
+                ResourcesHolderMut::new(&mut world.res, self.types),
+                EntitiesHolderMut::new(&mut world.ent, self.types),
+                EventsHolderMut::new(&mut world.evt, self.types),
+            )
         }
     }
 
-    pub fn resources(&self) -> &ResourcesHolder {
-        // Safety. Managed with lifetimes.
-        unsafe { (&*self.data.resources()).as_safe() }
+    pub fn as_mut<'r>(&'r mut self) -> WorldDataMut<'r>
+        where 'w: 'r
+    {
+        WorldDataMut {
+            world: self.world,
+            types: self.types,
+        }
     }
 
-    pub fn resources_mut(&mut self) -> &mut ResourcesHolder {
-        // Safety. Managed with lifetimes.
-        unsafe { (&mut *self.data.resources()).as_safe_mut() }
-    }
-
-    pub fn entities_components(&self) -> &EntitiesComponentsHolder {
-        // Safety. Managed with lifetimes.
-        unsafe { (&*self.data.entities_components()).as_safe() }
-    }
-
-    pub fn entities_components_mut(&mut self) -> &mut EntitiesComponentsHolder {
-        // Safety. Managed with lifetimes.
-        unsafe { (&mut *self.data.entities_components()).as_safe_mut() }
-    }
-
-    pub fn events(&self) -> &EventsHolder {
-        // Safety. Managed with lifetimes.
-        unsafe { (&*self.data.events()).as_safe() }
-    }
-
-    pub fn events_mut(&mut self) -> &mut EventsHolder {
-        // Safety. Managed with lifetimes.
-        unsafe { (&mut *self.data.events()).as_safe_mut() }
-    }
-
-    pub fn as_tuple_mut(&mut self) -> (&mut ResourcesHolder, &mut EntitiesComponentsHolder, &mut EventsHolder) {
-        unsafe { (
-            (&mut *self.data.resources()).as_safe_mut(),
-            (&mut *self.data.entities_components()).as_safe_mut(),
-            (&mut *self.data.events()).as_safe_mut(),
-        ) }
+    pub fn as_ref<'r>(&'r self) -> WorldDataRef<'r>
+        where 'w: 'r
+    {
+        WorldDataRef {
+            world: self.world,
+            types: self.types,
+        }
     }
 }
+
+unsafe impl<'w> Send for WorldDataMut<'w> { }
+unsafe impl<'w> Sync for WorldDataMut<'w> { }
+
+//
+
+#[derive(Copy, Clone)]
+pub struct WorldDataRef<'w> {
+    world: *mut WorldDataUnsafeFfi,
+    types: &'w TypesRegistryCache,
+}
+
+impl<'w> WorldDataRef<'w> {
+    pub unsafe fn new(world: *mut WorldDataUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
+        Self {
+            world,
+            types,
+        }
+    }
+
+    pub fn resources(self) -> ResourcesHolderRef<'w> {
+        unsafe { ResourcesHolderRef::new(&(&*self.world).res, self.types) }
+    }
+    pub fn entities(self) -> EntitiesHolderRef<'w> {
+        unsafe { EntitiesHolderRef::new(&(&*self.world).ent, self.types) }
+    }
+    pub fn events(self) -> EventsHolderRef<'w> {
+        unsafe { EventsHolderRef::new(&(&*self.world).evt, self.types) }
+    }
+
+    pub unsafe fn ffi(&self) -> *mut WorldDataUnsafeFfi {
+        self.world
+    }
+
+    pub unsafe fn into_mut(self) -> WorldDataMut<'w> {
+        WorldDataMut {
+            world: self.world,
+            types: self.types,
+        }
+    }
+}
+
+
+// todo:
+// what lib needs:
+// - structural
+//     - data
+//         + safe resources
+//         + safe events
+//         + safe entities
+//         - Res
+//         - ResMut
+//         - Evt
+//         - EvtMut
+//         - Local
+//         - Query
+//         - EntitiesData
+//         - ExclusiveWorldAccess
+//     - behavior
+//         - systems registering
+//         - systems ordering
+// - specific
+//     - specific resources
+//     - specific components
+//     - specific events

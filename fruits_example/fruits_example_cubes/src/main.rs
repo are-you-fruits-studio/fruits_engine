@@ -6,23 +6,23 @@ fn main() {
     let mut app = App::new();
     let world = app.ecs_mut();
 
-    add_defult_modules_to(world);
+    add_defult_modules_to(world.as_mut());
 
-    world.behavior_mut().get_mut(Schedule::Start).add_system(init_resources);
-    world.behavior_mut().get_mut(Schedule::Start).add_system(init_mesh_material);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(update_time);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(move_cube_new);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(rotate_cube);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(log_fps);
-    //world.behavior_mut().get_mut(Schedule::Update).add_system(log_entities);
+    world.behavior_mut().get_mut(Schedule::Start).insert_system(init_resources);
+    world.behavior_mut().get_mut(Schedule::Start).insert_system(init_mesh_material);
+    world.behavior_mut().get_mut(Schedule::Update).insert_system(update_time);
+    world.behavior_mut().get_mut(Schedule::Update).insert_system(move_cube_new);
+    world.behavior_mut().get_mut(Schedule::Update).insert_system(rotate_cube);
+    world.behavior_mut().get_mut(Schedule::Update).insert_system(log_fps);
+    //world.behavior_mut().get_mut(Schedule::Update).insert_system(log_entities);
 
     world.behavior_mut().get_mut(Schedule::Start).order_system(init_resources).before_system(init_mesh_material);
     world.behavior_mut().get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init_mesh_material);
 
     
-    let world_data = world.data_mut();
+    let mut world_data = world.data_mut();
 
-    let ec = world_data.entities_components_mut();
+    let mut ec = world_data.entities_mut();
 
     let entity = ec.create_entity();
 
@@ -72,7 +72,7 @@ fn init_resources(mut world: ExclusiveWorldAccess) {
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
-    let Some(render_state) = world.resources().get::<RenderStateResource>() else {
+    let Some(render_api) = world.resources().get::<RenderApiResource>() else {
         return;
     };
 
@@ -129,8 +129,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     
     let indices = vertices.iter().enumerate().map(|(i, _)| i as u16).collect::<Vec<_>>();
 
-
-    let mesh = StandardMesh::new(render_state.device(), &vertices, &indices);
+    let mesh = render_api.create_mesh(&vertices, &indices);
 
     let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
     let mesh = world.resources_mut().get_mut::<AssetStorageResource::<StandardMesh>>().unwrap().insert(mesh);
@@ -140,7 +139,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
         parent_transform.scale.x *= 0.7;
 
-        let ec = world.entities_components_mut();
+        let mut ec = world.entities_mut();
 
         let parent = ec.create_entity();
         ec.add_component(parent, parent_transform).ok().unwrap();

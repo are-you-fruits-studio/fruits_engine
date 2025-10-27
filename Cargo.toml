@@ -7,10 +7,9 @@ members = [
     "fruits_math",
     "fruits_modules",
     "fruits_utils",
-    "hlib_test" ,
+    "hlib_test",
     "fruits_ecs_macros",
     "fruits_serialization",
-    "fruits_gui_old",
     "fruits_ecs",
     "fruits_example/fruits_example_ecs",
     "fruits_example/fruits_example_gizmos",
@@ -21,11 +20,14 @@ members = [
     "fruits_debug",
     "fruits_example/fruits_example_ui",
     "fruits_reflection_macros",
-    "fruits_gui",
+    "fruits_editor",
     "fruits_ffi",
-    "fruits_ecs_core",
-    "fruits_ecs_core_sample_dylib",
     "fruits_math_macros",
+    "fruits_entry_point",
+    "fruits_app_launcher",
+    "fruits_prefab",
+    "fruits_asset",
+    "fruits_wavefront",
     "fruits_serialization_macros"
 ]
 
@@ -48,3 +50,6 @@ fruits_math = { path = "./fruits_math" }
 fruits_math_macros = { path = "./fruits_math_macros" }
 fruits_serialization = { path = "./fruits_serialization" }
 fruits_reflection = { path = "./fruits_reflection" }
+fruits_entry_point = { path = "./fruits_entry_point" }
+fruits_app_launcher = { path = "./fruits_app_launcher" }
+fruits_asset = { path = "./fruits_asset" }

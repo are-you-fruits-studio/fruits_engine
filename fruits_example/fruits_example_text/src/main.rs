@@ -6,18 +6,20 @@ fn main() {
     let mut app = App::new();
     let world = app.ecs_mut();
 
-    add_defult_modules_to(world);
-    fps_counter::add_module_to(world);
+    add_defult_modules_to(world.as_mut());
+    fps_counter::add_module_to(world.as_mut());
 
-    world.behavior_mut().get_mut(Schedule::Start).add_system(init);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(update_time);
-    world.behavior_mut().get_mut(Schedule::Update).add_system(write_time_into_text);
+    let mut world_behavior = world.behavior_mut();
 
-    world.behavior_mut().get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
+    world_behavior.get_mut(Schedule::Start).insert_system(init);
+    world_behavior.get_mut(Schedule::Update).insert_system(update_time);
+    world_behavior.get_mut(Schedule::Update).insert_system(write_time_into_text);
 
-    let world_data = world.data_mut();
+    world_behavior.get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
 
-    let ec = world_data.entities_components_mut();
+    let mut world_data = world.data_mut();
+
+    let mut ec = world_data.entities_mut();
 
     let entity = ec.create_entity();
     ec.add_component(entity, GlobalTransform {
@@ -58,7 +60,7 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
     
-    let ec = world.entities_components_mut();
+    let mut ec = world.entities_mut();
 
     let ent_text = ec.create_entity();
     ec.add_component(ent_text, GlobalTransform::IDENTITY).ok().unwrap();

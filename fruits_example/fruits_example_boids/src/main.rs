@@ -5,27 +5,27 @@ use fruits_engine::prelude::*;
 fn main() {
     let mut app = App::new();
 
-    fruits_engine::modules::add_defult_modules_to(app.ecs_mut());
+    fruits_engine::modules::add_defult_modules_to(app.ecs_mut().as_mut());
     
     let ecs = app.ecs_mut();
     
     ecs.data_mut().resources_mut().insert(BoidSettings { attraction_threshold: 1.0, damping_factor: 0.2 }).ok().unwrap();
 
 
-    let systems = ecs.behavior_mut();
+    let mut systems = ecs.behavior_mut();
 
-    systems.get_mut(Schedule::Start).add_system(init);
+    systems.get_mut(Schedule::Start).insert_system(init);
     systems.get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
 
-    let update_systems = systems.get_mut(Schedule::Update);
+    let mut update_systems = systems.get_mut(Schedule::Update);
 
-    update_systems.add_system(accumulate_boid_separation);
-    update_systems.add_system(affect_motor_by_boid);
-    update_systems.add_system(apply_motor);
-    update_systems.add_system(apply_damping);
-    update_systems.add_system(apply_velocity);
-    update_systems.add_system(restrict_boids);
-    update_systems.add_system(rotate_boids_by_velocity);
+    update_systems.insert_system(accumulate_boid_separation);
+    update_systems.insert_system(affect_motor_by_boid);
+    update_systems.insert_system(apply_motor);
+    update_systems.insert_system(apply_damping);
+    update_systems.insert_system(apply_velocity);
+    update_systems.insert_system(restrict_boids);
+    update_systems.insert_system(rotate_boids_by_velocity);
 
     update_systems.order_system(accumulate_boid_separation).before_system(affect_motor_by_boid);
     update_systems.order_system(affect_motor_by_boid).before_system(apply_motor);
@@ -61,7 +61,7 @@ struct BoidSettings {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    let render_state = world.resources().get::<RenderStateResource>().unwrap();
+    let render_api = world.resources().get::<RenderApiResource>().unwrap();
 
     let material = StandardMaterial::Lit(LitMaterial::default());
 
@@ -84,12 +84,12 @@ fn init(mut world: ExclusiveWorldAccess) {
         0, 2, 1,
     ];
 
-    let mesh = StandardMesh::new(render_state.device(), &vertices, &indices);
+    let mesh = render_api.create_mesh(&vertices, &indices);
 
     let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
     let mesh = world.resources_mut().get_mut::<AssetStorageResource::<StandardMesh>>().unwrap().insert(mesh);
     
-    let ec = &mut world.entities_components_mut();
+    let ec = &mut world.entities_mut();
 
     for _ in 0..100 {
         let entity = ec.create_entity();

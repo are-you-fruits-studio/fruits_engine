@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 use fruits_ecs::{Schedule, World, WorldBuilder};
+use fruits_modules::RenderApiResource;
 use gilrs::Gilrs;
-use wgpu::*;
-use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, WindowEvent}, event_loop::ActiveEventLoop, keyboard::PhysicalKey, window::{WindowAttributes, WindowId}};
+use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, WindowEvent}, event_loop::ActiveEventLoop, keyboard::PhysicalKey, window::{Window, WindowAttributes, WindowId}};
 
-use crate::{render_app_state::RenderAppState, InputResource, RenderStateResource};
+use crate::InputResource;
 
 enum EventLoopHandlerState {
     Created(WorldBuilder),
     Starting,
     Polling {
         world: World,
+        window: Arc<Window>,
         gamepad_host: Option<Gilrs>,
     },
 }
@@ -44,9 +45,11 @@ impl ApplicationHandler for EventLoopHandler {
             return;
         };
 
-        let state = create_render_app_state(event_loop);
+        let window = Arc::new(event_loop.create_window(WindowAttributes::default()).unwrap());
 
-        world.data_mut().resources_mut().insert(RenderStateResource::new(state)).ok().unwrap();
+        let state = RenderApiResource::new(Arc::clone(&window));
+
+        world.data_mut().resources_mut().insert(state).ok().unwrap();
         world.data_mut().resources_mut().insert(InputResource::new()).ok().unwrap();
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
@@ -59,6 +62,7 @@ impl ApplicationHandler for EventLoopHandler {
 
         self.0 = EventLoopHandlerState::Polling {
             world,
+            window,
             gamepad_host: gamepad_host.ok(),
         };
     }
@@ -91,25 +95,28 @@ impl ApplicationHandler for EventLoopHandler {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        let EventLoopHandlerState::Polling { world, gamepad_host } = &mut self.0 else {
+        let EventLoopHandlerState::Polling { world, window, gamepad_host } = &mut self.0 else {
             return;
         };
 
-        let render_state = world.data().resources_mut().get_mut::<RenderStateResource>().unwrap();
+        let mut world_data = world.data_mut();
+        let mut res = world_data.resources_mut();
 
-        if window_id != render_state.window().id() {
+        let render_state = res.get_mut::<RenderApiResource>().unwrap();
+
+        if window_id != window.id() {
             return;
         }
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::CursorMoved { position, .. } => {
-                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
+                let input = res.get_mut::<InputResource>().unwrap();
 
                 input.mouse.position = [position.x, position.y];
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
+                let input = res.get_mut::<InputResource>().unwrap();
 
                 match state {
                     ElementState::Pressed => input.mouse.press(button),
@@ -125,9 +132,7 @@ impl ApplicationHandler for EventLoopHandler {
                     return;
                 };
 
-                let world_data = world.data();
-
-                let input = world_data.resources_mut().get_mut::<InputResource>().unwrap();
+                let input = res.get_mut::<InputResource>().unwrap();
 
                 match event.state {
                     ElementState::Pressed => input.keyboard.press(key_code),
@@ -135,20 +140,10 @@ impl ApplicationHandler for EventLoopHandler {
                 }
             },
             WindowEvent::Resized(new_size) => {
-                if new_size.width <= 0 || new_size.height <= 0 {
-                    return;
-                }
-            
-                unsafe { *render_state.size_mut() = new_size };
-
-                let surface_config = unsafe { render_state.surface_config_mut() };
-                surface_config.width = new_size.width;
-                surface_config.height = new_size.height;
-                
-                render_state.surface().configure(&render_state.device(), render_state.surface_config());
+                render_state.resize([new_size.width, new_size.height]);
             }
             WindowEvent::RedrawRequested => {
-                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
+                let input = res.get_mut::<InputResource>().unwrap();
 
                 if let Some(gamepad_host) = gamepad_host {
                     while let Some(gamepad_evt) = gamepad_host.next_event() {
@@ -165,15 +160,17 @@ impl ApplicationHandler for EventLoopHandler {
                 // println!("ayf: redraw start");
                 world.execute_iteration(Schedule::Update);
 
-                world.data().events_mut().clear();
+                world.data_mut().events_mut().clear();
 
-                let input = world.data().resources_mut().get_mut::<InputResource>().unwrap();
+                let mut world_data = world.data_mut();
+                let mut res = world_data.resources_mut();
+
+                let input = res.get_mut::<InputResource>().unwrap();
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();
                 input.gamepad.clear_frame();
 
-                let render_state = world.data().resources_mut().get_mut::<RenderStateResource>().unwrap();
-                render_state.window().request_redraw();
+                window.request_redraw();
                 // println!("ayf: redraw end");
             }
             WindowEvent::Destroyed => {
@@ -184,62 +181,3 @@ impl ApplicationHandler for EventLoopHandler {
     }
 }
 
-fn create_render_app_state(event_loop: &ActiveEventLoop) -> RenderAppState {
-    let window = event_loop.create_window(WindowAttributes::default()).unwrap();
-    let window = Arc::new(window);
-
-    let size = window.inner_size();
-    
-    // todo: move wgpu initialization into ecs Start handle?
-    let instance = Instance::new(&InstanceDescriptor {
-        backends: Backends::PRIMARY,
-        ..Default::default()
-    });
-    
-    let surface = instance.create_surface(Arc::clone(&window)).unwrap();
-    
-    let adapter = pollster::block_on(instance.request_adapter(
-        &RequestAdapterOptions {
-            power_preference: PowerPreference::default(),
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        },
-    )).unwrap();
-    
-    let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
-        required_features: Features::empty(),
-        required_limits: Limits::default(),
-        label: None,
-        memory_hints: wgpu::MemoryHints::Performance,
-        ..Default::default()
-    })).unwrap();
-    
-    let surface_capabilities = surface.get_capabilities(&adapter);
-    
-    let surface_format = surface_capabilities.formats.iter()
-        .copied()
-        .find(|f| f.is_srgb())
-        .unwrap_or(surface_capabilities.formats[0]);
-    
-    let surface_config = SurfaceConfiguration {
-        usage: TextureUsages::RENDER_ATTACHMENT,
-        format: surface_format,
-        width: size.width,
-        height: size.height,
-        present_mode: surface_capabilities.present_modes[0],
-        alpha_mode: surface_capabilities.alpha_modes[0],
-        view_formats: vec![],
-        desired_maximum_frame_latency: 2,
-    };
-    
-    surface.configure(&device, &surface_config);
-    
-    RenderAppState::new(
-        device,
-        queue,
-        surface,
-        surface_config,
-        window,
-        size,
-    )
-}

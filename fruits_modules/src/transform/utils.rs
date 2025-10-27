@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use fruits_ecs::{EntitiesComponentsHolder, Entity, WorldQuery};
+use fruits_ecs::{EntitiesHolderMut, Entity, WorldQuery};
 
 use crate::{ChildComponent, ParentComponent};
 
@@ -167,13 +167,13 @@ pub fn hierarchy_iter_depth_first<R>(
     }
 }
 
-pub fn destroy_entity_and_children(ec: &mut EntitiesComponentsHolder, ent: Entity) {
-    destroy_entity_children(ec, ent);
+pub fn destroy_entity_and_children(mut ec: EntitiesHolderMut, ent: Entity) {
+    destroy_entity_children(ec.as_mut(), ent);
 
     ec.destroy_entity(ent);
 }
 
-pub fn destroy_entity_children(ec: &mut EntitiesComponentsHolder, ent: Entity) {
+pub fn destroy_entity_children(mut ec: EntitiesHolderMut, ent: Entity) {
     let mut check_buffer = Vec::new();
 
     if let Some(parent) = ec.get_component::<ParentComponent>(ent) {

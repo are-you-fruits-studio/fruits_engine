@@ -1,20 +1,20 @@
 use core::f32;
 use std::collections::HashMap;
 
-use fruits_app::RenderStateResource;
-use fruits_ecs::{Entity, ExclusiveWorldAccess, Res, ResMut, WithFilter, WorldData, WorldQuery};
+use fruits_ecs::{Entity, ExclusiveWorldAccess, Res, ResMut, WithFilter, WorldDataMut, WorldQuery};
 use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
 
-use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent, UiVal};
+use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent, RenderApiResource, RenderState, UiVal};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
 pub fn create_standard_render_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let render_state = world.resources().get::<RenderStateResource>().unwrap();
+    let render_state = world.resources().get::<RenderApiResource>().unwrap().raw();
+
     let depth_tex = world.resources().get::<DepthTextureResource>().unwrap();
 
     let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -33,33 +33,11 @@ pub fn create_standard_render_resource(
         ]
     });
 
-    let bind_group_layout_standard_texture = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Standard Texture Bind Group Layout"),
-        entries: &[
-            BindGroupLayoutEntry {
-                binding: 0,
-                count: None,
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-                ty: BindingType::Texture {
-                    sample_type: TextureSampleType::Float { filterable: true },
-                    view_dimension: TextureViewDimension::D2,
-                    multisampled: false,
-                },
-            },
-            BindGroupLayoutEntry {
-                binding: 1,
-                count: None,
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-                ty: BindingType::Sampler(SamplerBindingType::Filtering),
-            },
-        ],
-    });
-
     let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Standard Pipeline Layout"),
         bind_group_layouts: &[
             &bind_group_layout,
-            &bind_group_layout_standard_texture,
+            &render_state.render_data().bind_group_layout_standard_texture,
         ],
         push_constant_ranges: &[],
     });
@@ -225,7 +203,6 @@ pub fn create_standard_render_resource(
     });
 
     world.resources_mut().insert(StandardRenderResource {
-        bind_group_layout_standard_texture,
         pipeline_layout,
         instance_cpu_buffer,
         instance_buffer,
@@ -238,18 +215,15 @@ pub fn create_standard_render_resource(
 
     world.resources_mut().insert(BatchedVertexCpuBufferResource(batched_vertex_cpu_buffer)).ok().unwrap();
 
-    let texture_white = StandardTexture::from_world(
-        &world,
-        FilterMode::Linear,
-        [2, 2],
-        &[255; 16]
-    );
+    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+
+    let texture_white = render_api.create_texture(FilterMode::Linear, [2, 2], &[255; 16]);
 
     let texture_white = world.resources_mut().get_mut::<AssetStorageResource<StandardTexture>>().unwrap().insert(texture_white);
 
-    let (texture_text_px_5_7, font_px_5_7) = create_ascii_monospace_font(&mut world, include_bytes!("./assets/ascii_px_5x7.png"));
-    let (texture_text_px_8_8, font_px_8_8) = create_ascii_monospace_font(&mut world, include_bytes!("./assets/ascii_px_8x8.png"));
-    let (texture_text_px_8_12, font_px_8_12) = create_ascii_monospace_font(&mut world, include_bytes!("./assets/ascii_px_8x12.png"));
+    let (texture_text_px_5_7, font_px_5_7) = create_ascii_monospace_font(world.as_mut(), include_bytes!("./assets/ascii_px_5x7.png"));
+    let (texture_text_px_8_8, font_px_8_8) = create_ascii_monospace_font(world.as_mut(), include_bytes!("./assets/ascii_px_8x8.png"));
+    let (texture_text_px_8_12, font_px_8_12) = create_ascii_monospace_font(world.as_mut(), include_bytes!("./assets/ascii_px_8x12.png"));
 
     world.resources_mut().insert(StandardRenderAssetsResource {
         texture_white,
@@ -263,19 +237,16 @@ pub fn create_standard_render_resource(
 }
 
 fn create_ascii_monospace_font(
-    world: &mut WorldData,
+    mut world: WorldDataMut,
     texture_bytes: &[u8],
 ) -> (AssetHandle<StandardTexture>, AssetHandle<Font>) {
     let image = image::load_from_memory(texture_bytes).unwrap();
 
     let texture_dimensions: [u32; 2] = image.dimensions().into();
+    
+    let render_api = world.resources().get::<RenderApiResource>().unwrap();
 
-    let texture = StandardTexture::from_world(
-        world,
-        FilterMode::Nearest,
-        texture_dimensions,
-        image.as_bytes(),
-    );
+    let texture = render_api.create_texture(FilterMode::Nearest, texture_dimensions, image.as_bytes());
 
     let text_chars_count = [16, 8];
     let single_char_uv_size = [1.0 / text_chars_count[0] as f32, 1.0 / text_chars_count[1] as f32];
@@ -296,7 +267,7 @@ fn create_ascii_monospace_font(
     
     let font = Font {
         texture: texture.clone(),
-        mising_character_uv: characters_uv[&'?'],
+        missing_character_uv: characters_uv[&'?'],
         characters_uv: characters_uv,
         character_ratio: (text_chars_count[1] as f32 / text_chars_count[0] as f32) * (texture_dimensions[0] as f32 / texture_dimensions[1] as f32),
     };
@@ -309,7 +280,7 @@ fn create_ascii_monospace_font(
 pub fn recreate_depth_texture_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let render_state = world.resources().get::<RenderStateResource>().unwrap();
+    let render_state = world.resources().get::<RenderApiResource>().unwrap().raw();
     let surface_config = render_state.surface_config();
 
     let mut contains_depth = false;
@@ -374,7 +345,7 @@ pub fn recreate_depth_texture_resource(
 pub fn create_gizmos_render_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let render_state = world.resources().get::<RenderStateResource>().unwrap();
+    let render_state = world.resources().get::<RenderApiResource>().unwrap().raw();
 
     let vertices_cpu_buffer = vec![[Vec4::splat(0.0); 2]; GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
     let colors_cpu_buffer = vec![Vec4::splat(0.0); GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
@@ -512,7 +483,7 @@ pub fn create_gizmos_render_resource(
 }
 
 pub fn update_camera_uniform(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     mut standard_render_res: ResMut<StandardRenderResource>,
     query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
@@ -526,9 +497,9 @@ pub fn update_camera_uniform(
 
     let (transform, camera) = query.iter().next().unwrap();
 
-    let window_size = render_state.size();
+    let window_size = render_state.raw().size();
 
-    let aspect = window_size.width as f32 / window_size.height as f32;
+    let aspect = window_size[0] as f32 / window_size[1] as f32;
 
     let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
 
@@ -540,13 +511,13 @@ pub fn update_camera_uniform(
 
 pub fn update_text_batched_mesh(
     mut q: WorldQuery<(&TextComponent, &mut BatchedMeshComponent, Option<&GlobalRectComponent>)>,
-    render_res: Res<RenderStateResource>,
+    render_res: Res<RenderApiResource>,
     font_assets: Res<AssetStorageResource<Font>>,
 ) {
     const VERTICES_PER_CHAR: usize = 4;
     const INDICES_PER_CHAR: usize = 6;
 
-    let window_size: [u32; 2] = render_res.size().into();
+    let window_size: [u32; 2] = render_res.raw().size().into();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
     let normal = [0.0, 0.0, -1.0];
@@ -596,7 +567,7 @@ pub fn update_text_batched_mesh(
         mesh_c.indices.resize((chars_count * INDICES_PER_CHAR) as u64, 0);
 
         for (i, character) in text_c.text.chars().enumerate() {
-            let char_uvs = font.characters_uv.get(&character).unwrap_or(&font.mising_character_uv);
+            let char_uvs = font.characters_uv.get(&character).unwrap_or(&font.missing_character_uv);
             
             let pos = [
                 start_pos + Vec2::new((i + 0) as f32, 0.0) * quad_scale + Vec2::X * horizontal_spacing * i as f32,
@@ -778,10 +749,10 @@ pub fn update_masked_batched_mesh(
 }
 
 pub fn request_surface_texture(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     mut surface_texture: ResMut<SurfaceTextureResource>,
 ) {
-    surface_texture.texture = render_state.surface().get_current_texture().ok();
+    surface_texture.texture = render_state.raw().surface().get_current_texture().ok();
 }
 
 pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
@@ -791,9 +762,11 @@ pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
 }
 
 pub fn clear_depth(
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     depth_res: Res<DepthTextureResource>,
 ) {
+    let render_state = render_state.raw();
+
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Clear Depth Encoder"),
     });
@@ -819,7 +792,7 @@ pub fn clear_depth(
 
 pub fn render_meshes_and_materials_instanced(
     query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     standard_render_assets_res: Res<StandardRenderAssetsResource>,
@@ -833,6 +806,8 @@ pub fn render_meshes_and_materials_instanced(
         return;
     }
 
+    let render_state = render_state.raw();
+
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
@@ -840,8 +815,8 @@ pub fn render_meshes_and_materials_instanced(
     let window_size = render_state.size();
 
     let window_to_clip_mat = utils::create_window_to_clip_matrix(
-        window_size.width as f32,
-        window_size.height as f32,
+        window_size[0] as f32,
+        window_size[1] as f32,
         screen_space_res.near,
         screen_space_res.far,
     );
@@ -865,6 +840,8 @@ pub fn render_meshes_and_materials_instanced(
     for ((mesh, material), matrices) in instanced_matrices.iter() {
         let Some(mesh) = meshes.get(&mesh) else { continue; };
         let Some(material) = materials.get(&material) else { continue; };
+
+        let mesh = mesh.native();
 
         let (render_pipeline, bind_group, bind_group_tex) = match material {
             StandardMaterial::Lit(material) => {
@@ -890,8 +867,8 @@ pub fn render_meshes_and_materials_instanced(
                 render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
                 let bind_group_tex = match &material.albedo_tex {
-                    Some(albedo_tex) => textures.get(albedo_tex).unwrap().bind_group(),
-                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                    Some(albedo_tex) => &textures.get(albedo_tex).unwrap().native().bind_group,
+                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
                 };
 
                 (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
@@ -915,8 +892,8 @@ pub fn render_meshes_and_materials_instanced(
                 render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
                 let bind_group_tex = match &material.color_tex {
-                    Some(color_tex) => textures.get(color_tex).unwrap().bind_group(),
-                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                    Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
+                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
                 };
 
                 (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
@@ -959,10 +936,10 @@ pub fn render_meshes_and_materials_instanced(
                 render_pass.set_pipeline(render_pipeline);
                 render_pass.set_bind_group(0, bind_group, &[]);
                 render_pass.set_bind_group(1, bind_group_tex, &[]);
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.index_buffer().slice(..), IndexFormat::Uint16);
-                render_pass.draw_indexed(0..(mesh.indices_count() as u32), 0, 0..(matrices.len() as u32));
+                render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
+                render_pass.draw_indexed(0..(mesh.indices_count as u32), 0, 0..(matrices.len() as u32));
             }
 
             render_state.queue().submit(std::iter::once(encoder.finish()));
@@ -972,7 +949,7 @@ pub fn render_meshes_and_materials_instanced(
 
 pub fn render_meshes_and_materials_batched(
     query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     standard_render_assets_res: Res<StandardRenderAssetsResource>,
@@ -986,6 +963,8 @@ pub fn render_meshes_and_materials_batched(
         return;
     }
 
+    let render_state = render_state.raw();
+
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
@@ -993,8 +972,8 @@ pub fn render_meshes_and_materials_batched(
     let window_size = render_state.size();
 
     let window_to_clip_mat = utils::create_window_to_clip_matrix(
-        window_size.width as f32,
-        window_size.height as f32,
+        window_size[0] as f32,
+        window_size[1] as f32,
         screen_space_res.near,
         screen_space_res.far,
     );
@@ -1046,8 +1025,8 @@ pub fn render_meshes_and_materials_batched(
                 render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
                 let bind_group_tex = match &material.albedo_tex {
-                    Some(albedo_tex) => textures.get(albedo_tex).unwrap().bind_group(),
-                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                    Some(albedo_tex) => &textures.get(albedo_tex).unwrap().native().bind_group,
+                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
                 };
 
                 (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
@@ -1071,8 +1050,8 @@ pub fn render_meshes_and_materials_batched(
                 render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
                 let bind_group_tex = match &material.color_tex {
-                    Some(color_tex) => textures.get(color_tex).unwrap().bind_group(),
-                    None => textures.get(&standard_render_assets_res.texture_white).unwrap().bind_group(),
+                    Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
+                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
                 };
 
                 (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
@@ -1125,7 +1104,7 @@ pub fn render_meshes_and_materials_batched(
         }
 
         fn submit_render(
-            render_state: &RenderStateResource,
+            render_state: &RenderState,
             standard_render_res: &StandardRenderResource,
             batched_cpu_slice: &[StandardVertex],
             render_target_view: &TextureView, 
@@ -1181,14 +1160,14 @@ pub fn render_gizmos(
     mut gizmos_render_res: ResMut<GizmosRenderResource>,
     surface_texture: Res<SurfaceTextureResource>,
     screen_space_res: Res<ScreenSpaceResource>,
-    render_state: Res<RenderStateResource>,
+    render_state: Res<RenderApiResource>,
     camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
 
-    let render_state = &*render_state;
+    let render_state = render_state.raw();
 
     let window_size = render_state.size();
 
@@ -1200,14 +1179,14 @@ pub fn render_gizmos(
         let transform = match space {
             RenderSpace::Clip => Mat4::<f32>::IDENTITY,
             RenderSpace::Window => {
-                utils::create_window_to_clip_matrix(window_size.width as f32, window_size.height as f32, screen_space_res.near, screen_space_res.far)
+                utils::create_window_to_clip_matrix(window_size[0] as f32, window_size[1] as f32, screen_space_res.near, screen_space_res.far)
             },
             RenderSpace::World => {
                 let Some((transform, camera)) = camera_query.iter().next() else {
                     continue;
                 };
 
-                let aspect = window_size.width as f32 / window_size.height as f32;
+                let aspect = window_size[0] as f32 / window_size[1] as f32;
 
                 let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
 

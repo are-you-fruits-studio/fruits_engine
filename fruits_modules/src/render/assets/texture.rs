@@ -1,19 +1,45 @@
-use fruits_app::RenderStateResource;
-use fruits_ecs::WorldData;
-use wgpu::{util::{DeviceExt, TextureDataOrder}, wgt::TextureViewDescriptor, AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Extent3d, FilterMode, SamplerDescriptor, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+use std::fmt::Debug;
 
-use crate::render::StandardRenderResource;
+use fruits_ffi::FfiDroppable;
+use wgpu::{util::{DeviceExt, TextureDataOrder}, wgt::TextureViewDescriptor, AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Extent3d, SamplerDescriptor, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+
+use crate::RenderState;
+
+pub use wgpu::FilterMode;
 
 #[derive(Debug)]
+pub(crate) struct StandardTextureNative {
+    pub(crate) texture: Texture,
+    pub(crate) bind_group: BindGroup,
+}
+
+#[repr(transparent)]
 pub struct StandardTexture {
-    texture: Texture,
-    bind_group: BindGroup,
+    native: FfiDroppable,
 }
 
 impl StandardTexture {
-    pub fn from_world(world: &WorldData, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8]) -> Self {
-        let render_state = world.resources().get::<RenderStateResource>().unwrap();
-        let standard_render_resource = world.resources().get::<StandardRenderResource>().unwrap();
+    pub(crate) fn new(render_state: &RenderState, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8]) -> Self {
+        let px_count = (dimensions[0] * dimensions[1]) as usize;
+
+        let bytes_per_pixel = data.len() / px_count;
+
+        let mut data = data;
+        let mut data_vec = Vec::new();
+
+        if bytes_per_pixel < 4 {
+            for i in 0..px_count {
+                let mut px = [0, 0, 0, 255];
+
+                for j in 0..bytes_per_pixel {
+                    px[j] = data[bytes_per_pixel * i + j];
+                }
+
+                data_vec.extend_from_slice(&px);
+            }
+
+            data = data_vec.as_slice();
+        }
 
         let texture = render_state.device().create_texture_with_data(render_state.queue(), &TextureDescriptor {
             label: None,
@@ -41,31 +67,40 @@ impl StandardTexture {
             mipmap_filter: filter_mode,
             ..Default::default()
         });
+        
+        let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &render_state.render_data().bind_group_layout_standard_texture,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&texture_view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&sampler),
+                }
+            ]
+        });
 
         Self {
-            texture: texture,
-            bind_group: render_state.device().create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &standard_render_resource.bind_group_layout_standard_texture,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: BindingResource::TextureView(&texture_view),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::Sampler(&sampler),
-                    }
-                ]
-            })
+            native: FfiDroppable::new(StandardTextureNative {
+                texture,
+                bind_group,
+            }),
         }
     }
 
-    pub fn texture(&self) -> &Texture {
-        &self.texture
-    }
-
-    pub fn bind_group(&self) -> &BindGroup {
-        &self.bind_group
+    pub(crate) fn native(&self) -> &StandardTextureNative {
+        unsafe { &*(self.native.get() as *const StandardTextureNative) }
     }
 }
+
+impl Debug for StandardTexture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StandardTexture").field("native", &self.native.get()).finish()
+    }
+}
+
+unsafe impl Send for StandardTexture where StandardTextureNative: Send { }
+unsafe impl Sync for StandardTexture where StandardTextureNative: Sync { }

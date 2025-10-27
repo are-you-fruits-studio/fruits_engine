@@ -4,16 +4,16 @@ fn main() {
     let mut app = App::new();
     let world = app.ecs_mut();
 
-    add_defult_modules_to(world);
-    fps_counter::add_module_to(world);
+    add_defult_modules_to(world.as_mut());
+    fps_counter::add_module_to(world.as_mut());
 
-    world.behavior_mut().get_mut(Schedule::Start).add_system(init);
+    world.behavior_mut().get_mut(Schedule::Start).insert_system(init);
 
     world.behavior_mut().get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
 
-    let world_data = world.data_mut();
+    let mut world_data = world.data_mut();
 
-    let ec = world_data.entities_components_mut();
+    let mut ec = world_data.entities_mut();
 
     let entity = ec.create_entity();
     ec.add_component(entity, GlobalTransform {
@@ -53,7 +53,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         alpha_threshold: 0.5,
     }));
     
-    let ec = world.entities_components_mut();
+    let mut ec = world.entities_mut();
 
     let ent1 = ec.create_entity();
     let ent2 = ec.create_entity();

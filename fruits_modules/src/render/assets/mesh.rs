@@ -1,10 +1,6 @@
+use fruits_ffi::FfiDroppable;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use wgpu::{util::DeviceExt, Buffer, Device};
-
-pub struct StandardMeshData {
-    pub vertices: Vec<StandardVertex>,
-    pub indices: Vec<u16>,
-}
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug)]
@@ -35,14 +31,19 @@ impl StandardVertex {
     }
 }
 
+pub(crate) struct StandardMeshNative {
+    pub(crate) vertex_buffer: Buffer,
+    pub(crate) index_buffer: Buffer,
+    pub(crate) indices_count: usize,
+}
+
+#[repr(transparent)]
 pub struct StandardMesh {
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    indices_count: usize,
+    native: FfiDroppable,
 }
 
 impl StandardMesh {
-    pub fn new(device: &Device, vertices: &[StandardVertex], indices: &[u16]) -> Self {
+    pub(crate) fn new(device: &Device, vertices: &[StandardVertex], indices: &[u16]) -> Self {
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
@@ -60,39 +61,18 @@ impl StandardMesh {
         );
 
         Self {
-            index_buffer,
-            vertex_buffer,
-            indices_count: indices.len(),
+            native: FfiDroppable::new(StandardMeshNative {
+                index_buffer,
+                vertex_buffer,
+                indices_count: indices.len(),
+            }),
         }
     }
 
-    pub fn new_temp_predefined(device: &Device) -> Self {
-        let vertices: &[StandardVertex] = &[
-            StandardVertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.1, 0.0, 0.5, 0.0], ..Default::default() }, // A
-            StandardVertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5, 0.0], ..Default::default() }, // B
-            StandardVertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.5, 0.5, 0.0], ..Default::default() }, // C
-            StandardVertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5, 0.0], ..Default::default() }, // D
-            StandardVertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5, 0.0], ..Default::default() }, // E
-        ];
-
-        let indices: &[u16] = &[
-            0, 1, 4,
-            1, 2, 4,
-            2, 3, 4,
-        ];
-
-        Self::new(device, vertices, indices)
-    }
-
-    pub fn vertex_buffer(&self) -> &Buffer {
-        &self.vertex_buffer
-    }
-
-    pub fn index_buffer(&self) -> &Buffer {
-        &self.index_buffer
-    }
-    
-    pub fn indices_count(&self) -> usize {
-        self.indices_count
+    pub(crate) fn native(&self) -> &StandardMeshNative {
+        unsafe { &*(self.native.get() as *const StandardMeshNative) }
     }
 }
+
+unsafe impl Send for StandardMesh where StandardMeshNative: Send { }
+unsafe impl Sync for StandardMesh where StandardMeshNative: Sync { }

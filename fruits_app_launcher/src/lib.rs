@@ -1,0 +1,47 @@
+use fruits_app::App;
+use fruits_ecs::{AppInitCtxFfi, WorldBuilderMut};
+
+pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
+    let mut app = App::new();
+
+    fruits_modules::add_defult_modules_to(app.ecs_mut().as_mut());
+
+    f(app.ecs_mut().as_mut());
+
+    app.run();
+}
+
+pub fn launch_app_dynamically() {
+    let lib = unsafe {
+        libloading::Library::new("app").unwrap()
+    };
+    
+    {
+        let init_app_symbol = unsafe {
+            lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point").unwrap()
+        };
+
+        let mut app = App::new();
+
+        {
+            fruits_modules::add_defult_modules_to(app.ecs_mut().as_mut());
+        }
+
+        unsafe {
+            let (world_builder_ffi, types) = app.ecs_mut().into_raw_parts();
+
+            let types = types.registry();
+
+            let ctx = AppInitCtxFfi {
+                world_mut: &raw mut *world_builder_ffi,
+                types_ref: &raw const *types,
+            };
+
+            init_app_symbol(ctx);
+        }
+
+        app.run();
+    }
+
+    lib.close().unwrap();
+}

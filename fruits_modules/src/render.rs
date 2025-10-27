@@ -13,11 +13,11 @@ pub use self::{
     systems::*,
 };
 
-use fruits_ecs::{Schedule, WorldBuilder};
+use fruits_ecs::{Schedule, WorldBuilderMut};
 
 pub const SYSTEM_GROUP_RENDER: &'static str = "fruits_render";
 
-pub(crate) fn add_module_to(world: &mut WorldBuilder) {
+pub(crate) fn add_module_to(mut world: WorldBuilderMut) {
     world.data_mut().resources_mut().insert(SurfaceTextureResource { texture: None, }).ok().unwrap();
     world.data_mut().resources_mut().insert(AssetStorageResource::<StandardMaterial>::new()).ok().unwrap();
     world.data_mut().resources_mut().insert(AssetStorageResource::<StandardMesh>::new()).ok().unwrap();
@@ -26,32 +26,34 @@ pub(crate) fn add_module_to(world: &mut WorldBuilder) {
     world.data_mut().resources_mut().insert(GizmosResource::default()).ok().unwrap();
     world.data_mut().resources_mut().insert(ScreenSpaceResource::default()).ok().unwrap();
 
-    let start = world.behavior_mut().get_mut(Schedule::Start);
+    let mut world_behavior = world.behavior_mut();
+
+    let mut start = world_behavior.get_mut(Schedule::Start);
 
     start.group(SYSTEM_GROUP_RENDER)
-        .add_child_system(create_standard_render_resource)
-        .add_child_system(recreate_depth_texture_resource)
-        .add_child_system(create_gizmos_render_resource);
+        .insert_child_system(create_standard_render_resource)
+        .insert_child_system(recreate_depth_texture_resource)
+        .insert_child_system(create_gizmos_render_resource);
 
     start.order_system(recreate_depth_texture_resource).before_system(create_standard_render_resource);
 
-    let update = world.behavior_mut().get_mut(Schedule::Update);
+    let mut update = world_behavior.get_mut(Schedule::Update);
 
     update.group(SYSTEM_GROUP_RENDER)
-        .add_child_system(request_surface_texture)
-        .add_child_group("fruits_render_stuff")
-        .add_child_system(present_surface);
+        .insert_child_system(request_surface_texture)
+        .insert_child_group("fruits_render_stuff")
+        .insert_child_system(present_surface);
 
     update.group("fruits_render_stuff")
-        .add_child_system(update_camera_uniform)
-        .add_child_system(update_text_batched_mesh)
-        .add_child_system(update_image_batched_mesh)
-        .add_child_system(update_masked_batched_mesh)
-        .add_child_system(recreate_depth_texture_resource)
-        .add_child_system(clear_depth)
-        .add_child_system(render_meshes_and_materials_instanced)
-        .add_child_system(render_meshes_and_materials_batched)
-        .add_child_system(render_gizmos);
+        .insert_child_system(update_camera_uniform)
+        .insert_child_system(update_text_batched_mesh)
+        .insert_child_system(update_image_batched_mesh)
+        .insert_child_system(update_masked_batched_mesh)
+        .insert_child_system(recreate_depth_texture_resource)
+        .insert_child_system(clear_depth)
+        .insert_child_system(render_meshes_and_materials_instanced)
+        .insert_child_system(render_meshes_and_materials_batched)
+        .insert_child_system(render_gizmos);
     
     update.order_system(update_camera_uniform).before_system(render_meshes_and_materials_instanced);
     update.order_system(render_meshes_and_materials_instanced).before_system(render_meshes_and_materials_batched);

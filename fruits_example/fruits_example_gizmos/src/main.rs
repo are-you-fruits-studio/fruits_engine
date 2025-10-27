@@ -3,12 +3,14 @@ use fruits_engine::prelude::*;
 fn main() {
     let mut app = App::new();
 
-    add_defult_modules_to(app.ecs_mut());
+    add_defult_modules_to(app.ecs_mut().as_mut());
 
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(move_camera);
-    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).add_system(update_system);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(move_camera);
+    app.ecs_mut().behavior_mut().get_mut(Schedule::Update).insert_system(update_system);
 
-    let ec = app.ecs_mut().data_mut().entities_components_mut();
+    let mut world_data = app.ecs_mut().data_mut();
+
+    let mut ec = world_data.entities_mut();
     
     let camera = ec.create_entity();
 
