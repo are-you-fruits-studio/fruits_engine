@@ -1,4 +1,33 @@
-workspace = { members = [ "fruits_alloc_monitor", "fruits_app", "fruits_example/fruits_example_cubes", "fruits_example/fruits_example_boids", "fruits_math", "fruits_modules", "fruits_utils", "hlib_test" , "fruits_ecs_macros", "fruits_serialization", "fruits_gui_old", "fruits_ecs", "fruits_example/fruits_example_ecs", "fruits_example/fruits_example_gizmos", "fruits_swizzling", "fruits_example/fruits_example_collisions", "fruits_reflection", "fruits_example/fruits_example_text", "fruits_debug", "fruits_example/fruits_example_ui", "fruits_reflection_macros", "fruits_gui", "fruits_ffi", "fruits_ecs_core", "fruits_ecs_core_sample_dylib", "fruits_math_macros", "fruits_serialization_macros"] }
+[workspace]
+members = [
+    "fruits_alloc_monitor",
+    "fruits_app",
+    "fruits_example/fruits_example_cubes",
+    "fruits_example/fruits_example_boids",
+    "fruits_math",
+    "fruits_modules",
+    "fruits_utils",
+    "hlib_test" ,
+    "fruits_ecs_macros",
+    "fruits_serialization",
+    "fruits_gui_old",
+    "fruits_ecs",
+    "fruits_example/fruits_example_ecs",
+    "fruits_example/fruits_example_gizmos",
+    "fruits_swizzling",
+    "fruits_example/fruits_example_collisions",
+    "fruits_reflection",
+    "fruits_example/fruits_example_text",
+    "fruits_debug",
+    "fruits_example/fruits_example_ui",
+    "fruits_reflection_macros",
+    "fruits_gui",
+    "fruits_ffi",
+    "fruits_ecs_core",
+    "fruits_ecs_core_sample_dylib",
+    "fruits_math_macros",
+    "fruits_serialization_macros"
+]
 
 [package]
 name = "fruits_engine"
