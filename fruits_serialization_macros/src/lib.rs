@@ -74,7 +74,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
             for variant in data_enum.variants {
                 let variant_name = variant.ident.to_string();
 
-                write!(to_json_impl, r#"SomeType::{variant_name} => "{variant_name}","#).unwrap();
+                write!(to_json_impl, r#"Self::{variant_name} => "{variant_name}","#).unwrap();
 
                 write!(from_json_impl, r#""{variant_name}" => Self::{variant_name},"#).unwrap();
 
