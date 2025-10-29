@@ -196,3 +196,9 @@ impl UiVal {
         })
     }
 }
+
+impl Default for UiVal {
+    fn default() -> Self {
+        Self::px(0.0)
+    }
+}
