@@ -117,11 +117,15 @@ impl<'e> EntitiesHolderMut<'e> {
         entities_holder_get_component_ptr(self.entities, self.types, entity)
     }
 
-    pub fn get_component<C: 'static>(&self, entity: Entity) -> Option<&C> {
+    pub fn get_component<'r, C: 'static>(&'r self, entity: Entity) -> Option<&'r C>
+        where 'e: 'r
+    {
         entities_holder_get_component(self.entities, self.types, entity)
     }
 
-    pub fn get_component_mut<C: 'static>(&mut self, entity: Entity) -> Option<&mut C> {
+    pub fn get_component_mut<'r, C: 'static>(&'r mut self, entity: Entity) -> Option<&'r mut C>
+        where 'e: 'r
+    {
         entities_holder_get_component_mut(self.entities, self.types, entity)
     }
 
