@@ -130,10 +130,8 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                         chars.next();
                         buf.push(c);
                         contains_dot = true;
-                    } else if c.is_whitespace() || c == ',' || c == '}' {
-                        return exit_fn();
                     } else {
-                        return None;
+                        return exit_fn();
                     }
 
                     break 'm State::InsideNumber { buf, contains_dot };
