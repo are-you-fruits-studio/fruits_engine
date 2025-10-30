@@ -280,8 +280,11 @@ fn create_ascii_monospace_font(
 pub fn recreate_depth_texture_resource(
     mut world: ExclusiveWorldAccess,
 ) {
-    let render_state = world.resources().get::<RenderApiResource>().unwrap().raw();
-    let surface_config = render_state.surface_config();
+    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+
+    let screen_size = render_api.size();
+    
+    let render_state = render_api.raw();
 
     let mut contains_depth = false;
 
@@ -289,8 +292,8 @@ pub fn recreate_depth_texture_resource(
         contains_depth = true;
 
         let are_same_size = {
-            depth_res.texture.size().width == surface_config.width
-            && depth_res.texture.size().height == surface_config.height
+            depth_res.texture.size().width == screen_size[0]
+            && depth_res.texture.size().height == screen_size[1]
         };
 
         if are_same_size {
@@ -301,8 +304,8 @@ pub fn recreate_depth_texture_resource(
     let texture = render_state.device().create_texture(&TextureDescriptor {
         label: Some("Depth Buffer"),
         size: Extent3d {
-            width: surface_config.width,
-            height: surface_config.height,
+            width: screen_size[0],
+            height: screen_size[1],
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
@@ -497,7 +500,7 @@ pub fn update_camera_uniform(
 
     let (transform, camera) = query.iter().next().unwrap();
 
-    let window_size = render_state.raw().size();
+    let window_size = render_state.size();
 
     let aspect = window_size[0] as f32 / window_size[1] as f32;
 
@@ -517,7 +520,7 @@ pub fn update_text_batched_mesh(
     const VERTICES_PER_CHAR: usize = 4;
     const INDICES_PER_CHAR: usize = 6;
 
-    let window_size: [u32; 2] = render_res.raw().size().into();
+    let window_size = render_res.size();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
     let normal = [0.0, 0.0, -1.0];
@@ -749,10 +752,10 @@ pub fn update_masked_batched_mesh(
 }
 
 pub fn request_surface_texture(
-    render_state: Res<RenderApiResource>,
+    render_api: Res<RenderApiResource>,
     mut surface_texture: ResMut<SurfaceTextureResource>,
 ) {
-    surface_texture.texture = render_state.raw().surface().get_current_texture().ok();
+    surface_texture.texture = render_api.raw().surface().get_current_texture().ok();
 }
 
 pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
@@ -762,10 +765,10 @@ pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
 }
 
 pub fn clear_depth(
-    render_state: Res<RenderApiResource>,
+    render_api: Res<RenderApiResource>,
     depth_res: Res<DepthTextureResource>,
 ) {
-    let render_state = render_state.raw();
+    let render_state = render_api.raw();
 
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Clear Depth Encoder"),
@@ -792,7 +795,7 @@ pub fn clear_depth(
 
 pub fn render_meshes_and_materials_instanced(
     query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
-    render_state: Res<RenderApiResource>,
+    render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     standard_render_assets_res: Res<StandardRenderAssetsResource>,
@@ -806,7 +809,7 @@ pub fn render_meshes_and_materials_instanced(
         return;
     }
 
-    let render_state = render_state.raw();
+    let render_state = render_api.raw();
 
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
@@ -949,7 +952,7 @@ pub fn render_meshes_and_materials_instanced(
 
 pub fn render_meshes_and_materials_batched(
     query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
-    render_state: Res<RenderApiResource>,
+    render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     standard_render_assets_res: Res<StandardRenderAssetsResource>,
@@ -963,7 +966,7 @@ pub fn render_meshes_and_materials_batched(
         return;
     }
 
-    let render_state = render_state.raw();
+    let render_state = render_api.raw();
 
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
@@ -1160,14 +1163,14 @@ pub fn render_gizmos(
     mut gizmos_render_res: ResMut<GizmosRenderResource>,
     surface_texture: Res<SurfaceTextureResource>,
     screen_space_res: Res<ScreenSpaceResource>,
-    render_state: Res<RenderApiResource>,
+    render_api: Res<RenderApiResource>,
     camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
     let Some(surface_texture) = &surface_texture.texture else { return; }; 
 
     let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
 
-    let render_state = render_state.raw();
+    let render_state = render_api.raw();
 
     let window_size = render_state.size();
 

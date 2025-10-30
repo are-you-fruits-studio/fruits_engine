@@ -1,4 +1,4 @@
-use std::{any::{Any, TypeId}, collections::HashMap, hash::Hash};
+use std::{any::{Any, TypeId}, collections::{BTreeMap, HashMap, HashSet}, hash::Hash};
 
 use crate::{JsonObject, JsonValue};
 
@@ -265,5 +265,94 @@ impl<K: 'static + JsonSerializable + Eq + Hash, V: JsonSerializable> JsonSeriali
 
             self.insert(key, val);
         }
+    }
+}
+
+impl<K: 'static + JsonSerializable + Ord, V: JsonSerializable> JsonSerializable for BTreeMap<K, V> {
+    fn to_json(&self) -> JsonValue {
+        let mut json = JsonObject::new();
+
+        for (key, val) in self {
+            let key_json = key.to_json();
+
+            let key_str = match key_json {
+                JsonValue::Null => String::from("null"),
+                JsonValue::Bool(v) => v.to_string(),
+                JsonValue::Number(v) => v.to_string(),
+                JsonValue::String(v) => v.clone(),
+                _ => String::new(),
+            };
+
+            json.push_field(key_str, val.to_json()).ok().unwrap();
+        }
+
+        json.into()
+    }
+
+    fn from_json(json: &JsonValue) -> Option<Self> {
+        let JsonValue::Object(v) = json else {
+            return None;
+        };
+
+        let mut map = Self::new();
+
+        for (key, val) in v.fields() {
+            let key_json = JsonValue::parse(&mut std::iter::once('"').chain(key.chars()).chain(std::iter::once('"')))?;
+            map.insert(K::from_json(&key_json)?, V::from_json(val)?);
+        }
+
+        Some(map)
+    }
+
+    fn fill_partially_from_json(&mut self, json: &JsonValue) {
+        let JsonValue::Object(v) = json else {
+            return;
+        };
+
+        self.clear();
+
+        for (key, val) in v.fields() {
+            let Some(key_json) = JsonValue::parse(&mut std::iter::once('"').chain(key.chars()).chain(std::iter::once('"'))) else { continue; };
+            let Some(key) = K::from_json(&key_json) else { continue; };
+            let Some(val) = V::from_json(val) else { continue; };
+
+            self.insert(key, val);
+        }
+    }
+}
+
+impl<T: 'static + JsonSerializable + Eq + Hash> JsonSerializable for HashSet<T> {
+    fn to_json(&self) -> JsonValue {
+        let mut vec = Vec::with_capacity(self.len());
+
+        for item in self {
+            vec.push(item.to_json());
+        }
+
+        JsonValue::Array(vec)
+    }
+
+    fn from_json(json: &JsonValue) -> Option<Self> {
+        let JsonValue::Array(v) = json else {
+            return None;
+        };
+
+        let mut set = HashSet::new();
+
+        for item in v {
+            set.insert(T::from_json(item)?);
+        }
+
+        Some(set)
+    }
+                
+    fn fill_partially_from_json(&mut self, json: &JsonValue) {
+        let JsonValue::Array(v) = json else {
+            return;
+        };
+
+        self.clear();
+
+        self.extend(v.iter().filter_map(|i| T::from_json(i)));
     }
 }
