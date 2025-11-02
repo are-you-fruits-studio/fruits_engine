@@ -846,62 +846,14 @@ pub fn render_meshes_and_materials_instanced(
 
         let mesh = mesh.native();
 
-        let (render_pipeline, bind_group, bind_group_tex) = match material {
-            StandardMaterial::Lit(material) => {
-                let lit_data = &standard_render_res.lit;
-                
-                let world_to_clip = match material.space {
-                    RenderSpace::Clip => Mat4::IDENTITY,
-                    RenderSpace::Window => window_to_clip_mat,
-                    RenderSpace::World => standard_render_res.camera_proj_matrix,
-                };
-
-                let uniform = LitUniform {
-                    albedo_color: material.albedo_color,
-                    metallic: material.metallic,
-                    emission_color: material.emission_color,
-                    roughness: material.roughness,
-                    alpha_threshold: material.alpha_threshold,
-                    camera_position_world: standard_render_res.camera_pos,
-                    world_to_clip,
-                    _padding: Default::default(),
-                };
-
-                render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
-
-                let bind_group_tex = match &material.albedo_tex {
-                    Some(albedo_tex) => &textures.get(albedo_tex).unwrap().native().bind_group,
-                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
-                };
-
-                (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
-            },
-            StandardMaterial::Unlit(material) => {
-                let unlit_data = &standard_render_res.unlit;
-
-                let world_to_clip = match material.space {
-                    RenderSpace::Clip => Mat4::IDENTITY,
-                    RenderSpace::Window => window_to_clip_mat,
-                    RenderSpace::World => standard_render_res.camera_proj_matrix,
-                };
-
-                let uniform = UnlitUniform {
-                    world_to_clip,
-                    color: material.color,
-                    alpha_threshold: material.alpha_threshold,
-                    _padding: Default::default(),
-                };
-
-                render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
-
-                let bind_group_tex = match &material.color_tex {
-                    Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
-                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
-                };
-
-                (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
-            },
-        };
+        let (render_pipeline, bind_group, bind_group_tex) = utils::get_render_data(
+            material,
+            &standard_render_res,
+            render_state,
+            &textures,
+            &standard_render_assets_res,
+            window_to_clip_mat,
+        );
         
         for matrices in matrices.chunks(STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX) {
             let matrices_bytes = fruits_utils::mem::as_bytes_slice(matrices);
@@ -939,8 +891,8 @@ pub fn render_meshes_and_materials_instanced(
                 render_pass.set_pipeline(render_pipeline);
                 render_pass.set_bind_group(0, bind_group, &[]);
                 render_pass.set_bind_group(1, bind_group_tex, &[]);
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
                 render_pass.draw_indexed(0..(mesh.indices_count as u32), 0, 0..(matrices.len() as u32));
             }
@@ -1004,62 +956,14 @@ pub fn render_meshes_and_materials_batched(
     for (material, matrices_and_meshes) in batched_meshes_by_material {
         let Some(material) = materials.get(&material) else { continue; };
         
-        let (render_pipeline, bind_group, bind_group_tex) = match material {
-            StandardMaterial::Lit(material) => {
-                let lit_data = &standard_render_res.lit;
-                
-                let world_to_clip = match material.space {
-                    RenderSpace::Clip => Mat4::IDENTITY,
-                    RenderSpace::Window => window_to_clip_mat,
-                    RenderSpace::World => standard_render_res.camera_proj_matrix,
-                };
-
-                let uniform = LitUniform {
-                    albedo_color: material.albedo_color,
-                    metallic: material.metallic,
-                    emission_color: material.emission_color,
-                    roughness: material.roughness,
-                    alpha_threshold: material.alpha_threshold,
-                    camera_position_world: standard_render_res.camera_pos,
-                    world_to_clip,
-                    _padding: Default::default(),
-                };
-
-                render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
-
-                let bind_group_tex = match &material.albedo_tex {
-                    Some(albedo_tex) => &textures.get(albedo_tex).unwrap().native().bind_group,
-                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
-                };
-
-                (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
-            },
-            StandardMaterial::Unlit(material) => {
-                let unlit_data = &standard_render_res.unlit;
-
-                let world_to_clip = match material.space {
-                    RenderSpace::Clip => Mat4::IDENTITY,
-                    RenderSpace::Window => window_to_clip_mat,
-                    RenderSpace::World => standard_render_res.camera_proj_matrix,
-                };
-
-                let uniform = UnlitUniform {
-                    world_to_clip,
-                    color: material.color,
-                    alpha_threshold: material.alpha_threshold,
-                    _padding: Default::default(),
-                };
-
-                render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
-
-                let bind_group_tex = match &material.color_tex {
-                    Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
-                    None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
-                };
-
-                (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
-            },
-        };
+        let (render_pipeline, bind_group, bind_group_tex) = utils::get_render_data(
+            material,
+            &standard_render_res,
+            render_state,
+            &textures,
+            &standard_render_assets_res,
+            window_to_clip_mat,
+        );
         
         let mut batch_buffer_i = 0;
 
@@ -1148,8 +1052,8 @@ pub fn render_meshes_and_materials_batched(
                 render_pass.set_pipeline(render_pipeline);
                 render_pass.set_bind_group(0, bind_group, &[]);
                 render_pass.set_bind_group(1, bind_group_tex, &[]);
-                render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
                 render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
             }
 
