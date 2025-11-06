@@ -14,20 +14,20 @@ pub struct StandardRenderComponent {
 }
 
 #[repr(C)]
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct StandardMeshComponent {
     pub mesh: AssetHandle<StandardMesh>,
 }
 
 #[repr(C)]
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 pub struct BatchedMeshComponent {
     pub vertices: FfiVec<StandardVertex>,
     pub indices: FfiVec<u16>,
 }
 
 #[repr(C)]
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct StandardMaterialComponent {
     pub material: AssetHandle<StandardMaterial>,
 }
