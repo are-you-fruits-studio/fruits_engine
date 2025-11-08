@@ -52,11 +52,12 @@ fn init(mut world: ExclusiveWorldAccess) {
     let texture_text = standard_render_assets.texture_text_px_5_7.clone();
     let font = standard_render_assets.font_px_5_7.clone();
 
-    let material = StandardMaterial::Unlit(UnlitMaterial {
+    let material = StandardMaterial {
+        is_lit: false,
         space: RenderSpace::World,
         color_tex: Some(texture_text.clone()),
         ..Default::default()
-    });
+    };
 
     let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
     

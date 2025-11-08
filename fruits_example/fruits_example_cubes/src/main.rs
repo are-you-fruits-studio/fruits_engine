@@ -76,7 +76,10 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
         return;
     };
 
-    let material = StandardMaterial::Lit(LitMaterial::default());
+    let material = StandardMaterial {
+        is_lit: true,
+        ..Default::default()
+    };
 
     let mut vertices = [
         StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 1.0], uv: [0.0, 0.0], ..Default::default() },

@@ -1,7 +1,7 @@
 use fruits_math::Mat4;
 use wgpu::*;
 
-use crate::{AssetStorageResource, DepthTextureResource, LitUniform, RenderSpace, RenderState, StandardMaterial, StandardRenderAssetsResource, StandardRenderResource, StandardTexture, UnlitUniform};
+use crate::{AssetStorageResource, StandardUniform, RenderSpace, RenderState, StandardMaterial, StandardRenderAssetsResource, StandardRenderResource, StandardTexture};
 
 pub const GIZMO_LINES_PER_DRAW_MAX: usize = 1024 * 16;
 pub const STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX: usize = 1024;
@@ -27,60 +27,34 @@ pub(crate) fn get_render_data<'a, 'b>(
     standard_render_assets_res: &StandardRenderAssetsResource,
     window_to_clip_mat: Mat4<f32>,
 ) -> (&'a RenderPipeline, &'a BindGroup, &'b BindGroup) {
-    match material {
-        StandardMaterial::Lit(material) => {
-            let lit_data = &standard_render_res.lit;
-            
-            let world_to_clip = match material.space {
-                RenderSpace::Clip => Mat4::IDENTITY,
-                RenderSpace::Window => window_to_clip_mat,
-                RenderSpace::World => standard_render_res.camera_proj_matrix,
-            };
+    let world_to_clip = match material.space {
+        RenderSpace::Clip => Mat4::IDENTITY,
+        RenderSpace::Window => window_to_clip_mat,
+        RenderSpace::World => standard_render_res.camera_proj_matrix,
+    };
 
-            let uniform = LitUniform {
-                albedo_color: material.albedo_color,
-                metallic: material.metallic,
-                emission_color: material.emission_color,
-                roughness: material.roughness,
-                alpha_threshold: material.alpha_threshold,
-                camera_position_world: standard_render_res.camera_pos,
-                world_to_clip,
-                _padding: Default::default(),
-            };
+    let uniform = StandardUniform {
+        color: material.color,
+        metallic: material.metallic,
+        emission_color: material.emission_color,
+        roughness: material.roughness,
+        alpha_threshold: material.alpha_threshold,
+        camera_position_world: standard_render_res.camera_pos,
+        world_to_clip,
+        _padding: Default::default(),
+    };
 
-            render_state.queue().write_buffer(&lit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
+    render_state.queue().write_buffer(&standard_render_res.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
 
-            let bind_group_tex = match &material.albedo_tex {
-                Some(albedo_tex) => &textures.get(albedo_tex).unwrap().native().bind_group,
-                None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
-            };
+    let bind_group_tex = match &material.color_tex {
+        Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
+        None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
+    };
 
-            (&lit_data.render_pipeline, &lit_data.bind_group_uniform, bind_group_tex)
-        },
-        StandardMaterial::Unlit(material) => {
-            let unlit_data = &standard_render_res.unlit;
+    let render_pipeline = match material.is_lit {
+        true => &standard_render_res.render_pipeline_lit,
+        false => &standard_render_res.render_pipeline_unlit,
+    };
 
-            let world_to_clip = match material.space {
-                RenderSpace::Clip => Mat4::IDENTITY,
-                RenderSpace::Window => window_to_clip_mat,
-                RenderSpace::World => standard_render_res.camera_proj_matrix,
-            };
-
-            let uniform = UnlitUniform {
-                world_to_clip,
-                color: material.color,
-                alpha_threshold: material.alpha_threshold,
-                _padding: Default::default(),
-            };
-
-            render_state.queue().write_buffer(&unlit_data.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
-
-            let bind_group_tex = match &material.color_tex {
-                Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
-                None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
-            };
-
-            (&unlit_data.render_pipeline, &unlit_data.bind_group_uniform, bind_group_tex)
-        },
-    }
+    (&render_pipeline, &standard_render_res.bind_group_uniform, bind_group_tex)
 }

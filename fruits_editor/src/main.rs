@@ -209,19 +209,23 @@ fn init_system(
 
     let materials_res = res.get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
 
-    let material_panel = materials_res.insert(StandardMaterial::Unlit(UnlitMaterial {
+    let material_panel = materials_res.insert(StandardMaterial {
+        is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
         color_tex: None,
         alpha_threshold: 0.5,
-    }));
+        ..Default::default()
+    });
 
-    let material_text = materials_res.insert(StandardMaterial::Unlit(UnlitMaterial {
+    let material_text = materials_res.insert(StandardMaterial {
+        is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
         color_tex: Some(texture_text),
         alpha_threshold: 0.5,
-    }));
+        ..Default::default()
+    });
 
     res.insert(UiInteractionResource::default()).ok().unwrap();
     res.insert(UiRaycastResource::default()).ok().unwrap();

@@ -39,19 +39,23 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     let texture_white = standard_render_assets.texture_white.clone();
 
-    let material_white = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(StandardMaterial::Unlit(UnlitMaterial {
+    let material_white = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(StandardMaterial {
+        is_lit: false,
         space: RenderSpace::Window,
         color_tex: Some(texture_white.clone()),
         color: Vec4::splat(1.0),
         alpha_threshold: 0.5,
-    }));
+        ..Default::default()
+    });
     
-    let material_text = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(StandardMaterial::Unlit(UnlitMaterial {
+    let material_text = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(StandardMaterial {
+        is_lit: false,
         space: RenderSpace::Window,
         color_tex: Some(texture_text.clone()),
         color: Vec4::splat(1.0),
         alpha_threshold: 0.5,
-    }));
+        ..Default::default()
+    });
     
     let mut ec = world.entities_mut();
 

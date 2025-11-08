@@ -5,7 +5,7 @@ use fruits_ffi::FfiString;
 use fruits_math::{parse_color_rgba_f32, Vec4};
 use fruits_serialization::JsonValue;
 
-use fruits_modules::{AssetHandle, AssetStorageResource, LitMaterial, RenderApiResource, RenderSpace, StandardMaterial, StandardTexture, UnlitMaterial};
+use fruits_modules::{AssetHandle, AssetStorageResource, RenderApiResource, RenderSpace, StandardMaterial, StandardTexture};
 
 use crate::get_or_load_texture;
 
@@ -75,7 +75,7 @@ fn deserialize_material(textures: &mut AssetStorageResource<StandardTexture>, re
         return None;
     }
 
-    let Some(JsonValue::String(material_type)) = raw_material.get_value("material_type") else {
+    let Some(JsonValue::Bool(is_lit)) = raw_material.get_value("is_lit") else {
         return None;
     };
 
@@ -108,40 +108,28 @@ fn deserialize_material(textures: &mut AssetStorageResource<StandardTexture>, re
         return None;
     };
 
-    Some(match material_type.as_str() {
-        "lit" => {
-            let Some(JsonValue::Number(metallic)) = raw_material.get_value("metallic") else {
-                return None;
-            };
+    let Some(JsonValue::Number(metallic)) = raw_material.get_value("metallic") else {
+        return None;
+    };
 
-            let Some(JsonValue::Number(roughness)) = raw_material.get_value("roughness") else {
-                return None;
-            };
+    let Some(JsonValue::Number(roughness)) = raw_material.get_value("roughness") else {
+        return None;
+    };
 
-            let Some(JsonValue::String(emission_color)) = raw_material.get_value("emission_color") else {
-                return None;
-            };
-            
-            let emission_color = Vec4::from_array(parse_color_rgba_f32(emission_color)?);
+    let Some(JsonValue::String(emission_color)) = raw_material.get_value("emission_color") else {
+        return None;
+    };
 
-            StandardMaterial::Lit(LitMaterial {
-                albedo_color: color,
-                metallic: (*metallic).into(),
-                roughness: (*roughness).into(),
-                space,
-                alpha_threshold: (*alpha_threshold).into(),
-                emission_color: emission_color,
-                albedo_tex: Some(color_tex),
-            })
-        },
-        "unlit" => {
-            StandardMaterial::Unlit(UnlitMaterial {
-                color,
-                space,
-                alpha_threshold: (*alpha_threshold).into(),
-                color_tex: Some(color_tex),
-            }.into())
-        },
-        _ => return None,
+    let emission_color = Vec4::from_array(parse_color_rgba_f32(emission_color)?);
+
+    Some(StandardMaterial {
+        is_lit: *is_lit,
+        color,
+        metallic: (*metallic).into(),
+        roughness: (*roughness).into(),
+        space,
+        alpha_threshold: (*alpha_threshold).into(),
+        emission_color: emission_color,
+        color_tex: Some(color_tex),
     })
 }

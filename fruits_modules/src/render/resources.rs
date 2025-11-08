@@ -74,8 +74,10 @@ pub struct StandardRenderResource {
     pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
     pub camera_pos: Vec3<f32>,
     pub camera_proj_matrix: Mat4<f32>,
-    pub lit: MaterialStandardRenderResourceData,
-    pub unlit: MaterialStandardRenderResourceData,
+    pub buffer_uniform: Buffer,
+    pub bind_group_uniform: BindGroup,
+    pub render_pipeline_lit: RenderPipeline,
+    pub render_pipeline_unlit: RenderPipeline,
 }
 
 // todo: support ffi
@@ -95,8 +97,6 @@ pub struct StandardRenderAssetsResource {
 }
 
 pub struct MaterialStandardRenderResourceData {
-    pub buffer_uniform: Buffer,
-    pub bind_group_uniform: BindGroup,
     pub render_pipeline: RenderPipeline,
 }
 

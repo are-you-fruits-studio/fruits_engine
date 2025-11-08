@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use fruits_ecs::{Entity, ExclusiveWorldAccess, Res, ResMut, WithFilter, WorldDataMut, WorldQuery};
 use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
-use wgpu::{include_wgsl, util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexState};
+use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor, VertexState, include_wgsl, util::{BufferInitDescriptor, DeviceExt}};
 
-use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, LitUniform, MaterialStandardRenderResourceData, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, UnlitUniform, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent, RenderApiResource, RenderState, UiVal};
+use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, StandardUniform, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent, RenderApiResource, RenderState, UiVal};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
@@ -42,149 +42,81 @@ pub fn create_standard_render_resource(
         push_constant_ranges: &[],
     });
 
-    let lit_uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+    let standard_uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Lit Uniform Buffer"),
         usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&[LitUniform::default()]),
+        contents: fruits_utils::mem::as_bytes(&[StandardUniform::default()]),
     });
     
-    let lit_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+    let standard_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
         label: Some("Lit Uniform Bind Group"),
         layout: &bind_group_layout,
         entries: &[
             BindGroupEntry {
                 binding: 0,
-                resource: lit_uniform_buffer.as_entire_binding(),
+                resource: standard_uniform_buffer.as_entire_binding(),
             },
         ],
     });
-    
-    let lit_shader = render_state.device().create_shader_module(include_wgsl!("./assets/shader_lit.wgsl"));
 
-    let lit_render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Lit Render Pipeline"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &lit_shader,
-            entry_point: Some("vs_main"),
-            buffers: &[
-                StandardVertex::desc(),
-                StandardInstance::desc(),
-            ],
-            compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &lit_shader,
-            entry_point: Some("fs_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config().format,
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-            compilation_options: Default::default(),
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            polygon_mode: wgpu::PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
-        },
-        depth_stencil: Some(DepthStencilState {
-            bias: Default::default(),
-            depth_compare: wgpu::CompareFunction::LessEqual,
-            depth_write_enabled: true,
-            format: depth_tex.texture.format(),
-            stencil: Default::default(),
-        }),
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-        cache: None,
-    });
+    let create_render_pipeline_fn = |is_lit: bool| -> RenderPipeline {
+        let shader = render_state.device().create_shader_module(ShaderModuleDescriptor {
+            label: None,
+            source: ShaderSource::Wgsl(super::assets::shader_standard(is_lit).into()),
+        });
 
-    let lit_data = MaterialStandardRenderResourceData {
-        buffer_uniform: lit_uniform_buffer,
-        render_pipeline: lit_render_pipeline,
-        bind_group_uniform: lit_bind_group,
-    };
-
-    let unlit_uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Unlit Uniform Buffer"),
-        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&[UnlitUniform::default()]),
-    });
-    
-    let unlit_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Unlit Uniform Bind Group"),
-        layout: &bind_group_layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: unlit_uniform_buffer.as_entire_binding(),
+        let render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Standard Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[
+                    StandardVertex::desc(),
+                    StandardInstance::desc(),
+                ],
+                compilation_options: Default::default(),
             },
-        ],
-    });
-    
-    let unlit_shader = render_state.device().create_shader_module(include_wgsl!("./assets/shader_unlit.wgsl"));
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: render_state.surface_config().format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(DepthStencilState {
+                bias: Default::default(),
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: true,
+                format: depth_tex.texture.format(),
+                stencil: Default::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+            cache: None,
+        });
 
-    let unlit_render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Unlit Render Pipeline"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &unlit_shader,
-            entry_point: Some("vs_main"),
-            buffers: &[
-                StandardVertex::desc(),
-                StandardInstance::desc(),
-            ],
-            compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &unlit_shader,
-            entry_point: Some("fs_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config().format,
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-            compilation_options: Default::default(),
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            polygon_mode: wgpu::PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
-        },
-        depth_stencil: Some(DepthStencilState {
-            bias: Default::default(),
-            depth_compare: wgpu::CompareFunction::LessEqual,
-            depth_write_enabled: true,
-            format: depth_tex.texture.format(),
-            stencil: Default::default(),
-        }),
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-        cache: None,
-    });
-
-    let unlit_data = MaterialStandardRenderResourceData {
-        buffer_uniform: unlit_uniform_buffer,
-        render_pipeline: unlit_render_pipeline,
-        bind_group_uniform: unlit_bind_group,
+        render_pipeline
     };
+
+    let render_pipeline_lit = create_render_pipeline_fn(true);
+    let render_pipeline_unlit = create_render_pipeline_fn(false);
 
     let instance_cpu_buffer = vec![Mat4::<f32>::IDENTITY.into_array(); STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX].into_boxed_slice();
     
@@ -207,8 +139,10 @@ pub fn create_standard_render_resource(
         instance_cpu_buffer,
         instance_buffer,
         batched_vertex_buffer,
-        lit: lit_data,
-        unlit: unlit_data,
+        buffer_uniform: standard_uniform_buffer,
+        bind_group_uniform: standard_bind_group,
+        render_pipeline_lit,
+        render_pipeline_unlit,
         camera_pos: Vec3::default(),
         camera_proj_matrix: Mat4::IDENTITY,
     }).ok().unwrap();
