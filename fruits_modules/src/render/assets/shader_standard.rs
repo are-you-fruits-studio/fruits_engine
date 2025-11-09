@@ -1,4 +1,4 @@
-pub fn shader_standard(is_lit: bool) -> String {
+pub fn shader_standard(is_lit: bool, is_transparent: bool) -> String {
     let mut shader = String::new();
 
     shader.push_str(&code_uniforms());
@@ -13,7 +13,7 @@ pub fn shader_standard(is_lit: bool) -> String {
     } else {
         shader.push_str(&code_unlit_stuff());
     }
-    shader.push_str(&code_fn_fs_main(is_lit));
+    shader.push_str(&code_fn_fs_main(is_lit, is_transparent));
 
     shader
 }
@@ -212,17 +212,27 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     "#)
 }
 
-fn code_fn_fs_main(is_lit: bool) -> String {
-    if is_lit {
-        format!(r#"
+fn code_fn_fs_main(is_lit: bool, is_transparent: bool) -> String {
+    let mut code = String::new();
+
+    code.push_str(r#"
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
-    let color = in.color * textureSample(color_texture, color_sampler, in.uv);
+    var color = in.color * textureSample(color_texture, color_sampler, in.uv);
+    "#);
 
+    if !is_transparent {
+        code.push_str(r#"
     if (color.w < global_data.alpha_threshold) {{
         discard;
     }}
-        
+
+    color.w = 1.0;
+        "#);
+    }
+
+    if is_lit {
+        code.push_str(r#"
     var light = light();
 
     var color_lit = cook_torrance_brdf(
@@ -235,21 +245,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
         light.color
     );
 
-    return vec4<f32>(color_lit + global_data.emission_color.xyz, 1.0);
-}}
-        "#)
-    } else {
-        format!(r#"
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
-    let color = in.color * textureSample(color_texture, color_sampler, in.uv);
-    
-    if (color.w < global_data.alpha_threshold) {{
-        discard;
-    }}
+    color = vec4<f32>(color_lit + global_data.emission_color.xyz, color.w);
 
-    return vec4<f32>(color.xyz, 1.0);
-}}
-        "#)
+        "#);
     }
+    
+    code.push_str(r#"
+    return vec4<f32>(color.xyz, color.w);
+}}
+    "#);
+
+    code
 }

@@ -44,7 +44,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         space: RenderSpace::Window,
         color_tex: Some(texture_white.clone()),
         color: Vec4::splat(1.0),
-        alpha_threshold: 0.5,
+        alpha_threshold: Some(0.5),
         ..Default::default()
     });
     
@@ -53,7 +53,7 @@ fn init(mut world: ExclusiveWorldAccess) {
         space: RenderSpace::Window,
         color_tex: Some(texture_text.clone()),
         color: Vec4::splat(1.0),
-        alpha_threshold: 0.5,
+        alpha_threshold: Some(0.5),
         ..Default::default()
     });
     

@@ -38,7 +38,7 @@ pub(crate) fn get_render_data<'a, 'b>(
         metallic: material.metallic,
         emission_color: material.emission_color,
         roughness: material.roughness,
-        alpha_threshold: material.alpha_threshold,
+        alpha_threshold: material.alpha_threshold.unwrap_or(0.0),
         camera_position_world: standard_render_res.camera_pos,
         world_to_clip,
         _padding: Default::default(),
@@ -51,9 +51,11 @@ pub(crate) fn get_render_data<'a, 'b>(
         None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
     };
 
-    let render_pipeline = match material.is_lit {
-        true => &standard_render_res.render_pipeline_lit,
-        false => &standard_render_res.render_pipeline_unlit,
+    let render_pipeline = match (material.is_lit, material.alpha_threshold.is_some()) {
+        (true, true) => &standard_render_res.render_pipeline_opaque_lit,
+        (false, true) => &standard_render_res.render_pipeline_opaque_unlit,
+        (true, false) => &standard_render_res.render_pipeline_transparent_lit,
+        (false, false) => &standard_render_res.render_pipeline_transparent_unlit,
     };
 
     (&render_pipeline, &standard_render_res.bind_group_uniform, bind_group_tex)

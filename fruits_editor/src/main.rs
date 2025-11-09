@@ -214,7 +214,7 @@ fn init_system(
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
         color_tex: None,
-        alpha_threshold: 0.5,
+        alpha_threshold: Some(0.5),
         ..Default::default()
     });
 
@@ -223,7 +223,7 @@ fn init_system(
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
         color_tex: Some(texture_text),
-        alpha_threshold: 0.5,
+        alpha_threshold: Some(0.5),
         ..Default::default()
     });
 

@@ -41,7 +41,7 @@ pub struct StandardMaterial {
     pub emission_color: Vec4<f32>,
     pub metallic: f32,
     pub roughness: f32,
-    pub alpha_threshold: f32,
+    pub alpha_threshold: Option<f32>,
     pub color_tex: Option<AssetHandle<StandardTexture>>,
     pub is_lit: bool,
 }
@@ -54,7 +54,7 @@ impl Default for StandardMaterial {
             emission_color: Vec4::splat(0.0),
             metallic: 0.0,
             roughness: 0.5,
-            alpha_threshold: 0.5,
+            alpha_threshold: Some(0.5),
             color_tex: None,
             is_lit: false,
         }

@@ -6,7 +6,7 @@ use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, CommandEncoderDescriptor, DepthStencilState, Extent3d, FilterMode, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StoreOp, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor, VertexState, include_wgsl, util::{BufferInitDescriptor, DeviceExt}};
 
-use crate::{asset::{AssetHandle, AssetStorageResource}, render::{utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}, BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, StandardUniform, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardVertex, TextComponent, VerticalAlign}, transform::{GlobalRectComponent, GlobalTransform}, ChildComponent, ChildrenRectMaskComponent, ParentComponent, RenderApiResource, RenderState, UiVal};
+use crate::{ChildComponent, ChildrenRectMaskComponent, ParentComponent, RenderApiResource, RenderState, TransparentTargetTextureResource, UiVal, asset::{AssetHandle, AssetStorageResource}, render::{BatchedMeshComponent, BatchedVertexCpuBufferResource, Font, GlobalDisableableComponent, HorizontalAlign, ImageComponent, ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardUniform, StandardVertex, TextComponent, VerticalAlign, utils::{self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX, STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX}}, transform::{GlobalRectComponent, GlobalTransform}};
 
 use super::{assets::{StandardMaterial, StandardMesh}, components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent}, resources::SurfaceTextureResource, DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource};
 
@@ -14,8 +14,9 @@ pub fn create_standard_render_resource(
     mut world: ExclusiveWorldAccess,
 ) {
     let render_state = world.resources().get::<RenderApiResource>().unwrap().raw();
-
+    
     let depth_tex = world.resources().get::<DepthTextureResource>().unwrap();
+    let transparent_target_tex = world.resources().get::<TransparentTargetTextureResource>().unwrap();
 
     let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
         label: Some("Standard Bind Group Layout"),
@@ -33,11 +34,19 @@ pub fn create_standard_render_resource(
         ]
     });
 
-    let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+    let pipeline_layout_standard = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Standard Pipeline Layout"),
         bind_group_layouts: &[
             &bind_group_layout,
             &render_state.render_data().bind_group_layout_standard_texture,
+        ],
+        push_constant_ranges: &[],
+    });
+
+    let pipeline_layout_transparent_final = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Transparent Final Pipeline Layout"),
+        bind_group_layouts: &[
+            &transparent_target_tex.bind_group_layout,
         ],
         push_constant_ranges: &[],
     });
@@ -59,15 +68,39 @@ pub fn create_standard_render_resource(
         ],
     });
 
-    let create_render_pipeline_fn = |is_lit: bool| -> RenderPipeline {
+    let create_render_pipeline_fn = |is_lit: bool, is_transparent: bool| -> RenderPipeline {
         let shader = render_state.device().create_shader_module(ShaderModuleDescriptor {
             label: None,
-            source: ShaderSource::Wgsl(super::assets::shader_standard(is_lit).into()),
+            source: ShaderSource::Wgsl(super::assets::shader_standard(is_lit, is_transparent).into()),
         });
+
+        let color_target_state = match is_transparent {
+            false => wgpu::ColorTargetState {
+                format: render_state.surface_config().format,
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            },
+            true => wgpu::ColorTargetState {
+                format: transparent_target_tex.texture.format(),
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::One,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::One,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            },
+        };
 
         let render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Standard Render Pipeline"),
-            layout: Some(&pipeline_layout),
+            layout: Some(&pipeline_layout_standard),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
@@ -80,11 +113,7 @@ pub fn create_standard_render_resource(
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: render_state.surface_config().format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
+                targets: &[Some(color_target_state)],
                 compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
@@ -99,7 +128,7 @@ pub fn create_standard_render_resource(
             depth_stencil: Some(DepthStencilState {
                 bias: Default::default(),
                 depth_compare: wgpu::CompareFunction::LessEqual,
-                depth_write_enabled: true,
+                depth_write_enabled: !is_transparent,
                 format: depth_tex.texture.format(),
                 stencil: Default::default(),
             }),
@@ -115,8 +144,50 @@ pub fn create_standard_render_resource(
         render_pipeline
     };
 
-    let render_pipeline_lit = create_render_pipeline_fn(true);
-    let render_pipeline_unlit = create_render_pipeline_fn(false);
+    let render_pipeline_opaque_unlit = create_render_pipeline_fn(false, false);
+    let render_pipeline_opaque_lit = create_render_pipeline_fn(true, false);
+    let render_pipeline_transparent_unlit = create_render_pipeline_fn(false, true);
+    let render_pipeline_transparent_lit = create_render_pipeline_fn(true, true);
+
+    let render_pipeline_transparent_shader = render_state.device().create_shader_module(include_wgsl!("./assets/shader_transparent_final.wgsl"));
+
+    let render_pipeline_transparent_final = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Transparent Final Render Pipeline"),
+        layout: Some(&pipeline_layout_transparent_final),
+        vertex: wgpu::VertexState {
+            module: &render_pipeline_transparent_shader,
+            entry_point: Some("vs_main"),
+            buffers: &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &render_pipeline_transparent_shader,
+            entry_point: Some("fs_main"),
+            targets: &[Some(wgpu::ColorTargetState {
+                format: render_state.surface_config().format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::COLOR,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            polygon_mode: wgpu::PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        multiview: None,
+        cache: None,
+    });
 
     let instance_cpu_buffer = vec![Mat4::<f32>::IDENTITY.into_array(); STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX].into_boxed_slice();
     
@@ -135,14 +206,17 @@ pub fn create_standard_render_resource(
     });
 
     world.resources_mut().insert(StandardRenderResource {
-        pipeline_layout,
+        pipeline_layout: pipeline_layout_standard,
         instance_cpu_buffer,
         instance_buffer,
         batched_vertex_buffer,
         buffer_uniform: standard_uniform_buffer,
         bind_group_uniform: standard_bind_group,
-        render_pipeline_lit,
-        render_pipeline_unlit,
+        render_pipeline_opaque_lit,
+        render_pipeline_opaque_unlit,
+        render_pipeline_transparent_lit,
+        render_pipeline_transparent_unlit,
+        render_pipeline_transparent_final,
         camera_pos: Vec3::default(),
         camera_proj_matrix: Mat4::IDENTITY,
     }).ok().unwrap();
@@ -276,6 +350,113 @@ pub fn recreate_depth_texture_resource(
         *world.resources_mut().get_mut().unwrap() = depth_res;
     } else {
         world.resources_mut().insert(depth_res).ok().unwrap();
+    }
+}
+
+pub fn recreate_transparent_target_resource(
+    mut world: ExclusiveWorldAccess,
+) {
+    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+
+    let screen_size = render_api.size();
+    
+    let render_state = render_api.raw();
+
+    let mut contains_transparent_target = false;
+
+    if let Some(transparent_target_res) = world.resources().get::<TransparentTargetTextureResource>() {
+        contains_transparent_target = true;
+
+        let are_same_size = {
+            transparent_target_res.texture.size().width == screen_size[0]
+            && transparent_target_res.texture.size().height == screen_size[1]
+        };
+
+        if are_same_size {
+            return;
+        }
+    }
+
+    let texture = render_state.device().create_texture(&TextureDescriptor {
+        label: Some("Transparent Target Buffer"),
+        size: Extent3d {
+            width: screen_size[0],
+            height: screen_size[1],
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba16Float,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+
+    let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Transparent Target Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Nearest,
+        min_filter: FilterMode::Nearest,
+        mipmap_filter: FilterMode::Nearest,
+        compare: None,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Transparent Target Bind Group Layout"),
+        entries: &[
+            BindGroupLayoutEntry {
+                binding: 0,
+                count: None,
+                ty: BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                visibility: ShaderStages::VERTEX_FRAGMENT,
+            },
+            BindGroupLayoutEntry {
+                binding: 1,
+                count: None,
+                ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                visibility: ShaderStages::VERTEX_FRAGMENT,
+            },
+        ],
+    });
+
+    let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Transparent Target Bind Group"),
+        layout: &bind_group_layout,
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&texture_view),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&sampler),
+            },
+        ],
+    });
+
+    let transparent_target_res = TransparentTargetTextureResource {
+        texture,
+        texture_view,
+        sampler,
+        bind_group_layout,
+        bind_group,
+    };
+
+    if contains_transparent_target {
+        *world.resources_mut().get_mut().unwrap() = transparent_target_res;
+    } else {
+        world.resources_mut().insert(transparent_target_res).ok().unwrap();
     }
 }
 
@@ -727,7 +908,39 @@ pub fn clear_depth(
     render_state.queue().submit(std::iter::once(encoder.finish()));
 }
 
-pub fn render_meshes_and_materials_instanced(
+pub fn clear_transparent_target(
+    render_api: Res<RenderApiResource>,
+    transparent_target_res: Res<TransparentTargetTextureResource>,
+) {
+    let render_state = render_api.raw();
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Clear Transparent Target Encoder"),
+    });
+
+    {
+        let mut _render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Clear Transparent Target Pass"),
+            color_attachments: &[
+                Some(RenderPassColorAttachment {
+                    view: &transparent_target_res.texture_view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: StoreOp::Store,
+                    }
+                })
+            ],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+    }
+    
+    render_state.queue().submit(std::iter::once(encoder.finish()));
+}
+
+pub fn render_opaque_instanced(
     query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
@@ -762,6 +975,14 @@ pub fn render_meshes_and_materials_instanced(
 
     for (transform, render_mesh, render_material, disableable) in query.iter() {
         if disableable.copied().unwrap_or_default().is_disabled {
+            continue;
+        }
+
+        let Some(material) = materials.get(&render_material.material) else {
+            continue;
+        };
+
+        if material.alpha_threshold.is_none() {
             continue;
         }
 
@@ -836,7 +1057,7 @@ pub fn render_meshes_and_materials_instanced(
     }
 }
 
-pub fn render_meshes_and_materials_batched(
+pub fn render_opaque_batched(
     query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
@@ -873,6 +1094,15 @@ pub fn render_meshes_and_materials_batched(
         if disableable.copied().unwrap_or_default().is_disabled {
             continue;
         }
+
+        let Some(material) = materials.get(&render_material.material) else {
+            continue;
+        };
+
+        if material.alpha_threshold.is_none() {
+            continue;
+        }
+
         let mat = match transform {
             Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
             None => Mat4::IDENTITY,
@@ -994,6 +1224,330 @@ pub fn render_meshes_and_materials_batched(
             render_state.queue().submit(std::iter::once(encoder.finish()));
         }
     }
+}
+
+// todo: a lot of duplication
+pub fn render_transparent_instanced(
+    query: WorldQuery<(Option<&GlobalTransform>, &StandardMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
+    render_api: Res<RenderApiResource>,
+    screen_space_res: Res<ScreenSpaceResource>,
+    standard_render_res: Res<StandardRenderResource>,
+    standard_render_assets_res: Res<StandardRenderAssetsResource>,
+    depth_res: Res<DepthTextureResource>,
+    transparent_target_res: Res<TransparentTargetTextureResource>,
+    meshes: Res<AssetStorageResource<StandardMesh>>,
+    materials: Res<AssetStorageResource<StandardMaterial>>,
+    textures: Res<AssetStorageResource<StandardTexture>>,
+) {
+    if query.len() == 0 {
+        return;
+    }
+
+    let render_state = render_api.raw();
+
+    let view = &transparent_target_res.texture_view;
+
+    let window_size = render_state.size();
+
+    let window_to_clip_mat = utils::create_window_to_clip_matrix(
+        window_size[0] as f32,
+        window_size[1] as f32,
+        screen_space_res.near,
+        screen_space_res.far,
+    );
+
+    let mut instanced_matrices = HashMap::new();
+
+    for (transform, render_mesh, render_material, disableable) in query.iter() {
+        if disableable.copied().unwrap_or_default().is_disabled {
+            continue;
+        }
+
+        let Some(material) = materials.get(&render_material.material) else {
+            continue;
+        };
+
+        if material.alpha_threshold.is_some() {
+            continue;
+        }
+
+        let mat = match transform {
+            Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
+            None => Mat4::IDENTITY,
+        };
+        instanced_matrices.entry((render_mesh.mesh.clone(), render_material.material.clone()))
+            .or_insert_with(|| Vec::new())
+            .push(mat);
+    }
+
+    for ((mesh, material), matrices) in instanced_matrices.iter() {
+        let Some(mesh) = meshes.get(&mesh) else { continue; };
+        let Some(material) = materials.get(&material) else { continue; };
+
+        let mesh = mesh.native();
+
+        let (render_pipeline, bind_group, bind_group_tex) = utils::get_render_data(
+            material,
+            &standard_render_res,
+            render_state,
+            &textures,
+            &standard_render_assets_res,
+            window_to_clip_mat,
+        );
+        
+        for matrices in matrices.chunks(STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX) {
+            let matrices_bytes = fruits_utils::mem::as_bytes_slice(matrices);
+            
+            render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, matrices_bytes);
+            render_state.queue().submit([]);
+            
+            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &depth_res.texture_view,
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+            
+                render_pass.set_pipeline(render_pipeline);
+                render_pass.set_bind_group(0, bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
+                render_pass.draw_indexed(0..(mesh.indices_count as u32), 0, 0..(matrices.len() as u32));
+            }
+
+            render_state.queue().submit(std::iter::once(encoder.finish()));
+        }
+    }
+}
+
+// todo: a lot of duplication
+pub fn render_transparent_batched(
+    query: WorldQuery<(Option<&GlobalTransform>, &BatchedMeshComponent, &StandardMaterialComponent, Option<&GlobalDisableableComponent>)>,
+    render_api: Res<RenderApiResource>,
+    screen_space_res: Res<ScreenSpaceResource>,
+    standard_render_res: Res<StandardRenderResource>,
+    standard_render_assets_res: Res<StandardRenderAssetsResource>,
+    depth_res: Res<DepthTextureResource>,
+    transparent_target_res: Res<TransparentTargetTextureResource>,
+    materials: Res<AssetStorageResource<StandardMaterial>>,
+    textures: Res<AssetStorageResource<StandardTexture>>,
+    mut batched_vertex_cpu_buffer: ResMut<BatchedVertexCpuBufferResource>,
+) {
+    if query.len() == 0 {
+        return;
+    }
+
+    let render_state = render_api.raw();
+
+    let view = &transparent_target_res.texture_view;
+
+    let window_size = render_state.size();
+
+    let window_to_clip_mat = utils::create_window_to_clip_matrix(
+        window_size[0] as f32,
+        window_size[1] as f32,
+        screen_space_res.near,
+        screen_space_res.far,
+    );
+
+    let mut batched_meshes_by_material = HashMap::new();
+
+    for (transform, batched_mesh, render_material, disableable) in query.iter() {
+        if disableable.copied().unwrap_or_default().is_disabled {
+            continue;
+        }
+
+        let Some(material) = materials.get(&render_material.material) else {
+            continue;
+        };
+
+        if material.alpha_threshold.is_some() {
+            continue;
+        }
+
+        let mat = match transform {
+            Some(transform) => transform.scale_rotation.into_4x4_with_offset(transform.position),
+            None => Mat4::IDENTITY,
+        };
+        batched_meshes_by_material.entry(render_material.material.clone())
+            .or_insert_with(|| Vec::new())
+            .push((mat, batched_mesh));
+    }
+
+    render_state.queue().write_buffer(&standard_render_res.instance_buffer, 0, fruits_utils::mem::as_bytes(&Mat4::<f32>::IDENTITY));
+    render_state.queue().submit([]);
+
+    let batch_cpu_buffer = &mut batched_vertex_cpu_buffer.0;
+    
+    for (material, matrices_and_meshes) in batched_meshes_by_material {
+        let Some(material) = materials.get(&material) else { continue; };
+        
+        let (render_pipeline, bind_group, bind_group_tex) = utils::get_render_data(
+            material,
+            &standard_render_res,
+            render_state,
+            &textures,
+            &standard_render_assets_res,
+            window_to_clip_mat,
+        );
+        
+        let mut batch_buffer_i = 0;
+
+        for (mat, batched_mesh) in matrices_and_meshes {
+            for &i in &batched_mesh.indices {
+                let mut vertex = batched_mesh.vertices[i as usize];
+
+                vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
+                vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();
+
+                batch_cpu_buffer[batch_buffer_i] = vertex;
+
+                batch_buffer_i += 1;
+
+                if batch_buffer_i < batch_cpu_buffer.len() {
+                    continue;
+                }
+
+                batch_buffer_i = 0;
+
+                submit_render(
+                    &render_state,
+                    &standard_render_res,
+                    &batch_cpu_buffer[..],
+                    &view,
+                    &depth_res,
+                    render_pipeline,
+                    bind_group,
+                    bind_group_tex,
+                );
+            }
+        }
+
+        if batch_buffer_i > 0 {
+            submit_render(
+                &render_state,
+                &standard_render_res,
+                &batch_cpu_buffer[..batch_buffer_i],
+                &view,
+                &depth_res,
+                render_pipeline,
+                bind_group,
+                bind_group_tex,
+            );
+        }
+
+        fn submit_render(
+            render_state: &RenderState,
+            standard_render_res: &StandardRenderResource,
+            batched_cpu_slice: &[StandardVertex],
+            render_target_view: &TextureView, 
+            depth_res: &DepthTextureResource,
+            render_pipeline: &RenderPipeline,
+            bind_group: &BindGroup,
+            bind_group_tex: &BindGroup,
+        ) {
+            render_state.queue().write_buffer(&standard_render_res.batched_vertex_buffer, 0, fruits_utils::mem::as_bytes_slice(batched_cpu_slice));
+
+            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: render_target_view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &depth_res.texture_view,
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Load,
+                            store: StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+            
+                render_pass.set_pipeline(render_pipeline);
+                render_pass.set_bind_group(0, bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
+                render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
+            }
+
+            render_state.queue().submit(std::iter::once(encoder.finish()));
+        }
+    }
+}
+
+pub fn render_transparent_final(
+    render_api: Res<RenderApiResource>,
+    standard_render_res: Res<StandardRenderResource>,
+    transparent_target_res: Res<TransparentTargetTextureResource>,
+    surface_texture: Res<SurfaceTextureResource>,
+) {
+    let render_state = render_api.raw();
+
+    let Some(surface_texture) = &surface_texture.texture else { return; }; 
+
+    let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Transparent Final Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Transparent Final Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Load,
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+    
+        render_pass.set_pipeline(&standard_render_res.render_pipeline_transparent_final);
+        render_pass.set_bind_group(0, &transparent_target_res.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
+    }
+
+    render_state.queue().submit(std::iter::once(encoder.finish()));
 }
 
 pub fn render_gizmos(

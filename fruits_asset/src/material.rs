@@ -100,6 +100,11 @@ fn deserialize_material(textures: &mut AssetStorageResource<StandardTexture>, re
         return None;
     };
     
+    
+    let Some(JsonValue::Bool(is_transparent)) = raw_material.get_value("is_transparent") else {
+        return None;
+    };
+    
     let Some(JsonValue::String(color_tex)) = raw_material.get_value("color_tex") else {
         return None;
     };
@@ -122,13 +127,15 @@ fn deserialize_material(textures: &mut AssetStorageResource<StandardTexture>, re
 
     let emission_color = Vec4::from_array(parse_color_rgba_f32(emission_color)?);
 
+    let alpha_threshold = if *is_transparent { None } else { Some(alpha_threshold.to_f() as f32) };
+
     Some(StandardMaterial {
         is_lit: *is_lit,
         color,
         metallic: (*metallic).into(),
         roughness: (*roughness).into(),
         space,
-        alpha_threshold: (*alpha_threshold).into(),
+        alpha_threshold: alpha_threshold,
         emission_color: emission_color,
         color_tex: Some(color_tex),
     })

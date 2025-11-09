@@ -67,6 +67,16 @@ pub struct DepthTextureResource {
 
 // todo: support ffi
 #[derive(Resource)]
+pub struct TransparentTargetTextureResource {
+    pub texture: Texture,
+    pub texture_view: TextureView,
+    pub sampler: Sampler,
+    pub bind_group_layout: BindGroupLayout,
+    pub bind_group: BindGroup,
+}
+
+// todo: support ffi
+#[derive(Resource)]
 pub struct StandardRenderResource {
     pub pipeline_layout: PipelineLayout,
     pub batched_vertex_buffer: Buffer,
@@ -76,8 +86,11 @@ pub struct StandardRenderResource {
     pub camera_proj_matrix: Mat4<f32>,
     pub buffer_uniform: Buffer,
     pub bind_group_uniform: BindGroup,
-    pub render_pipeline_lit: RenderPipeline,
-    pub render_pipeline_unlit: RenderPipeline,
+    pub render_pipeline_opaque_lit: RenderPipeline,
+    pub render_pipeline_opaque_unlit: RenderPipeline,
+    pub render_pipeline_transparent_lit: RenderPipeline,
+    pub render_pipeline_transparent_unlit: RenderPipeline,
+    pub render_pipeline_transparent_final: RenderPipeline,
 }
 
 // todo: support ffi
