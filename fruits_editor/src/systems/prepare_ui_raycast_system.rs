@@ -16,7 +16,7 @@ pub fn prepare_ui_raycast_system(
             extents: (rect.scale * 0.5).xyn(1.0),
         };
 
-        entries.push((aabb, ent));
+        entries.push((aabb.into(), ent));
     }
 
     raycast_res.bvh = Bvh::new(entries);

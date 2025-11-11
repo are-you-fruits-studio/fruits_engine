@@ -13,7 +13,7 @@ pub fn update_collision_world(
             shape = shape.apply_matrix_lossy(t.scale_rotation.into_4x4_with_offset(t.position));
         }
 
-        (shape.to_aab(), e)
+        (shape, e)
     });
 
     //if collision_world.is_empty() {

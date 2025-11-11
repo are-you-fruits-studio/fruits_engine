@@ -17,7 +17,7 @@ pub use systems::*;
 pub use components::*;
 pub use utils::*;
 
-use fruits_ecs::{Schedule, WorldBuilder, WorldBuilderMut};
+use fruits_ecs::{Schedule, WorldBuilderMut};
 
 pub const SYSTEM_GROUP_COLLISION: &'static str = "fruits_collision";
 

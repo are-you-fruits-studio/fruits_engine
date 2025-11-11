@@ -1,6 +1,6 @@
 use std::{ffi::c_void, fmt::Debug};
 
-use fruits_ffi::{FfiDroppable, FfiOptionCopy, FfiStaticRef};
+use fruits_ffi::{FfiDroppable, FfiOption, FfiStaticRef};
 use fruits_utils::index_version_collection::{VersionCollection, VersionIndex};
 
 #[repr(transparent)]
@@ -85,7 +85,7 @@ impl EntitiesMetadataNative {
 
 struct EntitiesMetadataFfiVTable {
     insert_fn: unsafe extern "C" fn(*mut c_void, location: EntityLocation) -> Entity,
-    remove_fn: unsafe extern "C" fn(*mut c_void, entity: Entity) -> FfiOptionCopy<EntityLocation>,
+    remove_fn: unsafe extern "C" fn(*mut c_void, entity: Entity) -> FfiOption<EntityLocation>,
     get_fn: unsafe extern "C" fn(*const c_void, entity: Entity) -> *const EntityLocation,
     get_mut_fn: unsafe extern "C" fn(*mut c_void, entity: Entity) -> *mut EntityLocation,
     contains_fn: unsafe extern "C" fn(*const c_void, entity: Entity) -> bool,
@@ -111,13 +111,13 @@ impl EntitiesMetadataFfi {
         unsafe extern "C" fn ffi_remove(
             this: *mut c_void,
             entity: Entity,
-        ) -> FfiOptionCopy<EntityLocation> {
+        ) -> FfiOption<EntityLocation> {
             unsafe {
                 let this = &mut *(this as *mut EntitiesMetadataNative);
 
                 let result = this.remove(entity);
 
-                FfiOptionCopy::from_option(result)
+                FfiOption::from_option(result)
             }
         }
         unsafe extern "C" fn ffi_get(this: *const c_void, entity: Entity) -> *const EntityLocation {

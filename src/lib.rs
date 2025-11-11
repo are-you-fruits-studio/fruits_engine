@@ -9,6 +9,7 @@ pub mod prelude {
     pub use fruits_serialization::*;
     pub use fruits_reflection::*;
     pub use fruits_entry_point::*;
+    pub use fruits_ffi::*;
 }
 
 pub mod app {
@@ -44,4 +45,8 @@ pub mod reflection {
 
 pub mod asset {
     pub use fruits_asset::*;
+}
+
+pub mod ffi {
+    pub use fruits_ffi::*;
 }

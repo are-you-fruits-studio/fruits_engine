@@ -53,3 +53,4 @@ fruits_reflection = { path = "./fruits_reflection" }
 fruits_entry_point = { path = "./fruits_entry_point" }
 fruits_app_launcher = { path = "./fruits_app_launcher" }
 fruits_asset = { path = "./fruits_asset" }
+fruits_ffi = { path = "./fruits_ffi" }

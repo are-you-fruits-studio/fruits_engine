@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 
-use fruits_ffi::{FfiDroppable, FfiOptionCopy, FfiStaticRef, FfiVec};
+use fruits_ffi::{FfiDroppable, FfiOption, FfiStaticRef, FfiVec};
+use fruits_math::Vec2;
 
 use crate::*;
 
@@ -9,11 +10,11 @@ struct ArchetypesHolderFfiVTable {
     len_fn: unsafe extern "C" fn(*const c_void) -> u64,
     by_id_ref_fn: unsafe extern "C" fn(*const c_void, id: u64) -> *const ArchetypeUnsafeFfi,
     by_id_mut_fn: unsafe extern "C" fn(*mut c_void, id: u64) -> *mut ArchetypeUnsafeFfi,
-    by_2_ids_ref_fn: unsafe extern "C" fn(*const c_void, id: [u64; 2]) -> FfiOptionCopy<[*const ArchetypeUnsafeFfi; 2]>,
-    by_2_ids_mut_fn: unsafe extern "C" fn(*mut c_void, id: [u64; 2]) -> FfiOptionCopy<[*mut ArchetypeUnsafeFfi; 2]>,
+    by_2_ids_ref_fn: unsafe extern "C" fn(*const c_void, id: Vec2<u64>) -> FfiOption<[*const ArchetypeUnsafeFfi; 2]>,
+    by_2_ids_mut_fn: unsafe extern "C" fn(*mut c_void, id: Vec2<u64>) -> FfiOption<[*mut ArchetypeUnsafeFfi; 2]>,
     by_components_ref_fn: unsafe extern "C" fn(*const c_void, components_ref: *const UniqueComponentsSet) -> *const ArchetypeUnsafeFfi,
     by_components_mut_fn: unsafe extern "C" fn(*mut c_void, components_ref: *const UniqueComponentsSet) -> *mut ArchetypeUnsafeFfi,
-    id_by_components_fn: unsafe extern "C" fn(*const c_void, components_ref: *const UniqueComponentsSet) -> FfiOptionCopy<u64>,
+    id_by_components_fn: unsafe extern "C" fn(*const c_void, components_ref: *const UniqueComponentsSet) -> FfiOption<u64>,
     ids_by_component_fn: unsafe extern "C" fn(*const c_void, component: u64) -> *const FfiVec<u64>,
     id_by_components_or_create_fn: unsafe extern "C" fn(*mut c_void, components: UniqueComponentsSet) -> u64,
 }
@@ -57,22 +58,22 @@ impl ArchetypesHolderFfi {
                 }
             }
         }
-        unsafe extern "C" fn ffi_by_2_ids_ref(this: *const c_void, id: [u64; 2]) -> FfiOptionCopy<[*const ArchetypeUnsafeFfi; 2]> {
+        unsafe extern "C" fn ffi_by_2_ids_ref(this: *const c_void, id: Vec2<u64>) -> FfiOption<[*const ArchetypeUnsafeFfi; 2]> {
             unsafe {
                 let this = &*(this as *const ArchetypesHolderNative);
                 
-                let result = this.by_2_ids_ref(id);
+                let result = this.by_2_ids_ref(id.into_array());
 
-                FfiOptionCopy::from_option(result.map(|a| a.map(|r| &raw const *r)))
+                FfiOption::from_option(result.map(|a| a.map(|r| &raw const *r)))
             }
         }
-        unsafe extern "C" fn ffi_by_2_ids_mut(this: *mut c_void, id: [u64; 2]) -> FfiOptionCopy<[*mut ArchetypeUnsafeFfi; 2]> {
+        unsafe extern "C" fn ffi_by_2_ids_mut(this: *mut c_void, id: Vec2<u64>) -> FfiOption<[*mut ArchetypeUnsafeFfi; 2]> {
             unsafe {
                 let this = &mut *(this as *mut ArchetypesHolderNative);
                 
-                let result = this.by_2_ids_mut(id);
+                let result = this.by_2_ids_mut(id.into_array());
 
-                FfiOptionCopy::from_option(result.map(|a| a.map(|r| &raw mut *r)))
+                FfiOption::from_option(result.map(|a| a.map(|r| &raw mut *r)))
             }
         }
         unsafe extern "C" fn ffi_by_components_ref(this: *const c_void, components_ref: *const UniqueComponentsSet) -> *const ArchetypeUnsafeFfi {
@@ -99,13 +100,13 @@ impl ArchetypesHolderFfi {
                 }
             }
         }
-        unsafe extern "C" fn ffi_id_by_components(this: *const c_void, components_ref: *const UniqueComponentsSet) -> FfiOptionCopy<u64> {
+        unsafe extern "C" fn ffi_id_by_components(this: *const c_void, components_ref: *const UniqueComponentsSet) -> FfiOption<u64> {
             unsafe {
                 let this = &*(this as *const ArchetypesHolderNative);
                 
                 let result = this.id_by_components(&*components_ref);
 
-                FfiOptionCopy::from_option(result)
+                FfiOption::from_option(result)
             }
         }
         unsafe extern "C" fn ffi_ids_by_component(this: *const c_void, component: u64) -> *const FfiVec<u64> {
@@ -183,7 +184,7 @@ impl ArchetypesHolderFfi {
         unsafe {
             let this = self.data.get();
 
-            let result = (self.vtable.by_2_ids_ref_fn)(this, id);
+            let result = (self.vtable.by_2_ids_ref_fn)(this, Vec2::from_array(id));
 
             result.into_option().map(|a| a.map(|p| &*p))
         }
@@ -192,7 +193,7 @@ impl ArchetypesHolderFfi {
         unsafe {
             let this = self.data.get();
 
-            let result = (self.vtable.by_2_ids_mut_fn)(this, id);
+            let result = (self.vtable.by_2_ids_mut_fn)(this, Vec2::from_array(id));
 
             result.into_option().map(|a| a.map(|p| &mut *p))
         }

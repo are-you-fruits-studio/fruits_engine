@@ -1,5 +1,5 @@
 use fruits_ecs::{Component, Entity};
-use fruits_ffi::{FfiOptionCopy, FfiVec};
+use fruits_ffi::{FfiOption, FfiVec};
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
 
 #[repr(C)]
@@ -80,7 +80,7 @@ pub struct LocalRectComponent {
     pub offset: Vec2<UiVal>,
     pub anchor: Vec2<f32>,
     pub pivot: Vec2<f32>,
-    pub scale: Vec2<FfiOptionCopy<UiVal>>,
+    pub scale: Vec2<FfiOption<UiVal>>,
     pub z: f32,
 }
 impl Default for LocalRectComponent {

@@ -20,12 +20,12 @@ struct BvhNode<T> {
 #[repr(C)]
 #[derive(Debug)]
 enum BvhNodeCore<T> {
-    Leaf(T),
+    Leaf(CollisionShape, T),
     Branch(FfiBox<[BvhNode<T>; 2]>),
 }
 
 impl<T> Bvh<T> {
-    pub fn new(values: Vec<(CollisionAabb, T)>) -> Self {
+    pub fn new(values: Vec<(CollisionShape, T)>) -> Self {
         Self {
             root: BvhNode::new(values, 0).into(),
         }
@@ -47,23 +47,26 @@ impl<T: Clone> Bvh<T> {
 }
 
 impl<T> BvhNode<T> {
-    fn new(mut values: Vec<(CollisionAabb, T)>, depth: usize) -> Option<Self> {
+    fn new(mut values: Vec<(CollisionShape, T)>, depth: usize) -> Option<Self> {
         if values.is_empty() {
             return None;
         }
         if values.len() == 1 {
-            let (aabb, item) = values.pop().unwrap();
+            let (shape, item) = values.pop().unwrap();
 
             return Some(Self {
-                aabb: aabb,
-                core: BvhNodeCore::Leaf(item),
+                aabb: shape.to_aab(),
+                core: BvhNodeCore::Leaf(shape, item),
             });
         }
 
         let axis = depth % 3;
         values.sort_by(|a, b| {
-            let va = a.0.center[axis] - a.0.extents[axis];
-            let vb = b.0.center[axis] - b.0.extents[axis];
+            let aab_a = a.0.to_aab();
+            let aab_b = b.0.to_aab();
+
+            let va = aab_a.center[axis] - aab_a.extents[axis];
+            let vb = aab_b.center[axis] - aab_b.extents[axis];
 
             va.partial_cmp(&vb).unwrap()
         });
@@ -88,8 +91,10 @@ impl<T: Clone> BvhNode<T> {
         }
         
         match &self.core {
-            BvhNodeCore::Leaf(id) => {
-                hits.push(id.clone());
+            BvhNodeCore::Leaf(shape, id) => {
+                if overlaps(*shape, query) {
+                    hits.push(id.clone());
+                }
             },
             BvhNodeCore::Branch(children) => {
                 for child in children.iter() {
