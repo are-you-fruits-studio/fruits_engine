@@ -87,7 +87,7 @@ fn update_colliders(
         collision_aabb.center = global_transform.position;
         collision_aabb.extents = local_transform.scale * 0.5;
 
-        collider.shape = CollisionShape::from(collision_aabb).into_ffi();
+        collider.shape = CollisionShape::from(collision_aabb);
     }
 }
 

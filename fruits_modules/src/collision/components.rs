@@ -1,9 +1,9 @@
 use fruits_ecs::Component;
 
-use crate::collision::CollisionShapeFfi;
+use crate::collision::CollisionShape;
 
 #[repr(C)]
 #[derive(Component)]
 pub struct ColliderComponent {
-    pub shape: CollisionShapeFfi,
+    pub shape: CollisionShape,
 }

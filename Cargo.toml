@@ -29,7 +29,7 @@ members = [
     "fruits_asset",
     "fruits_wavefront",
     "fruits_serialization_macros"
-]
+, "fruits_control_flow_macros"]
 
 [package]
 name = "fruits_engine"
@@ -54,3 +54,4 @@ fruits_entry_point = { path = "./fruits_entry_point" }
 fruits_app_launcher = { path = "./fruits_app_launcher" }
 fruits_asset = { path = "./fruits_asset" }
 fruits_ffi = { path = "./fruits_ffi" }
+fruits_control_flow_macros = { path = "./fruits_control_flow_macros" }

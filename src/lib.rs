@@ -10,6 +10,7 @@ pub mod prelude {
     pub use fruits_reflection::*;
     pub use fruits_entry_point::*;
     pub use fruits_ffi::*;
+    pub use fruits_control_flow_macros::*;
 }
 
 pub mod app {
@@ -49,4 +50,8 @@ pub mod asset {
 
 pub mod ffi {
     pub use fruits_ffi::*;
+}
+
+pub mod control_flow {
+    pub use fruits_control_flow_macros::*;
 }
