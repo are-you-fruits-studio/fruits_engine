@@ -8,7 +8,6 @@ pub mod same_type;
 pub mod stack_vec;
 pub mod thread_pool;
 pub mod typed_map;
-pub mod types_registry;
 
 pub struct AssumeSend<T>(T);
 

@@ -61,7 +61,7 @@ impl<T> BvhNode<T> {
         }
 
         let axis = depth % 3;
-        values.sort_by(|a, b| {
+        values.sort_unstable_by(|a, b| {
             let aab_a = a.0.to_aab();
             let aab_b = b.0.to_aab();
 

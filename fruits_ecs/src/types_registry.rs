@@ -1,8 +1,5 @@
 use std::{
-    any::TypeId,
-    collections::HashMap,
-    ffi::c_void,
-    sync::{Arc, RwLock},
+    any::TypeId, collections::HashMap, ffi::c_void, marker::PhantomData, sync::{Arc, RwLock}
 };
 
 use fruits_ffi::FfiOption;
@@ -283,6 +280,43 @@ impl TypesRegistryAccessNative {
         Some(id)
     }
 }
+
+//
+
+pub struct RegistrySpecificTypeId<T: 'static> {
+    id: u64,
+    _phantom: PhantomData<fn(T) -> T>,
+}
+
+impl<T: 'static> RegistrySpecificTypeId<T> {
+    pub fn try_new(types: &TypesRegistryCache) -> Option<Self> {
+        Some(Self {
+            id: types.get::<T>()?,
+            _phantom: PhantomData,
+        })
+    }
+
+    pub fn new(types: &TypesRegistryCache) -> Self {
+        Self {
+            id: types.get_or_register::<T>(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+}
+
+impl<T: 'static> Clone for RegistrySpecificTypeId<T> {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            _phantom: PhantomData,
+        }
+    }
+}
+impl<T: 'static> Copy for RegistrySpecificTypeId<T> {}
 
 //
 

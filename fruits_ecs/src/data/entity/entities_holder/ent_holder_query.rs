@@ -6,6 +6,8 @@ pub struct EntitiesHolderQuery<'d, A: ArchetypeIteratorItem, F: QueryFilter = ()
     entities: &'d EntitiesHolderUnsafeFfi,
     types: &'d TypesRegistryCache,
     archetype_indices: Vec<u64>,
+    type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache,
+    type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache,
     _phantom: (PhantomData<fn(A::Item<'static>) -> A::Item<'static>>, PhantomData<fn(F) -> F>),
 }
 
@@ -35,6 +37,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
                     .collect::<Vec<_>>(),
                 entities,
                 types,
+                type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+                type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
                 _phantom: Default::default(),
             };
         }
@@ -50,6 +54,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
                     entities,
                     types,
                     archetype_indices: Vec::new(),
+                    type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+                    type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
                     _phantom: Default::default(),
                 };
             };
@@ -72,6 +78,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
                     .collect::<Vec<_>>(),
                 entities,
                 types,
+                type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+                type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
                 _phantom: Default::default(),
             };
         };
@@ -93,6 +101,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             entities,
             types,
             archetype_indices: suitable_archetypes,
+            type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+            type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
             _phantom: Default::default(),
         }
     }
@@ -101,14 +111,14 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     where
         'd: 'r,
     {
-        QueryIter::<A>::new(self.archetypes_iter())
+        QueryIter::<A>::new(self.archetypes_iter(), self.type_cache_readonly)
     }
 
     pub fn iter_mut<'r>(&'r mut self) -> QueryIterMut<'r, A>
     where
         'd: 'r,
     {
-        QueryIterMut::<A>::new(self.archetypes_iter())
+        QueryIterMut::<A>::new(self.archetypes_iter(), self.type_cache)
     }
 
     pub fn len(&self) -> u64 {
@@ -146,7 +156,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             };
 
             let mut iter_state =
-                <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.types);
+                <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.type_cache_readonly);
             let item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::next(&iter_item, &mut iter_state);
 
             Some(item)
@@ -179,7 +189,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
                 chunk_entity_idx: archetype.layout().entity_in_chunk_index(location.entity_archetype_index),
             };
 
-            let mut iter_state = <A::Item<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.types);
+            let mut iter_state = <A::Item<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.type_cache);
             let item = <A::Item<'static> as ArchetypeIteratorItem>::next(&iter_item, &mut iter_state);
 
             Some(item)
@@ -218,11 +228,16 @@ impl<'a> Iterator for ArchetypesIter<'a> {
 pub struct QueryIter<'a, A: ArchetypeIteratorItem> {
     iter: ArchetypesIter<'a>,
     iter2: Option<ArchetypeIterator<'a, A::ReadOnlyItem<'static>>>,
+    type_cache: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache,
 }
 
 impl<'a, A: ArchetypeIteratorItem> QueryIter<'a, A> {
-    fn new(iter: ArchetypesIter<'a>) -> Self {
-        Self { iter, iter2: None }
+    fn new(iter: ArchetypesIter<'a>, type_cache: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache) -> Self {
+        Self {
+            iter,
+            iter2: None,
+            type_cache,
+        }
     }
 }
 impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
@@ -236,7 +251,7 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
             {
                 return item;
             } else if let Some(iter_item) = self.iter.next() {
-                self.iter2 = Some(unsafe { iter_item.into_iter::<A::ReadOnlyItem<'static>>() });
+                self.iter2 = Some(unsafe { iter_item.into_iter::<A::ReadOnlyItem<'static>>(self.type_cache) });
             } else {
                 return None;
             }
@@ -247,11 +262,16 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
 pub struct QueryIterMut<'a, A: ArchetypeIteratorItem> {
     iter: ArchetypesIter<'a>,
     iter2: Option<ArchetypeIterator<'a, A::Item<'static>>>,
+    type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache,
 }
 
 impl<'a, A: ArchetypeIteratorItem> QueryIterMut<'a, A> {
-    fn new(iter: ArchetypesIter<'a>) -> Self {
-        Self { iter, iter2: None }
+    fn new(iter: ArchetypesIter<'a>, type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache) -> Self {
+        Self {
+            iter,
+            iter2: None,
+            type_cache,
+        }
     }
 }
 impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
@@ -265,7 +285,7 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
             {
                 return item;
             } else if let Some(iter_item) = self.iter.next() {
-                self.iter2 = Some(unsafe { iter_item.into_iter::<A::Item<'static>>() });
+                self.iter2 = Some(unsafe { iter_item.into_iter::<A::Item<'static>>(self.type_cache) });
             } else {
                 return None;
             }

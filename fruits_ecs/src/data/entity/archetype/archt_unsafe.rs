@@ -8,8 +8,10 @@ pub unsafe trait ArchetypeIteratorItem {
     type Item<'w>: 'w + ArchetypeIteratorItem;
     type ReadOnlyItem<'w>: 'w + ArchetypeIteratorItem;
     type IterState;
+    type TypeCache: Copy;
 
-    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState;
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache;
+    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState;
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w>;
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache);
 }
@@ -18,10 +20,15 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     type Item<'w> = &'w C;
     type ReadOnlyItem<'w> = &'w C;
     type IterState = u64;
+    type TypeCache = RegistrySpecificTypeId<C>;
 
-    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        Self::TypeCache::new(types)
+    }
+
+    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
         layout
-            .get_component(types.get_or_register::<C>())
+            .get_component(type_cache.id())
             .map(|i| i.chunk_offset)
             .unwrap_or(0)
     }
@@ -49,10 +56,15 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     type Item<'w> = &'w mut C;
     type ReadOnlyItem<'w> = &'w C;
     type IterState = u64;
+    type TypeCache = RegistrySpecificTypeId<C>;
 
-    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        Self::TypeCache::new(types)
+    }
+
+    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
         layout
-            .get_component(types.get_or_register::<C>())
+            .get_component(type_cache.id())
             .map(|i| i.chunk_offset)
             .unwrap_or(0)
     }
@@ -80,9 +92,14 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     type Item<'w> = Option<&'w C>;
     type ReadOnlyItem<'w> = Option<&'w C>;
     type IterState = Option<u64>;
+    type TypeCache = RegistrySpecificTypeId<C>;
 
-    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
-        layout.get_component(types.get_or_register::<C>()).map(|t| t.chunk_offset)
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        Self::TypeCache::new(types)
+    }
+
+    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
+        layout.get_component(type_cache.id()).map(|t| t.chunk_offset)
     }
 
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w> {
@@ -108,9 +125,14 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     type Item<'w> = Option<&'w mut C>;
     type ReadOnlyItem<'w> = Option<&'w C>;
     type IterState = Option<u64>;
+    type TypeCache = RegistrySpecificTypeId<C>;
 
-    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
-        layout.get_component(types.get_or_register::<C>()).map(|i| i.chunk_offset)
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        Self::TypeCache::new(types)
+    }
+
+    unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
+        layout.get_component(type_cache.id()).map(|i| i.chunk_offset)
     }
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w> {
         Some(unsafe {
@@ -136,8 +158,13 @@ unsafe impl ArchetypeIteratorItem for Entity {
     type Item<'w> = Entity;
     type ReadOnlyItem<'w> = Entity;
     type IterState = ();
+    type TypeCache = ();
 
-    unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _types: &TypesRegistryCache) -> Self::IterState {}
+    fn get_type_cache(_types: &TypesRegistryCache) -> Self::TypeCache {
+        ()
+    }
+
+    unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _type_cache: Self::TypeCache) -> Self::IterState {}
 
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, _iter_state: &mut Self::IterState) -> Self::Item<'w> {
         unsafe {
@@ -175,11 +202,25 @@ macro_rules! archetype_iterator_item_impl {
             type IterState = (
                 $($P::IterState),+
             );
+            type TypeCache = (
+                $($P::TypeCache),+
+            );
 
-            unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _types: &TypesRegistryCache) -> Self::IterState {
+            fn get_type_cache(_types: &TypesRegistryCache) -> Self::TypeCache {
+                (
+                    $($P::get_type_cache(_types)),+
+                )
+            }
+
+            unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _type_cache: Self::TypeCache) -> Self::IterState {
                 unsafe {
+                    #[allow(non_snake_case)]
+                    let (
+                        $($P),+
+                    ) = _type_cache;
+
                     (
-                        $($P::prepare_iter_state(_layout, _types)),+
+                        $($P::prepare_iter_state(_layout, $P)),+
                     )
                 }
             }
@@ -225,12 +266,12 @@ pub struct ArchetypeIterator<'a, A: ArchetypeIteratorItem> {
 }
 
 impl<'a, A: ArchetypeIteratorItem> ArchetypeIterator<'a, A> {
-    pub unsafe fn new(archetype: ArchetypeUnsafeRef<'a>) -> Self {
+    pub unsafe fn new(archetype: ArchetypeUnsafeRef<'a>, type_cache: A::TypeCache) -> Self {
         unsafe {
             let archetype_ffi = &*archetype.archetype;
 
             Self {
-                iter_state: A::prepare_iter_state(archetype_ffi.layout(), archetype.types),
+                iter_state: A::prepare_iter_state(archetype_ffi.layout(), type_cache),
                 iter: archetype_ffi.iter(),
                 _phantom: Default::default(),
             }
@@ -273,8 +314,8 @@ impl<'a> ArchetypeUnsafeRef<'a> {
         }
     }
 
-    pub unsafe fn into_iter<A: ArchetypeIteratorItem>(self) -> ArchetypeIterator<'a, A> {
-        unsafe { ArchetypeIterator::new(self) }
+    pub unsafe fn into_iter<A: ArchetypeIteratorItem>(self, type_cache: A::TypeCache) -> ArchetypeIterator<'a, A> {
+        unsafe { ArchetypeIterator::new(self, type_cache) }
     }
 
     pub unsafe fn entities_count(&self) -> u64 {
