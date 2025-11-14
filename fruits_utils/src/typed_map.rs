@@ -1,4 +1,4 @@
-﻿use std::any::{Any, TypeId};
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
 use strategies::TypedMapStrategy;
@@ -6,14 +6,14 @@ use strategies::TypedMapStrategy;
 pub mod strategies {
     use std::any::Any;
 
-    trait Sealed { }
+    trait Sealed {}
 
-    impl Sealed for DefaultStrategy { }
-    impl Sealed for SendStrategy { }
-    impl Sealed for SendSyncStrategy { }
+    impl Sealed for DefaultStrategy {}
+    impl Sealed for SendStrategy {}
+    impl Sealed for SendSyncStrategy {}
 
     #[allow(private_bounds)]
-    pub trait TypedMapStrategy : Sealed {
+    pub trait TypedMapStrategy: Sealed {
         type ValueBase;
 
         fn downcast_ref<R: 'static>(stored: &Self::ValueBase) -> Option<&R>;

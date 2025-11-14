@@ -1,5 +1,7 @@
-
-use fruits_reflection::{ReflMapStruct, ReflMapStructField, ReflMapType, ReflRepr, ReflReprFields, ReflReprPrimitive, ReflReprStruct, ReflTy, ReflTyId, ReflTyStruct, ReflectTy};
+use fruits_reflection::{
+    ReflMapStruct, ReflMapStructField, ReflMapType, ReflRepr, ReflReprFields, ReflReprPrimitive, ReflReprStruct, ReflTy, ReflTyId,
+    ReflTyStruct, ReflectTy,
+};
 
 fn main() {
     fruits_reflection::registry_use_case()
@@ -12,16 +14,27 @@ fn use_case_real_type() {
         return;
     };
 
-    let struct_value = refl.create(vec![
-        Box::new(5_u8),
-        Box::new(String::from("abc")),
-    ]).unwrap();
+    let struct_value = refl.create(vec![Box::new(5_u8), Box::new(String::from("abc"))]).unwrap();
 
-    println!("{}", refl.fields["age"].get_ref(&*struct_value).unwrap().downcast_ref::<u8>().unwrap());
-    println!("{}", refl.fields["name"].get_ref(&*struct_value).unwrap().downcast_ref::<String>().unwrap());
-    
+    println!(
+        "{}",
+        refl.fields["age"]
+            .get_ref(&*struct_value)
+            .unwrap()
+            .downcast_ref::<u8>()
+            .unwrap()
+    );
+    println!(
+        "{}",
+        refl.fields["name"]
+            .get_ref(&*struct_value)
+            .unwrap()
+            .downcast_ref::<String>()
+            .unwrap()
+    );
+
     let mut refl_fields = refl.deconstruct(struct_value).unwrap();
-    
+
     println!("");
     println!("{}", refl_fields.remove(0).downcast_ref::<u8>().unwrap());
     println!("{}", refl_fields.remove(0).downcast_ref::<String>().unwrap());
@@ -66,15 +79,17 @@ fn example_struct_refl_map() -> ReflMapType {
         |(age, name)| ExampleStruct { age, name },
         |v| (v.age, v.name),
         [
-            ("age", ReflMapStructField::new(
-                |s: &ExampleStruct| &s.age,
-                |s: &mut ExampleStruct| &mut s.age,
-            )),
-            ("name", ReflMapStructField::new(
-                |s: &ExampleStruct| &s.name,
-                |s: &mut ExampleStruct| &mut s.name,
-            )),
-        ].into_iter().collect(),
+            (
+                "age",
+                ReflMapStructField::new(|s: &ExampleStruct| &s.age, |s: &mut ExampleStruct| &mut s.age),
+            ),
+            (
+                "name",
+                ReflMapStructField::new(|s: &ExampleStruct| &s.name, |s: &mut ExampleStruct| &mut s.name),
+            ),
+        ]
+        .into_iter()
+        .collect(),
     ))
 }
 
@@ -88,10 +103,20 @@ fn example_struct_refl_ty() -> ReflTy {
 fn example_struct_into_refl_repr(v: &ExampleStruct) -> ReflRepr {
     ReflRepr::Struct(ReflReprStruct {
         name: String::from("ExampleStruct"),
-        fields: ReflReprFields::Named([
-            (String::from("age"), ReflRepr::Primitive(ReflReprPrimitive::Int(v.age as i128))),
-            (String::from("name"), ReflRepr::Primitive(ReflReprPrimitive::Str(v.name.clone()))),
-        ].into_iter().collect()),
+        fields: ReflReprFields::Named(
+            [
+                (
+                    String::from("age"),
+                    ReflRepr::Primitive(ReflReprPrimitive::Int(v.age as i128)),
+                ),
+                (
+                    String::from("name"),
+                    ReflRepr::Primitive(ReflReprPrimitive::Str(v.name.clone())),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        ),
     })
 }
 

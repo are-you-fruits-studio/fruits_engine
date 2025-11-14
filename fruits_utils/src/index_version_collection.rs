@@ -53,16 +53,23 @@ impl<T> VersionCollection<T> {
             let item = &mut self.items[index as usize];
 
             item.data = Some(data);
-            
-            self.count = self.count.checked_add(1).unwrap_or_else(|| panic!("VersionCollection count overflow"));
+
+            self.count = self
+                .count
+                .checked_add(1)
+                .unwrap_or_else(|| panic!("VersionCollection count overflow"));
 
             return VersionIndex {
                 index,
                 version: item.version,
-            }
+            };
         }
 
-        let index: u64 = self.items.len().try_into().unwrap_or_else(|_| panic!("VersionCollection count overflow"));
+        let index: u64 = self
+            .items
+            .len()
+            .try_into()
+            .unwrap_or_else(|_| panic!("VersionCollection count overflow"));
         // entities with version 0 cannot exist.
         let version = 1;
 
@@ -71,12 +78,12 @@ impl<T> VersionCollection<T> {
             version,
         });
 
-        self.count = self.count.checked_add(1).unwrap_or_else(|| panic!("VersionCollection count overflow"));
-        
-        VersionIndex {
-            index,
-            version,
-        }
+        self.count = self
+            .count
+            .checked_add(1)
+            .unwrap_or_else(|| panic!("VersionCollection count overflow"));
+
+        VersionIndex { index, version }
     }
 
     pub fn remove(&mut self, index: VersionIndex) -> Option<T> {

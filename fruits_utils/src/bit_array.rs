@@ -5,17 +5,13 @@ pub struct BitArray<const N: usize> {
 
 impl<const N: usize> BitArray<N> {
     pub const fn new() -> Self {
-        Self {
-            data: [0; N],
-        }
+        Self { data: [0; N] }
     }
 
     pub const fn splat(v: bool) -> Self {
         let v = if v { !0 } else { 0 };
 
-        Self {
-            data: [v; N],
-        }
+        Self { data: [v; N] }
     }
 
     pub const fn len(&self) -> usize {
@@ -82,9 +78,9 @@ impl<const N: usize> Default for BitArray<N> {
 }
 
 impl<'a, const N: usize> IntoIterator for &'a BitArray<N> {
-    type Item = <BitArrayIter::<'a, N> as Iterator>::Item;
+    type Item = <BitArrayIter<'a, N> as Iterator>::Item;
 
-    type IntoIter = BitArrayIter::<'a, N>;
+    type IntoIter = BitArrayIter<'a, N>;
 
     fn into_iter(self) -> Self::IntoIter {
         BitArrayIter::<'a, N>::new(self)
@@ -92,9 +88,9 @@ impl<'a, const N: usize> IntoIterator for &'a BitArray<N> {
 }
 
 impl<const N: usize> IntoIterator for BitArray<N> {
-    type Item = <BitArrayIntoIter::<N> as Iterator>::Item;
+    type Item = <BitArrayIntoIter<N> as Iterator>::Item;
 
-    type IntoIter = BitArrayIntoIter::<N>;
+    type IntoIter = BitArrayIntoIter<N>;
 
     fn into_iter(self) -> Self::IntoIter {
         BitArrayIntoIter::<N>::new(self)
@@ -108,10 +104,7 @@ pub struct BitArrayIter<'a, const N: usize> {
 
 impl<'a, const N: usize> BitArrayIter<'a, N> {
     pub const fn new(array: &'a BitArray<N>) -> Self {
-        Self {
-            array,
-            i: 0,
-        }
+        Self { array, i: 0 }
     }
 }
 
@@ -137,10 +130,7 @@ pub struct BitArrayIntoIter<const N: usize> {
 
 impl<const N: usize> BitArrayIntoIter<N> {
     pub const fn new(array: BitArray<N>) -> Self {
-        Self {
-            array,
-            i: 0,
-        }
+        Self { array, i: 0 }
     }
 }
 

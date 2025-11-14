@@ -47,12 +47,9 @@ impl<T> FfiOption<T> {
 impl<T: Debug> Debug for FfiOption<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Self::Some(v) = self {
-            f.debug_tuple("FfiOption::Some")
-                .field(v)
-                .finish()
+            f.debug_tuple("FfiOption::Some").field(v).finish()
         } else {
-            f.debug_tuple("FfiOption::None")
-                .finish()
+            f.debug_tuple("FfiOption::None").finish()
         }
     }
 }
@@ -101,7 +98,7 @@ impl<T: PartialEq> PartialEq for FfiOption<T> {
     }
 }
 
-impl<T: Eq> Eq for FfiOption<T> { }
-impl<T: Copy> Copy for FfiOption<T> { }
+impl<T: Eq> Eq for FfiOption<T> {}
+impl<T: Copy> Copy for FfiOption<T> {}
 
 // todo: impl standard traits

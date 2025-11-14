@@ -1,7 +1,10 @@
 use fruits_math::{Mat4, Vec3, Vec4};
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
-use crate::{asset::AssetHandle, render::{RenderSpace, StandardTexture}};
+use crate::{
+    asset::AssetHandle,
+    render::{RenderSpace, StandardTexture},
+};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -16,8 +19,8 @@ pub struct StandardUniform {
     pub _padding: [f32; 2],
 }
 
-unsafe impl AllBitVariationsValid for StandardUniform { }
-unsafe impl AllBitsInit for StandardUniform { }
+unsafe impl AllBitVariationsValid for StandardUniform {}
+unsafe impl AllBitsInit for StandardUniform {}
 
 impl Default for StandardUniform {
     fn default() -> Self {

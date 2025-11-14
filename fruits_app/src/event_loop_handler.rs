@@ -3,7 +3,13 @@ use std::sync::Arc;
 use fruits_ecs::{Schedule, World, WorldBuilder};
 use fruits_modules::RenderApiResource;
 use gilrs::Gilrs;
-use winit::{application::ApplicationHandler, event::{DeviceEvent, DeviceId, ElementState, WindowEvent}, event_loop::ActiveEventLoop, keyboard::PhysicalKey, window::{Window, WindowAttributes, WindowId}};
+use winit::{
+    application::ApplicationHandler,
+    event::{DeviceEvent, DeviceId, ElementState, WindowEvent},
+    event_loop::ActiveEventLoop,
+    keyboard::PhysicalKey,
+    window::{Window, WindowAttributes, WindowId},
+};
 
 use crate::InputResource;
 
@@ -67,16 +73,11 @@ impl ApplicationHandler for EventLoopHandler {
         };
     }
 
-    fn device_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _device_id: DeviceId,
-        event: DeviceEvent,
-    ) {
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, event: DeviceEvent) {
         let EventLoopHandlerState::Polling { .. } = &mut self.0 else {
             return;
         };
-        
+
         match event {
             // todo
             // DeviceEvent::MouseMotion { delta } => {
@@ -89,13 +90,13 @@ impl ApplicationHandler for EventLoopHandler {
         }
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        let EventLoopHandlerState::Polling { world, window, gamepad_host } = &mut self.0 else {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
+        let EventLoopHandlerState::Polling {
+            world,
+            window,
+            gamepad_host,
+        } = &mut self.0
+        else {
             return;
         };
 
@@ -138,7 +139,7 @@ impl ApplicationHandler for EventLoopHandler {
                     ElementState::Pressed => input.keyboard.press(key_code),
                     ElementState::Released => input.keyboard.release(key_code),
                 }
-            },
+            }
             WindowEvent::Resized(new_size) => {
                 render_state.resize([new_size.width, new_size.height]);
             }
@@ -180,4 +181,3 @@ impl ApplicationHandler for EventLoopHandler {
         }
     }
 }
-

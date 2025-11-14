@@ -1,32 +1,83 @@
-use std::{collections::VecDeque, io::{Read, Write}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream}, time::Instant};
+use std::{
+    collections::VecDeque,
+    io::{Read, Write},
+    net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream},
+    time::Instant,
+};
 
 use fruits_ecs::{Entity, ExclusiveWorldAccess, ResMut, Resource, Schedule, WorldBuilder};
 
 pub const SYSTEM_GROUP: &str = "fruits_debug";
 
 pub fn add_module_to(world: &mut WorldBuilder) {
-    world.data_mut().resources_mut().insert(DebugServerResource::default()).ok().unwrap();
-    world.data_mut().resources_mut().insert(DebugConnectionResource::default()).ok().unwrap();
+    world
+        .data_mut()
+        .resources_mut()
+        .insert(DebugServerResource::default())
+        .ok()
+        .unwrap();
+    world
+        .data_mut()
+        .resources_mut()
+        .insert(DebugConnectionResource::default())
+        .ok()
+        .unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP)
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .group(SYSTEM_GROUP)
         .insert_child_system(host_debug_server)
         .insert_child_system(debug_connection_recv_system)
         .insert_child_system(debug_connection_send_system)
         .insert_child_system(generate_response_system)
         .insert_child_system(debug_connection_ping_system);
 
-    world.behavior_mut().get_mut(Schedule::Update).order_system(host_debug_server).before_system(debug_connection_recv_system);
-    world.behavior_mut().get_mut(Schedule::Update).order_system(host_debug_server).before_system(debug_connection_send_system);
-    world.behavior_mut().get_mut(Schedule::Update).order_system(host_debug_server).before_system(debug_connection_ping_system);
-    world.behavior_mut().get_mut(Schedule::Update).order_system(debug_connection_recv_system).before_system(generate_response_system);
-    world.behavior_mut().get_mut(Schedule::Update).order_system(generate_response_system).before_system(debug_connection_send_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(host_debug_server)
+        .before_system(debug_connection_recv_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(host_debug_server)
+        .before_system(debug_connection_send_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(host_debug_server)
+        .before_system(debug_connection_ping_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(debug_connection_recv_system)
+        .before_system(generate_response_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(generate_response_system)
+        .before_system(debug_connection_send_system);
 }
 
 pub fn add_module_as_client_to(world: &mut WorldBuilder) {
-    world.data_mut().resources_mut().insert(DebugServerResource::default()).ok().unwrap();
-    world.data_mut().resources_mut().insert(DebugConnectionResource::default()).ok().unwrap();
+    world
+        .data_mut()
+        .resources_mut()
+        .insert(DebugServerResource::default())
+        .ok()
+        .unwrap();
+    world
+        .data_mut()
+        .resources_mut()
+        .insert(DebugConnectionResource::default())
+        .ok()
+        .unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP)
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .group(SYSTEM_GROUP)
         .insert_child_system(debug_connection_recv_system)
         .insert_child_system(debug_connection_send_system)
         .insert_child_system(debug_connection_ping_system);
@@ -36,9 +87,7 @@ pub mod msg_types {
     pub const HIERARCHY: u32 = 1;
 }
 
-pub fn generate_response_system(
-    mut world: ExclusiveWorldAccess,
-) {
+pub fn generate_response_system(mut world: ExclusiveWorldAccess) {
     let (mut res, ec, _evt) = world.as_tuple_mut();
 
     let connection_res = res.get_mut::<DebugConnectionResource>().unwrap();
@@ -46,7 +95,7 @@ pub fn generate_response_system(
     let Some(msg) = connection_res.recv_msg_queue.pop_back() else {
         return;
     };
-    
+
     if msg.0 == msg_types::HIERARCHY {
         let mut response = Vec::new();
         for ent in ec.query::<Entity>().iter() {
@@ -59,15 +108,9 @@ pub fn generate_response_system(
     }
 }
 
-pub fn host_debug_server(
-    mut server_res: ResMut<DebugServerResource>,
-    mut connection_res: ResMut<DebugConnectionResource>,
-) {
+pub fn host_debug_server(mut server_res: ResMut<DebugServerResource>, mut connection_res: ResMut<DebugConnectionResource>) {
     if server_res.listener.is_none() {
-        let listener = TcpListener::bind(SocketAddrV4::new(
-            Ipv4Addr::new(127, 0, 0, 1),
-            55643,
-        )).unwrap();
+        let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 55643)).unwrap();
         server_res.listener = Some(listener);
     }
 
@@ -86,9 +129,7 @@ pub fn host_debug_server(
     }
 }
 
-pub fn debug_connection_ping_system(
-    mut connection_res: ResMut<DebugConnectionResource>,
-) {
+pub fn debug_connection_ping_system(mut connection_res: ResMut<DebugConnectionResource>) {
     if connection_res.active_stream.is_none() {
         return;
     };
@@ -103,9 +144,7 @@ pub fn debug_connection_ping_system(
     }
 }
 
-pub fn debug_connection_recv_system(
-    mut connection_res: ResMut<DebugConnectionResource>,
-) {
+pub fn debug_connection_recv_system(mut connection_res: ResMut<DebugConnectionResource>) {
     let Some(stream) = &mut connection_res.active_stream else {
         return;
     };
@@ -120,7 +159,7 @@ pub fn debug_connection_recv_system(
                 _ => {
                     connection_res.reset();
                     println!("disconnected");
-                },
+                }
             }
 
             return;
@@ -174,14 +213,14 @@ pub fn debug_connection_recv_system(
 
     connection_res.recv_active_msg_metadata = None;
 
-    println!("msg received ({}, {}): {:?}", metadata.payload_size, metadata.payload_type, msg_buffer);
+    println!(
+        "msg received ({}, {}): {:?}",
+        metadata.payload_size, metadata.payload_type, msg_buffer
+    );
     connection_res.recv_msg_queue.push_back((metadata.payload_type, msg_buffer));
-
 }
 
-pub fn debug_connection_send_system(
-    mut connection_res: ResMut<DebugConnectionResource>,
-) {
+pub fn debug_connection_send_system(mut connection_res: ResMut<DebugConnectionResource>) {
     if connection_res.active_stream.is_none() {
         return;
     }
@@ -191,7 +230,7 @@ pub fn debug_connection_send_system(
     };
 
     let stream = connection_res.active_stream.as_mut().unwrap();
-    
+
     if let Err(err) = stream.write_all(&(msg.1.len() as u32).to_le_bytes()) {
         eprintln!("{}", err);
         connection_res.reset();
@@ -212,7 +251,7 @@ pub fn debug_connection_send_system(
     }
 
     stream.flush().unwrap();
-    
+
     connection_res.last_msg_time = Some(Instant::now());
 }
 

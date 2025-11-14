@@ -1,6 +1,4 @@
-use std::{
-    collections::HashMap, ffi::c_void
-};
+use std::{collections::HashMap, ffi::c_void};
 
 use fruits_ffi::{FfiDroppable, FfiVec};
 
@@ -14,7 +12,7 @@ struct ArchetypeLayoutItemsMap {
 
 impl ArchetypeLayoutItemsMap {
     pub fn new(map: HashMap<u64, ArchetypeItemLayout>) -> Self {
-        unsafe extern "C" fn ffi_get(this: *const c_void, key: u64) -> *const ArchetypeItemLayout  {
+        unsafe extern "C" fn ffi_get(this: *const c_void, key: u64) -> *const ArchetypeItemLayout {
             unsafe {
                 match (&*(this as *const HashMap<u64, ArchetypeItemLayout>)).get(&key) {
                     Some(l) => &raw const *l,
@@ -33,11 +31,7 @@ impl ArchetypeLayoutItemsMap {
         unsafe {
             let ptr = (self.get_fn)(self.data.get(), key);
 
-            if ptr.is_null() {
-                None
-            } else {
-                Some(&*ptr)
-            }
+            if ptr.is_null() { None } else { Some(&*ptr) }
         }
     }
 }
@@ -105,11 +99,14 @@ impl ArchetypeLayout {
                 aligned_offset += align - overshoot;
             }
 
-            components_map.insert(component_id, ArchetypeItemLayout {
-                type_data: component_type,
-                chunk_offset: aligned_offset,
-                order: order + 1,
-            });
+            components_map.insert(
+                component_id,
+                ArchetypeItemLayout {
+                    type_data: component_type,
+                    chunk_offset: aligned_offset,
+                    order: order + 1,
+                },
+            );
 
             components_list.push(ArchetypeComponentLayout {
                 type_data: StoredTypeData {
@@ -134,7 +131,11 @@ impl ArchetypeLayout {
 
     fn to_entities_per_chunk_count(components_set: &UniqueComponentsSet, types: &TypesRegistryAccessFfi) -> u64 {
         let entity_data = TypeData::of::<Entity>();
-        let components = components_set.components().iter().map(|t| types.get(*t).unwrap()).chain(std::iter::once(entity_data));
+        let components = components_set
+            .components()
+            .iter()
+            .map(|t| types.get(*t).unwrap())
+            .chain(std::iter::once(entity_data));
 
         let padding_sum = components.clone().map(|t| t.align.max(1) - 1).sum::<u64>();
         let size_sum = components.map(|t| t.size).sum::<u64>();
@@ -198,7 +199,11 @@ impl ArchetypeLayout {
         entity_in_archetype_index % self.entities_per_chunk_count
     }
 
-    pub fn component_memory_physical_location(&self, entity_in_archetype_index: u64, component_id: u64) -> ArchetypeItemPhysicalLocation {
+    pub fn component_memory_physical_location(
+        &self,
+        entity_in_archetype_index: u64,
+        component_id: u64,
+    ) -> ArchetypeItemPhysicalLocation {
         self.memory_physical_location(entity_in_archetype_index, self.components_map.get(component_id).unwrap())
     }
 
@@ -214,7 +219,11 @@ impl ArchetypeLayout {
         self.memory_line_physical_location(chunk_index, &self.entity_item_layout())
     }
 
-    pub fn memory_physical_location(&self, entity_in_archetype_index: u64, item_layout: &ArchetypeItemLayout) -> ArchetypeItemPhysicalLocation {
+    pub fn memory_physical_location(
+        &self,
+        entity_in_archetype_index: u64,
+        item_layout: &ArchetypeItemLayout,
+    ) -> ArchetypeItemPhysicalLocation {
         let entity_in_chunk_index = self.entity_in_chunk_index(entity_in_archetype_index);
         let memory_offset = item_layout.chunk_offset + entity_in_chunk_index * item_layout.type_data.size;
 
@@ -224,7 +233,11 @@ impl ArchetypeLayout {
         }
     }
 
-    pub fn memory_line_physical_location(&self, chunk_index: u64, item_layout: &ArchetypeItemLayout) -> ArchetypeItemPhysicalLocation {
+    pub fn memory_line_physical_location(
+        &self,
+        chunk_index: u64,
+        item_layout: &ArchetypeItemLayout,
+    ) -> ArchetypeItemPhysicalLocation {
         ArchetypeItemPhysicalLocation {
             chunk_index,
             memory_offset: item_layout.chunk_offset,

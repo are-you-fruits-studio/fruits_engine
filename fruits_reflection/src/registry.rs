@@ -1,6 +1,13 @@
-use std::{any::{Any, TypeId}, collections::HashMap};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
 
-use crate::{refl_repr::{ReflRepr, ReflReprFields, ReflReprStruct}, refl_repr_reg_entries, refl_ty::{ReflTy, ReflTyId}};
+use crate::{
+    refl_repr::{ReflRepr, ReflReprFields, ReflReprStruct},
+    refl_repr_reg_entries,
+    refl_ty::{ReflTy, ReflTyId},
+};
 
 #[derive(Default)]
 pub struct ReflTyRegistry {
@@ -66,7 +73,9 @@ pub trait ReflRepresenter {
 
     fn item_name(&self, ctx: &ReflRepresenterCtx) -> String;
     fn into_repr(&self, ctx: &ReflRepresenterCtx, v: &Self::Item) -> Option<ReflRepr>;
-    fn from_repr(&self, ctx: &ReflRepresenterCtx, v: &ReflRepr) -> Option<Self::Item> { None }
+    fn from_repr(&self, ctx: &ReflRepresenterCtx, v: &ReflRepr) -> Option<Self::Item> {
+        None
+    }
 }
 
 // example

@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeSet,
-    hash::Hash
-};
+use std::{collections::BTreeSet, hash::Hash};
 
 use fruits_ffi::FfiVec;
 
@@ -41,7 +38,7 @@ impl PartialEq for UniqueComponentsSet {
     }
 }
 
-impl Eq for UniqueComponentsSet { }
+impl Eq for UniqueComponentsSet {}
 
 //
 
@@ -100,4 +97,4 @@ impl PartialEq for UniqueComponentsSetBuilder {
     }
 }
 
-impl Eq for UniqueComponentsSetBuilder { }
+impl Eq for UniqueComponentsSetBuilder {}

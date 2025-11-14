@@ -7,10 +7,7 @@ pub struct EntityComponentsBuilder<'ec> {
 
 impl<'ec> EntityComponentsBuilder<'ec> {
     pub fn new(ec: EntitiesHolderMut<'ec>, ent: Entity) -> Self {
-        Self {
-            ec,
-            ent,
-        }
+        Self { ec, ent }
     }
 
     pub fn add_component<C: Component>(&mut self, component: C) -> &mut Self {

@@ -2,19 +2,23 @@ use std::mem::MaybeUninit;
 
 use crate::*;
 
-fn entities_holder_query<'e, A: ArchetypeIteratorItem, F: QueryFilter>(entities: &'e EntitiesHolderUnsafeFfi, types: &'e TypesRegistryCache) -> EntitiesHolderQuery<'e, A, F> {
+fn entities_holder_query<'e, A: ArchetypeIteratorItem, F: QueryFilter>(
+    entities: &'e EntitiesHolderUnsafeFfi,
+    types: &'e TypesRegistryCache,
+) -> EntitiesHolderQuery<'e, A, F> {
     unsafe { EntitiesHolderQuery::<'e, A, F>::new(entities, types) }
 }
 
-fn entities_holder_add_component<C: 'static>(entities: &mut EntitiesHolderUnsafeFfi, types: &TypesRegistryCache, entity: Entity, component: C) -> Result<(), C> {
+fn entities_holder_add_component<C: 'static>(
+    entities: &mut EntitiesHolderUnsafeFfi,
+    types: &TypesRegistryCache,
+    entity: Entity,
+    component: C,
+) -> Result<(), C> {
     unsafe {
         let mut component = MaybeUninit::new(component);
 
-        if entities.add_component(
-            entity,
-            component.as_mut_ptr() as *mut u8,
-            types.get_or_register::<C>(),
-        ) {
+        if entities.add_component(entity, component.as_mut_ptr() as *mut u8, types.get_or_register::<C>()) {
             Ok(())
         } else {
             Err(component.assume_init())
@@ -22,15 +26,15 @@ fn entities_holder_add_component<C: 'static>(entities: &mut EntitiesHolderUnsafe
     }
 }
 
-fn entities_holder_remove_component<C: 'static>(entities: &mut EntitiesHolderUnsafeFfi, types: &TypesRegistryCache, entity: Entity) -> Option<C> {
+fn entities_holder_remove_component<C: 'static>(
+    entities: &mut EntitiesHolderUnsafeFfi,
+    types: &TypesRegistryCache,
+    entity: Entity,
+) -> Option<C> {
     unsafe {
         let mut component = MaybeUninit::<C>::uninit();
 
-        if entities.remove_component(
-            entity,
-            component.as_mut_ptr() as *mut u8,
-            types.get_or_register::<C>(),
-        ) {
+        if entities.remove_component(entity, component.as_mut_ptr() as *mut u8, types.get_or_register::<C>()) {
             Some(component.assume_init())
         } else {
             None
@@ -38,15 +42,29 @@ fn entities_holder_remove_component<C: 'static>(entities: &mut EntitiesHolderUns
     }
 }
 
-fn entities_holder_get_component_ptr<C: 'static>(entities: &EntitiesHolderUnsafeFfi, types: &TypesRegistryCache, entity: Entity) -> Option<*mut C> {
-    entities.get_component_ptr(entity, types.get_or_register::<C>()).map(|p| p as *mut C)
+fn entities_holder_get_component_ptr<C: 'static>(
+    entities: &EntitiesHolderUnsafeFfi,
+    types: &TypesRegistryCache,
+    entity: Entity,
+) -> Option<*mut C> {
+    entities
+        .get_component_ptr(entity, types.get_or_register::<C>())
+        .map(|p| p as *mut C)
 }
 
-fn entities_holder_get_component<'r, C: 'static>(entities: &'r EntitiesHolderUnsafeFfi, types: &TypesRegistryCache, entity: Entity) -> Option<&'r C> {
+fn entities_holder_get_component<'r, C: 'static>(
+    entities: &'r EntitiesHolderUnsafeFfi,
+    types: &TypesRegistryCache,
+    entity: Entity,
+) -> Option<&'r C> {
     unsafe { entities_holder_get_component_ptr::<C>(entities, types, entity).map(|p| &*p) }
 }
 
-fn entities_holder_get_component_mut<'r, C: 'static>(entities: &'r mut EntitiesHolderUnsafeFfi, types: &TypesRegistryCache, entity: Entity) -> Option<&'r mut C> {
+fn entities_holder_get_component_mut<'r, C: 'static>(
+    entities: &'r mut EntitiesHolderUnsafeFfi,
+    types: &TypesRegistryCache,
+    entity: Entity,
+) -> Option<&'r mut C> {
     unsafe { entities_holder_get_component_ptr::<C>(entities, types, entity).map(|p| &mut *p) }
 }
 
@@ -59,32 +77,33 @@ pub struct EntitiesHolderMut<'e> {
 
 impl<'e> EntitiesHolderMut<'e> {
     pub fn new(entities: &'e mut EntitiesHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
-        Self {
-            entities,
-            types,
-        }
+        Self { entities, types }
     }
 
     pub fn query<'r, A: ArchetypeIteratorItem>(&'r self) -> EntitiesHolderQuery<'r, A::ReadOnlyItem<'r>>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         entities_holder_query::<A::ReadOnlyItem<'r>, ()>(self.entities, self.types)
     }
 
     pub fn query_filtered<'r, A: ArchetypeIteratorItem, F: QueryFilter>(&'r self) -> EntitiesHolderQuery<'r, A::ReadOnlyItem<'r>, F>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         entities_holder_query::<A::ReadOnlyItem<'r>, F>(self.entities, self.types)
     }
 
     pub fn query_mut<'r, A: ArchetypeIteratorItem>(&'r mut self) -> EntitiesHolderQuery<'r, A::Item<'r>>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         entities_holder_query::<A::Item<'r>, ()>(self.entities, self.types)
     }
 
     pub fn query_filtered_mut<'r, A: ArchetypeIteratorItem, F: QueryFilter>(&'r mut self) -> EntitiesHolderQuery<'r, A::Item<'r>, F>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         entities_holder_query::<A::Item<'r>, F>(self.entities, self.types)
     }
@@ -118,19 +137,22 @@ impl<'e> EntitiesHolderMut<'e> {
     }
 
     pub fn get_component<'r, C: 'static>(&'r self, entity: Entity) -> Option<&'r C>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         entities_holder_get_component(self.entities, self.types, entity)
     }
 
     pub fn get_component_mut<'r, C: 'static>(&'r mut self, entity: Entity) -> Option<&'r mut C>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         entities_holder_get_component_mut(self.entities, self.types, entity)
     }
 
     pub fn as_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         EntitiesHolderMut {
             entities: self.entities,
@@ -139,7 +161,8 @@ impl<'e> EntitiesHolderMut<'e> {
     }
 
     pub fn as_ref<'r>(&'r self) -> EntitiesHolderRef<'r>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         EntitiesHolderRef {
             entities: self.entities,
@@ -158,10 +181,7 @@ pub struct EntitiesHolderRef<'e> {
 
 impl<'e> EntitiesHolderRef<'e> {
     pub fn new(entities: &'e EntitiesHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
-        Self {
-            entities,
-            types,
-        }
+        Self { entities, types }
     }
 
     pub unsafe fn unsafe_query<A: ArchetypeIteratorItem, F: QueryFilter>(self) -> EntitiesHolderQuery<'e, A, F> {

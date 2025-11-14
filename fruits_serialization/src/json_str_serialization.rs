@@ -12,11 +12,8 @@ pub struct JsonIndentState {
 }
 
 impl JsonIndentState {
-    pub fn root(size: usize) -> Self{
-        Self {
-            count: 0,
-            size,
-        }
+    pub fn root(size: usize) -> Self {
+        Self { count: 0, size }
     }
 }
 
@@ -66,7 +63,7 @@ fn write_preindented(v: &JsonValue, w: &mut impl Write, indent: Option<JsonInden
             }
             try_write_new_line_and_indents(w, indent)?;
             write!(w, "]")?;
-        },
+        }
         JsonValue::Object(json_object) => {
             if json_object.field_names().len() == 0 {
                 return write!(w, "{{}}");
@@ -95,7 +92,7 @@ fn write_preindented(v: &JsonValue, w: &mut impl Write, indent: Option<JsonInden
             }
             try_write_new_line_and_indents(w, indent)?;
             write!(w, "}}")?;
-        },
+        }
     })
 }
 

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{*, json_repr::JsonValue};
+use crate::{json_repr::JsonValue, *};
 
 // todo: overflow check
 
@@ -16,7 +16,7 @@ impl Serializer for StringSerializer {
     fn deserialize(&self, _ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
         if let JsonValue::String(value) = value {
             Ok(value.clone())
-        } else{
+        } else {
             Err(DeserializationError::InvalidInput)
         }
     }
@@ -47,11 +47,15 @@ macro_rules! primitive_terminal_serializer {
             fn serialize(&self, _ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
                 Ok(JsonValue::$json_type((*value).into()))
             }
-        
-            fn deserialize(&self, _ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError> {
+
+            fn deserialize(
+                &self,
+                _ctx: &DeserializerContext,
+                value: &JsonValue,
+            ) -> Result<Self::Deserialized, DeserializationError> {
                 if let JsonValue::$json_type(value) = value {
                     Ok((*value).into())
-                } else{
+                } else {
                     Err(DeserializationError::InvalidInput)
                 }
             }
@@ -86,11 +90,11 @@ impl<T: 'static> Serializer for VecSerializer<T> {
 
     fn serialize(&self, ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
         let mut results = Vec::new();
-    
+
         for item in value {
             results.push(ctx.serialize(item)?);
         }
-    
+
         Ok(JsonValue::Array(results))
     }
 
@@ -121,11 +125,11 @@ impl<T: 'static> Serializer for BoxedSliceSerializer<T> {
 
     fn serialize(&self, ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError> {
         let mut results = Vec::new();
-    
+
         for item in value {
             results.push(ctx.serialize(item)?);
         }
-    
+
         Ok(JsonValue::Array(results))
     }
 
@@ -188,10 +192,7 @@ pub fn register_default_terminals(global: &mut crate::GlobalSerializer) {
     register_self_and_related_default_terminals(global, F64Serializer);
 }
 
-pub fn register_self_and_related_default_terminals<S: 'static + Serializer>(
-    global: &mut crate::GlobalSerializer,
-    serializer: S,
-) {
+pub fn register_self_and_related_default_terminals<S: 'static + Serializer>(global: &mut crate::GlobalSerializer, serializer: S) {
     global.register(serializer);
     global.register(VecSerializer::<S::Deserialized>::default());
     global.register(BoxedSliceSerializer::<S::Deserialized>::default());

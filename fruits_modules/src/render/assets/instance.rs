@@ -12,7 +12,7 @@ impl StandardInstance {
             7 => Float32x4,
             8 => Float32x4,
         ];
-        
+
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<StandardInstance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,

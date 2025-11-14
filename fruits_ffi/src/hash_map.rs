@@ -21,7 +21,7 @@ pub struct FfiHashMap<K: 'static + Eq + Hash, V: 'static> {
 
 unsafe extern "C" fn ffi_insert<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: K, v: V) -> FfiOption<V> {
     unsafe {
-        let this = &mut *(this as *mut HashMap::<K, V>);
+        let this = &mut *(this as *mut HashMap<K, V>);
 
         let result = this.insert(k, v);
 
@@ -30,7 +30,7 @@ unsafe extern "C" fn ffi_insert<K: 'static + Eq + Hash, V: 'static>(this: *mut c
 }
 unsafe extern "C" fn ffi_remove<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: *const K) -> FfiOption<V> {
     unsafe {
-        let this = &mut *(this as *mut HashMap::<K, V>);
+        let this = &mut *(this as *mut HashMap<K, V>);
 
         let result = this.remove(&*k);
 
@@ -39,7 +39,7 @@ unsafe extern "C" fn ffi_remove<K: 'static + Eq + Hash, V: 'static>(this: *mut c
 }
 unsafe extern "C" fn ffi_get<K: 'static + Eq + Hash, V: 'static>(this: *const c_void, k: *const K) -> FfiOption<*const V> {
     unsafe {
-        let this = &*(this as *const HashMap::<K, V>);
+        let this = &*(this as *const HashMap<K, V>);
 
         let result = this.get(&*k);
 
@@ -48,7 +48,7 @@ unsafe extern "C" fn ffi_get<K: 'static + Eq + Hash, V: 'static>(this: *const c_
 }
 unsafe extern "C" fn ffi_get_mut<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: *const K) -> FfiOption<*mut V> {
     unsafe {
-        let this = &mut *(this as *mut HashMap::<K, V>);
+        let this = &mut *(this as *mut HashMap<K, V>);
 
         let result = this.get_mut(&*k);
 
@@ -57,7 +57,7 @@ unsafe extern "C" fn ffi_get_mut<K: 'static + Eq + Hash, V: 'static>(this: *mut 
 }
 unsafe extern "C" fn ffi_get_by_str<V: 'static>(this: *const c_void, k: FfiStrSliceRef) -> FfiOption<*const V> {
     unsafe {
-        let this = &*(this as *const HashMap::<FfiString, V>);
+        let this = &*(this as *const HashMap<FfiString, V>);
 
         let result = this.get(k.into_slice());
 
@@ -66,7 +66,7 @@ unsafe extern "C" fn ffi_get_by_str<V: 'static>(this: *const c_void, k: FfiStrSl
 }
 unsafe extern "C" fn ffi_get_by_str_mut<V: 'static>(this: *mut c_void, k: FfiStrSliceRef) -> FfiOption<*mut V> {
     unsafe {
-        let this = &mut *(this as *mut HashMap::<FfiString, V>);
+        let this = &mut *(this as *mut HashMap<FfiString, V>);
 
         let result = this.get_mut(k.into_slice());
 
@@ -75,7 +75,7 @@ unsafe extern "C" fn ffi_get_by_str_mut<V: 'static>(this: *mut c_void, k: FfiStr
 }
 unsafe extern "C" fn ffi_remove_by_str<V: 'static>(this: *mut c_void, k: FfiStrSliceRef) -> FfiOption<V> {
     unsafe {
-        let this = &mut *(this as *mut HashMap::<FfiString, V>);
+        let this = &mut *(this as *mut HashMap<FfiString, V>);
 
         let result = this.remove(k.into_slice());
 
@@ -100,42 +100,36 @@ impl<K: 'static + Eq + Hash, V: 'static> FfiHashMap<K, V> {
     }
 
     pub fn insert(&mut self, k: K, v: V) -> Option<V> {
-        unsafe {
-            (self.vtable.insert_fn)(self.data.get(), k, v).into_option()
-        }
+        unsafe { (self.vtable.insert_fn)(self.data.get(), k, v).into_option() }
     }
     pub fn remove(&mut self, k: &K) -> Option<V> {
-        unsafe {
-            (self.vtable.remove_fn)(self.data.get(), k).into_option()
-        }
+        unsafe { (self.vtable.remove_fn)(self.data.get(), k).into_option() }
     }
     pub fn get(&self, k: &K) -> Option<&V> {
-        unsafe {
-            (self.vtable.get_fn)(self.data.get(), k).into_option().map(|p| &*p)
-        }
+        unsafe { (self.vtable.get_fn)(self.data.get(), k).into_option().map(|p| &*p) }
     }
     pub fn get_mut(&mut self, k: &K) -> Option<&mut V> {
-        unsafe {
-            (self.vtable.get_mut_fn)(self.data.get(), k).into_option().map(|p| &mut *p)
-        }
+        unsafe { (self.vtable.get_mut_fn)(self.data.get(), k).into_option().map(|p| &mut *p) }
     }
 }
 
 impl<V: 'static> FfiHashMap<FfiString, V> {
     pub fn get_by_str(&self, k: &str) -> Option<&V> {
         unsafe {
-            (self.vtable.get_by_str_fn)(self.data.get(), FfiStrSliceRef::from_slice(k)).into_option().map(|p| &*p)
+            (self.vtable.get_by_str_fn)(self.data.get(), FfiStrSliceRef::from_slice(k))
+                .into_option()
+                .map(|p| &*p)
         }
     }
     pub fn get_by_str_mut(&mut self, k: &str) -> Option<&mut V> {
         unsafe {
-            (self.vtable.get_by_str_mut_fn)(self.data.get(), FfiStrSliceRef::from_slice(k)).into_option().map(|p| &mut *p)
+            (self.vtable.get_by_str_mut_fn)(self.data.get(), FfiStrSliceRef::from_slice(k))
+                .into_option()
+                .map(|p| &mut *p)
         }
     }
     pub fn remove_by_str(&mut self, k: &str) -> Option<V> {
-        unsafe {
-            (self.vtable.remove_by_str_fn)(self.data.get(), FfiStrSliceRef::from_slice(k)).into_option()
-        }
+        unsafe { (self.vtable.remove_by_str_fn)(self.data.get(), FfiStrSliceRef::from_slice(k)).into_option() }
     }
 }
 

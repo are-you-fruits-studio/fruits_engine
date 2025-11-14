@@ -1,6 +1,6 @@
 use fruits_ffi::{FfiBox, FfiOption};
 
-use crate::collision::{overlaps, CollisionAabb, CollisionShape};
+use crate::collision::{CollisionAabb, CollisionShape, overlaps};
 
 // todo: recursion to iteration
 
@@ -79,7 +79,7 @@ impl<T> BvhNode<T> {
 
         Some(BvhNode {
             aabb,
-            core: BvhNodeCore::Branch(FfiBox::new([left, right]))
+            core: BvhNodeCore::Branch(FfiBox::new([left, right])),
         })
     }
 }
@@ -89,13 +89,13 @@ impl<T: Clone> BvhNode<T> {
         if !overlaps(self.aabb.into(), query) {
             return;
         }
-        
+
         match &self.core {
             BvhNodeCore::Leaf(shape, id) => {
                 if overlaps(*shape, query) {
                     hits.push(id.clone());
                 }
-            },
+            }
             BvhNodeCore::Branch(children) => {
                 for child in children.iter() {
                     child.query(query, hits);

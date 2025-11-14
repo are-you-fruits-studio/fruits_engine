@@ -1,21 +1,15 @@
 // #![windows_subsystem = "windows"]
 
 mod components;
+mod events;
+mod prefabs;
 mod resources;
 mod systems;
 mod utils;
-mod prefabs;
-mod events;
 
 use std::path::PathBuf;
 
-use crate::{
-    components::*,
-    resources::*,
-    systems::*,
-    utils::*,
-    events::*,
-};
+use crate::{components::*, events::*, resources::*, systems::*, utils::*};
 
 use fruits_engine::prelude::*;
 
@@ -59,7 +53,8 @@ fn build_app(project_path: &str) {
             .args(["build", "--manifest-path", path.to_str().unwrap()])
             .stderr(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
-            .status().expect("failed to execute process");
+            .status()
+            .expect("failed to execute process");
 
         if !_status.success() {
             panic!("unsuccessful exit");
@@ -73,7 +68,6 @@ fn build_app(project_path: &str) {
         src_path.push("debug");
         src_path.push(format!("{}.dll", project_name));
 
-        
         let mut dst_path = PathBuf::from(project_path);
         dst_path.push("builds");
 
@@ -97,7 +91,9 @@ fn build_app(project_path: &str) {
             let mut cargo_path = path.clone();
             cargo_path.push("Cargo.toml");
 
-            std::fs::write(cargo_path, r#"
+            std::fs::write(
+                cargo_path,
+                r#"
 [package]
 name = "launcher"
 version = "0.1.0"
@@ -105,21 +101,29 @@ edition = "2024"
 
 [dependencies]
 fruits_engine = { git = "https://github.com/unknownMusician/fruits_engine.git", branch = "wip/project-editor" }
-            "#.trim()).unwrap();
-            
+            "#
+                .trim(),
+            )
+            .unwrap();
+
             let mut src_path = path.clone();
             src_path.push("src");
 
             std::fs::create_dir(&src_path).unwrap();
-            
+
             let mut main_path = src_path.clone();
             main_path.push("main.rs");
 
-            std::fs::write(main_path, r#"
+            std::fs::write(
+                main_path,
+                r#"
 fn main() {
     fruits_engine::app::launch_app();
 }
-            "#.trim()).unwrap()
+            "#
+                .trim(),
+            )
+            .unwrap()
         }
     }
 
@@ -131,7 +135,8 @@ fn main() {
             .args(["build", "--manifest-path", path.to_str().unwrap()])
             .stderr(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
-            .status().expect("failed to execute process");
+            .status()
+            .expect("failed to execute process");
 
         if !_status.success() {
             panic!("unsuccessful exit");
@@ -145,7 +150,6 @@ fn main() {
         src_path.push("debug");
         src_path.push("launcher.exe");
 
-        
         let mut dst_path = PathBuf::from(project_path);
         dst_path.push("builds");
 
@@ -178,28 +182,35 @@ fn run_editor_app() {
 
         update.insert_system(update_project_window_content_system);
 
-        update.group(SYSTEM_GROUP)
+        update
+            .group(SYSTEM_GROUP)
             .insert_child_system(prepare_ui_raycast_system)
             .insert_child_system(check_button_system)
             .insert_child_system(select_file_system)
             .insert_child_system(update_project_entry_selection_system)
             .insert_child_system(inspect_file_system);
 
-        update.order_system(update_project_window_content_system).before_group(SYSTEM_GROUP_TRANSFORM);
+        update
+            .order_system(update_project_window_content_system)
+            .before_group(SYSTEM_GROUP_TRANSFORM);
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_RENDER);
         update.order_group(SYSTEM_GROUP_TRANSFORM).before_group(SYSTEM_GROUP);
-        update.order_system(update_project_window_content_system).before_system(prepare_ui_raycast_system);
-        update.order_system(prepare_ui_raycast_system).before_system(check_button_system);
+        update
+            .order_system(update_project_window_content_system)
+            .before_system(prepare_ui_raycast_system);
+        update
+            .order_system(prepare_ui_raycast_system)
+            .before_system(check_button_system);
         update.order_system(check_button_system).before_system(select_file_system);
-        update.order_system(select_file_system).before_system(update_project_entry_selection_system);
+        update
+            .order_system(select_file_system)
+            .before_system(update_project_entry_selection_system);
     }
 
     app.run();
 }
 
-fn init_system(
-    mut world: ExclusiveWorldAccess,
-) {
+fn init_system(mut world: ExclusiveWorldAccess) {
     let (mut res, ec, evt) = world.as_tuple_mut();
 
     let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
@@ -235,7 +246,9 @@ fn init_system(
     res.insert(StandardAssetsResource {
         material_panel: material_panel.clone(),
         material_text: material_text.clone(),
-    }).ok().unwrap();
+    })
+    .ok()
+    .unwrap();
 
     prefabs::project_window(world.as_mut());
     prefabs::scene_window(world.as_mut());

@@ -6,12 +6,14 @@ pub struct WorldQuery<'e, A: ArchetypeIteratorItem, F: QueryFilter = ()> {
 
 impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> WorldQuery<'e, A, F> {
     pub fn iter<'r>(&'r self) -> impl Iterator<Item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         self.q.iter()
     }
     pub fn iter_mut<'r>(&'r mut self) -> impl Iterator<Item = <A::Item<'static> as ArchetypeIteratorItem>::Item<'r>> + 'r
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         self.q.iter_mut()
     }
@@ -25,13 +27,15 @@ impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> WorldQuery<'e, A, F> {
     }
 
     pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         self.q.get(entity)
     }
 
     pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         self.q.get_mut(entity)
     }
@@ -46,7 +50,7 @@ unsafe impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> SystemParam for WorldQ
             // todo
             panic!("fruits: Invalid system DataUsage.");
         }
-        
+
         A::fill_usage(usage, types);
     }
 

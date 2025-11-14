@@ -11,13 +11,13 @@ pub struct EntitiesHolderQuery<'d, A: ArchetypeIteratorItem, F: QueryFilter = ()
 
 impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F> {
     /// # Safety
-    /// 
+    ///
     /// No access sync - needs to be managed by caller.
     pub(crate) unsafe fn new(entities: &'d EntitiesHolderUnsafeFfi, types: &'d TypesRegistryCache) -> Self {
         let mut usage = DataUsageBuilder::new();
 
         A::fill_usage(&mut usage, types);
-        
+
         let mut components = usage.build().into_elements().unwrap();
 
         let entity_type_id = types.get_or_register::<Entity>();
@@ -80,7 +80,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
         for archetype_id in archetypes_with_rarest_component.iter() {
             let archetype = archetypes.by_id_ref(*archetype_id).unwrap();
-            
+
             let contains_all_components = required_components.clone().all(|c| archetype.contains_component_type(c));
 
             // Archetypes that are missing any required component are skipped.
@@ -98,33 +98,30 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     }
 
     pub fn iter<'r>(&'r self) -> QueryIter<'r, A>
-        where 'd: 'r
+    where
+        'd: 'r,
     {
         QueryIter::<A>::new(self.archetypes_iter())
     }
-    
+
     pub fn iter_mut<'r>(&'r mut self) -> QueryIterMut<'r, A>
-        where 'd: 'r
+    where
+        'd: 'r,
     {
         QueryIterMut::<A>::new(self.archetypes_iter())
     }
 
     pub fn len(&self) -> u64 {
-        unsafe {
-            self.archetypes_iter()
-                .map(|a| a.entities_count())
-                .sum()
-        }
+        unsafe { self.archetypes_iter().map(|a| a.entities_count()).sum() }
     }
 
     pub fn is_empty(&self) -> bool {
-        unsafe {
-            !self.archetypes_iter().any(|a| a.entities_count() > 0)
-        }
+        unsafe { !self.archetypes_iter().any(|a| a.entities_count() > 0) }
     }
 
     pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
-        where 'd: 'r,
+    where
+        'd: 'r,
     {
         unsafe {
             let location = self.entities.entities_meta().get(entity)?;
@@ -143,12 +140,13 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
             let chunk_ptr = archetype.raw_archetype().get_chunk(chunk_idx);
 
-            let iter_item =  ArchetypeUnsafeFfiIteratorItem {
-                chunk_ptr: chunk_ptr,
+            let iter_item = ArchetypeUnsafeFfiIteratorItem {
+                chunk_ptr,
                 chunk_entity_idx: archetype.layout().entity_in_chunk_index(location.entity_archetype_index),
             };
 
-            let mut iter_state = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.types);
+            let mut iter_state =
+                <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::prepare_iter_state(archetype.layout(), self.types);
             let item = <A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::next(&iter_item, &mut iter_state);
 
             Some(item)
@@ -156,7 +154,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     }
 
     pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
-        where 'd: 'r,
+    where
+        'd: 'r,
     {
         unsafe {
             let location = self.entities.entities_meta().get(entity)?;
@@ -175,8 +174,8 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
             let chunk_ptr = archetype.raw_archetype().get_chunk(chunk_idx);
 
-            let iter_item =  ArchetypeUnsafeFfiIteratorItem {
-                chunk_ptr: chunk_ptr,
+            let iter_item = ArchetypeUnsafeFfiIteratorItem {
+                chunk_ptr,
                 chunk_entity_idx: archetype.layout().entity_in_chunk_index(location.entity_archetype_index),
             };
 
@@ -188,9 +187,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     }
 
     fn archetypes_iter<'a>(&'a self) -> ArchetypesIter<'a> {
-        unsafe {
-            ArchetypesIter::new(self.entities.archetypes(), self.types, self.archetype_indices.iter())
-        }
+        unsafe { ArchetypesIter::new(self.entities.archetypes(), self.types, self.archetype_indices.iter()) }
     }
 }
 
@@ -203,11 +200,7 @@ struct ArchetypesIter<'a> {
 impl<'a> ArchetypesIter<'a> {
     /// Only for readonly archetypes access
     pub unsafe fn new(archetypes: &'a ArchetypesHolderFfi, types: &'a TypesRegistryCache, iter: std::slice::Iter<'a, u64>) -> Self {
-        Self {
-            archetypes,
-            types,
-            iter,
-        }
+        Self { archetypes, types, iter }
     }
 }
 
@@ -215,7 +208,10 @@ impl<'a> Iterator for ArchetypesIter<'a> {
     type Item = ArchetypeUnsafeRef<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(ArchetypeUnsafeRef::<'a>::new((&raw const *self.archetypes.by_id_ref(*self.iter.next()?).unwrap()) as *mut ArchetypeUnsafeFfi, self.types))
+        Some(ArchetypeUnsafeRef::<'a>::new(
+            (&raw const *self.archetypes.by_id_ref(*self.iter.next()?).unwrap()) as *mut ArchetypeUnsafeFfi,
+            self.types,
+        ))
     }
 }
 
@@ -226,10 +222,7 @@ pub struct QueryIter<'a, A: ArchetypeIteratorItem> {
 
 impl<'a, A: ArchetypeIteratorItem> QueryIter<'a, A> {
     fn new(iter: ArchetypesIter<'a>) -> Self {
-        Self {
-            iter,
-            iter2: None,
-        }
+        Self { iter, iter2: None }
     }
 }
 impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
@@ -238,7 +231,9 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIter<'a, A> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // if let item @ Some(_) = self.iter2.as_mut().map(Iterator::next).flatten() {}
-            if let Some(iter2) = &mut self.iter2 && let item @ Some(_) = iter2.next() {
+            if let Some(iter2) = &mut self.iter2
+                && let item @ Some(_) = iter2.next()
+            {
                 return item;
             } else if let Some(iter_item) = self.iter.next() {
                 self.iter2 = Some(unsafe { iter_item.into_iter::<A::ReadOnlyItem<'static>>() });
@@ -256,10 +251,7 @@ pub struct QueryIterMut<'a, A: ArchetypeIteratorItem> {
 
 impl<'a, A: ArchetypeIteratorItem> QueryIterMut<'a, A> {
     fn new(iter: ArchetypesIter<'a>) -> Self {
-        Self {
-            iter,
-            iter2: None,
-        }
+        Self { iter, iter2: None }
     }
 }
 impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
@@ -268,7 +260,9 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // if let item @ Some(_) = self.iter2.as_mut().map(Iterator::next).flatten() {}
-            if let Some(iter2) = &mut self.iter2 && let item @ Some(_) = iter2.next() {
+            if let Some(iter2) = &mut self.iter2
+                && let item @ Some(_) = iter2.next()
+            {
                 return item;
             } else if let Some(iter_item) = self.iter.next() {
                 self.iter2 = Some(unsafe { iter_item.into_iter::<A::Item<'static>>() });
@@ -295,8 +289,7 @@ pub trait QueryFilter: 'static {
     fn matches(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool;
 }
 
-pub struct WithoutFilter<T: Component>
-{
+pub struct WithoutFilter<T: Component> {
     _phantom: PhantomData<fn(T) -> T>,
 }
 
@@ -306,8 +299,7 @@ impl<C: 'static + Component> QueryFilter for WithoutFilter<C> {
     }
 }
 
-pub struct WithFilter<T: Component>
-{
+pub struct WithFilter<T: Component> {
     _phantom: PhantomData<fn(T) -> T>,
 }
 
@@ -346,8 +338,7 @@ pub trait OrFilterArg: 'static {
     fn or(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool;
 }
 
-pub struct OrFilter<A: OrFilterArg>
-{
+pub struct OrFilter<A: OrFilterArg> {
     _phantom: PhantomData<fn(A) -> A>,
 }
 

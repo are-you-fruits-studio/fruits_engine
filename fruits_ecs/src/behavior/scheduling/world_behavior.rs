@@ -8,7 +8,9 @@ pub enum Schedule {
 
 impl Schedule {
     pub const COUNT: usize = 2;
-    pub const fn index(self) -> usize { self as usize }
+    pub const fn index(self) -> usize {
+        self as usize
+    }
 }
 
 //
@@ -57,14 +59,12 @@ pub struct WorldBehaviorBuilderMut<'w> {
 
 impl<'w> WorldBehaviorBuilderMut<'w> {
     pub fn new(world: &'w mut WorldBehaviorBuilderFfi, types: &'w TypesRegistryCache) -> Self {
-        Self {
-            world,
-            types,
-        }
+        Self { world, types }
     }
 
     pub fn get_mut<'r>(&'r mut self, schedule: Schedule) -> SystemsHolderBuilderMut<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         SystemsHolderBuilderMut::new(self.world.get_mut(schedule), self.types)
     }

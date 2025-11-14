@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use crate::{Mat, Mat2, Mat4, Primitive, Quat};
 
-use super::{num::Number, Vec2, Vec3};
+use super::{Vec2, Vec3, num::Number};
 
 pub type Mat3<T> = Mat<3, T>;
 
@@ -33,7 +33,7 @@ impl<T: Primitive> Mat3<T> {
             [T::ZERO, T::ZERO, T::ZERO, T::ONE],
         ])
     }
-    
+
     pub const fn into_4x4_with_offset(&self, offset: Vec3<T>) -> Mat4<T> {
         let data = self.as_array();
 
@@ -51,7 +51,6 @@ impl<T: Primitive> Mat3<T> {
             [self.ignored_element(x, y, 1, 0), self.ignored_element(x, y, 1, 1)],
         ])
     }
-
 }
 impl<T: Number> Mat3<T> {
     // todo
@@ -113,17 +112,27 @@ impl<T: Number> Mat3<T> {
     pub fn determinant(&self) -> T {
         let data = self.as_array();
 
-        T::ZERO
-        + data[0][0] * self.ignored(0, 0).determinant()
-        - data[1][0] * self.ignored(1, 0).determinant()
-        + data[2][0] * self.ignored(2, 0).determinant()
+        T::ZERO + data[0][0] * self.ignored(0, 0).determinant() - data[1][0] * self.ignored(1, 0).determinant()
+            + data[2][0] * self.ignored(2, 0).determinant()
     }
 
     pub fn minors(&self) -> Self {
         Self::from_array([
-            [self.ignored(0, 0).determinant(), self.ignored(0, 1).determinant(), self.ignored(0, 2).determinant()],
-            [self.ignored(1, 0).determinant(), self.ignored(1, 1).determinant(), self.ignored(1, 2).determinant()],
-            [self.ignored(2, 0).determinant(), self.ignored(2, 1).determinant(), self.ignored(2, 2).determinant()],
+            [
+                self.ignored(0, 0).determinant(),
+                self.ignored(0, 1).determinant(),
+                self.ignored(0, 2).determinant(),
+            ],
+            [
+                self.ignored(1, 0).determinant(),
+                self.ignored(1, 1).determinant(),
+                self.ignored(1, 2).determinant(),
+            ],
+            [
+                self.ignored(2, 0).determinant(),
+                self.ignored(2, 1).determinant(),
+                self.ignored(2, 2).determinant(),
+            ],
         ])
     }
 
@@ -153,7 +162,7 @@ impl<T: Number> Mat3<T> {
     }
 
     pub fn mul_with_projection(self, rhs: Vec2<T>) -> Vec2<T> {
-        let Vec3 { x, y, z, } = self.mul(Vec3::new(rhs.x, rhs.y, T::ONE));
+        let Vec3 { x, y, z } = self.mul(Vec3::new(rhs.x, rhs.y, T::ONE));
 
         Vec2::new(x, y) / z
     }

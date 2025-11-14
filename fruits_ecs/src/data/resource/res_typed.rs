@@ -1,6 +1,6 @@
 use crate::*;
 
-pub trait Resource : 'static + Send + Sync { }
+pub trait Resource: 'static + Send + Sync {}
 
 //
 
@@ -20,7 +20,10 @@ fn resources_holder_get<'r, T: Resource>(res: &'r ResourcesHolderUnsafeFfi, type
     unsafe { resources_holder_get_ptr(res, types).map(|p| &*p) }
 }
 
-fn resources_holder_get_mut<'r, T: Resource>(res: &'r mut ResourcesHolderUnsafeFfi, types: &TypesRegistryCache) -> Option<&'r mut T> {
+fn resources_holder_get_mut<'r, T: Resource>(
+    res: &'r mut ResourcesHolderUnsafeFfi,
+    types: &TypesRegistryCache,
+) -> Option<&'r mut T> {
     unsafe { resources_holder_get_ptr(res, types).map(|p| &mut *p) }
 }
 
@@ -47,10 +50,7 @@ pub struct ResourcesHolderMut<'r> {
 
 impl<'r> ResourcesHolderMut<'r> {
     pub fn new(res: &'r mut ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
-        Self {
-            res,
-            types,
-        }
+        Self { res, types }
     }
 
     pub fn insert<T: Resource>(&mut self, data: T) -> Result<(), T> {
@@ -62,19 +62,22 @@ impl<'r> ResourcesHolderMut<'r> {
     }
 
     pub fn get<'p, T: Resource>(&'p self) -> Option<&'p T>
-        where 'r: 'p
+    where
+        'r: 'p,
     {
         resources_holder_get::<T>(self.res, self.types)
     }
 
     pub fn get_mut<'p, T: Resource>(&'p mut self) -> Option<&'p mut T>
-        where 'r: 'p
+    where
+        'r: 'p,
     {
         resources_holder_get_mut::<T>(self.res, self.types)
     }
 
     pub fn as_mut<'p>(&'p mut self) -> ResourcesHolderMut<'p>
-        where 'r: 'p
+    where
+        'r: 'p,
     {
         ResourcesHolderMut {
             res: self.res,
@@ -83,7 +86,8 @@ impl<'r> ResourcesHolderMut<'r> {
     }
 
     pub fn as_ref<'p>(&'p self) -> ResourcesHolderRef<'p>
-        where 'r: 'p
+    where
+        'r: 'p,
     {
         ResourcesHolderRef {
             res: self.res,
@@ -102,10 +106,7 @@ pub struct ResourcesHolderRef<'r> {
 
 impl<'r> ResourcesHolderRef<'r> {
     pub fn new(res: &'r ResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
-        Self {
-            res,
-            types,
-        }
+        Self { res, types }
     }
 
     pub fn get_ptr<T: Resource>(self) -> Option<*mut T> {

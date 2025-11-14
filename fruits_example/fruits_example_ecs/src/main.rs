@@ -9,8 +9,12 @@ fn main() {
 
     let mut world_behavior = world.behavior_mut();
 
-    world_behavior.get_mut(Schedule::Update).insert_system(create_and_destroy_entity);
-    world_behavior.get_mut(Schedule::Update).insert_system(test_resource_existence);
+    world_behavior
+        .get_mut(Schedule::Update)
+        .insert_system(create_and_destroy_entity);
+    world_behavior
+        .get_mut(Schedule::Update)
+        .insert_system(test_resource_existence);
     world_behavior.get_mut(Schedule::Update).insert_system(test_optionals);
 
     //app.ecs_mut().data_mut().resources_mut().insert(SomeResource).ok().unwrap();
@@ -32,9 +36,7 @@ fn main() {
     app.run();
 }
 
-fn create_and_destroy_entity(
-    mut w: ExclusiveWorldAccess,
-) {
+fn create_and_destroy_entity(mut w: ExclusiveWorldAccess) {
     let mut ec = w.entities_mut();
 
     let e = ec.create_entity();
@@ -47,15 +49,11 @@ fn create_and_destroy_entity(
     ec.destroy_entity(e);
 }
 
-fn test_resource_existence(
-    res: Option<Res<SomeResource>>,
-) {
+fn test_resource_existence(res: Option<Res<SomeResource>>) {
     dbg!(res.is_some());
 }
 
-fn test_optionals(
-    mut q: WorldQuery<(&SomeComponent1, Option<&mut SomeComponent2>)>,
-) {
+fn test_optionals(mut q: WorldQuery<(&SomeComponent1, Option<&mut SomeComponent2>)>) {
     dbg!(q.len());
     for (c1, c2) in q.iter_mut() {
         dbg!(c2.is_some());
@@ -88,9 +86,7 @@ impl LoudComponent {
         *counter += 1;
 
         println!("louddddd created {}", id);
-        Self {
-            id,
-        }
+        Self { id }
     }
 }
 
@@ -99,5 +95,3 @@ impl Drop for LoudComponent {
         println!("louddddd destroyed {}", self.id);
     }
 }
-
-

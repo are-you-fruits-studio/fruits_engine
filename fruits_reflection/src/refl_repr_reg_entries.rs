@@ -24,7 +24,10 @@ pub fn set_common_generic_representers<T: 'static>(reg: &mut ReflRepresenterRegi
     reg.set(Box::new(VecReflRepresenter::<T>::default()));
 }
 
-pub fn set_common_generic_item_representers_and_self<T: 'static + ReflRepresenter>(reg: &mut ReflRepresenterRegistry, representer: T) {
+pub fn set_common_generic_item_representers_and_self<T: 'static + ReflRepresenter>(
+    reg: &mut ReflRepresenterRegistry,
+    representer: T,
+) {
     reg.set(Box::new(representer));
     set_common_generic_representers::<T::Item>(reg);
 }
@@ -47,20 +50,20 @@ macro_rules! refl_representer_primitive {
     };
 }
 
-refl_representer_primitive!{U8ReflRepresenter, Int, u8}
-refl_representer_primitive!{U16ReflRepresenter, Int, u16}
-refl_representer_primitive!{U32ReflRepresenter, Int, u32}
-refl_representer_primitive!{U64ReflRepresenter, Int, u64}
-refl_representer_primitive!{U128ReflRepresenter, Int, u128}
-refl_representer_primitive!{I8ReflRepresenter, Int, i8}
-refl_representer_primitive!{I16ReflRepresenter, Int, i16}
-refl_representer_primitive!{I32ReflRepresenter, Int, i32}
-refl_representer_primitive!{I64ReflRepresenter, Int, i64}
-refl_representer_primitive!{I128ReflRepresenter, Int, i128}
-refl_representer_primitive!{F32ReflRepresenter, Float, f32}
-refl_representer_primitive!{F64ReflRepresenter, Float, f64}
-refl_representer_primitive!{CharReflRepresenter, Char, char}
-refl_representer_primitive!{StringReflRepresenter, Str, String}
+refl_representer_primitive! {U8ReflRepresenter, Int, u8}
+refl_representer_primitive! {U16ReflRepresenter, Int, u16}
+refl_representer_primitive! {U32ReflRepresenter, Int, u32}
+refl_representer_primitive! {U64ReflRepresenter, Int, u64}
+refl_representer_primitive! {U128ReflRepresenter, Int, u128}
+refl_representer_primitive! {I8ReflRepresenter, Int, i8}
+refl_representer_primitive! {I16ReflRepresenter, Int, i16}
+refl_representer_primitive! {I32ReflRepresenter, Int, i32}
+refl_representer_primitive! {I64ReflRepresenter, Int, i64}
+refl_representer_primitive! {I128ReflRepresenter, Int, i128}
+refl_representer_primitive! {F32ReflRepresenter, Float, f32}
+refl_representer_primitive! {F64ReflRepresenter, Float, f64}
+refl_representer_primitive! {CharReflRepresenter, Char, char}
+refl_representer_primitive! {StringReflRepresenter, Str, String}
 
 //
 

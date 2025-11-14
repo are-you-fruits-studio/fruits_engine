@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
 use fruits_ecs::Resource;
 use gilrs::Axis;
+use std::collections::{HashMap, HashSet};
 
+pub use gilrs::Axis as GamepadAxis;
+pub use gilrs::Button as GamepadButton;
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
-pub use gilrs::Button as GamepadButton;
-pub use gilrs::Axis as GamepadAxis;
 
 // todo: support ffi
 #[derive(Resource)]
@@ -41,29 +41,29 @@ impl KeyboardInputStorage {
             frame_released: HashSet::new(),
         }
     }
-    
+
     pub fn is_pressed(&self, k: KeyCode) -> bool {
         self.pressed.contains(&k)
     }
-    
+
     pub fn is_just_pressed(&self, k: KeyCode) -> bool {
         self.frame_pressed.contains(&k)
     }
-    
+
     pub fn is_just_released(&self, k: KeyCode) -> bool {
         self.frame_released.contains(&k)
     }
-    
+
     pub fn press(&mut self, k: KeyCode) {
         self.pressed.insert(k);
         self.frame_pressed.insert(k);
     }
-    
+
     pub fn release(&mut self, k: KeyCode) {
         self.pressed.remove(&k);
         self.frame_released.insert(k);
     }
-    
+
     pub fn clear(&mut self) {
         self.pressed.clear();
         self.frame_pressed.clear();
@@ -94,15 +94,15 @@ impl MouseInputStorage {
             position: [0.0; 2],
         }
     }
-    
+
     pub fn is_pressed(&self, k: MouseButton) -> bool {
         self.pressed.contains(&k)
     }
-    
+
     pub fn is_just_pressed(&self, k: MouseButton) -> bool {
         self.frame_pressed.contains(&k)
     }
-    
+
     pub fn is_just_released(&self, k: MouseButton) -> bool {
         self.frame_released.contains(&k)
     }
@@ -111,7 +111,7 @@ impl MouseInputStorage {
         self.pressed.insert(k);
         self.frame_pressed.insert(k);
     }
-    
+
     pub fn release(&mut self, k: MouseButton) {
         self.pressed.remove(&k);
         self.frame_released.insert(k);
@@ -147,15 +147,15 @@ impl GamepadInputStorage {
             axes: HashMap::new(),
         }
     }
-    
+
     pub fn is_pressed(&self, k: GamepadButton) -> bool {
         self.pressed.contains(&k)
     }
-    
+
     pub fn is_just_pressed(&self, k: GamepadButton) -> bool {
         self.frame_pressed.contains(&k)
     }
-    
+
     pub fn is_just_released(&self, k: GamepadButton) -> bool {
         self.frame_released.contains(&k)
     }
@@ -167,17 +167,17 @@ impl GamepadInputStorage {
     pub fn write_axis(&mut self, a: Axis, v: f32) {
         self.axes.insert(a, v);
     }
-    
+
     pub fn press(&mut self, k: GamepadButton) {
         self.pressed.insert(k);
         self.frame_pressed.insert(k);
     }
-    
+
     pub fn release(&mut self, k: GamepadButton) {
         self.pressed.remove(&k);
         self.frame_released.insert(k);
     }
-    
+
     pub fn clear(&mut self) {
         self.pressed.clear();
         self.axes.clear();

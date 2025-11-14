@@ -25,10 +25,7 @@ impl ResourcesHolderNative {
 
         // todo
         let mem = unsafe {
-            let Some(layout) = std::alloc::Layout::from_size_align(
-                type_data.size as usize,
-                type_data.align as usize,
-            ).ok() else {
+            let Some(layout) = std::alloc::Layout::from_size_align(type_data.size as usize, type_data.align as usize).ok() else {
                 return std::ptr::null_mut();
             };
 
@@ -56,10 +53,9 @@ impl Drop for ResourcesHolderNative {
                     drop_fn(mem as *mut c_void);
                 }
 
-                let layout = std::alloc::Layout::from_size_align(
-                    type_data.size as usize,
-                    type_data.align as usize,
-                ).ok().unwrap();
+                let layout = std::alloc::Layout::from_size_align(type_data.size as usize, type_data.align as usize)
+                    .ok()
+                    .unwrap();
 
                 std::alloc::dealloc(mem, layout)
             }
@@ -69,5 +65,5 @@ impl Drop for ResourcesHolderNative {
 
 // todo?
 // Safety. It is safe itself. Ptr usage is managed by caller
-unsafe impl Send for ResourcesHolderNative { }
-unsafe impl Sync for ResourcesHolderNative { }
+unsafe impl Send for ResourcesHolderNative {}
+unsafe impl Sync for ResourcesHolderNative {}

@@ -1,9 +1,4 @@
-use wgpu::{
-    Device,
-    ShaderModule,
-    ShaderModuleDescriptor,
-    ShaderSource
-};
+use wgpu::{Device, ShaderModule, ShaderModuleDescriptor, ShaderSource};
 
 // todo: remove
 pub struct Shader {
@@ -17,9 +12,7 @@ impl Shader {
             source: ShaderSource::Wgsl(shader_code.into()),
         });
 
-        Self {
-            shader_module,
-        }
+        Self { shader_module }
     }
 
     pub fn shader_module(&self) -> &ShaderModule {

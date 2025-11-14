@@ -1,4 +1,7 @@
-use crate::{Schedule, TypesRegistryAccessFfi, TypesRegistryCache, WorldBehaviorBuilderFfi, WorldBehaviorBuilderMut, WorldBehaviorFfi, WorldDataMut, WorldDataRef, WorldDataUnsafeFfi};
+use crate::{
+    Schedule, TypesRegistryAccessFfi, TypesRegistryCache, WorldBehaviorBuilderFfi, WorldBehaviorBuilderMut, WorldBehaviorFfi,
+    WorldDataMut, WorldDataRef, WorldDataUnsafeFfi,
+};
 
 #[repr(C)]
 pub struct WorldBuilderUnsafeFfi {
@@ -66,12 +69,14 @@ pub struct WorldMut<'w> {
 
 impl<'w> WorldMut<'w> {
     pub fn data<'r>(&'r self) -> WorldDataRef<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         unsafe { WorldDataRef::new(&raw const self.world.data as *mut WorldDataUnsafeFfi, self.types) }
     }
     pub fn data_mut<'r>(&'r mut self) -> WorldDataMut<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         unsafe { WorldDataMut::new(&raw mut self.world.data, self.types) }
     }
@@ -129,26 +134,26 @@ pub struct WorldBuilderMut<'w> {
 
 impl<'w> WorldBuilderMut<'w> {
     pub fn new(world: &'w mut WorldBuilderUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
-        Self {
-            world,
-            types,
-        }
+        Self { world, types }
     }
 
     pub fn data_mut<'r>(&'r mut self) -> WorldDataMut<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         unsafe { WorldDataMut::new(&raw mut self.world.data, self.types) }
     }
 
     pub fn behavior_mut<'r>(&'r mut self) -> WorldBehaviorBuilderMut<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         WorldBehaviorBuilderMut::new(&mut self.world.behavior, self.types)
     }
 
     pub fn as_mut<'r>(&'r mut self) -> WorldBuilderMut<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         WorldBuilderMut {
             world: self.world,

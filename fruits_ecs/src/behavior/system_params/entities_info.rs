@@ -8,7 +8,7 @@ impl<'e> EntitiesInfo<'e> {
     pub fn exists(&self, entity: Entity) -> bool {
         self.ec.contains_entity(entity)
     }
-    
+
     pub fn entities_count(&self) -> u64 {
         self.ec.entities_count()
     }
@@ -20,7 +20,10 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<Entity>(),
-            details: DataUsageDetails { is_mutable: false, is_required: true }
+            details: DataUsageDetails {
+                is_mutable: false,
+                is_required: true,
+            },
         });
     }
 

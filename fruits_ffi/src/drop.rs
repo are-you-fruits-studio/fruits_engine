@@ -1,4 +1,10 @@
-use std::{ffi::c_void, fmt::{Debug, Display}, hash::Hash, marker::PhantomData, ops::{Deref, DerefMut}};
+use std::{
+    ffi::c_void,
+    fmt::{Debug, Display},
+    hash::Hash,
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 //
 // todo
@@ -48,9 +54,7 @@ impl FfiDroppable {
     }
 
     pub fn get(&self) -> *mut c_void {
-        unsafe {
-            (&*(self.data as *mut FfiDroppableMetadata)).value_ptr
-        }
+        unsafe { (&*(self.data as *mut FfiDroppableMetadata)).value_ptr }
     }
 }
 
@@ -141,7 +145,7 @@ impl<T: PartialEq> PartialEq for FfiTypedDroppable<T> {
     }
 }
 
-impl<T: Eq> Eq for FfiTypedDroppable<T> { }
+impl<T: Eq> Eq for FfiTypedDroppable<T> {}
 
 impl<T: PartialOrd> PartialOrd for FfiTypedDroppable<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -155,8 +159,8 @@ impl<T: Ord> Ord for FfiTypedDroppable<T> {
     }
 }
 
-unsafe impl<T: Send> Send for FfiTypedDroppable<T> { }
-unsafe impl<T: Sync> Sync for FfiTypedDroppable<T> { }
+unsafe impl<T: Send> Send for FfiTypedDroppable<T> {}
+unsafe impl<T: Sync> Sync for FfiTypedDroppable<T> {}
 
 //
 
@@ -167,9 +171,7 @@ pub struct FfiStaticRef<T: 'static> {
 
 impl<T: 'static> FfiStaticRef<T> {
     pub const fn new(data: &'static T) -> Self {
-        Self {
-            data: data,
-        }
+        Self { data }
     }
 
     pub const fn get(&self) -> &'static T {
@@ -179,13 +181,11 @@ impl<T: 'static> FfiStaticRef<T> {
 
 impl<T: 'static> Clone for FfiStaticRef<T> {
     fn clone(&self) -> Self {
-        Self {
-            data: self.data
-        }
+        Self { data: self.data }
     }
 }
 
-impl<T: 'static> Copy for FfiStaticRef<T> { }
+impl<T: 'static> Copy for FfiStaticRef<T> {}
 
 impl<T: 'static> Deref for FfiStaticRef<T> {
     type Target = T;
@@ -195,5 +195,5 @@ impl<T: 'static> Deref for FfiStaticRef<T> {
     }
 }
 
-unsafe impl<T: 'static> Send for FfiStaticRef<T> where &'static T: Send { }
-unsafe impl<T: 'static> Sync for FfiStaticRef<T> where &'static T: Sync { }
+unsafe impl<T: 'static> Send for FfiStaticRef<T> where &'static T: Send {}
+unsafe impl<T: 'static> Sync for FfiStaticRef<T> where &'static T: Sync {}

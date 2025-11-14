@@ -43,15 +43,13 @@ impl Prefab {
             let Some(JsonValue::String(id)) = entity.get_value("id") else {
                 return None;
             };
-            
+
             // todo: components.
             let Some(JsonValue::Array(components)) = entity.get_value("components") else {
                 return None;
             };
-            
-            result_entities.push(PrefabEntity {
-                components: Vec::new(),
-            });
+
+            result_entities.push(PrefabEntity { components: Vec::new() });
         }
 
         Some(Prefab {

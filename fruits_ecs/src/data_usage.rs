@@ -30,19 +30,11 @@ impl DataUsage {
     }
 
     pub fn into_elements(self) -> Option<FfiVec<DataUsageEntry>> {
-        if self.is_global {
-            None
-        } else {
-            Some(self.elements)
-        }
+        if self.is_global { None } else { Some(self.elements) }
     }
 
     pub fn as_elements(&self) -> Option<&FfiVec<DataUsageEntry>> {
-        if self.is_global {
-            None
-        } else {
-            Some(&self.elements)
-        }
+        if self.is_global { None } else { Some(&self.elements) }
     }
 }
 
@@ -96,10 +88,12 @@ impl DataUsageBuilder {
     pub fn build(&self) -> DataUsage {
         DataUsage {
             is_global: self.is_global,
-            elements: self.details.iter().map(|(&type_id, &details)| DataUsageEntry {
-                details,
-                type_id,
-            }).collect::<Vec<_>>().into()
+            elements: self
+                .details
+                .iter()
+                .map(|(&type_id, &details)| DataUsageEntry { details, type_id })
+                .collect::<Vec<_>>()
+                .into(),
         }
     }
 }

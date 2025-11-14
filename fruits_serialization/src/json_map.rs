@@ -1,11 +1,18 @@
-use std::{any::{Any, TypeId}, collections::HashMap, error::Error, fmt::{Debug, Display}};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    error::Error,
+    fmt::{Debug, Display},
+};
 
 use crate::*;
 
 pub trait Serializer {
     type Deserialized: 'static;
 
-    fn name_override(&self) -> Option<&'static str> { None }
+    fn name_override(&self) -> Option<&'static str> {
+        None
+    }
     fn serialize(&self, ctx: &SerializerContext, value: &Self::Deserialized) -> Result<JsonValue, SerializationError>;
     fn deserialize(&self, ctx: &DeserializerContext, value: &JsonValue) -> Result<Self::Deserialized, DeserializationError>;
 }
@@ -26,7 +33,9 @@ impl<T: 'static> AbstractSerializer<T> {
     pub fn deserialize(&self, ctx: &DeserializerContext, value: &JsonValue) -> Result<T, DeserializationError> {
         self.serializer.deserialize(ctx, value)
     }
-    pub fn name_override(&self) -> Option<&'static str> { self.serializer.name_override() }
+    pub fn name_override(&self) -> Option<&'static str> {
+        self.serializer.name_override()
+    }
 }
 
 pub trait VirtualSerializer {
@@ -39,12 +48,14 @@ impl<T: 'static> VirtualSerializer for AbstractSerializer<T> {
     fn deserialize(&self, ctx: &DeserializerContext, value: &JsonValue) -> Result<Box<dyn Any>, DeserializationError> {
         Ok(Box::new(self.deserialize(ctx, value)?))
     }
-    
+
     fn serialize(&self, ctx: &SerializerContext, value: &dyn Any) -> Result<JsonValue, SerializationError> {
-        let value = value.downcast_ref::<T>().ok_or(SerializationError { type_name: "<missing>" })?;
+        let value = value
+            .downcast_ref::<T>()
+            .ok_or(SerializationError { type_name: "<missing>" })?;
         self.serialize(ctx, value)
     }
-    
+
     fn self_as_any(&self) -> &dyn Any {
         self
     }
@@ -72,7 +83,7 @@ impl SerializerRegistry {
 
         let type_id = TypeId::of::<T>();
         let type_name = serializer.name_override().unwrap_or(std::any::type_name::<T>());
-        
+
         self.serializers.push((serializer, type_name, type_id));
         self.type_id_mapping.insert(type_id, index);
         self.type_name_mapping.insert(String::from(type_name), index);
@@ -128,7 +139,9 @@ pub enum DeserializationError {
 impl Display for DeserializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoSerializerRegistered { type_name } => write!(f, "NoSerializerRegistered {{ {} }}", type_name),
+            Self::NoSerializerRegistered { type_name } => {
+                write!(f, "NoSerializerRegistered {{ {} }}", type_name)
+            }
             Self::InvalidInput => write!(f, "InvalidInput"),
         }
     }
@@ -160,19 +173,31 @@ impl GlobalSerializer {
     }
 
     pub fn serialize<T: 'static>(&self, value: &T) -> Result<JsonValue, SerializationError> {
-        SerializerContext { registry: &self.serializers }.serialize(value)
+        SerializerContext {
+            registry: &self.serializers,
+        }
+        .serialize(value)
     }
 
     pub fn serialize_virtual(&self, value: &dyn Any) -> Result<JsonValue, SerializationError> {
-        SerializerContext { registry: &self.serializers }.serialize_virtual(value)
+        SerializerContext {
+            registry: &self.serializers,
+        }
+        .serialize_virtual(value)
     }
 
     pub fn deserialize<T: 'static>(&self, data: &JsonValue) -> Result<T, DeserializationError> {
-        DeserializerContext { registry: &self.serializers }.deserialize(data)
+        DeserializerContext {
+            registry: &self.serializers,
+        }
+        .deserialize(data)
     }
 
     pub fn deserialize_virtual(&self, data: &JsonValue) -> Result<Box<dyn Any>, DeserializationError> {
-        DeserializerContext { registry: &self.serializers }.deserialize_virtual(data)
+        DeserializerContext {
+            registry: &self.serializers,
+        }
+        .deserialize_virtual(data)
     }
 }
 
@@ -182,7 +207,9 @@ pub struct SerializerContext<'r> {
 impl<'r> SerializerContext<'r> {
     pub fn serialize<T: 'static>(&self, value: &T) -> Result<JsonValue, SerializationError> {
         let Some((serializer, type_name)) = self.registry.get() else {
-            return Err(SerializationError { type_name: std::any::type_name::<T>() });
+            return Err(SerializationError {
+                type_name: std::any::type_name::<T>(),
+            });
         };
 
         let mut json_value = serializer.serialize(self, value)?;
@@ -207,7 +234,7 @@ impl<'r> SerializerContext<'r> {
     fn try_annotate_type(json_value: &mut JsonValue, type_name: &'static str) -> Result<(), SerializationError> {
         if let JsonValue::Object(json_object) = json_value {
             if let Err(_) = json_object.push_field("$type", String::from(type_name)) {
-                return Err(SerializationError { type_name })
+                return Err(SerializationError { type_name });
             }
         }
 
@@ -221,26 +248,34 @@ pub struct DeserializerContext<'r> {
 impl<'r> DeserializerContext<'r> {
     pub fn deserialize<T: 'static>(&self, data: &JsonValue) -> Result<T, DeserializationError> {
         let Some((serializer, _)) = self.registry.get() else {
-            return Err(DeserializationError::NoSerializerRegistered { type_name: String::from(std::any::type_name::<T>()) });
+            return Err(DeserializationError::NoSerializerRegistered {
+                type_name: String::from(std::any::type_name::<T>()),
+            });
         };
         serializer.deserialize(self, data)
     }
-    
+
     pub fn deserialize_virtual(&self, data: &JsonValue) -> Result<Box<dyn Any>, DeserializationError> {
         let JsonValue::Object(json_object) = data else {
             return Err(DeserializationError::InvalidInput);
         };
-        
+
         let Some(type_name) = json_object.get_value("$type") else {
-            return Err(DeserializationError::NoSerializerRegistered { type_name: String::from("<missing>") });
+            return Err(DeserializationError::NoSerializerRegistered {
+                type_name: String::from("<missing>"),
+            });
         };
 
         let JsonValue::String(type_name) = type_name else {
-            return Err(DeserializationError::NoSerializerRegistered { type_name: type_name.to_string() })
+            return Err(DeserializationError::NoSerializerRegistered {
+                type_name: type_name.to_string(),
+            });
         };
 
         let Some(serializer) = self.registry.get_virtual_by_name(type_name) else {
-            return Err(DeserializationError::NoSerializerRegistered { type_name: String::from(type_name) })
+            return Err(DeserializationError::NoSerializerRegistered {
+                type_name: String::from(type_name),
+            });
         };
 
         serializer.deserialize(self, data)

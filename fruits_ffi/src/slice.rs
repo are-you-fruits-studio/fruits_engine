@@ -8,17 +8,13 @@ impl<T> FfiSliceMut<T> {
     // todo
     pub unsafe fn into_slice_mut<'a>(self) -> &'a mut [T] {
         // todo
-        unsafe {
-            std::slice::from_raw_parts_mut(self.ptr, self.len as usize)
-        }
+        unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len as usize) }
     }
 
     // todo
     pub unsafe fn into_slice<'a>(self) -> &'a [T] {
         // todo
-        unsafe {
-            std::slice::from_raw_parts(self.ptr, self.len as usize)
-        }
+        unsafe { std::slice::from_raw_parts(self.ptr, self.len as usize) }
     }
 
     // todo
@@ -40,9 +36,7 @@ impl<T> FfiSliceRef<T> {
     // todo
     pub unsafe fn into_slice<'a>(self) -> &'a [T] {
         // todo
-        unsafe {
-            std::slice::from_raw_parts(self.ptr, self.len as usize)
-        }
+        unsafe { std::slice::from_raw_parts(self.ptr, self.len as usize) }
     }
 
     // todo
@@ -65,17 +59,13 @@ impl FfiStrSliceMut {
     // todo
     pub unsafe fn into_slice_mut<'a>(self) -> &'a mut str {
         // todo
-        unsafe {
-            std::str::from_utf8_unchecked_mut(self.bytes.into_slice_mut())
-        }
+        unsafe { std::str::from_utf8_unchecked_mut(self.bytes.into_slice_mut()) }
     }
 
     // todo
     pub unsafe fn into_slice<'a>(self) -> &'a str {
         // todo
-        unsafe {
-            std::str::from_utf8_unchecked(self.bytes.into_slice())
-        }
+        unsafe { std::str::from_utf8_unchecked(self.bytes.into_slice()) }
     }
 
     // todo
@@ -97,9 +87,7 @@ impl FfiStrSliceRef {
     // todo
     pub unsafe fn into_slice<'a>(self) -> &'a str {
         // todo
-        unsafe {
-            std::str::from_utf8_unchecked(self.bytes.into_slice())
-        }
+        unsafe { std::str::from_utf8_unchecked(self.bytes.into_slice()) }
     }
 
     // todo

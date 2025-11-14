@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use crate::{Mat, Mat3, Primitive};
 
-use super::{num::Number, Vec3, Vec4};
+use super::{Vec3, Vec4, num::Number};
 
 pub type Mat4<T> = Mat<4, T>;
 
@@ -27,9 +27,21 @@ impl<T: Primitive> Mat4<T> {
 
     pub const fn ignored(&self, x: usize, y: usize) -> Mat3<T> {
         Mat3::from_array([
-            [self.ignored_element(x, y, 0, 0), self.ignored_element(x, y, 0, 1), self.ignored_element(x, y, 0, 2)],
-            [self.ignored_element(x, y, 1, 0), self.ignored_element(x, y, 1, 1), self.ignored_element(x, y, 1, 2)],
-            [self.ignored_element(x, y, 2, 0), self.ignored_element(x, y, 2, 1), self.ignored_element(x, y, 2, 2)],
+            [
+                self.ignored_element(x, y, 0, 0),
+                self.ignored_element(x, y, 0, 1),
+                self.ignored_element(x, y, 0, 2),
+            ],
+            [
+                self.ignored_element(x, y, 1, 0),
+                self.ignored_element(x, y, 1, 1),
+                self.ignored_element(x, y, 1, 2),
+            ],
+            [
+                self.ignored_element(x, y, 2, 0),
+                self.ignored_element(x, y, 2, 1),
+                self.ignored_element(x, y, 2, 2),
+            ],
         ])
     }
 }
@@ -38,19 +50,37 @@ impl<T: Number> Mat4<T> {
     pub fn determinant(&self) -> T {
         let data = self.as_array();
 
-        T::ZERO
-        + data[0][0] * self.ignored(0, 0).determinant()
-        - data[1][0] * self.ignored(1, 0).determinant()
-        + data[2][0] * self.ignored(2, 0).determinant()
-        - data[3][0] * self.ignored(3, 0).determinant()
+        T::ZERO + data[0][0] * self.ignored(0, 0).determinant() - data[1][0] * self.ignored(1, 0).determinant()
+            + data[2][0] * self.ignored(2, 0).determinant()
+            - data[3][0] * self.ignored(3, 0).determinant()
     }
 
     pub fn minors(&self) -> Self {
         Self::from_array([
-            [self.ignored(0, 0).determinant(), self.ignored(0, 1).determinant(), self.ignored(0, 2).determinant(), self.ignored(0, 3).determinant()],
-            [self.ignored(1, 0).determinant(), self.ignored(1, 1).determinant(), self.ignored(1, 2).determinant(), self.ignored(1, 3).determinant()],
-            [self.ignored(2, 0).determinant(), self.ignored(2, 1).determinant(), self.ignored(2, 2).determinant(), self.ignored(2, 3).determinant()],
-            [self.ignored(3, 0).determinant(), self.ignored(3, 1).determinant(), self.ignored(3, 2).determinant(), self.ignored(3, 3).determinant()],
+            [
+                self.ignored(0, 0).determinant(),
+                self.ignored(0, 1).determinant(),
+                self.ignored(0, 2).determinant(),
+                self.ignored(0, 3).determinant(),
+            ],
+            [
+                self.ignored(1, 0).determinant(),
+                self.ignored(1, 1).determinant(),
+                self.ignored(1, 2).determinant(),
+                self.ignored(1, 3).determinant(),
+            ],
+            [
+                self.ignored(2, 0).determinant(),
+                self.ignored(2, 1).determinant(),
+                self.ignored(2, 2).determinant(),
+                self.ignored(2, 3).determinant(),
+            ],
+            [
+                self.ignored(3, 0).determinant(),
+                self.ignored(3, 1).determinant(),
+                self.ignored(3, 2).determinant(),
+                self.ignored(3, 3).determinant(),
+            ],
         ])
     }
 

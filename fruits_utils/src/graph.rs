@@ -1,4 +1,7 @@
-use std::{collections::{HashMap, HashSet}, hash::Hash};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+};
 
 #[derive(Default)]
 pub struct Graph<T: Eq + Hash + Clone> {
@@ -55,11 +58,9 @@ impl<T: Eq + Hash + Clone> Graph<T> {
 
             if let Some(mins) = max_to_min.get_mut(&max) {
                 mins.remove(&min);
-                
-                if mins.is_empty()
-                {
-                    if ordered_set.insert(max.clone())
-                    {
+
+                if mins.is_empty() {
+                    if ordered_set.insert(max.clone()) {
                         ordered.push(max.clone());
                     }
 
@@ -67,7 +68,7 @@ impl<T: Eq + Hash + Clone> Graph<T> {
                 }
             }
         }
-        
+
         for node in nodes {
             if ordered_set.insert(node.clone()) {
                 ordered.push(node.clone());
@@ -93,6 +94,9 @@ impl<T: Eq + Hash + Clone> Graph<T> {
             max = min;
         }
 
-        panic!("The Graph contains circular dependencies. Cycle contains {} elements.", visited.len());
+        panic!(
+            "The Graph contains circular dependencies. Cycle contains {} elements.",
+            visited.len()
+        );
     }
 }

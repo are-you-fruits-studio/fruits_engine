@@ -1,4 +1,8 @@
-use std::{any::{Any, TypeId}, collections::{BTreeMap, HashMap, HashSet}, hash::Hash};
+use std::{
+    any::{Any, TypeId},
+    collections::{BTreeMap, HashMap, HashSet},
+    hash::Hash,
+};
 
 use crate::{JsonObject, JsonValue};
 
@@ -15,7 +19,7 @@ macro_rules! json_serializable_impl_int {
                 fn to_json(&self) -> JsonValue {
                     JsonValue::Number((*self).into())
                 }
-            
+
                 fn from_json(json: &JsonValue) -> Option<Self> {
                     match json {
                         JsonValue::Number(v) => v.to_i().try_into().ok(),
@@ -23,7 +27,7 @@ macro_rules! json_serializable_impl_int {
                         _ => None,
                     }
                 }
-                
+
                 fn fill_partially_from_json(&mut self, json: &JsonValue) {
                     if let Some(parsed) = Self::from_json(json) {
                         *self = parsed;
@@ -41,7 +45,7 @@ macro_rules! json_serializable_impl_float {
                 fn to_json(&self) -> JsonValue {
                     JsonValue::Number((*self).into())
                 }
-            
+
                 fn from_json(json: &JsonValue) -> Option<Self> {
                     match json {
                         JsonValue::Number(v) => Some(v.to_f() as _),
@@ -49,7 +53,7 @@ macro_rules! json_serializable_impl_float {
                         _ => None,
                     }
                 }
-                
+
                 fn fill_partially_from_json(&mut self, json: &JsonValue) {
                     if let Some(parsed) = Self::from_json(json) {
                         *self = parsed;
@@ -75,7 +79,7 @@ impl JsonSerializable for bool {
             _ => None,
         }
     }
-                
+
     fn fill_partially_from_json(&mut self, json: &JsonValue) {
         if let Some(parsed) = Self::from_json(json) {
             *self = parsed;
@@ -100,10 +104,10 @@ impl JsonSerializable for char {
         if chars.next().is_some() {
             return None;
         }
-    
+
         Some(v)
     }
-                
+
     fn fill_partially_from_json(&mut self, json: &JsonValue) {
         if let Some(parsed) = Self::from_json(json) {
             *self = parsed;
@@ -143,8 +147,8 @@ impl JsonSerializable for () {
 
         Some(())
     }
-                
-    fn fill_partially_from_json(&mut self, json: &JsonValue) { }
+
+    fn fill_partially_from_json(&mut self, json: &JsonValue) {}
 }
 
 impl<T: JsonSerializable> JsonSerializable for Option<T> {
@@ -161,20 +165,18 @@ impl<T: JsonSerializable> JsonSerializable for Option<T> {
             _ => Some(T::from_json(json)),
         }
     }
-                
+
     fn fill_partially_from_json(&mut self, json: &JsonValue) {
         match self {
-            Some(this) => {
-                match json {
-                    JsonValue::Null => *self = None,
-                    _ => this.fill_partially_from_json(json),
-                }
+            Some(this) => match json {
+                JsonValue::Null => *self = None,
+                _ => this.fill_partially_from_json(json),
             },
             None => {
                 if let Some(parsed) = Self::from_json(json) {
                     *self = parsed;
                 }
-            },
+            }
         }
     }
 }
@@ -203,7 +205,7 @@ impl<T: JsonSerializable> JsonSerializable for Vec<T> {
 
         Some(vec)
     }
-                
+
     fn fill_partially_from_json(&mut self, json: &JsonValue) {
         let JsonValue::Array(v) = json else {
             return;
@@ -259,9 +261,15 @@ impl<K: 'static + JsonSerializable + Eq + Hash, V: JsonSerializable> JsonSeriali
         self.clear();
 
         for (key, val) in v.fields() {
-            let Some(key_json) = JsonValue::parse(&mut std::iter::once('"').chain(key.chars()).chain(std::iter::once('"'))) else { continue; };
-            let Some(key) = K::from_json(&key_json) else { continue; };
-            let Some(val) = V::from_json(val) else { continue; };
+            let Some(key_json) = JsonValue::parse(&mut std::iter::once('"').chain(key.chars()).chain(std::iter::once('"'))) else {
+                continue;
+            };
+            let Some(key) = K::from_json(&key_json) else {
+                continue;
+            };
+            let Some(val) = V::from_json(val) else {
+                continue;
+            };
 
             self.insert(key, val);
         }
@@ -312,9 +320,15 @@ impl<K: 'static + JsonSerializable + Ord, V: JsonSerializable> JsonSerializable 
         self.clear();
 
         for (key, val) in v.fields() {
-            let Some(key_json) = JsonValue::parse(&mut std::iter::once('"').chain(key.chars()).chain(std::iter::once('"'))) else { continue; };
-            let Some(key) = K::from_json(&key_json) else { continue; };
-            let Some(val) = V::from_json(val) else { continue; };
+            let Some(key_json) = JsonValue::parse(&mut std::iter::once('"').chain(key.chars()).chain(std::iter::once('"'))) else {
+                continue;
+            };
+            let Some(key) = K::from_json(&key_json) else {
+                continue;
+            };
+            let Some(val) = V::from_json(val) else {
+                continue;
+            };
 
             self.insert(key, val);
         }
@@ -345,7 +359,7 @@ impl<T: 'static + JsonSerializable + Eq + Hash> JsonSerializable for HashSet<T> 
 
         Some(set)
     }
-                
+
     fn fill_partially_from_json(&mut self, json: &JsonValue) {
         let JsonValue::Array(v) = json else {
             return;

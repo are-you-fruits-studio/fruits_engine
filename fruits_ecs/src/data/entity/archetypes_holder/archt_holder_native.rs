@@ -47,7 +47,7 @@ impl ArchetypesHolderNative {
         if should_swap {
             (slices.0, slices.1) = (slices.1, slices.0);
         }
-        
+
         Some([&slices.0[0], &slices.1[0]])
     }
     pub fn by_2_ids_mut(&mut self, mut id: [u64; 2]) -> Option<[&mut ArchetypeUnsafeFfi; 2]> {
@@ -98,7 +98,8 @@ impl ArchetypesHolderNative {
             }
         }
 
-        self.archetypes.push(ArchetypeUnsafeFfi::new(self.types.clone(), components.clone()));
+        self.archetypes
+            .push(ArchetypeUnsafeFfi::new(self.types.clone(), components.clone()));
         self.archetype_id_by_components.insert(components, id);
 
         Ok(id)

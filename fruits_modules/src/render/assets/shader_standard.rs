@@ -19,15 +19,18 @@ pub fn shader_standard(is_lit: bool, is_transparent: bool) -> String {
 }
 
 fn code_uniforms() -> String {
-    format!(r#"
+    format!(
+        r#"
 @group(0) @binding(0) var<uniform> global_data: GlobalData;
 @group(1) @binding(0) var color_texture: texture_2d<f32>;
 @group(1) @binding(1) var color_sampler: sampler;
-    "#)
+    "#
+    )
 }
 
 fn code_struct_global_data() -> String {
-    format!(r#"
+    format!(
+        r#"
 struct GlobalData {{
     matrix_world_to_clip: mat4x4<f32>,
     color: vec4<f32>,
@@ -37,52 +40,62 @@ struct GlobalData {{
     roughness: f32,
     alpha_threshold: f32,
 }};
-    "#)
+    "#
+    )
 }
 
 fn code_struct_vertex_attributes() -> String {
-    format!(r#"
+    format!(
+        r#"
 struct VertexAttributes {{
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) color: vec4<f32>,
     @location(3) uv: vec2<f32>,
 }};
-    "#)
+    "#
+    )
 }
 
 fn code_struct_instance_raw_attributes() -> String {
-    format!(r#"
+    format!(
+        r#"
 struct InstanceRawAttributes {{
     @location(5) local_to_world_c0: vec4<f32>,
     @location(6) local_to_world_c1: vec4<f32>,
     @location(7) local_to_world_c2: vec4<f32>,
     @location(8) local_to_world_c3: vec4<f32>,
 }};
-    "#)
+    "#
+    )
 }
 
 fn code_struct_instance_attributes() -> String {
-    format!(r#"
+    format!(
+        r#"
 struct InstanceAttributes {{
     local_to_world: mat4x4<f32>,
 }};
-    "#)
+    "#
+    )
 }
 
 fn code_fn_vs_main() -> String {
-    format!(r#"
+    format!(
+        r#"
 @vertex
 fn vs_main(vertex: VertexAttributes, instance_raw: InstanceRawAttributes) -> VertexOutput {{
     var instance = map_instance_data(instance_raw);
 
     return customer_vertex(vertex, instance);
 }}
-    "#)
+    "#
+    )
 }
 
 fn code_fn_map_instance_data() -> String {
-    format!(r#"
+    format!(
+        r#"
 fn map_instance_data(input: InstanceRawAttributes) -> InstanceAttributes {{
     var output: InstanceAttributes;
 
@@ -95,11 +108,13 @@ fn map_instance_data(input: InstanceRawAttributes) -> InstanceAttributes {{
 
     return output;
 }}
-    "#)
+    "#
+    )
 }
 
 fn code_lit_stuff() -> String {
-    format!(r#"
+    format!(
+        r#"
 // Lighting
 
 const PI = radians(180.0);
@@ -187,11 +202,13 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     
     return out;
 }}
-    "#)
+    "#
+    )
 }
 
 fn code_unlit_stuff() -> String {
-    format!(r#"
+    format!(
+        r#"
 struct VertexOutput {{
     @builtin(position) position_clip: vec4<f32>,
     @location(0) color: vec4<f32>,
@@ -209,30 +226,36 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     
     return out;
 }}
-    "#)
+    "#
+    )
 }
 
 fn code_fn_fs_main(is_lit: bool, is_transparent: bool) -> String {
     let mut code = String::new();
 
-    code.push_str(r#"
+    code.push_str(
+        r#"
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
     var color = in.color * textureSample(color_texture, color_sampler, in.uv);
-    "#);
+    "#,
+    );
 
     if !is_transparent {
-        code.push_str(r#"
+        code.push_str(
+            r#"
     if (color.w < global_data.alpha_threshold) {{
         discard;
     }}
 
     color.w = 1.0;
-        "#);
+        "#,
+        );
     }
 
     if is_lit {
-        code.push_str(r#"
+        code.push_str(
+            r#"
     var light = light();
 
     var color_lit = cook_torrance_brdf(
@@ -247,13 +270,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
 
     color = vec4<f32>(color_lit + global_data.emission_color.xyz, color.w);
 
-        "#);
+        "#,
+        );
     }
-    
-    code.push_str(r#"
+
+    code.push_str(
+        r#"
     return vec4<f32>(color.xyz, color.w);
 }}
-    "#);
+    "#,
+    );
 
     code
 }

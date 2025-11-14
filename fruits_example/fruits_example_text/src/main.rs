@@ -15,22 +15,35 @@ fn main() {
     world_behavior.get_mut(Schedule::Update).insert_system(update_time);
     world_behavior.get_mut(Schedule::Update).insert_system(write_time_into_text);
 
-    world_behavior.get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init);
+    world_behavior
+        .get_mut(Schedule::Start)
+        .order_group(SYSTEM_GROUP_RENDER)
+        .before_system(init);
 
     let mut world_data = world.data_mut();
 
     let mut ec = world_data.entities_mut();
 
     let entity = ec.create_entity();
-    ec.add_component(entity, GlobalTransform {
-        scale_rotation: Mat::IDENTITY,
-        position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
-    }).ok().unwrap();
-    ec.add_component(entity, CameraComponent {
-        near: 0.1_f32,
-        far: 1_000_f32,
-        fov: 90_f32.to_radians(),
-    }).ok().unwrap();
+    ec.add_component(
+        entity,
+        GlobalTransform {
+            scale_rotation: Mat::IDENTITY,
+            position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
+        },
+    )
+    .ok()
+    .unwrap();
+    ec.add_component(
+        entity,
+        CameraComponent {
+            near: 0.1_f32,
+            far: 1_000_f32,
+            fov: 90_f32.to_radians(),
+        },
+    )
+    .ok()
+    .unwrap();
 
     println!("start");
     app.run();
@@ -45,7 +58,15 @@ struct TimeResource {
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
-    world.resources_mut().insert(TimeResource { time: 0.0_f32, frame: 0, start: None }).ok().unwrap();
+    world
+        .resources_mut()
+        .insert(TimeResource {
+            time: 0.0_f32,
+            frame: 0,
+            start: None,
+        })
+        .ok()
+        .unwrap();
 
     let standard_render_assets = world.resources().get::<StandardRenderAssetsResource>().unwrap();
 
@@ -59,34 +80,52 @@ fn init(mut world: ExclusiveWorldAccess) {
         ..Default::default()
     };
 
-    let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
-    
+    let material = world
+        .resources_mut()
+        .get_mut::<AssetStorageResource<StandardMaterial>>()
+        .unwrap()
+        .insert(material);
+
     let mut ec = world.entities_mut();
 
     let ent_text = ec.create_entity();
     ec.add_component(ent_text, GlobalTransform::IDENTITY).ok().unwrap();
-    ec.add_component(ent_text, LocalTransform {
-        position: Vec3::new(0.0, 0.0, 0.0),
-        ..Default::default()
-    }).ok().unwrap();
+    ec.add_component(
+        ent_text,
+        LocalTransform {
+            position: Vec3::new(0.0, 0.0, 0.0),
+            ..Default::default()
+        },
+    )
+    .ok()
+    .unwrap();
     ec.add_component(ent_text, BatchedMeshComponent::default()).ok().unwrap();
-    ec.add_component(ent_text, StandardMaterialComponent { material: material.clone(), }).ok().unwrap();
-    ec.add_component(ent_text, TextComponent {
-        font: font.clone(),
-        font_size: UiVal::px(0.4),
-        text: String::from("Dashunia - myla pinhvinka").into(),
-        horizontal_align: HorizontalAlign::Middle,
-        vertical_align: VerticalAlign::Middle,
-        is_y_inverted: false,
-        horizontal_spacing: UiVal::px(0.2),
-        color: Vec4::splat(1.0),
-    }).ok().unwrap();
+    ec.add_component(
+        ent_text,
+        StandardMaterialComponent {
+            material: material.clone(),
+        },
+    )
+    .ok()
+    .unwrap();
+    ec.add_component(
+        ent_text,
+        TextComponent {
+            font: font.clone(),
+            font_size: UiVal::px(0.4),
+            text: String::from("Dashunia - myla pinhvinka").into(),
+            horizontal_align: HorizontalAlign::Middle,
+            vertical_align: VerticalAlign::Middle,
+            is_y_inverted: false,
+            horizontal_spacing: UiVal::px(0.2),
+            color: Vec4::splat(1.0),
+        },
+    )
+    .ok()
+    .unwrap();
 }
 
-fn write_time_into_text(
-    time: Res<TimeResource>,
-    mut text_q: WorldQuery<&mut TextComponent>
-) {
+fn write_time_into_text(time: Res<TimeResource>, mut text_q: WorldQuery<&mut TextComponent>) {
     for text_c in text_q.iter_mut() {
         text_c.text.clear();
 
@@ -94,9 +133,7 @@ fn write_time_into_text(
     }
 }
 
-fn update_time(
-    mut time: ResMut<TimeResource>,
-) {
+fn update_time(mut time: ResMut<TimeResource>) {
     let start = match time.start {
         Some(start) => start,
         None => {
@@ -104,7 +141,7 @@ fn update_time(
             time.start = Some(new_start);
             time.frame = 0;
             new_start
-        },
+        }
     };
 
     time.frame += 1;

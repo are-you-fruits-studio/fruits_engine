@@ -1,6 +1,4 @@
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign, Neg
-};
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
@@ -153,7 +151,7 @@ macro_rules! vec_impl {
                 (ab.dot(x - self) / ab.length_sq())
             }
         }
-        
+
         impl $V<bool> {
             #[inline]
             pub const fn all(self) -> bool {
@@ -182,7 +180,7 @@ macro_rules! vec_impl {
 
         impl<T: Add<U>, U> Add<$V<U>> for $V<T> {
             type Output = $V<<T as Add<U>>::Output>;
-        
+
             #[inline]
             fn add(self, rhs: $V<U>) -> Self::Output {
                 Self::Output {
@@ -197,10 +195,10 @@ macro_rules! vec_impl {
                 $(self.$I += rhs.$I);+
             }
         }
-        
+
         impl<T: Sub<U>, U> Sub<$V<U>> for $V<T> {
             type Output = $V<<T as Sub<U>>::Output>;
-        
+
             #[inline]
             fn sub(self, rhs: $V<U>) -> Self::Output {
                 Self::Output {
@@ -208,7 +206,7 @@ macro_rules! vec_impl {
                 }
             }
         }
-        
+
         impl<T: SubAssign<U>, U> SubAssign<$V<U>> for $V<T> {
             #[inline]
             fn sub_assign(&mut self, rhs: $V<U>) {
@@ -218,7 +216,7 @@ macro_rules! vec_impl {
 
         impl<T: Mul> Mul for $V<T> {
             type Output = $V<<T as Mul>::Output>;
-        
+
             #[inline]
             fn mul(self, rhs: Self) -> Self::Output {
                 Self::Output {
@@ -229,7 +227,7 @@ macro_rules! vec_impl {
 
         impl<T: Mul + Copy> Mul<T> for $V<T> {
             type Output = $V<<T as Mul>::Output>;
-        
+
             #[inline]
             fn mul(self, rhs: T) -> Self::Output {
                 Self::Output {
@@ -237,24 +235,24 @@ macro_rules! vec_impl {
                 }
             }
         }
-        
+
         impl<T: MulAssign> MulAssign for $V<T> {
             #[inline]
             fn mul_assign(&mut self, rhs: Self) {
                 $(self.$I *= rhs.$I);+
             }
         }
-        
+
         impl<T: MulAssign + Copy> MulAssign<T> for $V<T> {
             #[inline]
             fn mul_assign(&mut self, rhs: T) {
                 $(self.$I *= rhs);+
             }
         }
-        
+
         impl<T: Div> Div for $V<T> {
             type Output = $V<<T as Div>::Output>;
-        
+
             #[inline]
             fn div(self, rhs: Self) -> Self::Output {
                 Self::Output {
@@ -262,10 +260,10 @@ macro_rules! vec_impl {
                 }
             }
         }
-        
+
         impl<T: Div + Copy> Div<T> for $V<T> {
             type Output = $V<<T as Div>::Output>;
-        
+
             #[inline]
             fn div(self, rhs: T) -> Self::Output {
                 Self::Output {
@@ -273,24 +271,24 @@ macro_rules! vec_impl {
                 }
             }
         }
-        
+
         impl<T: DivAssign> DivAssign for $V<T> {
             #[inline]
             fn div_assign(&mut self, rhs: Self) {
                 $(self.$I /= rhs.$I);+
             }
         }
-        
+
         impl<T: DivAssign + Copy> DivAssign<T> for $V<T> {
             #[inline]
             fn div_assign(&mut self, rhs: T) {
                 $(self.$I /= rhs);+
             }
         }
-        
+
         impl<T: Neg> Neg for $V<T> {
             type Output = $V<T::Output>;
-            
+
             #[inline]
             fn neg(self) -> Self::Output {
                 Self::Output {
@@ -301,7 +299,7 @@ macro_rules! vec_impl {
 
         impl<T> Index<usize> for $V<T> {
             type Output = T;
-        
+
             #[inline]
             fn index(&self, i: usize) -> &Self::Output {
                 &self.as_array()[i]
@@ -320,11 +318,11 @@ macro_rules! vec_impl {
     };
 }
 
-vec_impl!{Vec2, x, y}
-vec_impl!{Vec3, x, y, z}
-vec_impl!{Vec4, x, y, z, w}
+vec_impl! {Vec2, x, y}
+vec_impl! {Vec3, x, y, z}
+vec_impl! {Vec4, x, y, z, w}
 
-fruits_swizzling::swizzling!{}
+fruits_swizzling::swizzling! {}
 
 impl<T: Number> Vec3<T> {
     #[inline]
@@ -360,7 +358,7 @@ pub fn dot<T: Number, const N: usize>(lhs: &[T; N], rhs: &[T; N]) -> T {
     for i in 0..N {
         sum += lhs[i] * rhs[i];
     }
-    
+
     sum
 }
 #[inline]
@@ -515,7 +513,7 @@ pub fn cross_2d<T: Number>(lhs: [T; 2], rhs: [T; 2]) -> T {
 pub const fn swizzle<T: Primitive, const N: usize, const S: usize>(v: &[T; N], i: &[usize; N]) -> [T; S] {
     let mut result = [T::ZERO; S];
 
-    let mut j  = 0;
+    let mut j = 0;
 
     while j < S {
         result[j] = v[i[j]];

@@ -1,4 +1,7 @@
-use std::{alloc::{GlobalAlloc, Layout}, ffi::c_void};
+use std::{
+    alloc::{GlobalAlloc, Layout},
+    ffi::c_void,
+};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -25,9 +28,7 @@ impl FfiAllocator {
     // todo
     pub unsafe fn alloc(&self, size: u64, align: u64) -> *mut u8 {
         // todo
-        unsafe {
-            (self.alloc_fn)(size, align) as *mut u8
-        }
+        unsafe { (self.alloc_fn)(size, align) as *mut u8 }
     }
 
     // todo
@@ -106,21 +107,15 @@ impl<T> FfiTypedMemory<T> {
     }
 
     pub fn into_opaque(self) -> FfiOpaqueMemory {
-        unsafe {
-            std::mem::transmute::<Self, FfiOpaqueMemory>(self)
-        }
+        unsafe { std::mem::transmute::<Self, FfiOpaqueMemory>(self) }
     }
 
     pub fn as_opaque(&self) -> &FfiOpaqueMemory {
-        unsafe {
-            std::mem::transmute::<&Self, &FfiOpaqueMemory>(self)
-        }
+        unsafe { std::mem::transmute::<&Self, &FfiOpaqueMemory>(self) }
     }
 
     pub fn as_opaque_mut(&mut self) -> &mut FfiOpaqueMemory {
-        unsafe {
-            std::mem::transmute::<&mut Self, &mut FfiOpaqueMemory>(self)
-        }
+        unsafe { std::mem::transmute::<&mut Self, &mut FfiOpaqueMemory>(self) }
     }
 }
 
@@ -134,7 +129,6 @@ impl<T> Drop for FfiTypedMemory<T> {
 
 //
 
-
 #[repr(C)]
 pub struct FfiOpaqueMemory {
     data: *mut c_void,
@@ -147,21 +141,15 @@ impl FfiOpaqueMemory {
     }
 
     pub unsafe fn into_typed<T>(self) -> FfiTypedMemory<T> {
-        unsafe {
-            std::mem::transmute::<Self, FfiTypedMemory<T>>(self)
-        }
+        unsafe { std::mem::transmute::<Self, FfiTypedMemory<T>>(self) }
     }
 
     pub unsafe fn as_typed<T>(&self) -> &FfiTypedMemory<T> {
-        unsafe {
-            std::mem::transmute::<&Self, &FfiTypedMemory<T>>(self)
-        }
+        unsafe { std::mem::transmute::<&Self, &FfiTypedMemory<T>>(self) }
     }
 
     pub unsafe fn as_typed_mut<T>(&mut self) -> &mut FfiTypedMemory<T> {
-        unsafe {
-            std::mem::transmute::<&mut Self, &mut FfiTypedMemory<T>>(self)
-        }
+        unsafe { std::mem::transmute::<&mut Self, &mut FfiTypedMemory<T>>(self) }
     }
 
     pub fn as_ptr(&self) -> *mut c_void {

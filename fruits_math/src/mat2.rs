@@ -2,23 +2,17 @@ use std::ops::Mul;
 
 use crate::{Mat, Primitive};
 
-use super::{num::Number, Vec2};
+use super::{Vec2, num::Number};
 
 pub type Mat2<T> = Mat<2, T>;
 
 impl<T: Primitive> Mat2<T> {
     pub const fn offset(offset: T) -> Mat2<T> {
-        Mat2::<T>::from_array([
-            [T::ONE, T::ZERO],
-            [offset, T::ZERO],
-        ])
+        Mat2::<T>::from_array([[T::ONE, T::ZERO], [offset, T::ZERO]])
     }
 
     pub const fn scale(scale: Vec2<T>) -> Mat2<T> {
-        Mat2::<T>::from_array([
-            [scale.x, T::ZERO],
-            [T::ZERO, scale.y],
-        ])
+        Mat2::<T>::from_array([[scale.x, T::ZERO], [T::ZERO, scale.y]])
     }
 
     pub const fn ignored(&self, x: usize, y: usize) -> T {
@@ -36,10 +30,7 @@ impl<T: Number> Mat2<T> {
     pub fn from_rotation(angle: f64) -> Self {
         let (sin, cos) = angle.sin_cos();
 
-        Self::from_array([
-            [T::from_f64(cos), T::from_f64(sin)],
-            [T::from_f64(-sin), T::from_f64(cos)],
-        ])
+        Self::from_array([[T::from_f64(cos), T::from_f64(sin)], [T::from_f64(-sin), T::from_f64(cos)]])
     }
 
     pub fn determinant(&self) -> T {
@@ -74,7 +65,7 @@ impl<T: Number> Mat2<T> {
     }
 
     pub fn mul_with_projection(&self, rhs: T) -> T {
-        let Vec2 { x, y, } = self.mul(Vec2::new(rhs, T::ONE));
+        let Vec2 { x, y } = self.mul(Vec2::new(rhs, T::ONE));
         x / y
     }
 }
@@ -100,10 +91,7 @@ impl<T: Number> Mul<Vec2<T>> for Mat2<T> {
     type Output = Vec2<T>;
 
     fn mul(self, rhs: Vec2<T>) -> Self::Output {
-        Vec2::from_array([
-            Vec2::from(self.row(0)).dot(rhs),
-            Vec2::from(self.row(1)).dot(rhs),
-        ])
+        Vec2::from_array([Vec2::from(self.row(0)).dot(rhs), Vec2::from(self.row(1)).dot(rhs)])
     }
 }
 

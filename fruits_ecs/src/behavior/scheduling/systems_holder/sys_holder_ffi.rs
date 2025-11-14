@@ -17,7 +17,9 @@ impl SystemsHolderFfi {
 
     pub(crate) fn from_native(systems_holder: SystemsHolderNative) -> Self {
         unsafe extern "C" fn ffi_execute_iteration(this: *const c_void, data: *mut WorldDataUnsafeFfi) {
-            unsafe { (&*(this as *const SystemsHolderNative)).execute_iteration(data); }
+            unsafe {
+                (&*(this as *const SystemsHolderNative)).execute_iteration(data);
+            }
         }
 
         Self {

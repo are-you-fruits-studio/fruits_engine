@@ -20,7 +20,11 @@ pub struct OrderEntry {
 }
 
 pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &HashSet<(FfiString, FfiString)>) -> OrderGraph {
-    let system_index_by_name = ordered_systems.iter().enumerate().map(|(i, s)| (s.system_name().clone(), i)).collect::<HashMap<_, _>>();
+    let system_index_by_name = ordered_systems
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (s.system_name().clone(), i))
+        .collect::<HashMap<_, _>>();
 
     let mut system_by_data_readonly = HashMap::<u64, HashSet<usize>>::new();
     let mut system_by_data_mutable = HashMap::<u64, HashSet<usize>>::new();
@@ -34,7 +38,7 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
         let Some(&previous_index) = system_index_by_name.get(previous_id) else {
             continue;
         };
-        
+
         let Some(&next_index) = system_index_by_name.get(next_id) else {
             continue;
         };
@@ -45,7 +49,11 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
     for (system_index, system) in ordered_systems.iter().enumerate() {
         match system.data_usage().as_elements() {
             Some(per_type_usage) => {
-                for DataUsageEntry { type_id, details: DataUsageDetails { is_mutable, .. } } in per_type_usage {
+                for DataUsageEntry {
+                    type_id,
+                    details: DataUsageDetails { is_mutable, .. },
+                } in per_type_usage
+                {
                     if *is_mutable {
                         for &other_readonly_system_index in system_by_data_readonly.get(type_id).iter().flat_map(|m| m.iter()) {
                             directions[other_readonly_system_index].insert(system_index);
@@ -53,13 +61,13 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
                         for &other_mutable_system_index in system_by_data_mutable.get(type_id).iter().flat_map(|m| m.iter()) {
                             directions[other_mutable_system_index].insert(system_index);
                         }
-        
+
                         system_by_data_mutable.entry(*type_id).or_default().insert(system_index);
                     } else {
                         for &other_mutable_system_index in system_by_data_mutable.get(type_id).iter().flat_map(|m| m.iter()) {
                             directions[other_mutable_system_index].insert(system_index);
                         }
-        
+
                         system_by_data_readonly.entry(*type_id).or_default().insert(system_index);
                     }
                 }
@@ -67,7 +75,7 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
                 for &other_global_mutable_system_index in systems_global_mutable.iter() {
                     directions[other_global_mutable_system_index].insert(system_index);
                 }
-            },
+            }
             None => {
                 for &other_system_index in analyzed_systems.iter() {
                     directions[other_system_index].insert(system_index);
@@ -80,7 +88,10 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
         analyzed_systems.insert(system_index);
     }
 
-    let directions = directions.into_iter().map(|v| v.into_iter().map(|i| i as u64).collect::<FfiVec<_>>()).collect::<FfiVec<_>>();
+    let directions = directions
+        .into_iter()
+        .map(|v| v.into_iter().map(|i| i as u64).collect::<FfiVec<_>>())
+        .collect::<FfiVec<_>>();
 
     OrderGraph::new(directions).unwrap()
 }
@@ -101,7 +112,11 @@ pub fn sort_systems_by_order(
         graph.insert_node(ty.clone());
     }
 
-    graph.to_vec().into_iter().map(|t| systems.remove(&t).unwrap()).collect::<FfiVec<_>>()
+    graph
+        .to_vec()
+        .into_iter()
+        .map(|t| systems.remove(&t).unwrap())
+        .collect::<FfiVec<_>>()
 }
 
 pub fn flatten_ordering(
@@ -118,7 +133,7 @@ pub fn flatten_ordering(
     for (min, max) in ordering {
         let min_values = get_systems(min.clone(), &flat_groups, &mut single_value_min_buffer);
         let max_values = get_systems(max.clone(), &flat_groups, &mut single_value_max_buffer);
-        
+
         for min_value in min_values {
             for max_value in max_values {
                 graph_orderer.insert((min_value.clone(), max_value.clone()));
@@ -132,8 +147,7 @@ fn get_systems<'a>(
     node: OrderEntry,
     flat_groups: &'a HashMap<FfiString, HashSet<FfiString>>,
     single_value_buffer: &'a mut HashSet<FfiString>,
-) -> &'a HashSet<FfiString>
-{
+) -> &'a HashSet<FfiString> {
     match node.entry_type {
         OrderEntryType::Group => &flat_groups[&node.id],
         OrderEntryType::System => {
@@ -143,15 +157,12 @@ fn get_systems<'a>(
         }
     }
 }
-fn flatten_groups(
-    groups: &HashMap<FfiString, HashSet<OrderEntry>>,
-) -> HashMap<FfiString, HashSet<FfiString>>
-{
+fn flatten_groups(groups: &HashMap<FfiString, HashSet<OrderEntry>>) -> HashMap<FfiString, HashSet<FfiString>> {
     let mut group_hierarchy = Graph::<FfiString>::new();
 
     for (parent_group, group_children) in groups.iter() {
         group_hierarchy.insert_node(parent_group.clone());
-        
+
         for group_child in group_children {
             if let OrderEntryType::Group = group_child.entry_type {
                 group_hierarchy.insert_edge(parent_group.clone(), group_child.id.clone());
@@ -163,7 +174,7 @@ fn flatten_groups(
 
     for group in group_hierarchy.to_vec_rev() {
         let mut flat_group_children = HashSet::<FfiString>::new();
-        
+
         for group_child in groups.get(&group).iter().copied().flatten() {
             match group_child.entry_type {
                 OrderEntryType::System => _ = flat_group_children.insert(group_child.id.clone()),
@@ -171,7 +182,7 @@ fn flatten_groups(
                     for ele in &flat_groups[&group_child.id] {
                         flat_group_children.insert(ele.clone());
                     }
-                },
+                }
             }
         }
 

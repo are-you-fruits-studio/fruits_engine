@@ -8,10 +8,7 @@ use fruits_utils::index_version_collection::{VersionCollection, VersionIndex};
 pub struct Entity(VersionIndex);
 
 impl Entity {
-    pub const EMPTY: Entity = Entity(VersionIndex {
-        index: 0,
-        version: 0,
-    });
+    pub const EMPTY: Entity = Entity(VersionIndex { index: 0, version: 0 });
 
     pub fn version_index(&self) -> VersionIndex {
         self.0
@@ -108,10 +105,7 @@ impl EntitiesMetadataFfi {
                 this.insert(location)
             }
         }
-        unsafe extern "C" fn ffi_remove(
-            this: *mut c_void,
-            entity: Entity,
-        ) -> FfiOption<EntityLocation> {
+        unsafe extern "C" fn ffi_remove(this: *mut c_void, entity: Entity) -> FfiOption<EntityLocation> {
             unsafe {
                 let this = &mut *(this as *mut EntitiesMetadataNative);
 

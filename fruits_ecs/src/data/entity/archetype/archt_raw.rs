@@ -6,7 +6,9 @@ pub const CHUNK_SIZE: u64 = 1024 * 12;
 pub const CHUNK_ALIGN: u64 = 64;
 
 pub const CHUNK_LAYOUT: Layout = {
-    let Ok(layout) = Layout::from_size_align(CHUNK_SIZE as usize, CHUNK_ALIGN as usize) else { panic!("invalid chunk layout") };
+    let Ok(layout) = Layout::from_size_align(CHUNK_SIZE as usize, CHUNK_ALIGN as usize) else {
+        panic!("invalid chunk layout")
+    };
     layout
 };
 
@@ -23,8 +25,8 @@ pub struct ArchetypeRaw {
     alloc: FfiAllocator,
 }
 
-unsafe impl Send for ArchetypeRaw { }
-unsafe impl Sync for ArchetypeRaw { }
+unsafe impl Send for ArchetypeRaw {}
+unsafe impl Sync for ArchetypeRaw {}
 
 impl ArchetypeRaw {
     pub fn new() -> Self {
@@ -46,7 +48,7 @@ impl ArchetypeRaw {
             if location.memory_offset >= CHUNK_SIZE {
                 panic!("fruits: memory out of bounds access");
             }
-        
+
             chunk.add(location.memory_offset as usize)
         }
     }

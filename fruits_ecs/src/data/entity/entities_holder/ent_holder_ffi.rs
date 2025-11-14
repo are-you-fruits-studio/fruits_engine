@@ -20,7 +20,7 @@ impl EntitiesHolderUnsafeFfi {
     pub fn entities_meta(&self) -> &EntitiesMetadataFfi {
         &self.entities_meta
     }
-    
+
     // todo
     // pub unsafe fn query<'a, A: ArchetypeIteratorItem, F: QueryFilter>(&'a self) -> EntitiesHolderQuery<'a, A, F> {
     //     unsafe { EntitiesHolderQuery::<'a, A, F>::new(self.as_ref()) }
@@ -80,7 +80,6 @@ impl EntitiesHolderUnsafeFfi {
             UniqueComponentsSetBuilder::from_set(src_archetype.layout().components_set())
         };
 
-
         if !dst_components_set.insert(component_id) {
             return false;
         }
@@ -96,7 +95,14 @@ impl EntitiesHolderUnsafeFfi {
 
         // Safety. Access is unique and is only used in the method scope.
         let last_entity = unsafe {
-            ArchetypeUnsafeFfi::add_component(src_archetype, dst_archetype, entity_location.entity_archetype_index, component_ptr, component_id).unwrap()
+            ArchetypeUnsafeFfi::add_component(
+                src_archetype,
+                dst_archetype,
+                entity_location.entity_archetype_index,
+                component_ptr,
+                component_id,
+            )
+            .unwrap()
         };
 
         if last_entity != entity {
@@ -136,7 +142,14 @@ impl EntitiesHolderUnsafeFfi {
 
         // Safety. Access is unique and is only used in the method scope.
         let last_entity = unsafe {
-            ArchetypeUnsafeFfi::remove_component(src_archetype, dst_archetype, entity_location.entity_archetype_index, component_ptr, component_id).unwrap()
+            ArchetypeUnsafeFfi::remove_component(
+                src_archetype,
+                dst_archetype,
+                entity_location.entity_archetype_index,
+                component_ptr,
+                component_id,
+            )
+            .unwrap()
         };
 
         if last_entity != entity {

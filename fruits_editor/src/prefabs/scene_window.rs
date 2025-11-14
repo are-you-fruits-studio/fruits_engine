@@ -4,7 +4,7 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
     let (res, mut ec, evt) = world.as_tuple_mut();
 
     let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
-    
+
     let font = standard_render_assets_res.font_px_8_8.clone();
     let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
 
@@ -31,7 +31,9 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
             ..Default::default()
         })
         .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_panel.clone() })
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
         .add_component(ImageComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#000000ff").unwrap()),
             ..Default::default()
@@ -46,12 +48,14 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
         })
         .add_component(ChildComponent { parent: ent_root })
         .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_panel.clone() })
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
         .add_component(ImageComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#adadadff").unwrap()),
             ..Default::default()
         });
-        
+
     EntityComponentsBuilder::new(ec.as_mut(), ent_header)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
@@ -60,15 +64,19 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
             ..Default::default()
         })
-        .add_component(ChildComponent { parent: ent_bordered_root })
+        .add_component(ChildComponent {
+            parent: ent_bordered_root,
+        })
         .add_component(ChildrenRectMaskComponent)
         .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_panel.clone() })
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
         .add_component(ImageComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#929292ff").unwrap()),
             ..Default::default()
         });
-        
+
     EntityComponentsBuilder::new(ec.as_mut(), ent_header_text)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
@@ -78,7 +86,9 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
         })
         .add_component(ChildComponent { parent: ent_header })
         .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_text.clone() })
+        .add_component(StandardMaterialComponent {
+            material: material_text.clone(),
+        })
         .add_component(TextComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#000000ff").unwrap()),
             font: font.clone(),
@@ -89,21 +99,25 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,
         });
-        
+
     EntityComponentsBuilder::new(ec.as_mut(), ent_scroll)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
             parent_padding_min: Vec2::new(UiVal::px(0.0), UiVal::px(20.0)),
             ..Default::default()
         })
-        .add_component(ChildComponent { parent: ent_bordered_root })
+        .add_component(ChildComponent {
+            parent: ent_bordered_root,
+        })
         .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_panel.clone() })
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
         .add_component(ImageComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#757575ff").unwrap()),
             ..Default::default()
         });
-        
+
     EntityComponentsBuilder::new(ec.as_mut(), ent_scroll_view)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
@@ -113,12 +127,14 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
         .add_component(ChildComponent { parent: ent_scroll })
         .add_component(ChildrenRectMaskComponent)
         .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_panel.clone() })
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
         .add_component(ImageComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#575757ff").unwrap()),
             ..Default::default()
         });
-        
+
     EntityComponentsBuilder::new(ec.as_mut(), ent_scroll_content)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {

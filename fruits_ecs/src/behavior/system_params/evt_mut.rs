@@ -27,7 +27,10 @@ unsafe impl<'e, E: Event> SystemParam for EvtMut<'e, E> {
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<E>(),
-            details: DataUsageDetails { is_mutable: true, is_required: true }
+            details: DataUsageDetails {
+                is_mutable: true,
+                is_required: true,
+            },
         });
     }
 

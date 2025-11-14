@@ -29,28 +29,43 @@ pub struct WorldDataMut<'w> {
 
 impl<'w> WorldDataMut<'w> {
     pub unsafe fn new(world: *mut WorldDataUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
-        Self {
-            world,
-            types,
-        }
+        Self { world, types }
     }
 
-    pub fn resources<'r>(&'r self) -> ResourcesHolderRef<'r> where 'w : 'r {
+    pub fn resources<'r>(&'r self) -> ResourcesHolderRef<'r>
+    where
+        'w: 'r,
+    {
         unsafe { ResourcesHolderRef::new(&(&*self.world).res, self.types) }
     }
-    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderMut<'r> where 'w : 'r {
+    pub fn resources_mut<'r>(&'r mut self) -> ResourcesHolderMut<'r>
+    where
+        'w: 'r,
+    {
         unsafe { ResourcesHolderMut::new(&mut (&mut *self.world).res, self.types) }
     }
-    pub fn entities<'r>(&'r self) -> EntitiesHolderRef<'r> where 'w : 'r {
+    pub fn entities<'r>(&'r self) -> EntitiesHolderRef<'r>
+    where
+        'w: 'r,
+    {
         unsafe { EntitiesHolderRef::new(&(&*self.world).ent, self.types) }
     }
-    pub fn entities_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r> where 'w : 'r {
+    pub fn entities_mut<'r>(&'r mut self) -> EntitiesHolderMut<'r>
+    where
+        'w: 'r,
+    {
         unsafe { EntitiesHolderMut::new(&mut (&mut *self.world).ent, self.types) }
     }
-    pub fn events<'r>(&'r self) -> EventsHolderRef<'r> where 'w : 'r {
+    pub fn events<'r>(&'r self) -> EventsHolderRef<'r>
+    where
+        'w: 'r,
+    {
         unsafe { EventsHolderRef::new(&(&*self.world).evt, self.types) }
     }
-    pub fn events_mut<'r>(&'r mut self) -> EventsHolderMut<'r> where 'w : 'r {
+    pub fn events_mut<'r>(&'r mut self) -> EventsHolderMut<'r>
+    where
+        'w: 'r,
+    {
         unsafe { EventsHolderMut::new(&mut (&mut *self.world).evt, self.types) }
     }
 
@@ -58,7 +73,10 @@ impl<'w> WorldDataMut<'w> {
         self.world
     }
 
-    pub fn as_tuple_mut<'r>(&'r mut self) -> (ResourcesHolderMut<'r>, EntitiesHolderMut<'r>, EventsHolderMut<'r>) where 'w : 'r {
+    pub fn as_tuple_mut<'r>(&'r mut self) -> (ResourcesHolderMut<'r>, EntitiesHolderMut<'r>, EventsHolderMut<'r>)
+    where
+        'w: 'r,
+    {
         unsafe {
             let world = &mut *self.world;
             (
@@ -70,7 +88,8 @@ impl<'w> WorldDataMut<'w> {
     }
 
     pub fn as_mut<'r>(&'r mut self) -> WorldDataMut<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         WorldDataMut {
             world: self.world,
@@ -79,7 +98,8 @@ impl<'w> WorldDataMut<'w> {
     }
 
     pub fn as_ref<'r>(&'r self) -> WorldDataRef<'r>
-        where 'w: 'r
+    where
+        'w: 'r,
     {
         WorldDataRef {
             world: self.world,
@@ -88,8 +108,8 @@ impl<'w> WorldDataMut<'w> {
     }
 }
 
-unsafe impl<'w> Send for WorldDataMut<'w> { }
-unsafe impl<'w> Sync for WorldDataMut<'w> { }
+unsafe impl<'w> Send for WorldDataMut<'w> {}
+unsafe impl<'w> Sync for WorldDataMut<'w> {}
 
 //
 
@@ -101,10 +121,7 @@ pub struct WorldDataRef<'w> {
 
 impl<'w> WorldDataRef<'w> {
     pub unsafe fn new(world: *mut WorldDataUnsafeFfi, types: &'w TypesRegistryCache) -> Self {
-        Self {
-            world,
-            types,
-        }
+        Self { world, types }
     }
 
     pub fn resources(self) -> ResourcesHolderRef<'w> {
@@ -128,7 +145,6 @@ impl<'w> WorldDataRef<'w> {
         }
     }
 }
-
 
 // todo:
 // what lib needs:

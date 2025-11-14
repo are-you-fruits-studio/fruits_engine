@@ -2,13 +2,13 @@ use std::{any::TypeId, marker::PhantomData, mem::MaybeUninit};
 
 use crate::*;
 
-pub trait Component : 'static + Send + Sync { }
+pub trait Component: 'static + Send + Sync {}
 
 pub unsafe trait ArchetypeIteratorItem {
     type Item<'w>: 'w + ArchetypeIteratorItem;
     type ReadOnlyItem<'w>: 'w + ArchetypeIteratorItem;
     type IterState;
-    
+
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState;
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w>;
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache);
@@ -18,7 +18,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     type Item<'w> = &'w C;
     type ReadOnlyItem<'w> = &'w C;
     type IterState = u64;
-    
+
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
         layout
             .get_component(types.get_or_register::<C>())
@@ -27,16 +27,20 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     }
 
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w> {
-        unsafe { &*(item.chunk_ptr.add(*iter_state as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C) }
+        unsafe {
+            &*(item
+                .chunk_ptr
+                .add(*iter_state as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C)
+        }
     }
-    
+
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: false,
                 is_required: true,
-            }
+            },
         });
     }
 }
@@ -45,7 +49,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     type Item<'w> = &'w mut C;
     type ReadOnlyItem<'w> = &'w C;
     type IterState = u64;
-    
+
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
         layout
             .get_component(types.get_or_register::<C>())
@@ -54,16 +58,20 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     }
 
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w> {
-        unsafe { &mut *(item.chunk_ptr.add(*iter_state as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C) }
+        unsafe {
+            &mut *(item
+                .chunk_ptr
+                .add(*iter_state as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C)
+        }
     }
-    
+
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: true,
                 is_required: true,
-            }
+            },
         });
     }
 }
@@ -72,24 +80,26 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     type Item<'w> = Option<&'w C>;
     type ReadOnlyItem<'w> = Option<&'w C>;
     type IterState = Option<u64>;
-    
+
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
-        layout
-            .get_component(types.get_or_register::<C>())
-            .map(|t| t.chunk_offset)
+        layout.get_component(types.get_or_register::<C>()).map(|t| t.chunk_offset)
     }
 
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w> {
-        Some(unsafe { &*(item.chunk_ptr.add((*iter_state)? as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C) })
+        Some(unsafe {
+            &*(item
+                .chunk_ptr
+                .add((*iter_state)? as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C)
+        })
     }
-    
+
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: false,
                 is_required: false,
-            }
+            },
         });
     }
 }
@@ -98,23 +108,26 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     type Item<'w> = Option<&'w mut C>;
     type ReadOnlyItem<'w> = Option<&'w C>;
     type IterState = Option<u64>;
-    
+
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> Self::IterState {
-        layout
-            .get_component(types.get_or_register::<C>())
-            .map(|i| i.chunk_offset)
+        layout.get_component(types.get_or_register::<C>()).map(|i| i.chunk_offset)
     }
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w> {
-        Some(unsafe { &mut *(item.chunk_ptr.add((*iter_state)? as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>()) as *mut C) })
+        Some(unsafe {
+            &mut *(item
+                .chunk_ptr
+                .add((*iter_state)? as usize + item.chunk_entity_idx as usize * std::mem::size_of::<C>())
+                as *mut C)
+        })
     }
-    
+
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: true,
                 is_required: false,
-            }
+            },
         });
     }
 }
@@ -123,23 +136,27 @@ unsafe impl ArchetypeIteratorItem for Entity {
     type Item<'w> = Entity;
     type ReadOnlyItem<'w> = Entity;
     type IterState = ();
-    
-    unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _types: &TypesRegistryCache) -> Self::IterState { }
+
+    unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _types: &TypesRegistryCache) -> Self::IterState {}
 
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, _iter_state: &mut Self::IterState) -> Self::Item<'w> {
-        unsafe { (item.chunk_ptr.add(item.chunk_entity_idx as usize * std::mem::size_of::<Entity>()) as *mut Entity).read() }
+        unsafe {
+            (item
+                .chunk_ptr
+                .add(item.chunk_entity_idx as usize * std::mem::size_of::<Entity>()) as *mut Entity)
+                .read()
+        }
     }
-    
+
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<Entity>(),
             details: DataUsageDetails {
                 is_mutable: false,
                 is_required: true,
-            }
+            },
         });
     }
-    
 }
 
 macro_rules! archetype_iterator_item_impl {
@@ -178,7 +195,7 @@ macro_rules! archetype_iterator_item_impl {
                     )
                 }
             }
-            
+
             fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
                 $($P::fill_usage(usage, types));+;
             }
@@ -200,7 +217,6 @@ archetype_iterator_item_impl!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11);
 archetype_iterator_item_impl!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12);
 archetype_iterator_item_impl!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13);
 archetype_iterator_item_impl!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14);
-
 
 pub struct ArchetypeIterator<'a, A: ArchetypeIteratorItem> {
     iter: ArchetypeUnsafeFfiIterator<'a>,
@@ -244,10 +260,7 @@ pub struct ArchetypeUnsafeRef<'a> {
 
 impl<'a> ArchetypeUnsafeRef<'a> {
     pub fn new(archetype: *mut ArchetypeUnsafeFfi, types: &'a TypesRegistryCache) -> Self {
-        Self {
-            archetype,
-            types,
-        }
+        Self { archetype, types }
     }
 
     pub unsafe fn contains_component_type(&self, type_id: &TypeId) -> bool {
@@ -274,7 +287,9 @@ impl<'a> ArchetypeUnsafeRef<'a> {
 
     pub unsafe fn get_component_ptr<C: Component>(&self, entity_index: u64) -> Option<*mut C> {
         unsafe {
-            (&*self.archetype).get_component_ptr(entity_index, self.types.get_or_register::<C>()).map(|p| p as *mut C)
+            (&*self.archetype)
+                .get_component_ptr(entity_index, self.types.get_or_register::<C>())
+                .map(|p| p as *mut C)
         }
     }
 
@@ -288,7 +303,12 @@ impl<'a> ArchetypeUnsafeRef<'a> {
     }
 
     /// Returns the last entity from src archetype before the movement.
-    pub unsafe fn add_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: u64, component: C) -> Result<Entity, C> {
+    pub unsafe fn add_component<C: Component>(
+        src: &mut Self,
+        dst: &mut Self,
+        src_entity_index: u64,
+        component: C,
+    ) -> Result<Entity, C> {
         unsafe {
             let mut component = MaybeUninit::new(component);
 

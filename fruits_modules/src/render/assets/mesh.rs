@@ -1,6 +1,6 @@
 use fruits_ffi::FfiDroppable;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
-use wgpu::{util::DeviceExt, Buffer, Device};
+use wgpu::{Buffer, Device, util::DeviceExt};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug)]
@@ -11,8 +11,8 @@ pub struct StandardVertex {
     pub uv: [f32; 2],
 }
 
-unsafe impl AllBitVariationsValid for StandardVertex { }
-unsafe impl AllBitsInit for StandardVertex { }
+unsafe impl AllBitVariationsValid for StandardVertex {}
+unsafe impl AllBitsInit for StandardVertex {}
 
 impl StandardVertex {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -22,7 +22,7 @@ impl StandardVertex {
             2 => Float32x4,
             3 => Float32x2,
         ];
-        
+
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<StandardVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -44,21 +44,17 @@ pub struct StandardMesh {
 
 impl StandardMesh {
     pub(crate) fn new(device: &Device, vertices: &[StandardVertex], indices: &[u16]) -> Self {
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: fruits_utils::mem::as_bytes_slice(vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: fruits_utils::mem::as_bytes_slice(vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: fruits_utils::mem::as_bytes_slice(indices),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        );
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: fruits_utils::mem::as_bytes_slice(indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
         Self {
             native: FfiDroppable::new(StandardMeshNative {
@@ -74,5 +70,5 @@ impl StandardMesh {
     }
 }
 
-unsafe impl Send for StandardMesh where StandardMeshNative: Send { }
-unsafe impl Sync for StandardMesh where StandardMeshNative: Sync { }
+unsafe impl Send for StandardMesh where StandardMeshNative: Send {}
+unsafe impl Sync for StandardMesh where StandardMeshNative: Sync {}

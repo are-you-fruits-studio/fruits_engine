@@ -1,9 +1,10 @@
 use std::{
     sync::{
-        atomic::AtomicBool, mpsc::{
-            self, Receiver, Sender
-        }, Arc, Condvar, Mutex
-    }, thread::{self, JoinHandle}
+        Arc, Condvar, Mutex,
+        atomic::AtomicBool,
+        mpsc::{self, Receiver, Sender},
+    },
+    thread::{self, JoinHandle},
 };
 
 pub use job::*;
@@ -34,9 +35,7 @@ impl Worker {
             });
 
             loop {
-                let message = {
-                    self.message_receiver.lock().unwrap().recv().unwrap()
-                };
+                let message = { self.message_receiver.lock().unwrap().recv().unwrap() };
 
                 match message {
                     Message::TerminateRequest => break,
@@ -73,10 +72,10 @@ impl ThreadPool {
                 message_receiver: Arc::clone(&message_receiver),
                 did_panic: Arc::clone(&did_panic),
             };
-            
+
             threads.push(worker.run());
         }
-        
+
         Self {
             threads,
             message_sender,
@@ -92,14 +91,13 @@ impl ThreadPool {
 
     pub fn push_job_handled<F: 'static + Send + FnOnce() -> Job>(&self, f: F) -> JobHandle<Job> {
         let (job_handle, job_executor) = create_job(f);
-        
+
         self.message_sender.send(Message::JobRequestHandled(job_executor)).unwrap();
 
         job_handle
     }
 
-    pub fn scope<F: for<'scope> FnOnce(&'scope scope::Scope<'scope>) -> T, T>(&self, f: F) -> T
-    {
+    pub fn scope<F: for<'scope> FnOnce(&'scope scope::Scope<'scope>) -> T, T>(&self, f: F) -> T {
         scope::scope(self, f)
     }
 
@@ -129,7 +127,11 @@ impl Drop for ThreadPool {
 }
 
 mod job {
-    use std::{cell::UnsafeCell, mem::MaybeUninit, sync::{atomic::AtomicU8, Arc}};
+    use std::{
+        cell::UnsafeCell,
+        mem::MaybeUninit,
+        sync::{Arc, atomic::AtomicU8},
+    };
 
     pub fn create_job<F: 'static + Send + FnOnce() -> T, T: 'static + Send>(f: F) -> (JobHandle<T>, JobExecutor<T>) {
         let state = Arc::new(JobState {
@@ -160,16 +162,16 @@ mod job {
 
         pub fn block_and_take(self) -> T {
             // todo: CondVar
-            while !self.state.is_finished() { }
+            while !self.state.is_finished() {}
 
             self.state.try_take_result().unwrap()
         }
     }
-    
+
     pub struct JobExecutor<T: 'static + Send> {
         state: Arc<dyn 'static + Send + Sync + AbstractJobState<T>>,
     }
-    
+
     impl<T: 'static + Send> JobExecutor<T> {
         pub fn execute(self) {
             self.state.try_execute();
@@ -188,7 +190,7 @@ mod job {
         result: UnsafeCell<MaybeUninit<T>>,
     }
 
-    unsafe impl<F: 'static + Send + FnOnce() -> T, T: 'static + Send> Sync for JobState<F, T> { }
+    unsafe impl<F: 'static + Send + FnOnce() -> T, T: 'static + Send> Sync for JobState<F, T> {}
 
     impl<F: 'static + Send + FnOnce() -> T, T: 'static + Send> AbstractJobState<T> for JobState<F, T> {
         fn try_execute(&self) {
@@ -222,7 +224,7 @@ mod job {
             })
         }
     }
-    
+
     impl<F: 'static + Send + FnOnce() -> T, T: 'static + Send> Drop for JobState<F, T> {
         fn drop(&mut self) {
             unsafe {
@@ -239,7 +241,7 @@ mod job {
 }
 
 mod scope {
-    use std::sync::{atomic::AtomicUsize, Arc};
+    use std::sync::{Arc, atomic::AtomicUsize};
 
     use crate::{exec_on_drop::ExecOnDrop, thread_pool::ThreadPool};
 
@@ -248,11 +250,11 @@ mod scope {
             thread_pool,
             active_counter: Arc::new(AtomicUsize::new(0)),
         };
-        
+
         let result = f(&scope);
 
         // todo: CondVar
-        while scope.active_counter.load(std::sync::atomic::Ordering::Acquire) != 0 { }
+        while scope.active_counter.load(std::sync::atomic::Ordering::Acquire) != 0 {}
 
         result
     }
@@ -263,25 +265,22 @@ mod scope {
     }
 
     impl<'scope> Scope<'scope> {
-        pub fn push_job_unhandled<F: 'scope + Send + FnOnce() -> T, T: 'scope + Send>(&'scope self, f: F)
-        {
+        pub fn push_job_unhandled<F: 'scope + Send + FnOnce() -> T, T: 'scope + Send>(&'scope self, f: F) {
             _ = self.active_counter.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
 
             let active_counter = Arc::clone(&self.active_counter);
 
             let f = move || {
                 let exec_on_drop = ExecOnDrop::new(|| _ = active_counter.fetch_sub(1, std::sync::atomic::Ordering::AcqRel));
-                
+
                 f();
 
                 drop(exec_on_drop);
             };
 
-            let f = Box::new(f) as Box::<dyn FnOnce() + Send>;
+            let f = Box::new(f) as Box<dyn FnOnce() + Send>;
 
-            let f = unsafe {
-                std::mem::transmute::<Box::<dyn FnOnce() + Send>, Box::<dyn 'static + FnOnce() + Send>>(f)
-            };
+            let f = unsafe { std::mem::transmute::<Box<dyn FnOnce() + Send>, Box<dyn 'static + FnOnce() + Send>>(f) };
 
             self.thread_pool.push_job_unhandled(f);
         }

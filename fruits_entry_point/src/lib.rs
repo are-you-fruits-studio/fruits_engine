@@ -6,7 +6,8 @@ pub fn fruits_entry_point(item: TokenStream) -> TokenStream {
     let fn_name = item.to_string();
     // let fn_name = fn_name.chars().filter(|c| !c.is_whitespace()).collect::<String>();
 
-    format!(r#"
+    format!(
+        r#"
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn fruits_entry_point(ctx: ::fruits_engine::prelude::AppInitCtxFfi) {{
     let world = unsafe {{ &mut *ctx.world_mut }};
@@ -20,5 +21,8 @@ pub unsafe extern "C" fn fruits_entry_point(ctx: ::fruits_engine::prelude::AppIn
         let _init_result: () = {{ {fn_name}(world) }};
     }}
 }}
-    "#).parse().unwrap()
+    "#
+    )
+    .parse()
+    .unwrap()
 }

@@ -7,16 +7,21 @@ use fruits_serialization::JsonValue;
 use image::GenericImageView;
 
 pub fn get_or_load_texture_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardTexture>> {
-    let (render_api, textures) = unsafe { (
-        &*res.get_ptr::<RenderApiResource>()?,
-        &mut *res.get_ptr::<AssetStorageResource<StandardTexture>>()?,
-    ) };
+    let (render_api, textures) = unsafe {
+        (
+            &*res.get_ptr::<RenderApiResource>()?,
+            &mut *res.get_ptr::<AssetStorageResource<StandardTexture>>()?,
+        )
+    };
 
     get_or_load_texture(textures, render_api, key)
 }
 
-
-pub fn get_or_load_texture(textures: &mut AssetStorageResource<StandardTexture>, render_api: &RenderApiResource, key: &str) -> Option<AssetHandle<StandardTexture>> {
+pub fn get_or_load_texture(
+    textures: &mut AssetStorageResource<StandardTexture>,
+    render_api: &RenderApiResource,
+    key: &str,
+) -> Option<AssetHandle<StandardTexture>> {
     if let Some(stored_texture) = textures.get_registered(key) {
         if textures.get(stored_texture).is_some() {
             return Some(stored_texture.clone());
@@ -39,7 +44,7 @@ pub fn get_or_load_texture(textures: &mut AssetStorageResource<StandardTexture>,
     let Some(texture) = deserialize_texture(&raw_texture, render_api) else {
         return None;
     };
-    
+
     let texture_handle = textures.insert(texture);
 
     textures.register(FfiString::from_string(key.to_string()), texture_handle.clone());
@@ -49,7 +54,7 @@ pub fn get_or_load_texture(textures: &mut AssetStorageResource<StandardTexture>,
 
 fn deserialize_texture(data: &str, render_api: &RenderApiResource) -> Option<StandardTexture> {
     let Some(raw_texture) = JsonValue::parse(&mut data.chars()) else {
-        return None
+        return None;
     };
 
     let JsonValue::Object(raw_texture) = raw_texture else {
@@ -79,7 +84,7 @@ fn deserialize_texture(data: &str, render_api: &RenderApiResource) -> Option<Sta
     };
 
     let img = image::load_from_memory(&texture_data).ok()?;
-    
+
     let texture = render_api.create_texture(FilterMode::Nearest, img.dimensions().into(), img.as_bytes());
 
     Some(texture)

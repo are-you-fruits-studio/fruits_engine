@@ -1,4 +1,7 @@
-use std::{alloc::{GlobalAlloc, System}, sync::atomic::{AtomicUsize, Ordering}};
+use std::{
+    alloc::{GlobalAlloc, System},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[global_allocator]
 static ALLOC: AllocMonitor = AllocMonitor;
@@ -25,7 +28,7 @@ unsafe impl GlobalAlloc for AllocMonitor {
         // Safety. AllocMonitor is just a wrapper.
         // Without it all the allocator calls would be called on the System allocator.
         let result = unsafe { System.dealloc(ptr, layout) };
-        
+
         ALLOCATED.fetch_sub(layout.size(), Ordering::Relaxed);
 
         result

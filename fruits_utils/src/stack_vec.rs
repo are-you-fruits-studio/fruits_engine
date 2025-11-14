@@ -1,4 +1,7 @@
-use std::{mem::MaybeUninit, ops::{Deref, DerefMut, Index, IndexMut}};
+use std::{
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut, Index, IndexMut},
+};
 
 pub struct StackVec<T, const C: usize> {
     buf: [MaybeUninit<T>; C],
@@ -37,9 +40,7 @@ impl<T, const C: usize> StackVec<T, C> {
         }
 
         // Safety. Init state is managed by len.
-        let item = unsafe {
-            std::ptr::read(self.buf[self.len - 1].as_mut_ptr())
-        };
+        let item = unsafe { std::ptr::read(self.buf[self.len - 1].as_mut_ptr()) };
         self.len -= 1;
         Some(item)
     }
@@ -50,9 +51,7 @@ impl<T, const C: usize> StackVec<T, C> {
         }
 
         // Safety. Init state is managed by len.
-        unsafe {
-            Some(self.buf[i].assume_init_ref())
-        }
+        unsafe { Some(self.buf[i].assume_init_ref()) }
     }
 
     pub const fn get_mut(&mut self, i: usize) -> Option<&mut T> {
@@ -61,23 +60,17 @@ impl<T, const C: usize> StackVec<T, C> {
         }
 
         // Safety. Init state is managed by len.
-        unsafe {
-            Some(self.buf[i].assume_init_mut())
-        }
+        unsafe { Some(self.buf[i].assume_init_mut()) }
     }
 
     pub const fn as_slice(&self) -> &[T] {
         // Safety. Init state is managed by len.
-        unsafe {
-            std::slice::from_raw_parts(self.buf.as_ptr() as *const T, self.len)
-        }
+        unsafe { std::slice::from_raw_parts(self.buf.as_ptr() as *const T, self.len) }
     }
 
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         // Safety. Init state is managed by len.
-        unsafe {
-            std::slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut T, self.len)
-        }
+        unsafe { std::slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut T, self.len) }
     }
 }
 
@@ -110,9 +103,7 @@ impl<T, const C: usize> Index<usize> for StackVec<T, C> {
         }
 
         // Safety. Init state is managed by len.
-        unsafe {
-            self.buf[index].assume_init_ref()
-        }
+        unsafe { self.buf[index].assume_init_ref() }
     }
 }
 
@@ -123,9 +114,7 @@ impl<T, const C: usize> IndexMut<usize> for StackVec<T, C> {
         }
 
         // Safety. Init state is managed by len.
-        unsafe {
-            self.buf[index].assume_init_mut()
-        }
+        unsafe { self.buf[index].assume_init_mut() }
     }
 }
 

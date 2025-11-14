@@ -11,10 +11,7 @@ pub struct SystemsHolderBuilderMut<'s> {
 
 impl<'s> SystemsHolderBuilderMut<'s> {
     pub fn new(systems: &'s mut SystemsHolderBuilderFfi, types: &'s TypesRegistryCache) -> Self {
-        Self {
-            systems,
-            types,
-        }
+        Self { systems, types }
     }
 
     pub fn insert_system<M: 'static>(&mut self, system: impl SystemWithMarker<M> + Any) -> bool {
@@ -23,7 +20,8 @@ impl<'s> SystemsHolderBuilderMut<'s> {
 
     #[must_use]
     pub fn order_system<'r, M0: 'static>(&'r mut self, s: impl SystemWithMarker<M0> + Any) -> OrderHelper<'r>
-        where 's: 'r
+    where
+        's: 'r,
     {
         let systems_holder_builder = SystemsHolderBuilderMut {
             systems: self.systems,
@@ -34,7 +32,8 @@ impl<'s> SystemsHolderBuilderMut<'s> {
 
     #[must_use]
     pub fn order_group<'r>(&'r mut self, g: &'static str) -> OrderHelper<'r>
-        where 's: 'r
+    where
+        's: 'r,
     {
         let systems_holder_builder = SystemsHolderBuilderMut {
             systems: self.systems,
@@ -45,7 +44,8 @@ impl<'s> SystemsHolderBuilderMut<'s> {
 
     #[must_use]
     pub fn group<'r>(&'r mut self, group: &'static str) -> GroupHelper<'r>
-        where 's: 'r
+    where
+        's: 'r,
     {
         let systems_holder_builder = SystemsHolderBuilderMut {
             systems: self.systems,
@@ -106,10 +106,7 @@ pub struct GroupHelper<'a> {
 
 impl<'a> GroupHelper<'a> {
     fn new(builder: SystemsHolderBuilderMut<'a>, group: &'static str) -> Self {
-        Self {
-            builder,
-            group,
-        }
+        Self { builder, group }
     }
 
     pub fn insert_child_system<M1: 'static>(&mut self, s: impl SystemWithMarker<M1> + Any) -> &mut Self {
@@ -118,7 +115,9 @@ impl<'a> GroupHelper<'a> {
             id: FfiString::from_string(std::any::type_name_of_val(&s).to_string()),
         };
 
-        self.builder.systems.insert_group_child(FfiString::from_string(self.group.to_string()), entry);
+        self.builder
+            .systems
+            .insert_group_child(FfiString::from_string(self.group.to_string()), entry);
         self.builder.insert_system(s);
         self
     }
@@ -129,7 +128,9 @@ impl<'a> GroupHelper<'a> {
             id: FfiString::from_string(g.to_string()),
         };
 
-        self.builder.systems.insert_group_child(FfiString::from_string(self.group.to_string()), entry);
+        self.builder
+            .systems
+            .insert_group_child(FfiString::from_string(self.group.to_string()), entry);
         self
     }
 }

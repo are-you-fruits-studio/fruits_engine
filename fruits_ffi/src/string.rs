@@ -1,4 +1,9 @@
-use std::{borrow::Borrow, fmt::{Debug, Display, Write}, hash::Hash, ops::{Deref, DerefMut}};
+use std::{
+    borrow::Borrow,
+    fmt::{Debug, Display, Write},
+    hash::Hash,
+    ops::{Deref, DerefMut},
+};
 
 use crate::FfiVec;
 
@@ -18,16 +23,12 @@ impl FfiString {
 
     pub const fn as_str(&self) -> &str {
         // todo
-        unsafe {
-            str::from_utf8_unchecked(self.data.as_slice())
-        }
+        unsafe { str::from_utf8_unchecked(self.data.as_slice()) }
     }
 
     pub const fn as_mut_str(&mut self) -> &mut str {
         // todo
-        unsafe {
-            str::from_utf8_unchecked_mut(self.data.as_slice_mut())
-        }
+        unsafe { str::from_utf8_unchecked_mut(self.data.as_slice_mut()) }
     }
 
     pub fn clear(&mut self) {
@@ -78,13 +79,13 @@ impl Write for FfiString {
         // todo: optimize
         for &byte in s.as_bytes() {
             self.data.push(byte);
-        };
+        }
 
         Ok(())
     }
 }
 
-impl Eq for FfiString { }
+impl Eq for FfiString {}
 
 impl Hash for FfiString {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -110,7 +111,7 @@ impl Borrow<str> for FfiString {
     }
 }
 
-unsafe impl Send for FfiString { }
-unsafe impl Sync for FfiString { }
+unsafe impl Send for FfiString {}
+unsafe impl Sync for FfiString {}
 
 // todo: impl standard traits

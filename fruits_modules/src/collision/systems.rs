@@ -1,10 +1,13 @@
 use fruits_ecs::*;
 
-use crate::{collision::{ColliderComponent, CollisionWorldResource}, transform::GlobalTransform};
+use crate::{
+    collision::{ColliderComponent, CollisionWorldResource},
+    transform::GlobalTransform,
+};
 
 pub fn update_collision_world(
     mut collision_world: ResMut<CollisionWorldResource>,
-    q: WorldQuery<(Entity, &ColliderComponent, Option<&GlobalTransform>)>
+    q: WorldQuery<(Entity, &ColliderComponent, Option<&GlobalTransform>)>,
 ) {
     let iter = q.iter().map(|(e, c, t)| {
         let mut shape = c.shape;
@@ -17,7 +20,7 @@ pub fn update_collision_world(
     });
 
     //if collision_world.is_empty() {
-        *collision_world = CollisionWorldResource::new(iter.collect::<Vec<_>>());
-        // collision_world.refill().extend(iter);
+    *collision_world = CollisionWorldResource::new(iter.collect::<Vec<_>>());
+    // collision_world.refill().extend(iter);
     //}
 }

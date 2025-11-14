@@ -20,7 +20,7 @@ impl RenderApi {
     pub fn new(window: Arc<Window>) -> Self {
         let size = window.inner_size();
         let size = [size.width, size.height];
-        
+
         // todo: move wgpu initialization into ecs Start handle?
         let instance = Instance::new(&InstanceDescriptor {
             backends: Backends::PRIMARY,
@@ -29,13 +29,12 @@ impl RenderApi {
 
         let surface = instance.create_surface(Arc::clone(&window)).unwrap();
 
-        let adapter = pollster::block_on(instance.request_adapter(
-            &RequestAdapterOptions {
-                power_preference: PowerPreference::default(),
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            },
-        )).unwrap();
+        let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
+            power_preference: PowerPreference::default(),
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
+        }))
+        .unwrap();
 
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
             required_features: Features::empty(),
@@ -43,11 +42,14 @@ impl RenderApi {
             label: None,
             memory_hints: wgpu::MemoryHints::Performance,
             ..Default::default()
-        })).unwrap();
+        }))
+        .unwrap();
 
         let surface_capabilities = surface.get_capabilities(&adapter);
 
-        let surface_format = surface_capabilities.formats.iter()
+        let surface_format = surface_capabilities
+            .formats
+            .iter()
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(surface_capabilities.formats[0]);
@@ -65,7 +67,6 @@ impl RenderApi {
 
         surface.configure(&device, &surface_config);
 
-        
         Self {
             device,
             queue,
@@ -121,10 +122,7 @@ impl RenderState {
         let api = RenderApi::new(window);
         let render_data = RenderData::new(&api);
 
-        Self {
-            api,
-            render_data
-        }
+        Self { api, render_data }
     }
 
     // todo: expose api as a struct, not deconstruct it.
@@ -172,7 +170,7 @@ impl RenderState {
 
         surface_config.width = new_size[0];
         surface_config.height = new_size[1];
-        
+
         self.api.surface.configure(&self.api.device, &self.api.surface_config);
     }
 
@@ -190,14 +188,20 @@ impl RenderState {
 struct RenderApiVTable {
     resize_fn: unsafe extern "C" fn(*mut c_void, new_size: *const u32),
     size_fn: unsafe extern "C" fn(*const c_void, size_dst: *mut u32),
-    create_texture_fn: unsafe extern "C" fn(*const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>) -> StandardTexture,
-    create_mesh_fn: unsafe extern "C" fn(*const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>) -> StandardMesh,
+    create_texture_fn: unsafe extern "C" fn(
+        *const c_void,
+        filter_mode: FilterMode,
+        dimensions: *const u32,
+        data: FfiSliceRef<u8>,
+    ) -> StandardTexture,
+    create_mesh_fn:
+        unsafe extern "C" fn(*const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>) -> StandardMesh,
 }
 
 #[derive(Resource)]
 pub struct RenderApiResource {
     data: FfiDroppable,
-    vtable: FfiStaticRef<RenderApiVTable>
+    vtable: FfiStaticRef<RenderApiVTable>,
 }
 
 impl RenderApiResource {
@@ -213,27 +217,36 @@ impl RenderApiResource {
         unsafe extern "C" fn ffi_size(this: *const c_void, size_dst: *mut u32) {
             unsafe {
                 let this = &*(this as *const RenderState);
-                
+
                 let size = this.size();
-                
+
                 (size_dst as *mut [u32; 2]).write(size);
             }
         }
-        unsafe extern "C" fn ffi_create_texture(this: *const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>) -> StandardTexture {
+        unsafe extern "C" fn ffi_create_texture(
+            this: *const c_void,
+            filter_mode: FilterMode,
+            dimensions: *const u32,
+            data: FfiSliceRef<u8>,
+        ) -> StandardTexture {
             unsafe {
                 let this = &*(this as *const RenderState);
                 let dimensions = (dimensions as *const [u32; 2]).read();
                 let data = data.into_slice();
-                
+
                 this.create_texture(filter_mode, dimensions, data)
             }
         }
-        unsafe extern "C" fn ffi_create_mesh(this: *const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>) -> StandardMesh {
+        unsafe extern "C" fn ffi_create_mesh(
+            this: *const c_void,
+            vertices: FfiSliceRef<StandardVertex>,
+            indices: FfiSliceRef<u16>,
+        ) -> StandardMesh {
             unsafe {
                 let this = &*(this as *const RenderState);
                 let vertices = vertices.into_slice();
                 let indices = indices.into_slice();
-                
+
                 this.create_mesh(vertices, indices)
             }
         }
@@ -245,7 +258,7 @@ impl RenderApiResource {
                 size_fn: ffi_size,
                 create_texture_fn: ffi_create_texture,
                 create_mesh_fn: ffi_create_mesh,
-            })
+            }),
         }
     }
 
@@ -297,5 +310,5 @@ impl RenderApiResource {
     }
 }
 
-unsafe impl Send for RenderApiResource { }
-unsafe impl Sync for RenderApiResource { }
+unsafe impl Send for RenderApiResource {}
+unsafe impl Sync for RenderApiResource {}

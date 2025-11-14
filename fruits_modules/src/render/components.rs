@@ -2,7 +2,11 @@ use fruits_ecs::Component;
 use fruits_ffi::{FfiString, FfiVec};
 use fruits_math::Vec4;
 
-use crate::{asset::AssetHandle, render::{Font, StandardVertex}, transform::UiVal};
+use crate::{
+    asset::AssetHandle,
+    render::{Font, StandardVertex},
+    transform::UiVal,
+};
 
 use super::assets::{StandardMaterial, StandardMesh};
 
@@ -102,9 +106,7 @@ pub struct GlobalDisableableComponent {
 }
 impl Default for GlobalDisableableComponent {
     fn default() -> Self {
-        Self {
-            is_disabled: false,
-        }
+        Self { is_disabled: false }
     }
 }
 #[repr(C)]
@@ -114,9 +116,7 @@ pub struct LocalDisableableComponent {
 }
 impl Default for LocalDisableableComponent {
     fn default() -> Self {
-        Self {
-            is_disabled: false,
-        }
+        Self { is_disabled: false }
     }
 }
 

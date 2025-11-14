@@ -4,9 +4,7 @@ fn main() {
     println!("Hello, world!");
 }
 
-pub struct Registry {
-
-}
+pub struct Registry {}
 
 impl Registry {
     pub fn instantiate(prefab: &str, world: &mut WorldDataUnsafeFfi) {

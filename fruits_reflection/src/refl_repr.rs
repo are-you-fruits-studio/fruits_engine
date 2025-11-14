@@ -42,19 +42,17 @@ impl Debug for ReflRepr {
         match self {
             ReflRepr::Struct(repr) => {
                 write!(f, "{} {:?}", &repr.name, &repr.fields)?;
-            },
+            }
             ReflRepr::Enum(repr) => {
                 write!(f, "{}::{} {:?}", &repr.name, &repr.variant, &repr.fields)?;
-            },
-            ReflRepr::Primitive(repr) => {
-                match repr {
-                    ReflReprPrimitive::Int(repr) => write!(f, "{}", repr)?,
-                    ReflReprPrimitive::Float(repr) => write!(f, "{}", repr)?,
-                    ReflReprPrimitive::Char(repr) => write!(f, "'{}'", repr)?,
-                    ReflReprPrimitive::Str(repr) => write!(f, "\"{}\"", repr)?,
-                    ReflReprPrimitive::Bool(repr) => write!(f, "{}", repr)?,
-                    ReflReprPrimitive::Unit => write!(f, "()")?,
-                }
+            }
+            ReflRepr::Primitive(repr) => match repr {
+                ReflReprPrimitive::Int(repr) => write!(f, "{}", repr)?,
+                ReflReprPrimitive::Float(repr) => write!(f, "{}", repr)?,
+                ReflReprPrimitive::Char(repr) => write!(f, "'{}'", repr)?,
+                ReflReprPrimitive::Str(repr) => write!(f, "\"{}\"", repr)?,
+                ReflReprPrimitive::Bool(repr) => write!(f, "{}", repr)?,
+                ReflReprPrimitive::Unit => write!(f, "()")?,
             },
         }
 
@@ -75,7 +73,7 @@ impl Debug for ReflReprFields {
                     }
                 }
                 write!(f, ")")?;
-            },
+            }
             ReflReprFields::Named(fields) => {
                 write!(f, "{{ ")?;
                 for (i, (field_name, field_repr)) in fields.iter().enumerate() {
@@ -85,7 +83,7 @@ impl Debug for ReflReprFields {
                     }
                 }
                 write!(f, " }}")?;
-            },
+            }
         }
 
         Ok(())

@@ -42,7 +42,7 @@ impl SystemResourcesHolder {
     pub unsafe fn ffi(&mut self) -> *mut SystemResourcesHolderUnsafeFfi {
         &raw mut self.res
     }
-    
+
     pub fn as_mut<'r>(&'r mut self) -> SystemResourcesHolderMut<'r> {
         SystemResourcesHolderMut {
             res: &mut self.res,
@@ -67,10 +67,7 @@ pub struct SystemResourcesHolderMut<'r> {
 
 impl<'r> SystemResourcesHolderMut<'r> {
     pub fn new(res: &'r mut SystemResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
-        Self {
-            res,
-            types,
-        }
+        Self { res, types }
     }
 
     pub fn get_or_insert<T: 'static + Default>(&self) -> *mut T {
@@ -102,10 +99,7 @@ pub struct SystemResourcesHolderRef<'r> {
 
 impl<'r> SystemResourcesHolderRef<'r> {
     pub fn new(res: &'r SystemResourcesHolderUnsafeFfi, types: &'r TypesRegistryCache) -> Self {
-        Self {
-            res,
-            types,
-        }
+        Self { res, types }
     }
 
     pub fn get_or_insert<T: 'static + Default>(self) -> *mut T {

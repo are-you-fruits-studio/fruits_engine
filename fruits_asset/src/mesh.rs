@@ -6,15 +6,21 @@ use fruits_modules::{AssetHandle, AssetStorageResource, RenderApiResource, Stand
 use fruits_serialization::JsonValue;
 
 pub fn get_or_load_mesh_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardMesh>> {
-    let (render_api, meshes) = unsafe { (
-        &*res.get_ptr::<RenderApiResource>()?,
-        &mut *res.get_ptr::<AssetStorageResource<StandardMesh>>()?,
-    ) };
+    let (render_api, meshes) = unsafe {
+        (
+            &*res.get_ptr::<RenderApiResource>()?,
+            &mut *res.get_ptr::<AssetStorageResource<StandardMesh>>()?,
+        )
+    };
 
     get_or_load_mesh(meshes, render_api, key)
 }
 
-pub fn get_or_load_mesh(meshes: &mut AssetStorageResource<StandardMesh>, render_api: &RenderApiResource, key: &str) -> Option<AssetHandle<StandardMesh>> {
+pub fn get_or_load_mesh(
+    meshes: &mut AssetStorageResource<StandardMesh>,
+    render_api: &RenderApiResource,
+    key: &str,
+) -> Option<AssetHandle<StandardMesh>> {
     if let Some(stored_mesh) = meshes.get_registered(key) {
         if meshes.get(stored_mesh).is_some() {
             return Some(stored_mesh.clone());
@@ -37,7 +43,7 @@ pub fn get_or_load_mesh(meshes: &mut AssetStorageResource<StandardMesh>, render_
     let Some(mesh) = deserialize_mesh(&raw_mesh, render_api) else {
         return None;
     };
-    
+
     let mesh_handle = meshes.insert(mesh);
 
     meshes.register(FfiString::from_string(key.to_string()), mesh_handle.clone());
@@ -47,7 +53,7 @@ pub fn get_or_load_mesh(meshes: &mut AssetStorageResource<StandardMesh>, render_
 
 fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<StandardMesh> {
     let Some(raw_mesh) = JsonValue::parse(&mut data.chars()) else {
-        return None
+        return None;
     };
 
     let JsonValue::Object(raw_mesh) = raw_mesh else {

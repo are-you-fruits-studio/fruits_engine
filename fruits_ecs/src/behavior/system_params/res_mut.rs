@@ -26,7 +26,10 @@ unsafe impl<'e, R: Resource> SystemParam for ResMut<'e, R> {
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<R>(),
-            details: DataUsageDetails { is_mutable: true, is_required: true }
+            details: DataUsageDetails {
+                is_mutable: true,
+                is_required: true,
+            },
         });
     }
 
@@ -44,14 +47,15 @@ unsafe impl<'e, R: Resource> SystemParam for Option<ResMut<'e, R>> {
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add(DataUsageEntry {
             type_id: types.get_or_register::<R>(),
-            details: DataUsageDetails { is_mutable: true, is_required: false }
+            details: DataUsageDetails {
+                is_mutable: true,
+                is_required: false,
+            },
         });
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
-            // Safety. Managed by caller.
-        Ok(unsafe {
-            input.world_data.resources().get_ptr::<R>().map(|r| { ResMut { res: &mut *r }})
-        })
+        // Safety. Managed by caller.
+        Ok(unsafe { input.world_data.resources().get_ptr::<R>().map(|r| ResMut { res: &mut *r }) })
     }
 }

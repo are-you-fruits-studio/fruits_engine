@@ -4,13 +4,12 @@ use fruits_ecs::{EntitiesHolderMut, Entity, WorldQuery};
 
 use crate::{ChildComponent, ParentComponent};
 
-
-
 pub fn hierarchy_iter_breadth_first_parent_to_child(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     mut f: impl FnMut(Entity, Entity),
 ) {
-    let mut ents_to_calc = q.iter()
+    let mut ents_to_calc = q
+        .iter()
         .filter_map(|(e, c, _p)| {
             let Some(child_component) = c else {
                 return Some((e, Entity::EMPTY));
@@ -19,7 +18,7 @@ pub fn hierarchy_iter_breadth_first_parent_to_child(
             if q.get(child_component.parent).is_none() {
                 return Some((e, Entity::EMPTY));
             }
-            
+
             None
         })
         .collect::<VecDeque<_>>();
@@ -64,15 +63,14 @@ pub fn hierarchy_iter_depth_first_parent_to_child<R>(
             // src does not exist - dst is root. Dst as child
             f(Entity::EMPTY, &[dst]);
         }
- 
+
         let Some((_, _, p)) = q.get(dst) else {
             // dst does not exist - src is root. Imposible while moving parent_to_child
             return;
         };
 
         // dst as parent
-        let children = p
-            .map(|p| p.children.as_slice()).unwrap_or(&[]);
+        let children = p.map(|p| p.children.as_slice()).unwrap_or(&[]);
 
         f(dst, children);
     })
@@ -88,15 +86,14 @@ pub fn hierarchy_iter_depth_first_child_to_parent<R>(
             // moving parent_to_child
             return;
         }
- 
+
         let Some((_, _, p)) = q.get(src) else {
             // src does not exist - dst is root. Imposible while moving child_to_parent
             return;
         };
 
         // src as parent
-        let children = p
-            .map(|p| p.children.as_slice()).unwrap_or(&[]);
+        let children = p.map(|p| p.children.as_slice()).unwrap_or(&[]);
 
         f(src, children);
 
@@ -112,7 +109,8 @@ pub fn hierarchy_iter_depth_first<R>(
     q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     mut f: impl FnMut(Entity, Entity, bool) -> R,
 ) {
-    let roots = q.iter()
+    let roots = q
+        .iter()
         .filter_map(|(e, c, _p)| {
             let Some(child_component) = c else {
                 return Some(e);
@@ -121,7 +119,7 @@ pub fn hierarchy_iter_depth_first<R>(
             if q.get(child_component.parent).is_none() {
                 return Some(e);
             }
-            
+
             None
         })
         .collect::<Vec<_>>();
@@ -184,7 +182,7 @@ pub fn destroy_entity_children(mut ec: EntitiesHolderMut, ent: Entity) {
         if let Some(parent) = ec.get_component::<ParentComponent>(ent) {
             check_buffer.extend(parent.children.iter());
         };
-        
+
         ec.destroy_entity(ent);
     }
 }

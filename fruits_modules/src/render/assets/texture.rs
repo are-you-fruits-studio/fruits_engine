@@ -1,7 +1,12 @@
 use std::fmt::Debug;
 
 use fruits_ffi::FfiDroppable;
-use wgpu::{util::{DeviceExt, TextureDataOrder}, wgt::TextureViewDescriptor, AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Extent3d, SamplerDescriptor, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+use wgpu::{
+    AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Extent3d, SamplerDescriptor, Texture,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    util::{DeviceExt, TextureDataOrder},
+    wgt::TextureViewDescriptor,
+};
 
 use crate::RenderState;
 
@@ -41,20 +46,29 @@ impl StandardTexture {
             data = data_vec.as_slice();
         }
 
-        let texture = render_state.device().create_texture_with_data(render_state.queue(), &TextureDescriptor {
-            label: None,
-            size: Extent3d { width: dimensions[0], height: dimensions[1], depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::COPY_SRC
-                | TextureUsages::COPY_DST
-                | TextureUsages::TEXTURE_BINDING
-                | TextureUsages::STORAGE_BINDING
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[TextureFormat::Rgba8Unorm],
-        }, TextureDataOrder::LayerMajor, data);
+        let texture = render_state.device().create_texture_with_data(
+            render_state.queue(),
+            &TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: dimensions[0],
+                    height: dimensions[1],
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::COPY_SRC
+                    | TextureUsages::COPY_DST
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::STORAGE_BINDING
+                    | TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[TextureFormat::Rgba8Unorm],
+            },
+            TextureDataOrder::LayerMajor,
+            data,
+        );
 
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
@@ -67,7 +81,7 @@ impl StandardTexture {
             mipmap_filter: filter_mode,
             ..Default::default()
         });
-        
+
         let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
             label: None,
             layout: &render_state.render_data().bind_group_layout_standard_texture,
@@ -79,15 +93,12 @@ impl StandardTexture {
                 BindGroupEntry {
                     binding: 1,
                     resource: BindingResource::Sampler(&sampler),
-                }
-            ]
+                },
+            ],
         });
 
         Self {
-            native: FfiDroppable::new(StandardTextureNative {
-                texture,
-                bind_group,
-            }),
+            native: FfiDroppable::new(StandardTextureNative { texture, bind_group }),
         }
     }
 
@@ -102,5 +113,5 @@ impl Debug for StandardTexture {
     }
 }
 
-unsafe impl Send for StandardTexture where StandardTextureNative: Send { }
-unsafe impl Sync for StandardTexture where StandardTextureNative: Sync { }
+unsafe impl Send for StandardTexture where StandardTextureNative: Send {}
+unsafe impl Sync for StandardTexture where StandardTextureNative: Sync {}

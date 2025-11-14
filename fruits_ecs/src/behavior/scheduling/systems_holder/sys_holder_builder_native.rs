@@ -22,10 +22,7 @@ impl SystemsHolderBuilderNative {
     }
 
     pub fn insert_system(&mut self, system: SystemFfi) -> bool {
-        self.systems.insert(
-            system.system_name().clone(),
-            system
-        ).is_none()
+        self.systems.insert(system.system_name().clone(), system).is_none()
     }
 
     pub fn order(&mut self, prev: OrderEntry, next: OrderEntry) {

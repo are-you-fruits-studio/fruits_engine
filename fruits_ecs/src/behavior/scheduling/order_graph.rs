@@ -85,12 +85,12 @@ impl OrderGraphIterator {
 
         for direction in self.directions[node].iter() {
             let direction_directors_count = &mut self.unvisited_directors_count[*direction as usize];
-    
+
             *direction_directors_count -= 1;
 
             if *direction_directors_count == 0 {
                 self.queue.push_back(*direction);
-            } 
+            }
         }
     }
 

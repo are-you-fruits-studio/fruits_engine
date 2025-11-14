@@ -84,7 +84,7 @@ pub const fn parse_color_rgb_f32(v: &str) -> Option<[f32; 3]> {
     let Some(result_as_u8) = parse_color_rgb_u8(v) else {
         return None;
     };
-    
+
     let mut result_as_f32 = [0.0_f32; 3];
 
     let mut i = 0;
@@ -132,7 +132,7 @@ pub const fn parse_color_rgba_f32(v: &str) -> Option<[f32; 4]> {
     let Some(result_as_u8) = parse_color_rgba_u8(v) else {
         return None;
     };
-    
+
     let mut result_as_f32 = [0.0_f32; 4];
 
     let mut i = 0;

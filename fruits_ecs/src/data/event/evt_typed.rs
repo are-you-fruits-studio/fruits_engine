@@ -2,7 +2,7 @@ use fruits_ffi::{FfiOpaqueVec, FfiVec};
 
 use crate::*;
 
-pub trait Event : 'static { }
+pub trait Event: 'static {}
 
 //
 
@@ -27,9 +27,7 @@ fn events_holder_get_ptr<'e, E: Event>(evt: &'e EventsHolderUnsafeFfi, types: &T
 }
 
 fn events_holder_get_mut<'e, E: Event>(evt: &'e mut EventsHolderUnsafeFfi, types: &TypesRegistryCache) -> &'e mut FfiVec<E> {
-    unsafe {
-        &mut *events_holder_get_ptr(evt, types)
-    }
+    unsafe { &mut *events_holder_get_ptr(evt, types) }
 }
 
 //
@@ -43,26 +41,26 @@ pub struct EventsHolderMut<'e> {
 
 impl<'e> EventsHolderMut<'e> {
     pub fn new(evt: &'e mut EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
-        Self {
-            evt,
-            types,
-        }
+        Self { evt, types }
     }
 
     pub fn get<'r, E: Event>(&'r self) -> &'r [E]
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         events_holder_get(self.evt, self.types)
     }
 
     pub fn get_ptr<'r, E: Event>(&'r self) -> *mut FfiVec<E>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         events_holder_get_ptr(self.evt, self.types)
     }
 
     pub fn get_mut<'r, E: Event>(&'r mut self) -> &'r mut FfiVec<E>
-        where 'e: 'r
+    where
+        'e: 'r,
     {
         events_holder_get_mut(self.evt, self.types)
     }
@@ -71,7 +69,6 @@ impl<'e> EventsHolderMut<'e> {
         self.evt.clear();
     }
 }
-
 
 //
 
@@ -83,10 +80,7 @@ pub struct EventsHolderRef<'e> {
 
 impl<'e> EventsHolderRef<'e> {
     pub fn new(evt: &'e EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
-        Self {
-            evt,
-            types,
-        }
+        Self { evt, types }
     }
 
     pub fn get<E: Event>(self) -> &'e [E] {

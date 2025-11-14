@@ -3,7 +3,6 @@ use quote::ToTokens;
 use std::fmt::Write;
 use syn::DeriveInput;
 
-
 #[proc_macro_derive(ReflectTy)]
 pub fn derive_reflect_ty(stream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(stream as DeriveInput);
@@ -23,13 +22,17 @@ pub fn derive_reflect_ty(stream: TokenStream) -> TokenStream {
 
     let type_name = input.ident.to_string();
 
-    write!(result, r#"impl{impl_generics} ReflectTy for {type_name}<{type_generics}> {{ "#).unwrap();
+    write!(
+        result,
+        r#"impl{impl_generics} ReflectTy for {type_name}<{type_generics}> {{ "#
+    )
+    .unwrap();
     write!(result, r#"fn refl_ty() -> ReflTy {{ "#).unwrap();
 
     match input.data {
         syn::Data::Struct(data_struct) => {
             result.push_str("ReflTy::Struct(ReflTyStruct::Named(vec![");
-            
+
             for field in data_struct.fields {
                 let field_name = field.ident.to_token_stream().to_string();
                 let field_type = field.ty.to_token_stream().to_string();
@@ -38,7 +41,7 @@ pub fn derive_reflect_ty(stream: TokenStream) -> TokenStream {
             }
 
             result.push_str(" ]))");
-        },
+        }
         syn::Data::Enum(data_enum) => {
             result.push_str("ReflTy::Enum(ReflTyEnum { variants: vec![ ");
 
@@ -56,9 +59,9 @@ pub fn derive_reflect_ty(stream: TokenStream) -> TokenStream {
 
                             write!(result, r#"ReflTyId::of::<{field_type}>(),"#).unwrap();
                         }
-                        
+
                         write!(result, r#"])"#).unwrap();
-                    },
+                    }
                     syn::Fields::Unnamed(fields_unnamed) => {
                         write!(result, r#"ReflTyStruct::Tuple(vec!["#).unwrap();
 
@@ -70,13 +73,13 @@ pub fn derive_reflect_ty(stream: TokenStream) -> TokenStream {
                         }
 
                         write!(result, r#"])"#).unwrap();
-                    },
+                    }
                     syn::Fields::Unit => write!(result, r#"ReflTyStruct::Unit"#).unwrap(),
                 }
-                
+
                 write!(result, r#" ),"#).unwrap();
             }
-        },
+        }
         syn::Data::Union(data_union) => panic!("Union types are not supported."),
     }
 

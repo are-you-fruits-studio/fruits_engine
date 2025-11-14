@@ -15,7 +15,9 @@ impl GlobalTransform {
     };
 }
 impl Default for GlobalTransform {
-    fn default() -> Self { GlobalTransform::IDENTITY }
+    fn default() -> Self {
+        GlobalTransform::IDENTITY
+    }
 }
 
 #[repr(C)]
@@ -33,7 +35,9 @@ impl LocalTransform {
     };
 }
 impl Default for LocalTransform {
-    fn default() -> Self { LocalTransform::IDENTITY }
+    fn default() -> Self {
+        LocalTransform::IDENTITY
+    }
 }
 
 #[repr(C)]
@@ -123,7 +127,7 @@ pub enum UiSpacing {
     Chunk,
     SpaceBetween,
     SpaceAround,
-    SpaceEvenly
+    SpaceEvenly,
 }
 
 #[repr(C)]
@@ -150,23 +154,78 @@ pub enum UiUnit {
 }
 
 impl UiVal {
-    pub const fn px(v: f32) -> Self { Self { unit: UiUnit::Px, val: v, } }
-    pub const fn pw(v: f32) -> Self { Self { unit: UiUnit::Pw, val: v, } }
-    pub const fn ph(v: f32) -> Self { Self { unit: UiUnit::Ph, val: v, } }
-    pub const fn pd(v: f32) -> Self { Self { unit: UiUnit::Pd, val: v, } }
-    pub const fn pmin(v: f32) -> Self { Self { unit: UiUnit::Pmin, val: v, } }
-    pub const fn pmax(v: f32) -> Self { Self { unit: UiUnit::Pmax, val: v, } }
-    pub const fn vw(v: f32) -> Self { Self { unit: UiUnit::Vw, val: v, } }
-    pub const fn vh(v: f32) -> Self { Self { unit: UiUnit::Vh, val: v, } }
-    pub const fn vd(v: f32) -> Self { Self { unit: UiUnit::Vd, val: v, } }
-    pub const fn vmin(v: f32) -> Self { Self { unit: UiUnit::Vmin, val: v, } }
-    pub const fn vmax(v: f32) -> Self { Self { unit: UiUnit::Vmax, val: v, } }
+    pub const fn px(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Px,
+            val: v,
+        }
+    }
+    pub const fn pw(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Pw,
+            val: v,
+        }
+    }
+    pub const fn ph(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Ph,
+            val: v,
+        }
+    }
+    pub const fn pd(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Pd,
+            val: v,
+        }
+    }
+    pub const fn pmin(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Pmin,
+            val: v,
+        }
+    }
+    pub const fn pmax(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Pmax,
+            val: v,
+        }
+    }
+    pub const fn vw(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Vw,
+            val: v,
+        }
+    }
+    pub const fn vh(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Vh,
+            val: v,
+        }
+    }
+    pub const fn vd(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Vd,
+            val: v,
+        }
+    }
+    pub const fn vmin(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Vmin,
+            val: v,
+        }
+    }
+    pub const fn vmax(v: f32) -> Self {
+        Self {
+            unit: UiUnit::Vmax,
+            val: v,
+        }
+    }
 }
 
 impl UiVal {
     pub fn into_px(self, parent_size: Vec2<f32>, view_size: Vec2<f32>) -> Vec2<f32> {
         let v = self.val;
-        
+
         match self.unit {
             UiUnit::Px => Vec2::splat(v),
             UiUnit::Pw => Vec2::splat(parent_size.x * v),

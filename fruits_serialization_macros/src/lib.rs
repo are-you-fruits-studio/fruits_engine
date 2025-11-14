@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use quote::ToTokens;
-use syn::DeriveInput;
 use std::fmt::Write;
+use syn::DeriveInput;
 
 #[proc_macro_derive(JsonSerializable)]
 pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
@@ -22,7 +22,11 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
     let type_name = input.ident.to_string();
 
-    write!(result, r#"impl{impl_generics} JsonSerializable for {type_name}<{type_generics}> {{ "#).unwrap();
+    write!(
+        result,
+        r#"impl{impl_generics} JsonSerializable for {type_name}<{type_generics}> {{ "#
+    )
+    .unwrap();
 
     let mut to_json_impl = String::new();
     let mut from_json_impl = String::new();
@@ -32,24 +36,48 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
     write!(from_json_impl, r#"fn from_json(json: &JsonValue) -> Option<Self> {{ "#).unwrap();
 
-    write!(fill_partially_from_json_impl, r#"fn fill_partially_from_json(&mut self, json: &JsonValue) {{ "#).unwrap();
+    write!(
+        fill_partially_from_json_impl,
+        r#"fn fill_partially_from_json(&mut self, json: &JsonValue) {{ "#
+    )
+    .unwrap();
 
     match input.data {
         syn::Data::Struct(data_struct) => {
             write!(to_json_impl, r#"let mut json = JsonObject::new();"#).unwrap();
-            
-            write!(from_json_impl, r#"let JsonValue::Object(json) = json else {{ return None; }};"#).unwrap();
+
+            write!(
+                from_json_impl,
+                r#"let JsonValue::Object(json) = json else {{ return None; }};"#
+            )
+            .unwrap();
             write!(from_json_impl, r#"Some(Self {{"#).unwrap();
 
-            write!(fill_partially_from_json_impl, r#"let JsonValue::Object(json) = json else {{ return; }};"#).unwrap();
-            
-            for (i, field) in data_struct.fields.iter().enumerate() {
-                let field_name = field.ident.as_ref().map(|i| i.to_token_stream().to_string()).unwrap_or_else(|| i.to_string());
-                let field_type = field.ty.to_token_stream().to_string();
-                
-                write!(to_json_impl, r#"json.push_field("{field_name}", JsonSerializable::to_json(&self.{field_name})).ok().unwrap();"#).unwrap();
+            write!(
+                fill_partially_from_json_impl,
+                r#"let JsonValue::Object(json) = json else {{ return; }};"#
+            )
+            .unwrap();
 
-                write!(from_json_impl, r#"{field_name}: JsonSerializable::from_json(json.get_value("{field_name}")?)?,"#).unwrap();
+            for (i, field) in data_struct.fields.iter().enumerate() {
+                let field_name = field
+                    .ident
+                    .as_ref()
+                    .map(|i| i.to_token_stream().to_string())
+                    .unwrap_or_else(|| i.to_string());
+                let field_type = field.ty.to_token_stream().to_string();
+
+                write!(
+                    to_json_impl,
+                    r#"json.push_field("{field_name}", JsonSerializable::to_json(&self.{field_name})).ok().unwrap();"#
+                )
+                .unwrap();
+
+                write!(
+                    from_json_impl,
+                    r#"{field_name}: JsonSerializable::from_json(json.get_value("{field_name}")?)?,"#
+                )
+                .unwrap();
 
                 write!(fill_partially_from_json_impl, r#"if let Some(field_{field_name}) = json.get_value("{field_name}") {{ self.{field_name}.fill_partially_from_json(field_{field_name}); }}"#).unwrap();
             }
@@ -57,7 +85,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
             to_json_impl.push_str("JsonValue::Object(json)");
 
             from_json_impl.push_str("})");
-        },
+        }
         syn::Data::Enum(data_enum) => {
             if data_enum.variants.iter().any(|v| v.fields.len() > 0) {
                 // todo
@@ -69,7 +97,11 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
             write!(from_json_impl, r#"let JsonValue::String(v) = json else {{ return None; }};"#).unwrap();
             write!(from_json_impl, r#"Some(match v.as_str() {{"#).unwrap();
 
-            write!(fill_partially_from_json_impl, r#"if let Some(parsed) = Self::from_json(json) {{ *self = parsed; }}"#).unwrap();
+            write!(
+                fill_partially_from_json_impl,
+                r#"if let Some(parsed) = Self::from_json(json) {{ *self = parsed; }}"#
+            )
+            .unwrap();
 
             for variant in data_enum.variants {
                 let variant_name = variant.ident.to_string();
@@ -86,7 +118,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
                 //             write!(to_json_impl, r#"ReflTyId::of::<{field_type}>(),"#).unwrap();
                 //         }
-                        
+
                 //         write!(to_json_impl, r#"])"#).unwrap();
                 //     },
                 //     syn::Fields::Unnamed(fields_unnamed) => {
@@ -103,7 +135,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                 //     },
                 //     syn::Fields::Unit => write!(to_json_impl, r#"ReflTyStruct::Unit"#).unwrap(),
                 // }
-                
+
                 // write!(to_json_impl, r#" ),"#).unwrap();
             }
 
@@ -111,7 +143,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
             from_json_impl.push_str("_ => return None,");
             from_json_impl.push_str("})");
-        },
+        }
         syn::Data::Union(data_union) => panic!("Union types are not supported."),
     }
 

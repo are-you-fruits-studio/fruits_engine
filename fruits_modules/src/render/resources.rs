@@ -1,10 +1,13 @@
-use std::collections::{hash_map::IterMut, HashMap};
+use std::collections::{HashMap, hash_map::IterMut};
 
 use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
-use crate::{asset::AssetHandle, render::{Font, StandardTexture, StandardVertex}};
+use crate::{
+    asset::AssetHandle,
+    render::{Font, StandardTexture, StandardVertex},
+};
 
 use super::GizmoLine;
 
@@ -39,9 +42,7 @@ impl Default for GizmosResource {
         lines.insert(RenderSpace::Window, Vec::new());
         lines.insert(RenderSpace::World, Vec::new());
 
-        Self {
-            lines,
-        }
+        Self { lines }
     }
 }
 

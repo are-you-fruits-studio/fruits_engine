@@ -167,11 +167,7 @@ impl<N: Number> Quat<N> {
         let corrected_up = Vec3::cross(forward, right);
 
         // Construct rotation matrix
-        let m = Mat3::<N>::from_array([
-            right.into_array(),
-            corrected_up.into_array(),
-            forward.into_array(),
-        ]);
+        let m = Mat3::<N>::from_array([right.into_array(), corrected_up.into_array(), forward.into_array()]);
 
         // Convert matrix to quaternion
         Self::from_matrix(m)
@@ -202,7 +198,7 @@ impl<N: Number> Quat<N> {
     }
 
     pub const fn into_array(self) -> [N; 4] {
-        let Self {x, y, z, w } = self;
+        let Self { x, y, z, w } = self;
         [x, y, z, w]
     }
 
@@ -229,5 +225,5 @@ impl<N: Number> Mul for Quat<N> {
     }
 }
 
-unsafe impl<T: AllBitVariationsValid + Number> AllBitVariationsValid for Quat<T> { }
-unsafe impl<T: AllBitsInit + Number> AllBitsInit for Quat<T> { }
+unsafe impl<T: AllBitVariationsValid + Number> AllBitVariationsValid for Quat<T> {}
+unsafe impl<T: AllBitsInit + Number> AllBitsInit for Quat<T> {}

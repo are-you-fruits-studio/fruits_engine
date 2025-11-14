@@ -45,8 +45,20 @@ pub fn parse_obj(raw: &str) -> Option<ObjMesh> {
                     // e.g., "3/4/5" or "3//5" or "3"
                     let mut indices = part.split('/');
                     let v = parse_index(indices.next()?, mesh.positions.len());
-                    let vt = indices.next().and_then(|s| if !s.is_empty() { Some(parse_index(s, mesh.texcoords.len())) } else { None });
-                    let vn = indices.next().and_then(|s| if !s.is_empty() { Some(parse_index(s, mesh.normals.len())) } else { None });
+                    let vt = indices.next().and_then(|s| {
+                        if !s.is_empty() {
+                            Some(parse_index(s, mesh.texcoords.len()))
+                        } else {
+                            None
+                        }
+                    });
+                    let vn = indices.next().and_then(|s| {
+                        if !s.is_empty() {
+                            Some(parse_index(s, mesh.normals.len()))
+                        } else {
+                            None
+                        }
+                    });
                     face.push(ObjVertex { v, vt, vn });
                 }
 

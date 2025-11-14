@@ -12,14 +12,10 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
-    let lib = unsafe {
-        libloading::Library::new("app").unwrap()
-    };
-    
+    let lib = unsafe { libloading::Library::new("app").unwrap() };
+
     {
-        let init_app_symbol = unsafe {
-            lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point").unwrap()
-        };
+        let init_app_symbol = unsafe { lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point").unwrap() };
 
         let mut app = App::new();
 

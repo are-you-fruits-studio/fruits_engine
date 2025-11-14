@@ -1,4 +1,4 @@
-use fruits_math::{eq_quadratic, Mat3, QuadraticEquationResult, Vec3};
+use fruits_math::{Mat3, QuadraticEquationResult, Vec3, eq_quadratic};
 
 use crate::collision::*;
 
@@ -10,35 +10,35 @@ pub fn overlaps(lhs: CollisionShape, rhs: CollisionShape) -> bool {
         (CollisionShape::Point(lhs), CollisionShape::Box(rhs)) => overlaps_pt_bx(lhs, rhs),
         (CollisionShape::Point(lhs), CollisionShape::Sphere(rhs)) => overlaps_pt_sp(lhs, rhs),
         (CollisionShape::Point(lhs), CollisionShape::Triangle(rhs)) => overlaps_pt_tr(lhs, rhs),
-        
+
         (CollisionShape::Line(lhs), CollisionShape::Point(rhs)) => overlaps_pt_ln(rhs, lhs),
         (CollisionShape::Line(lhs), CollisionShape::Line(rhs)) => overlaps_ln_ln(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Aabb(rhs)) => overlaps_ln_aa(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Box(rhs)) => overlaps_ln_bx(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Sphere(rhs)) => overlaps_ln_sp(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Triangle(rhs)) => overlaps_ln_tr(lhs, rhs),
-        
+
         (CollisionShape::Aabb(lhs), CollisionShape::Point(rhs)) => overlaps_pt_aa(rhs, lhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Line(rhs)) => overlaps_ln_aa(rhs, lhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Aabb(rhs)) => overlaps_aa_aa(lhs, rhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Box(rhs)) => overlaps_aa_bx(lhs, rhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Sphere(rhs)) => overlaps_aa_sp(lhs, rhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Triangle(rhs)) => overlaps_aa_tr(lhs, rhs),
-        
+
         (CollisionShape::Box(lhs), CollisionShape::Point(rhs)) => overlaps_pt_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Line(rhs)) => overlaps_ln_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Aabb(rhs)) => overlaps_aa_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Box(rhs)) => overlaps_bx_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Sphere(rhs)) => overlaps_bx_sp(lhs, rhs),
         (CollisionShape::Box(lhs), CollisionShape::Triangle(rhs)) => overlaps_bx_tr(lhs, rhs),
-        
+
         (CollisionShape::Sphere(lhs), CollisionShape::Point(rhs)) => overlaps_pt_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Line(rhs)) => overlaps_ln_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Aabb(rhs)) => overlaps_aa_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Box(rhs)) => overlaps_bx_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Sphere(rhs)) => overlaps_sp_sp(lhs, rhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Triangle(rhs)) => overlaps_sp_tr(lhs, rhs),
-        
+
         (CollisionShape::Triangle(lhs), CollisionShape::Point(rhs)) => overlaps_pt_tr(rhs, lhs),
         (CollisionShape::Triangle(lhs), CollisionShape::Line(rhs)) => overlaps_ln_tr(rhs, lhs),
         (CollisionShape::Triangle(lhs), CollisionShape::Aabb(rhs)) => overlaps_aa_tr(rhs, lhs),
@@ -56,11 +56,11 @@ fn overlaps_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> bool {
     if lhs == rhs.start {
         return true;
     }
-    
+
     if lhs == rhs.end {
         return true;
     }
-    
+
     if rhs.start == rhs.end {
         return false;
     }
@@ -86,7 +86,7 @@ fn overlaps_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> bool {
     }
 
     let projected_point = Vec3::lerp(rhs.start, rhs.end, progress);
-    
+
     lhs == projected_point
 }
 
@@ -103,16 +103,8 @@ fn overlaps_ln_ln(s1: CollisionLine, s2: CollisionLine) -> bool {
         return overlaps_pt_ln(p3, s1);
     }
 
-    let progress1 =
-        (
-            (p1 - p3).dot(p4 - p3) * (p4 - p3).dot(p2 - p1) 
-            - (p1 - p3).dot(p2 - p1) * (p4 - p3).dot(p4 - p3)
-        )
-        / (
-            (p2 - p1).dot(p2 - p1) * (p4 - p3).dot(p4 - p3)
-            - (p4 - p3).dot(p2 - p1) * (p4 - p3).dot(p2 - p1)
-        );
-
+    let progress1 = ((p1 - p3).dot(p4 - p3) * (p4 - p3).dot(p2 - p1) - (p1 - p3).dot(p2 - p1) * (p4 - p3).dot(p4 - p3))
+        / ((p2 - p1).dot(p2 - p1) * (p4 - p3).dot(p4 - p3) - (p4 - p3).dot(p2 - p1) * (p4 - p3).dot(p2 - p1));
 
     if s1.bounds.is_start_restricted() && progress1 < 0.0 {
         return false;
@@ -123,7 +115,6 @@ fn overlaps_ln_ln(s1: CollisionLine, s2: CollisionLine) -> bool {
     }
 
     let progress2 = ((p1 - p3).dot(p4 - p3) + progress1 * (p4 - p3).dot(p2 - p1)) / (p4 - p3).dot(p4 - p3);
-    
 
     if s2.bounds.is_start_restricted() && progress2 < 0.0 {
         return false;
@@ -132,7 +123,7 @@ fn overlaps_ln_ln(s1: CollisionLine, s2: CollisionLine) -> bool {
     if s2.bounds.is_end_restricted() && progress2 > 1.0 {
         return false;
     }
-    
+
     let closest1 = Vec3::lerp(s1.start, s1.end, progress1);
     let closest2 = Vec3::lerp(s2.start, s2.end, progress2);
 
@@ -176,7 +167,7 @@ fn overlaps_pt_tr(s1: Vec3<f32>, s2: [Vec3<f32>; 3]) -> bool {
     fn is_point_on_triangle_plane(a: Vec3<f32>, b: Vec3<f32>, c: Vec3<f32>, point: Vec3<f32>) -> bool {
         let normal = (b - a).cross(c - a).normalized();
         let distance = (point - a).dot(normal);
-        distance.abs() < 1e-5  // epsilon tolerance
+        distance.abs() < 1e-5 // epsilon tolerance
     }
 }
 
@@ -214,13 +205,10 @@ fn overlaps_bx_sp(s1: CollisionBox, s2: CollisionSphere) -> bool {
 
     let s2 = CollisionSphere {
         radius: s2.radius,
-        center: (rot_inv * (s2.center - s1.center))
+        center: (rot_inv * (s2.center - s1.center)),
     };
 
-    overlaps_centered_aa_sp(
-        s1.extents,
-        s2,
-    )
+    overlaps_centered_aa_sp(s1.extents, s2)
 }
 
 fn overlaps_bx_tr(s1: CollisionBox, s2: [Vec3<f32>; 3]) -> bool {
@@ -228,15 +216,12 @@ fn overlaps_bx_tr(s1: CollisionBox, s2: [Vec3<f32>; 3]) -> bool {
 
     let s2 = s2.map(|v| rot_inv * (v - s1.center));
 
-    overlaps_centered_aa_tr(
-        s1.extents,
-        s2,
-    )
+    overlaps_centered_aa_tr(s1.extents, s2)
 }
 
 fn overlaps_sp_sp(s1: CollisionSphere, s2: CollisionSphere) -> bool {
     let r_sum = s1.radius + s2.radius;
-    
+
     (s1.center - s2.center).length_sq() <= r_sum * r_sum
 }
 
@@ -262,10 +247,7 @@ fn overlaps_ln_aa(mut s1: CollisionLine, s2: CollisionAabb) -> bool {
     s1.start -= s2.center;
     s1.end -= s2.center;
 
-    overlaps_centered_aa_ln(
-        s2.extents,
-        s1,
-    )
+    overlaps_centered_aa_ln(s2.extents, s1)
 }
 
 fn overlaps_ln_bx(s1: CollisionLine, s2: CollisionBox) -> bool {
@@ -293,19 +275,18 @@ fn overlaps_ln_bx(s1: CollisionLine, s2: CollisionBox) -> bool {
         let x2 = s1.end[i];
         let x_min = -extents[i];
         let x_max = extents[i];
-        
+
         if x2 != x1 {
             let mut t1 = (x_min - x1) / (x2 - x1);
             let mut t2 = (x_max - x1) / (x2 - x1);
-            
+
             if t1 > t2 {
                 (t1, t2) = (t2, t1);
             }
 
             t_min = t_min.max(t1);
             t_max = t_max.min(t2);
-        }
-        else if x1 < x_min || x1 > x_max {
+        } else if x1 < x_min || x1 > x_max {
             return false;
         }
     }
@@ -323,7 +304,7 @@ fn overlaps_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
 
     let e1 = b - a;
     let e2 = c - a;
-    
+
     let n = e1.cross(e2);
     let det = -d.dot(n);
     let inv_det = 1.0 / det;
@@ -345,12 +326,7 @@ fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
 }
 
 fn overlaps_aa_bx(s1: CollisionAabb, s2: CollisionBox) -> bool {
-    overlaps_centered_aa_bx(
-        s1.extents,
-        s2.center - s1.center,
-        s2.extents,
-        s2.rotation.to_matrix(),
-    )
+    overlaps_centered_aa_bx(s1.extents, s2.center - s1.center, s2.extents, s2.rotation.to_matrix())
 }
 
 fn overlaps_aa_sp(s1: CollisionAabb, mut s2: CollisionSphere) -> bool {
@@ -374,7 +350,7 @@ fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
     let [ax, bx, cx] = get_axis_equation_params(s1.start.x, s1.end.x, s2.center.x);
     let [ay, by, cy] = get_axis_equation_params(s1.start.y, s1.end.y, s2.center.y);
     let [az, bz, cz] = get_axis_equation_params(s1.start.z, s1.end.z, s2.center.z);
-    
+
     let a = ax + ay + az;
     let b = bx + by + bz;
     let c = cx + cy + cz - s2.radius * s2.radius;
@@ -388,11 +364,7 @@ fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
     };
 
     fn get_axis_equation_params(x0: f32, x1: f32, xc: f32) -> [f32; 3] {
-        [
-            (x1 - x0) * (x1 - x0),
-            2.0 * (x0 - xc) * (x1 - x0),
-            (x0 - xc) * (x0 - xc),
-        ]
+        [(x1 - x0) * (x1 - x0), 2.0 * (x0 - xc) * (x1 - x0), (x0 - xc) * (x0 - xc)]
     }
 }
 
@@ -417,19 +389,18 @@ fn overlaps_centered_aa_ln(ext: Vec3<f32>, ln: CollisionLine) -> bool {
         let x2 = ln.end[i];
         let x_min = -ext[i];
         let x_max = ext[i];
-        
+
         if x2 != x1 {
             let mut t1 = (x_min - x1) / (x2 - x1);
             let mut t2 = (x_max - x1) / (x2 - x1);
-            
+
             if t1 > t2 {
                 (t1, t2) = (t2, t1);
             }
 
             t_min = t_min.max(t1);
             t_max = t_max.min(t2);
-        }
-        else if x1 < x_min || x1 > x_max {
+        } else if x1 < x_min || x1 > x_max {
             return false;
         }
     }
@@ -438,18 +409,24 @@ fn overlaps_centered_aa_ln(ext: Vec3<f32>, ln: CollisionLine) -> bool {
 }
 
 fn overlaps_centered_aa_bx(ext: Vec3<f32>, bx_center: Vec3<f32>, bx_ext: Vec3<f32>, bx_rot: Mat3<f32>) -> bool {
-    let s2_axes = [
-        bx_rot * Vec3::X,
-        bx_rot * Vec3::Y,
-        bx_rot * Vec3::Z,
-    ]; // OBB axes
+    let s2_axes = [bx_rot * Vec3::X, bx_rot * Vec3::Y, bx_rot * Vec3::Z]; // OBB axes
 
     let axes = [
-        Vec3::X, Vec3::Y, Vec3::Z, // AABB axes
-        s2_axes[0], s2_axes[1], s2_axes[2], // OBB axes
-        Vec3::X.cross(s2_axes[0]), Vec3::X.cross(s2_axes[1]), Vec3::X.cross(s2_axes[2]), // Cross products of AABB and OBB
-        Vec3::Y.cross(s2_axes[0]), Vec3::Y.cross(s2_axes[1]), Vec3::Y.cross(s2_axes[2]),
-        Vec3::Z.cross(s2_axes[0]), Vec3::Z.cross(s2_axes[1]), Vec3::Z.cross(s2_axes[2]),
+        Vec3::X,
+        Vec3::Y,
+        Vec3::Z, // AABB axes
+        s2_axes[0],
+        s2_axes[1],
+        s2_axes[2], // OBB axes
+        Vec3::X.cross(s2_axes[0]),
+        Vec3::X.cross(s2_axes[1]),
+        Vec3::X.cross(s2_axes[2]), // Cross products of AABB and OBB
+        Vec3::Y.cross(s2_axes[0]),
+        Vec3::Y.cross(s2_axes[1]),
+        Vec3::Y.cross(s2_axes[2]),
+        Vec3::Z.cross(s2_axes[0]),
+        Vec3::Z.cross(s2_axes[1]),
+        Vec3::Z.cross(s2_axes[2]),
     ];
 
     for &axis in axes.iter().filter(|a| a.length_sq() > 1e-6) {
@@ -478,10 +455,18 @@ fn overlaps_centered_aa_tr(ext: Vec3<f32>, sp: [Vec3<f32>; 3]) -> bool {
     let f2 = v0 - v2;
 
     let axes = [
-        Vec3::X, Vec3::Y, Vec3::Z,
-        f0.cross(Vec3::X), f0.cross(Vec3::Y), f0.cross(Vec3::Z),
-        f1.cross(Vec3::X), f1.cross(Vec3::Y), f1.cross(Vec3::Z),
-        f2.cross(Vec3::X), f2.cross(Vec3::Y), f2.cross(Vec3::Z),
+        Vec3::X,
+        Vec3::Y,
+        Vec3::Z,
+        f0.cross(Vec3::X),
+        f0.cross(Vec3::Y),
+        f0.cross(Vec3::Z),
+        f1.cross(Vec3::X),
+        f1.cross(Vec3::Y),
+        f1.cross(Vec3::Z),
+        f2.cross(Vec3::X),
+        f2.cross(Vec3::Y),
+        f2.cross(Vec3::Z),
         f0.cross(f1),
     ];
 
@@ -522,8 +507,8 @@ fn project_centered_aabb_on_axis(axis: Vec3<f32>, half_extents: Vec3<f32>) -> (f
 fn project_box_on_axis(axis: Vec3<f32>, center: Vec3<f32>, half_extents: Vec3<f32>, axes: [Vec3<f32>; 3]) -> (f32, f32) {
     let c = center.dot(axis);
     let r = half_extents.x * axis.dot(axes[0]).abs()
-          + half_extents.y * axis.dot(axes[1]).abs()
-          + half_extents.z * axis.dot(axes[2]).abs();
+        + half_extents.y * axis.dot(axes[1]).abs()
+        + half_extents.z * axis.dot(axes[2]).abs();
     (c - r, c + r)
 }
 
@@ -561,19 +546,13 @@ fn coplanar_tri_tri(n: Vec3<f32>, tri1: [Vec3<f32>; 3], tri2: [Vec3<f32>; 3]) ->
 
             if (f > 0.0 && d >= 0.0 && d <= f) || (f < 0.0 && d <= 0.0 && d >= f) {
                 let e = ax * cy - ay * cx;
-                return if f > 0.0 {
-                    e >= 0.0 && e <= f
-                } else {
-                    e <= 0.0 && e >= f
-                };
+                return if f > 0.0 { e >= 0.0 && e <= f } else { e <= 0.0 && e >= f };
             }
 
             false
         }
 
-        edge_edge_test(p1, q1, a, b, i1, i2) ||
-        edge_edge_test(p1, q1, b, c, i1, i2) ||
-        edge_edge_test(p1, q1, c, a, i1, i2)
+        edge_edge_test(p1, q1, a, b, i1, i2) || edge_edge_test(p1, q1, b, c, i1, i2) || edge_edge_test(p1, q1, c, a, i1, i2)
     }
 
     fn point_in_tri(p: Vec3<f32>, a: Vec3<f32>, b: Vec3<f32>, c: Vec3<f32>, i1: usize, i2: usize) -> bool {
@@ -612,22 +591,23 @@ fn coplanar_tri_tri(n: Vec3<f32>, tri1: [Vec3<f32>; 3], tri2: [Vec3<f32>; 3]) ->
     }
 
     // Check all edges of triangle1 against triangle2
-    if edge_against_tri_edges(a1, b1, a2, b2, c2, i1, i2) ||
-       edge_against_tri_edges(b1, c1, a2, b2, c2, i1, i2) ||
-       edge_against_tri_edges(c1, a1, a2, b2, c2, i1, i2) {
+    if edge_against_tri_edges(a1, b1, a2, b2, c2, i1, i2)
+        || edge_against_tri_edges(b1, c1, a2, b2, c2, i1, i2)
+        || edge_against_tri_edges(c1, a1, a2, b2, c2, i1, i2)
+    {
         return true;
     }
 
     // Check all edges of triangle2 against triangle1
-    if edge_against_tri_edges(a2, b2, a1, b1, c1, i1, i2) ||
-       edge_against_tri_edges(b2, c2, a1, b1, c1, i1, i2) ||
-       edge_against_tri_edges(c2, a2, a1, b1, c1, i1, i2) {
+    if edge_against_tri_edges(a2, b2, a1, b1, c1, i1, i2)
+        || edge_against_tri_edges(b2, c2, a1, b1, c1, i1, i2)
+        || edge_against_tri_edges(c2, a2, a1, b1, c1, i1, i2)
+    {
         return true;
     }
 
     // Finally check if one triangle is completely inside the other
-    point_in_tri(a1, a2, b2, c2, i1, i2) ||
-    point_in_tri(a2, a1, b1, c1, i1, i2)
+    point_in_tri(a1, a2, b2, c2, i1, i2) || point_in_tri(a2, a1, b1, c1, i1, i2)
 }
 
 fn overlaps_tr_tr(s1: [Vec3<f32>; 3], s2: [Vec3<f32>; 3]) -> bool {
@@ -697,11 +677,7 @@ fn overlaps_sp_tr(s1: CollisionSphere, s2: [Vec3<f32>; 3]) -> bool {
     // in triangle or outside
 
     let is_inside_tri = 'it: {
-        let sides = [
-            ab.cross(p - a).dot(n),
-            bc.cross(p - b).dot(n),
-            ca.cross(p - c).dot(n),
-        ];
+        let sides = [ab.cross(p - a).dot(n), bc.cross(p - b).dot(n), ca.cross(p - c).dot(n)];
 
         let mut signum = 0.0_f32;
 

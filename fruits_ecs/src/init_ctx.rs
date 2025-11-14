@@ -1,4 +1,3 @@
-
 use crate::{TypesRegistryAccessFfi, WorldBuilderUnsafeFfi};
 
 #[repr(C)]

@@ -1,10 +1,15 @@
-use std::{alloc::Layout, marker::PhantomData, mem::ManuallyDrop, ops::{Deref, DerefMut}};
+use std::{
+    alloc::Layout,
+    marker::PhantomData,
+    mem::ManuallyDrop,
+    ops::{Deref, DerefMut},
+};
 
 pub struct MorphVec<T> {
     buf: *mut u8,
     cap_bytes: usize,
     len: usize,
-    _phantom: PhantomData<T>
+    _phantom: PhantomData<T>,
 }
 impl<T> MorphVec<T> {
     pub fn new() -> Self {
@@ -54,14 +59,10 @@ impl<T> MorphVec<T> {
             };
 
             // Safety. Alignment is added to the buffer size on realloc.
-            let offset_new_buf = unsafe {
-                Self::buf_start(new_buf)
-            };
+            let offset_new_buf = unsafe { Self::buf_start(new_buf) };
 
             // Safety. Alignment is added to the buffer size on realloc.
-            let offset_old_buf = unsafe {
-                Self::buf_start(self.buf)
-            };
+            let offset_old_buf = unsafe { Self::buf_start(self.buf) };
 
             // Safety. Memory is alligned and allocated.
             unsafe {
@@ -79,9 +80,7 @@ impl<T> MorphVec<T> {
         }
 
         // Safety. Alignment is added to the buffer size on realloc.
-        let buf = unsafe {
-            Self::buf_start(self.buf)
-        };
+        let buf = unsafe { Self::buf_start(self.buf) };
 
         // Safety. Valid for writes - part of the allocation, aligned earlier in the function.
         unsafe {
@@ -99,29 +98,23 @@ impl<T> MorphVec<T> {
         self.len -= 1;
 
         // Safety. Memory is aligned and exists, because of len.
-        unsafe {
-            Some(Self::buf_start(self.buf).add(self.len).read())
-        }
+        unsafe { Some(Self::buf_start(self.buf).add(self.len).read()) }
     }
     pub fn get(&self, i: usize) -> Option<&T> {
         if i >= self.len {
             return None;
         }
-        
+
         // Safety. Memory is aligned and exists, because of len.
-        unsafe {
-            Some(&*Self::buf_start(self.buf).add(self.len))
-        }
+        unsafe { Some(&*Self::buf_start(self.buf).add(self.len)) }
     }
     pub fn get_mut(&mut self, i: usize) -> Option<&mut T> {
         if i >= self.len {
             return None;
         }
-        
+
         // Safety. Memory is aligned and exists, because of len.
-        unsafe {
-            Some(&mut *Self::buf_start(self.buf).add(self.len))
-        }
+        unsafe { Some(&mut *Self::buf_start(self.buf).add(self.len)) }
     }
 
     pub fn clear(&mut self) {
@@ -153,26 +146,20 @@ impl<T> MorphVec<T> {
 
     pub fn as_slice(&self) -> &[T] {
         // Safety. Aligned, length-checked, lifetimes-checked.
-        unsafe {
-            std::slice::from_raw_parts(Self::buf_start(self.buf), self.len)
-        }
+        unsafe { std::slice::from_raw_parts(Self::buf_start(self.buf), self.len) }
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         // Safety. Aligned, length-checked, lifetimes-checked.
-        unsafe {
-            std::slice::from_raw_parts_mut(Self::buf_start(self.buf), self.len)
-        }
+        unsafe { std::slice::from_raw_parts_mut(Self::buf_start(self.buf), self.len) }
     }
 
     /// # Safety
-    /// 
+    ///
     /// Managed by caller.
     unsafe fn buf_start(ptr: *mut u8) -> *mut T {
         // Safety. Managed by caller.
-        unsafe {
-            ptr.add(ptr.align_offset(std::mem::align_of::<T>())) as *mut T
-        }
+        unsafe { ptr.add(ptr.align_offset(std::mem::align_of::<T>())) as *mut T }
     }
 }
 impl<T> Drop for MorphVec<T> {

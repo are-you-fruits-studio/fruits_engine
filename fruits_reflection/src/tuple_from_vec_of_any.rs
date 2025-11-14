@@ -10,10 +10,10 @@ macro_rules! tuple_from_vec_of_any_impl {
         impl<$($P: 'static),*> TupleFromVecOfAny for ($($P,)*) {
             fn tuple_from_vec_of_any(mut _v: Vec<Box<dyn Any>>) -> Option<Self> {
                 let boxed_array: Box<[Box<dyn Any>; count!($($P),*)]> = _v.into_boxed_slice().try_into().ok()?;
-                
+
                 #[allow(non_snake_case)]
                 let [$($P),*] = *boxed_array;
-                
+
                 Some((
                     $(*$P.downcast().ok()?,)*
                 ))
@@ -21,7 +21,7 @@ macro_rules! tuple_from_vec_of_any_impl {
             fn tuple_into_vec_of_any(self) -> Vec<Box<dyn Any>> {
                 #[allow(non_snake_case)]
                 let ($($P,)*) = self;
-                
+
                 vec![
                     $( Box::new($P), )*
                 ]

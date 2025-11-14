@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut, Mul};
 
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
-use crate::{num::Number, Primitive};
+use crate::{Primitive, num::Number};
 
 /// Column-major
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
@@ -13,14 +13,18 @@ pub struct Mat<const N: usize, T> {
 
 impl<const N: usize, T: Primitive> Mat<N, T> {
     pub const fn from_array(data: [[T; N]; N]) -> Self {
-        Self {
-            data,
-        }
+        Self { data }
     }
 
-    pub const fn into_array(self) -> [[T; N]; N] { self.data }
-    pub const fn as_array(&self) -> &[[T; N]; N] { &self.data }
-    pub const fn as_array_mut(&mut self) -> &mut [[T; N]; N] { &mut self.data }
+    pub const fn into_array(self) -> [[T; N]; N] {
+        self.data
+    }
+    pub const fn as_array(&self) -> &[[T; N]; N] {
+        &self.data
+    }
+    pub const fn as_array_mut(&mut self) -> &mut [[T; N]; N] {
+        &mut self.data
+    }
 
     pub const fn try_col(&self, x: usize) -> Option<&[T; N]> {
         if x >= N {
@@ -45,7 +49,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
     pub const fn col_mut(&mut self, x: usize) -> &mut [T; N] {
         &mut self.data[x]
     }
-    
+
     pub const fn try_row(&self, y: usize) -> Option<[T; N]> {
         if y >= N {
             return None;
@@ -75,7 +79,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
 
         array
     }
-    
+
     pub const fn get(&self, x: usize, y: usize) -> Option<&T> {
         if x >= N || y >= N {
             return None;
@@ -83,7 +87,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
 
         Some(&self.data[x][y])
     }
-    
+
     pub const fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut T> {
         if x >= N || y >= N {
             return None;
@@ -95,7 +99,7 @@ impl<const N: usize, T: Primitive> Mat<N, T> {
     pub const fn splat(v: T) -> Self {
         Self::from_array([[v; N]; N])
     }
-    
+
     pub const fn transpose(&mut self) {
         let mut i = 0;
 
@@ -176,7 +180,7 @@ impl<const N: usize, T: Number> Mul<T> for Mat<N, T> {
 
     fn mul(mut self, rhs: T) -> Self::Output {
         let mut i = 0;
-        
+
         while i < N {
             let mut j = 0;
 
@@ -193,5 +197,5 @@ impl<const N: usize, T: Number> Mul<T> for Mat<N, T> {
     }
 }
 
-unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for Mat<N, T> { }
-unsafe impl<const N: usize, T: AllBitsInit> AllBitsInit for Mat<N, T> { }
+unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for Mat<N, T> {}
+unsafe impl<const N: usize, T: AllBitsInit> AllBitsInit for Mat<N, T> {}

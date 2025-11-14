@@ -47,5 +47,5 @@ impl EventsHolderNative {
 
 // todo?
 // Safety. Is safe itself. Ptr usage is managed by caller
-unsafe impl Send for EventsHolderNative { }
-unsafe impl Sync for EventsHolderNative { }
+unsafe impl Send for EventsHolderNative {}
+unsafe impl Sync for EventsHolderNative {}

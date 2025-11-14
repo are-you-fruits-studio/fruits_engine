@@ -2,13 +2,15 @@ use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, Withou
 use fruits_ffi::FfiVec;
 use fruits_math::{Mat3, Vec2};
 
-use crate::{render::{GlobalDisableableComponent, LocalDisableableComponent}, transform::{utils, GlobalRectComponent, LocalRectComponent}, RectChildAlignComponent, RenderApiResource, UiDirection, UiSpacing, UiVal};
+use crate::{
+    RectChildAlignComponent, RenderApiResource, UiDirection, UiSpacing, UiVal,
+    render::{GlobalDisableableComponent, LocalDisableableComponent},
+    transform::{GlobalRectComponent, LocalRectComponent, utils},
+};
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
-pub fn adjust_component_sets(
-    mut world: ExclusiveWorldAccess,
-) {
+pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
     // todo: do the same with rects?
     let mut buffer = Vec::new();
 
@@ -16,28 +18,40 @@ pub fn adjust_component_sets(
 
     // local without global
 
-    buffer.extend(entities_components.query_filtered::<Entity, (
-        WithFilter<LocalTransform>,
-        WithoutFilter<GlobalTransform>,
-    )>().iter());
+    buffer.extend(
+        entities_components
+            .query_filtered::<Entity, (WithFilter<LocalTransform>, WithoutFilter<GlobalTransform>)>()
+            .iter(),
+    );
     for e in buffer.drain(..) {
         entities_components.add_component(e, GlobalTransform::IDENTITY).ok().unwrap();
     }
 
-    buffer.extend(entities_components.query_filtered::<Entity, (
-        WithFilter<LocalRectComponent>,
-        WithoutFilter<GlobalRectComponent>,
-    )>().iter());
+    buffer.extend(
+        entities_components
+            .query_filtered::<Entity, (WithFilter<LocalRectComponent>, WithoutFilter<GlobalRectComponent>)>()
+            .iter(),
+    );
     for e in buffer.drain(..) {
-        entities_components.add_component(e, GlobalRectComponent::default()).ok().unwrap();
+        entities_components
+            .add_component(e, GlobalRectComponent::default())
+            .ok()
+            .unwrap();
     }
 
-    buffer.extend(entities_components.query_filtered::<Entity, (
-        WithFilter<LocalDisableableComponent>,
-        WithoutFilter<GlobalDisableableComponent>,
-    )>().iter());
+    buffer.extend(
+        entities_components
+            .query_filtered::<Entity, (
+                WithFilter<LocalDisableableComponent>,
+                WithoutFilter<GlobalDisableableComponent>,
+            )>()
+            .iter(),
+    );
     for e in buffer.drain(..) {
-        entities_components.add_component(e, GlobalDisableableComponent::default()).ok().unwrap();
+        entities_components
+            .add_component(e, GlobalDisableableComponent::default())
+            .ok()
+            .unwrap();
     }
 
     //
@@ -53,12 +67,23 @@ pub fn adjust_component_sets(
     //     entities_components.remove_component::<ParentComponent>(e).unwrap();
     // }
 
-    buffer.extend(entities_components.query_filtered::<Entity, (
-        OrFilter<(WithFilter<GlobalTransform>, WithFilter<GlobalRectComponent>, WithFilter<GlobalDisableableComponent>)>,
-        WithoutFilter<ParentComponent>,
-    )>().iter());
+    buffer.extend(
+        entities_components
+            .query_filtered::<Entity, (
+                OrFilter<(
+                    WithFilter<GlobalTransform>,
+                    WithFilter<GlobalRectComponent>,
+                    WithFilter<GlobalDisableableComponent>,
+                )>,
+                WithoutFilter<ParentComponent>,
+            )>()
+            .iter(),
+    );
     for e in buffer.drain(..) {
-        entities_components.add_component(e, ParentComponent { children: FfiVec::new(), }).ok().unwrap();
+        entities_components
+            .add_component(e, ParentComponent { children: FfiVec::new() })
+            .ok()
+            .unwrap();
     }
 
     //
@@ -88,7 +113,7 @@ pub fn update_parents_remove_invalid_children(
     children: WorldQuery<&ChildComponent>,
 ) {
     let mut indices_to_remove = Vec::new();
-    
+
     for (parent_entity, parent) in parents.iter_mut() {
         for (index, &child_entity) in parent.children.iter().enumerate().rev() {
             if child_entity == parent_entity {
@@ -114,9 +139,7 @@ pub fn update_parents_remove_invalid_children(
 
 // - Update ParentComponents according to ChildComponents
 //     - Add missing children to parent components with creation if needed
-pub fn update_parents_add_missing_children(
-    mut world: ExclusiveWorldAccess,
-) {
+pub fn update_parents_add_missing_children(mut world: ExclusiveWorldAccess) {
     let mut ec = world.entities_mut();
 
     let children = ec
@@ -155,8 +178,10 @@ pub fn calculate_global_transform(
                 continue;
             };
 
-            global_transform.position = parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
-            global_transform.scale_rotation = parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Mat3::scale(local_transform.scale));
+            global_transform.position =
+                parent_global_transform.scale_rotation * local_transform.position + parent_global_transform.position;
+            global_transform.scale_rotation =
+                parent_global_transform.scale_rotation * (local_transform.rotation.to_matrix() * Mat3::scale(local_transform.scale));
         }
     });
 }
@@ -171,7 +196,9 @@ pub fn calculate_global_rect_scale_hierarchy_independent(
 
     for (local_rect, global_rect) in rect_q.iter_mut() {
         let scale = Vec2::from_fn(|i| {
-            local_rect.scale[i].into_option().map(|v| v.into_px_without_parent(window_size).map(|v| v[i]))
+            local_rect.scale[i]
+                .into_option()
+                .map(|v| v.into_px_without_parent(window_size).map(|v| v[i]))
                 .flatten()
                 .unwrap_or(0.0)
         });
@@ -214,9 +241,7 @@ pub fn calculate_global_rect_scale_children_based(
                 sum += child_transform.scale;
             }
 
-            let uival_into_px = |v: UiVal| -> Vec2<f32> {
-                v.into_px(parent_global_rect.scale, window_size)
-            };
+            let uival_into_px = |v: UiVal| -> Vec2<f32> { v.into_px(parent_global_rect.scale, window_size) };
 
             if let Some(align_c) = align_c {
                 let gaps_count = count.max(1) - 1;
@@ -266,7 +291,11 @@ pub fn calculate_global_rect_scale_parent_based(
         }
 
         for &ent in children {
-            let parent_global_rect = global_rect_q.get(parent).copied().unwrap_or(GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 });
+            let parent_global_rect = global_rect_q.get(parent).copied().unwrap_or(GlobalRectComponent {
+                center: window_size * 0.5,
+                scale: window_size,
+                z: 0.0,
+            });
 
             let Some(local_rect) = local_rect_q.get(ent) else {
                 continue;
@@ -278,21 +307,18 @@ pub fn calculate_global_rect_scale_parent_based(
             let parent_min = parent_global_rect.center - parent_global_rect.scale * 0.5;
             let parent_max = parent_global_rect.center + parent_global_rect.scale * 0.5;
 
-            let ui_val_to_px = |v: UiVal| -> Vec2<f32> {
-                v.into_px(parent_global_rect.scale, window_size)
-            };
-            
+            let ui_val_to_px = |v: UiVal| -> Vec2<f32> { v.into_px(parent_global_rect.scale, window_size) };
+
             let parent_min = parent_min + Vec2::from_fn(|i| ui_val_to_px(local_rect.parent_padding_min[i])[i]);
             let parent_max = parent_max - Vec2::from_fn(|i| ui_val_to_px(local_rect.parent_padding_max[i])[i]);
 
             let padded_parent_scale = parent_max - parent_min;
 
-            let ui_val_to_px = |v: UiVal| -> Vec2<f32> {
-                v.into_px(padded_parent_scale, window_size)
-            };
+            let ui_val_to_px = |v: UiVal| -> Vec2<f32> { v.into_px(padded_parent_scale, window_size) };
 
             let final_scale = Vec2::from_fn(|i| {
-                local_rect.scale[i].into_option()
+                local_rect.scale[i]
+                    .into_option()
                     .map(|v| ui_val_to_px(v)[i])
                     .unwrap_or(global_rect.scale[i])
             });
@@ -331,14 +357,17 @@ pub fn calculate_global_rect_pos(
                 break 'switch None;
             };
 
-            
             Some((align_c, parent_global_c))
         };
 
         match align_data {
             None => {
                 for &ent in children {
-                    let parent_global_rect = global_rect_q.get(parent).copied().unwrap_or(GlobalRectComponent { center: window_size * 0.5, scale: window_size, z: 0.0 });
+                    let parent_global_rect = global_rect_q.get(parent).copied().unwrap_or(GlobalRectComponent {
+                        center: window_size * 0.5,
+                        scale: window_size,
+                        z: 0.0,
+                    });
 
                     let Some(local_rect) = local_rect_q.get(ent) else {
                         continue;
@@ -350,18 +379,14 @@ pub fn calculate_global_rect_pos(
                     let parent_min = parent_global_rect.center - parent_global_rect.scale * 0.5;
                     let parent_max = parent_global_rect.center + parent_global_rect.scale * 0.5;
 
-                    let ui_val_to_px = |v: UiVal| -> Vec2<f32> {
-                        v.into_px(parent_global_rect.scale, window_size)
-                    };
+                    let ui_val_to_px = |v: UiVal| -> Vec2<f32> { v.into_px(parent_global_rect.scale, window_size) };
 
                     let parent_min = parent_min + Vec2::from_fn(|i| ui_val_to_px(local_rect.parent_padding_min[i])[i]);
                     let parent_max = parent_max - Vec2::from_fn(|i| ui_val_to_px(local_rect.parent_padding_max[i])[i]);
 
                     let padded_parent_scale = parent_max - parent_min;
 
-                    let ui_val_to_px = |v: UiVal| -> Vec2<f32> {
-                        v.into_px(padded_parent_scale, window_size)
-                    };
+                    let ui_val_to_px = |v: UiVal| -> Vec2<f32> { v.into_px(padded_parent_scale, window_size) };
 
                     let anchored_pos = parent_min.lerp_separately(parent_max, local_rect.anchor);
                     let offset_pos = anchored_pos + Vec2::from_fn(|i| ui_val_to_px(local_rect.offset[i])[i]);
@@ -370,7 +395,7 @@ pub fn calculate_global_rect_pos(
                     global_rect.z = parent_global_rect.z + local_rect.z;
                     global_rect.center = pivoted_center;
                 }
-            },
+            }
             Some((align_c, parent_global_c)) => {
                 let dir_axis = align_c.direction.to_axis_idx();
                 let dir_perp_axis = 1 - dir_axis;
@@ -390,9 +415,7 @@ pub fn calculate_global_rect_pos(
 
                 let gaps_count = children_count - 1;
 
-                let uival_into_px = |v: UiVal| -> Vec2<f32> {
-                    v.into_px(parent_global_c.scale, window_size)
-                };
+                let uival_into_px = |v: UiVal| -> Vec2<f32> { v.into_px(parent_global_c.scale, window_size) };
 
                 let children_scale_with_gaps;
                 let gap;
@@ -406,7 +429,7 @@ pub fn calculate_global_rect_pos(
                         children_scale_with_gaps = final_scale;
                         gap = uival_into_px(align_c.min_gap)[dir_axis];
                         pre_gap = 0.0;
-                    },
+                    }
                     UiSpacing::SpaceBetween => {
                         let mut final_scale = children_scale;
                         final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * gaps_count as f32;
@@ -415,7 +438,7 @@ pub fn calculate_global_rect_pos(
                         children_scale_with_gaps = final_scale;
                         gap = (final_scale[dir_axis] - children_scale[dir_axis]) / gaps_count as f32;
                         pre_gap = 0.0;
-                    },
+                    }
                     UiSpacing::SpaceAround => {
                         let mut final_scale = children_scale;
                         final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * (gaps_count + 1) as f32;
@@ -424,7 +447,7 @@ pub fn calculate_global_rect_pos(
                         children_scale_with_gaps = final_scale;
                         gap = (final_scale[dir_axis] - children_scale[dir_axis]) / (gaps_count + 1) as f32;
                         pre_gap = gap * 0.5;
-                    },
+                    }
                     UiSpacing::SpaceEvenly => {
                         let mut final_scale = children_scale;
                         final_scale[dir_axis] += uival_into_px(align_c.min_gap)[dir_axis] * (gaps_count + 2) as f32;
@@ -433,10 +456,11 @@ pub fn calculate_global_rect_pos(
                         children_scale_with_gaps = final_scale;
                         gap = (final_scale[dir_axis] - children_scale[dir_axis]) / (gaps_count + 2) as f32;
                         pre_gap = gap;
-                    },
+                    }
                 }
 
-                let children_center_dir = parent_global_c.center[dir_axis] + (children_scale_with_gaps[dir_axis] - parent_global_c.scale[dir_axis]) * (0.5 - align_c.anchor[dir_axis]);
+                let children_center_dir = parent_global_c.center[dir_axis]
+                    + (children_scale_with_gaps[dir_axis] - parent_global_c.scale[dir_axis]) * (0.5 - align_c.anchor[dir_axis]);
                 let children_start_dir = children_center_dir - children_scale_with_gaps[dir_axis] * 0.5;
 
                 let mut child_start_dir = children_start_dir + pre_gap;
@@ -446,7 +470,9 @@ pub fn calculate_global_rect_pos(
                         continue;
                     };
 
-                    let child_center_perp_dir = parent_global_c.center[dir_perp_axis] + (child_global_c.scale[dir_perp_axis] - parent_global_c.scale[dir_perp_axis]) * (0.5 - align_c.anchor[dir_perp_axis]);
+                    let child_center_perp_dir = parent_global_c.center[dir_perp_axis]
+                        + (child_global_c.scale[dir_perp_axis] - parent_global_c.scale[dir_perp_axis])
+                            * (0.5 - align_c.anchor[dir_perp_axis]);
 
                     child_global_c.center[dir_axis] = child_start_dir + child_global_c.scale[dir_axis] * 0.5;
                     child_global_c.center[dir_perp_axis] = child_center_perp_dir;
@@ -456,7 +482,7 @@ pub fn calculate_global_rect_pos(
 
                     child_start_dir += child_global_c.scale[dir_axis] + gap;
                 }
-            },
+            }
         }
     });
 }
@@ -468,17 +494,16 @@ pub fn calculate_global_disableable(
     mut global_disableable_q: WorldQuery<&mut GlobalDisableableComponent>,
 ) {
     utils::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |parent, children| {
-        for &ent in children {
-            let parent_global_disableable = global_disableable_q.get(parent).copied().unwrap_or_default();
+        let is_parent_disabled = global_disableable_q.get(parent).map(|c| c.is_disabled).unwrap_or(false);
 
-            let Some(&local_disableable) = local_disableable_q.get(ent) else {
-                continue;
-            };
+        for &ent in children {
             let Some(global_disableable) = global_disableable_q.get_mut(ent) else {
                 continue;
             };
 
-            global_disableable.is_disabled = parent_global_disableable.is_disabled || local_disableable.is_disabled;
+            let is_locally_disabled = local_disableable_q.get(ent).map(|c| c.is_disabled).unwrap_or(false);
+
+            global_disableable.is_disabled = is_parent_disabled || is_locally_disabled;
         }
     });
 }

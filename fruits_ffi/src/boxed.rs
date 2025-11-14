@@ -1,4 +1,9 @@
-use std::{ffi::c_void, fmt::Debug, mem::ManuallyDrop, ops::{Deref, DerefMut}};
+use std::{
+    ffi::c_void,
+    fmt::Debug,
+    mem::ManuallyDrop,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{FfiOpaqueMemory, FfiTypedMemory};
 
@@ -12,9 +17,7 @@ impl<T> FfiBox<T> {
         unsafe {
             let data = FfiTypedMemory::<T>::new();
             data.as_ptr().write(v);
-            Self {
-                mem: data,
-            }
+            Self { mem: data }
         }
     }
 
@@ -36,7 +39,7 @@ impl<T> FfiBox<T> {
         unsafe extern "C" fn ffi_drop<D>(data: *mut c_void) {
             unsafe { (data as *mut D).drop_in_place() };
         }
-        
+
         unsafe {
             let this = ManuallyDrop::new(self);
 
@@ -86,8 +89,8 @@ impl<T: Debug> Debug for FfiBox<T> {
     }
 }
 
-unsafe impl<T: Send> Send for FfiBox<T> { }
-unsafe impl<T: Sync> Sync for FfiBox<T> { }
+unsafe impl<T: Send> Send for FfiBox<T> {}
+unsafe impl<T: Sync> Sync for FfiBox<T> {}
 
 //
 

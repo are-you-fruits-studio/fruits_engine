@@ -30,17 +30,16 @@ fn generate_swizzlings() -> Vec<String> {
 
     results
 }
-        
-fn generate_vector_swizzling_impl(input_count: usize, output_count: usize) -> String
-{
+
+fn generate_vector_swizzling_impl(input_count: usize, output_count: usize) -> String {
     let mut result = String::new();
     result.push_str(&format!("impl<T: Copy> Vec{input_count}<T> {{\n"));
-    
+
     for s in generate_vector_swizzling(output_count, &PARAMETERS[0..input_count]) {
         result.push_str(&format!("    {}\n", &s));
     }
     result.push_str("}\n");
-    
+
     result
 }
 
@@ -57,13 +56,34 @@ fn generate_vector_swizzling(output_parameters_count: usize, parameters: &[&str]
         if indices.iter().all(|i| i.is_none()) {
             continue;
         }
-        
-        let name = indices.iter().map(|i| if let Some(j) = i { lower[*j].clone() } else { String::from(zero_name) }).collect::<Vec<_>>().join("");
-    
-        let constructor_arguments = indices.iter().enumerate().map(|(position, i)| if let Some(j) = i { format!("self.{}", lower[*j]) } else { String::from(PARAMETERS[position]) }).collect::<Vec<_>>().join(", ");
+
+        let name = indices
+            .iter()
+            .map(|i| {
+                if let Some(j) = i {
+                    lower[*j].clone()
+                } else {
+                    String::from(zero_name)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("");
+
+        let constructor_arguments = indices
+            .iter()
+            .enumerate()
+            .map(|(position, i)| {
+                if let Some(j) = i {
+                    format!("self.{}", lower[*j])
+                } else {
+                    String::from(PARAMETERS[position])
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let additional_parameters = to_additional_parameters(indices);
-        
+
         results.push(format!("pub fn {name}(&self{additional_parameters}) -> Vec{output_parameters_count}<T> {{ Vec{output_parameters_count}::new({constructor_arguments}) }}"));
     }
 
@@ -74,7 +94,12 @@ fn generate_swizzlings_with_zeros(output_parameters_count: usize, parameters_cou
     let mut result = Vec::new();
 
     for swizzlings_indices in generate_swizzlings_indices(output_parameters_count, parameters_count + 1) {
-        result.push(swizzlings_indices.iter().map(|i| if *i == parameters_count { None } else { Some(*i) }).collect::<Vec<_>>());
+        result.push(
+            swizzlings_indices
+                .iter()
+                .map(|i| if *i == parameters_count { None } else { Some(*i) })
+                .collect::<Vec<_>>(),
+        );
     }
 
     result
@@ -132,6 +157,6 @@ fn to_additional_parameters(indices: Vec<Option<usize>>) -> String {
             result.push_str(": T");
         }
     }
-    
+
     result
 }

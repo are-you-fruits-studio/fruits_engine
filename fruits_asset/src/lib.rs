@@ -1,10 +1,10 @@
-mod texture;
 mod material;
 mod mesh;
+mod texture;
 
-pub use texture::*;
 pub use material::*;
 pub use mesh::*;
+pub use texture::*;
 
 // todo: specify supported file formats.
 

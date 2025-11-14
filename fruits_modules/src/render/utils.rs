@@ -1,7 +1,10 @@
 use fruits_math::Mat4;
 use wgpu::*;
 
-use crate::{AssetStorageResource, StandardUniform, RenderSpace, RenderState, StandardMaterial, StandardRenderAssetsResource, StandardRenderResource, StandardTexture};
+use crate::{
+    AssetStorageResource, RenderSpace, RenderState, StandardMaterial, StandardRenderAssetsResource, StandardRenderResource,
+    StandardTexture, StandardUniform,
+};
 
 pub const GIZMO_LINES_PER_DRAW_MAX: usize = 1024 * 16;
 pub const STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX: usize = 1024;
@@ -9,7 +12,7 @@ pub const BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX: usize = 1024 * 32;
 
 pub fn create_window_to_clip_matrix(width: f32, height: f32, near: f32, far: f32) -> Mat4<f32> {
     let z_near_to_far_inv = 1.0 / (far - near);
-    
+
     Mat4::from_array([
         [2.0 / width, 0.0, 0.0, 0.0],
         [0.0, -2.0 / height, 0.0, 0.0],
@@ -44,11 +47,21 @@ pub(crate) fn get_render_data<'a, 'b>(
         _padding: Default::default(),
     };
 
-    render_state.queue().write_buffer(&standard_render_res.buffer_uniform, 0, fruits_utils::mem::as_bytes(&[uniform]));
+    render_state.queue().write_buffer(
+        &standard_render_res.buffer_uniform,
+        0,
+        fruits_utils::mem::as_bytes(&[uniform]),
+    );
 
     let bind_group_tex = match &material.color_tex {
         Some(color_tex) => &textures.get(color_tex).unwrap().native().bind_group,
-        None => &textures.get(&standard_render_assets_res.texture_white).unwrap().native().bind_group,
+        None => {
+            &textures
+                .get(&standard_render_assets_res.texture_white)
+                .unwrap()
+                .native()
+                .bind_group
+        }
     };
 
     let render_pipeline = match (material.is_lit, material.alpha_threshold.is_some()) {

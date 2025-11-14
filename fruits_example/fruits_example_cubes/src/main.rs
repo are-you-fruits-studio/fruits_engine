@@ -9,35 +9,54 @@ fn main() {
     add_defult_modules_to(world.as_mut());
 
     world.behavior_mut().get_mut(Schedule::Start).insert_system(init_resources);
-    world.behavior_mut().get_mut(Schedule::Start).insert_system(init_mesh_material);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Start)
+        .insert_system(init_mesh_material);
     world.behavior_mut().get_mut(Schedule::Update).insert_system(update_time);
     world.behavior_mut().get_mut(Schedule::Update).insert_system(move_cube_new);
     world.behavior_mut().get_mut(Schedule::Update).insert_system(rotate_cube);
     world.behavior_mut().get_mut(Schedule::Update).insert_system(log_fps);
     //world.behavior_mut().get_mut(Schedule::Update).insert_system(log_entities);
 
-    world.behavior_mut().get_mut(Schedule::Start).order_system(init_resources).before_system(init_mesh_material);
-    world.behavior_mut().get_mut(Schedule::Start).order_group(SYSTEM_GROUP_RENDER).before_system(init_mesh_material);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Start)
+        .order_system(init_resources)
+        .before_system(init_mesh_material);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Start)
+        .order_group(SYSTEM_GROUP_RENDER)
+        .before_system(init_mesh_material);
 
-    
     let mut world_data = world.data_mut();
 
     let mut ec = world_data.entities_mut();
 
     let entity = ec.create_entity();
 
-    ec.add_component(entity, GlobalTransform {
-        scale_rotation: Mat::IDENTITY,
-        position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
-    }).ok().unwrap();
-    ec.add_component(entity, CameraComponent {
-        near: 0.1_f32,
-        far: 1_000_f32,
-        fov: 90_f32.to_radians(),
-    }).ok().unwrap();
+    ec.add_component(
+        entity,
+        GlobalTransform {
+            scale_rotation: Mat::IDENTITY,
+            position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
+        },
+    )
+    .ok()
+    .unwrap();
+    ec.add_component(
+        entity,
+        CameraComponent {
+            near: 0.1_f32,
+            far: 1_000_f32,
+            fov: 90_f32.to_radians(),
+        },
+    )
+    .ok()
+    .unwrap();
 
     dbg!(ec.entities_count());
-    
 
     println!("start");
     app.run();
@@ -66,9 +85,23 @@ struct FpsResource {
 }
 
 fn init_resources(mut world: ExclusiveWorldAccess) {
-    world.resources_mut().insert(SampleResource { }).ok().unwrap();
-    world.resources_mut().insert(FpsResource { last_measure_seconds: 0, count: 0 }).ok().unwrap();
-    world.resources_mut().insert(TimeResource { time: 0.0_f32, start: None }).ok().unwrap();
+    world.resources_mut().insert(SampleResource {}).ok().unwrap();
+    world
+        .resources_mut()
+        .insert(FpsResource {
+            last_measure_seconds: 0,
+            count: 0,
+        })
+        .ok()
+        .unwrap();
+    world
+        .resources_mut()
+        .insert(TimeResource {
+            time: 0.0_f32,
+            start: None,
+        })
+        .ok()
+        .unwrap();
 }
 
 fn init_mesh_material(mut world: ExclusiveWorldAccess) {
@@ -82,14 +115,54 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     };
 
     let mut vertices = [
-        StandardVertex { position: [0.0, 0.0, 0.0], color: [0.0, 0.0, 0.0, 1.0], uv: [0.0, 0.0], ..Default::default() },
-        StandardVertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0, 1.0], uv: [1.0, 0.0], ..Default::default() },
-        StandardVertex { position: [0.0, 1.0, 0.0], color: [0.0, 1.0, 0.0, 1.0], uv: [0.0, 1.0], ..Default::default() },
-        StandardVertex { position: [1.0, 1.0, 0.0], color: [1.0, 1.0, 0.0, 1.0], uv: [1.0, 1.0], ..Default::default() },
-        StandardVertex { position: [0.0, 0.0, 1.0], color: [0.0, 0.0, 1.0, 1.0], uv: [1.0, 0.0], ..Default::default() },
-        StandardVertex { position: [1.0, 0.0, 1.0], color: [1.0, 0.0, 1.0, 1.0], uv: [0.0, 0.0], ..Default::default() },
-        StandardVertex { position: [0.0, 1.0, 1.0], color: [0.0, 1.0, 1.0, 1.0], uv: [1.0, 1.0], ..Default::default() },
-        StandardVertex { position: [1.0, 1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0], uv: [0.0, 1.0], ..Default::default() },
+        StandardVertex {
+            position: [0.0, 0.0, 0.0],
+            color: [0.0, 0.0, 0.0, 1.0],
+            uv: [0.0, 0.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [1.0, 0.0, 0.0],
+            color: [1.0, 0.0, 0.0, 1.0],
+            uv: [1.0, 0.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [0.0, 1.0, 0.0],
+            color: [0.0, 1.0, 0.0, 1.0],
+            uv: [0.0, 1.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [1.0, 1.0, 0.0],
+            color: [1.0, 1.0, 0.0, 1.0],
+            uv: [1.0, 1.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [0.0, 0.0, 1.0],
+            color: [0.0, 0.0, 1.0, 1.0],
+            uv: [1.0, 0.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [1.0, 0.0, 1.0],
+            color: [1.0, 0.0, 1.0, 1.0],
+            uv: [0.0, 0.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [0.0, 1.0, 1.0],
+            color: [0.0, 1.0, 1.0, 1.0],
+            uv: [1.0, 1.0],
+            ..Default::default()
+        },
+        StandardVertex {
+            position: [1.0, 1.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
+            uv: [0.0, 1.0],
+            ..Default::default()
+        },
     ];
 
     for vertex in vertices.iter_mut() {
@@ -103,18 +176,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     }
 
     let indices = [
-        0, 1, 3,
-        0, 3, 2,
-        0, 4, 5,
-        0, 5, 1,
-        0, 6, 4,
-        0, 2, 6,
-        1, 7, 3,
-        1, 5, 7,
-        2, 7, 6,
-        2, 3, 7,
-        4, 6, 7,
-        4, 7, 5,
+        0, 1, 3, 0, 3, 2, 0, 4, 5, 0, 5, 1, 0, 6, 4, 0, 2, 6, 1, 7, 3, 1, 5, 7, 2, 7, 6, 2, 3, 7, 4, 6, 7, 4, 7, 5,
     ];
 
     let mut vertices = indices.iter().map(|i| vertices[*i]).collect::<Vec<_>>();
@@ -129,14 +191,22 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
             vertices[offset + j].normal = normal.into_array();
         }
     }
-    
+
     let indices = vertices.iter().enumerate().map(|(i, _)| i as u16).collect::<Vec<_>>();
 
     let mesh = render_api.create_mesh(&vertices, &indices);
 
-    let material = world.resources_mut().get_mut::<AssetStorageResource::<StandardMaterial>>().unwrap().insert(material);
-    let mesh = world.resources_mut().get_mut::<AssetStorageResource::<StandardMesh>>().unwrap().insert(mesh);
-    
+    let material = world
+        .resources_mut()
+        .get_mut::<AssetStorageResource<StandardMaterial>>()
+        .unwrap()
+        .insert(material);
+    let mesh = world
+        .resources_mut()
+        .get_mut::<AssetStorageResource<StandardMesh>>()
+        .unwrap()
+        .insert(mesh);
+
     for _ in 0..3 {
         let mut parent_transform = LocalTransform::IDENTITY;
 
@@ -149,8 +219,17 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
         let entity = ec.create_entity();
 
-        ec.add_component(entity, StandardMeshComponent { mesh: mesh.clone() }).ok().unwrap();
-        ec.add_component(entity, StandardMaterialComponent { material: material.clone() }).ok().unwrap();
+        ec.add_component(entity, StandardMeshComponent { mesh: mesh.clone() })
+            .ok()
+            .unwrap();
+        ec.add_component(
+            entity,
+            StandardMaterialComponent {
+                material: material.clone(),
+            },
+        )
+        .ok()
+        .unwrap();
         ec.add_component(entity, LocalTransform::IDENTITY).ok().unwrap();
         ec.add_component(entity, ChildComponent { parent }).ok().unwrap();
         ec.add_component(entity, RotatingCubeComponent).ok().unwrap();
@@ -158,25 +237,20 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
     }
 }
 
-fn update_time(
-    mut time: ResMut<TimeResource>,
-) {
+fn update_time(mut time: ResMut<TimeResource>) {
     let start = match time.start {
         Some(start) => start,
         None => {
             let new_start = Instant::now();
             time.start = Some(new_start);
             new_start
-        },
+        }
     };
 
     time.time = start.elapsed().as_secs_f32();
 }
 
-fn move_cube_new(
-    time: Res<TimeResource>,
-    mut query: WorldQuery<(Entity, &mut LocalTransform, &MovingCubeComponent)>,
-) {
+fn move_cube_new(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut LocalTransform, &MovingCubeComponent)>) {
     let mut i = 0;
 
     for (entity, transform, _) in query.iter_mut() {
@@ -192,10 +266,7 @@ fn move_cube_new(
     }
 }
 
-fn rotate_cube(
-    time: Res<TimeResource>,
-    mut query: WorldQuery<(Entity, &mut LocalTransform, &RotatingCubeComponent)>,
-) {
+fn rotate_cube(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut LocalTransform, &RotatingCubeComponent)>) {
     let mut i = 0;
 
     for (entity, transform, _) in query.iter_mut() {
@@ -205,10 +276,7 @@ fn rotate_cube(
     }
 }
 
-fn log_fps(
-    mut fps: ResMut<FpsResource>,
-    time: Res<TimeResource>,
-) {
+fn log_fps(mut fps: ResMut<FpsResource>, time: Res<TimeResource>) {
     fps.count += 1;
 
     if time.time - fps.last_measure_seconds as f32 >= 1.0_f32 {

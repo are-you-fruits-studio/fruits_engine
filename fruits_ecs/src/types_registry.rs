@@ -1,4 +1,9 @@
-use std::{any::TypeId, collections::HashMap, ffi::c_void, sync::{Arc, RwLock}};
+use std::{
+    any::TypeId,
+    collections::HashMap,
+    ffi::c_void,
+    sync::{Arc, RwLock},
+};
 
 use fruits_ffi::FfiOption;
 
@@ -40,8 +45,10 @@ pub struct TypesRegistryAccessFfi {
     clone_fn: unsafe extern "C" fn(*const c_void) -> *mut c_void,
     len_fn: unsafe extern "C" fn(*const c_void) -> u64,
     get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<TypeData>,
-    get_by_name_fn: unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData>,
-    try_register_fn: unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64, data: TypeData) -> FfiOption<u64>,
+    get_by_name_fn:
+        unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData>,
+    try_register_fn:
+        unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64, data: TypeData) -> FfiOption<u64>,
     drop_fn: unsafe extern "C" fn(*mut c_void),
 }
 
@@ -63,9 +70,7 @@ impl TypesRegistryAccessFfi {
     }
 
     pub fn len(&self) -> u64 {
-        unsafe {
-            (self.len_fn)((&raw const *self) as *const c_void)
-        }
+        unsafe { (self.len_fn)((&raw const *self) as *const c_void) }
     }
 
     pub fn get(&self, id: u64) -> Option<TypeData> {
@@ -105,9 +110,9 @@ impl TypesRegistryAccessFfi {
     unsafe extern "C" fn ffi_clone(this: *const c_void) -> *mut c_void {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
-            
+
             let cloned = this.clone();
-            
+
             Box::into_raw(Box::new(cloned)) as *mut c_void
         }
     }
@@ -129,7 +134,11 @@ impl TypesRegistryAccessFfi {
             FfiOption::from_option(result)
         }
     }
-    unsafe extern "C" fn ffi_get_by_name(this: *const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData> {
+    unsafe extern "C" fn ffi_get_by_name(
+        this: *const c_void,
+        name_utf8_ref: *const c_void,
+        name_utf8_len: u64,
+    ) -> FfiOption<StoredTypeData> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
             let name_utf8 = std::slice::from_raw_parts(name_utf8_ref as *const u8, name_utf8_len as usize);
@@ -142,7 +151,12 @@ impl TypesRegistryAccessFfi {
             FfiOption::from_option(result)
         }
     }
-    unsafe extern "C" fn ffi_try_register(this: *const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64, data: TypeData) -> FfiOption<u64> {
+    unsafe extern "C" fn ffi_try_register(
+        this: *const c_void,
+        name_utf8_ref: *const c_void,
+        name_utf8_len: u64,
+        data: TypeData,
+    ) -> FfiOption<u64> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
             let name_utf8 = std::slice::from_raw_parts(name_utf8_ref as *const u8, name_utf8_len as usize);
@@ -162,7 +176,6 @@ impl TypesRegistryAccessFfi {
         }
     }
     // todo
-
 }
 
 impl Drop for TypesRegistryAccessFfi {
@@ -178,7 +191,7 @@ impl Clone for TypesRegistryAccessFfi {
     fn clone(&self) -> Self {
         unsafe {
             let data = (self.clone_fn)(self.data);
-   
+
             Self {
                 data,
                 clone_fn: self.clone_fn,
@@ -192,8 +205,8 @@ impl Clone for TypesRegistryAccessFfi {
     }
 }
 
-unsafe impl Send for TypesRegistryAccessFfi { }
-unsafe impl Sync for TypesRegistryAccessFfi { }
+unsafe impl Send for TypesRegistryAccessFfi {}
+unsafe impl Sync for TypesRegistryAccessFfi {}
 
 //
 
@@ -315,13 +328,13 @@ impl TypesRegistryCache {
 
         if let Some(id) = id {
             cache.insert(TypeId::of::<T>(), id);
-            
+
             return Some(id);
         }
 
         if let Some(id) = self.registry.get_by_name(std::any::type_name::<T>()).map(|t| t.id) {
             cache.insert(TypeId::of::<T>(), id);
-        
+
             return Some(id);
         }
 

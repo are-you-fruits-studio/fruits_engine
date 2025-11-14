@@ -1,4 +1,9 @@
-use std::{fmt::Debug, hash::{Hash, Hasher}, marker::PhantomData, sync::Arc};
+use std::{
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use fruits_ecs::Resource;
 use fruits_ffi::{FfiHashMap, FfiString};
@@ -11,7 +16,7 @@ pub struct AssetStorageResource<T: 'static> {
 }
 
 // todo: support generics in Resource impl macro
-impl<T: 'static + Send + Sync> Resource for AssetStorageResource<T> { }
+impl<T: 'static + Send + Sync> Resource for AssetStorageResource<T> {}
 
 impl<T: 'static> AssetStorageResource<T> {
     pub fn new() -> Self {
@@ -50,8 +55,8 @@ impl<T: 'static> AssetStorageResource<T> {
     }
 }
 
-unsafe impl<T: Send> Send for AssetStorageResource<T> { }
-unsafe impl<T: Sync> Sync for AssetStorageResource<T> { }
+unsafe impl<T: Send> Send for AssetStorageResource<T> {}
+unsafe impl<T: Sync> Sync for AssetStorageResource<T> {}
 
 //
 
@@ -78,7 +83,7 @@ impl<T> PartialEq for AssetHandle<T> {
         self.index == other.index
     }
 }
-impl<T> Eq for AssetHandle<T> { }
+impl<T> Eq for AssetHandle<T> {}
 
 impl<T> Clone for AssetHandle<T> {
     fn clone(&self) -> Self {

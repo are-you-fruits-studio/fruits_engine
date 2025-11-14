@@ -26,7 +26,7 @@ impl ProjectWindowDataEntry {
 
     fn get_children(src: &std::path::PathBuf) -> Vec<Self> {
         let mut result = Vec::new();
-    
+
         let Ok(read_dir) = std::fs::read_dir(src) else {
             return result;
         };

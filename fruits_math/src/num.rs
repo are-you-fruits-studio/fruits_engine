@@ -1,17 +1,9 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
-trait Sealed { }
+trait Sealed {}
 
 #[allow(private_bounds)]
-pub trait Primitive
-    : Sized
-    + Sealed
-    + Copy
-    + Clone
-    + PartialEq
-    + PartialOrd
-    + Default
-{
+pub trait Primitive: Sized + Sealed + Copy + Clone + PartialEq + PartialOrd + Default {
     const ZERO: Self;
     const ONE: Self;
 
@@ -19,8 +11,8 @@ pub trait Primitive
 }
 
 #[allow(private_bounds)]
-pub trait Number
-    : Sized
+pub trait Number:
+    Sized
     + Sealed
     + Copy
     + Clone
@@ -41,17 +33,21 @@ pub trait Number
 
 macro_rules! impl_number_trait {
     ($I: ident, $Z: literal, $O: literal) => {
-        impl Sealed for $I { }
+        impl Sealed for $I {}
 
         impl Primitive for $I {
             const ZERO: Self = $Z;
             const ONE: Self = $O;
-            
-            fn into_f64(self) -> f64 { self as f64 }
+
+            fn into_f64(self) -> f64 {
+                self as f64
+            }
         }
 
         impl Number for $I {
-            fn from_f64(v: f64) -> Self { v as Self }
+            fn from_f64(v: f64) -> Self {
+                v as Self
+            }
         }
     };
 }
@@ -73,18 +69,22 @@ impl_number_trait!(u64, 0_u64, 1_u64);
 impl_number_trait!(u128, 0_u128, 1_u128);
 impl_number_trait!(usize, 0_usize, 1_usize);
 
-impl Sealed for bool { }
+impl Sealed for bool {}
 impl Primitive for bool {
     const ZERO: Self = false;
     const ONE: Self = true;
-    
-    fn into_f64(self) -> f64 { self as u32 as f64 }
+
+    fn into_f64(self) -> f64 {
+        self as u32 as f64
+    }
 }
 
-impl Sealed for char { }
+impl Sealed for char {}
 impl Primitive for char {
     const ZERO: Self = 0 as char;
     const ONE: Self = 1 as char;
-    
-    fn into_f64(self) -> f64 { self as u32 as f64 }
+
+    fn into_f64(self) -> f64 {
+        self as u32 as f64
+    }
 }

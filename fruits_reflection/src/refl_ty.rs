@@ -16,7 +16,7 @@ pub enum ReflTy {
 }
 
 pub struct ReflTyEnum {
-    pub variants: Vec<(String, ReflTyStruct)>
+    pub variants: Vec<(String, ReflTyStruct)>,
 }
 
 pub enum ReflTyStruct {
@@ -36,19 +36,20 @@ struct ExampleStruct {
 }
 
 fn example_struct_refl_ty() -> ReflTy {
-    ReflTy::Struct(ReflTyStruct::Named([
-        (String::from("age"), ReflTyId::of::<u8>()),
-        (String::from("name"), ReflTyId::of::<String>()),
-    ].into_iter().collect()))
+    ReflTy::Struct(ReflTyStruct::Named(
+        [
+            (String::from("age"), ReflTyId::of::<u8>()),
+            (String::from("name"), ReflTyId::of::<String>()),
+        ]
+        .into_iter()
+        .collect(),
+    ))
 }
 
 enum ExampleEnum {
     None,
     Age(u8),
-    Creds {
-        email: String,
-        password: String,
-    }
+    Creds { email: String, password: String },
 }
 
 fn example_enum_refl_ty() -> ReflTy {
@@ -56,11 +57,14 @@ fn example_enum_refl_ty() -> ReflTy {
         variants: vec![
             (String::from("None"), ReflTyStruct::Unit),
             (String::from("Age"), ReflTyStruct::Tuple(vec![ReflTyId::of::<u8>()])),
-            (String::from("Creds"), ReflTyStruct::Named(vec![
-                (String::from("email"), ReflTyId::of::<String>()),
-                (String::from("password"), ReflTyId::of::<String>()),
-            ])),
-        ]
+            (
+                String::from("Creds"),
+                ReflTyStruct::Named(vec![
+                    (String::from("email"), ReflTyId::of::<String>()),
+                    (String::from("password"), ReflTyId::of::<String>()),
+                ]),
+            ),
+        ],
     })
 }
 
@@ -69,7 +73,7 @@ fn option_enum_refl_ty(t: ReflTyId) -> ReflTy {
         variants: vec![
             (String::from("None"), ReflTyStruct::Unit),
             (String::from("Age"), ReflTyStruct::Tuple(vec![t])),
-        ]
+        ],
     })
 }
 

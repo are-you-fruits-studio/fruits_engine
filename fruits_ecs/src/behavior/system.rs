@@ -12,25 +12,25 @@ pub struct SystemInput<'a> {
 //
 
 /// # Safety
-/// 
+///
 /// Implemented automatically.
 pub unsafe trait SystemParam {
-    type Item<'e> : 'e + SystemParam;
+    type Item<'e>: 'e + SystemParam;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache);
     /// # Safety
-    /// 
+    ///
     /// Should be managed by system scheduler and data usage.
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str>;
 }
 
 /// # Safety
-/// 
+///
 /// Implemented automatically.
-pub unsafe trait SystemWithMarker<M: 'static> : 'static + Send + Sync {
+pub unsafe trait SystemWithMarker<M: 'static>: 'static + Send + Sync {
     fn fill_data_usage(&self, usage: &mut DataUsageBuilder, types: &TypesRegistryCache);
     /// # Safety
-    /// 
+    ///
     /// Should be managed by system scheduler and data usage.
     unsafe fn execute<'e>(&self, data: SystemInput<'e>);
     fn system_name(&self) -> &'static str;
@@ -50,7 +50,7 @@ macro_rules! system_with_marker_impl {
             fn fill_data_usage(&self, _usage: &mut DataUsageBuilder, _types: &TypesRegistryCache) {
                 $($P::fill_data_usage(_usage, _types));*;
             }
-        
+
             unsafe fn execute<'e>(&self, _data: SystemInput<'e>) {
                 self(
                     // Safety. Managed by caller.
@@ -152,16 +152,14 @@ impl SystemFfi {
     // todo:
 
     // /// # Safety
-    // /// 
+    // ///
     // /// Should be managed by system scheduler and data usage.
     // pub unsafe fn execute<'e>(&self, data: &SystemInput<'e>) {
 
     // }
 
     pub unsafe fn execute(&self, ctx: SystemCtxFfi) {
-        unsafe {
-            (self.execute_fn)(self.system_native_data.get(), ctx)
-        }
+        unsafe { (self.execute_fn)(self.system_native_data.get(), ctx) }
     }
 
     pub fn system_name(&self) -> &FfiString {
@@ -169,8 +167,8 @@ impl SystemFfi {
     }
 }
 
-unsafe impl Send for SystemFfi { }
-unsafe impl Sync for SystemFfi { }
+unsafe impl Send for SystemFfi {}
+unsafe impl Sync for SystemFfi {}
 
 // todo
 #[repr(C)]

@@ -15,17 +15,57 @@ pub enum CollisionShape {
     Triangle([Vec3<f32>; 3]),
 }
 
-impl From<Vec3<f32>> for CollisionShape { fn from(value: Vec3<f32>) -> Self { Self::Point(value) } }
-impl From<CollisionLine> for CollisionShape { fn from(value: CollisionLine) -> Self { Self::Line(value) } }
-impl From<CollisionAabb> for CollisionShape { fn from(value: CollisionAabb) -> Self { Self::Aabb(value) } }
-impl From<CollisionBox> for CollisionShape { fn from(value: CollisionBox) -> Self { Self::Box(value) } }
-impl From<CollisionSphere> for CollisionShape { fn from(value: CollisionSphere) -> Self { Self::Sphere(value) } }
-impl From<[Vec3<f32>; 3]> for CollisionShape { fn from(value: [Vec3<f32>; 3]) -> Self { Self::Triangle(value) } }
+impl From<Vec3<f32>> for CollisionShape {
+    fn from(value: Vec3<f32>) -> Self {
+        Self::Point(value)
+    }
+}
+impl From<CollisionLine> for CollisionShape {
+    fn from(value: CollisionLine) -> Self {
+        Self::Line(value)
+    }
+}
+impl From<CollisionAabb> for CollisionShape {
+    fn from(value: CollisionAabb) -> Self {
+        Self::Aabb(value)
+    }
+}
+impl From<CollisionBox> for CollisionShape {
+    fn from(value: CollisionBox) -> Self {
+        Self::Box(value)
+    }
+}
+impl From<CollisionSphere> for CollisionShape {
+    fn from(value: CollisionSphere) -> Self {
+        Self::Sphere(value)
+    }
+}
+impl From<[Vec3<f32>; 3]> for CollisionShape {
+    fn from(value: [Vec3<f32>; 3]) -> Self {
+        Self::Triangle(value)
+    }
+}
 
-impl CollisionLine { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Line(self) } }
-impl CollisionAabb { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Aabb(self) } }
-impl CollisionBox { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Box(self) } }
-impl CollisionSphere { pub const fn into_shape(self) -> CollisionShape { CollisionShape::Sphere(self) } }
+impl CollisionLine {
+    pub const fn into_shape(self) -> CollisionShape {
+        CollisionShape::Line(self)
+    }
+}
+impl CollisionAabb {
+    pub const fn into_shape(self) -> CollisionShape {
+        CollisionShape::Aabb(self)
+    }
+}
+impl CollisionBox {
+    pub const fn into_shape(self) -> CollisionShape {
+        CollisionShape::Box(self)
+    }
+}
+impl CollisionSphere {
+    pub const fn into_shape(self) -> CollisionShape {
+        CollisionShape::Sphere(self)
+    }
+}
 
 impl CollisionShape {
     pub fn to_aab(&self) -> CollisionAabb {
@@ -40,7 +80,7 @@ impl CollisionShape {
                 }
 
                 CollisionAabb::from_points([collision_line.start, collision_line.end].into_iter())
-            },
+            }
             CollisionShape::Aabb(collision_aabb) => *collision_aabb,
             CollisionShape::Box(collision_box) => {
                 let ext = collision_box.extents;
@@ -56,8 +96,12 @@ impl CollisionShape {
                     ext * Vec3::new(1.0, 1.0, 1.0),
                 ];
 
-                CollisionAabb::from_points(points.iter().map(|p| collision_box.center + collision_box.rotation.to_matrix() * *p))
-            },
+                CollisionAabb::from_points(
+                    points
+                        .iter()
+                        .map(|p| collision_box.center + collision_box.rotation.to_matrix() * *p),
+                )
+            }
             CollisionShape::Sphere(collision_sphere) => CollisionAabb {
                 center: collision_sphere.center,
                 extents: Vec3::splat(collision_sphere.radius),
@@ -87,7 +131,7 @@ impl CollisionShape {
                     extents: lossy_scale * collision_box.extents,
                     rotation: rotation * collision_box.rotation,
                 })
-            },
+            }
             CollisionShape::Sphere(collision_sphere) => {
                 let lossy_scale = mat.ignored(3, 3).to_lossy_scale();
 
@@ -97,8 +141,10 @@ impl CollisionShape {
                     center: mat.mul_with_projection(collision_sphere.center),
                     radius: avg_scale * collision_sphere.radius,
                 })
-            },
-            CollisionShape::Triangle(collision_triangle) => CollisionShape::Triangle(collision_triangle.map(|p| mat.mul_with_projection(p))),
+            }
+            CollisionShape::Triangle(collision_triangle) => {
+                CollisionShape::Triangle(collision_triangle.map(|p| mat.mul_with_projection(p)))
+            }
         }
     }
 }

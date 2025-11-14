@@ -3,15 +3,11 @@
 use std::ops::Deref;
 
 pub fn as_bytes_slice<T: AllBitsInit>(v: &[T]) -> &[u8] {
-    unsafe {
-        v.align_to::<u8>().1
-    }
+    unsafe { v.align_to::<u8>().1 }
 }
 
 pub fn as_bytes_slice_mut<T: AllBitVariationsValid>(v: &mut [T]) -> &mut [u8] {
-    unsafe {
-        v.align_to_mut::<u8>().1
-    }
+    unsafe { v.align_to_mut::<u8>().1 }
 }
 
 pub fn as_bytes<T: AllBitsInit>(v: &T) -> &[u8] {
@@ -22,8 +18,8 @@ pub fn as_bytes_mut<T: AllBitVariationsValid>(v: &mut T) -> &mut [u8] {
     as_bytes_slice_mut(std::slice::from_mut(v))
 }
 
-pub unsafe trait AllBitsInit { }
-pub unsafe trait AllBitVariationsValid: AllBitsInit { }
+pub unsafe trait AllBitsInit {}
+pub unsafe trait AllBitVariationsValid: AllBitsInit {}
 
 macro_rules! all_bit_variations_valid_impl {
     ($($i: ident),+) => {
@@ -34,13 +30,13 @@ macro_rules! all_bit_variations_valid_impl {
     };
 }
 
-all_bit_variations_valid_impl!{ u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64 }
+all_bit_variations_valid_impl! { u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64 }
 
-unsafe impl<T: AllBitsInit> AllBitsInit for [T] { }
-unsafe impl<T: AllBitVariationsValid> AllBitVariationsValid for [T] { }
+unsafe impl<T: AllBitsInit> AllBitsInit for [T] {}
+unsafe impl<T: AllBitVariationsValid> AllBitVariationsValid for [T] {}
 
-unsafe impl<const N: usize, T: AllBitsInit> AllBitsInit for [T; N] { }
-unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for [T; N] { }
+unsafe impl<const N: usize, T: AllBitsInit> AllBitsInit for [T; N] {}
+unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for [T; N] {}
 
 //
 
@@ -65,6 +61,6 @@ impl<T> Deref for ReadOnly<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.0  
+        &self.0
     }
 }

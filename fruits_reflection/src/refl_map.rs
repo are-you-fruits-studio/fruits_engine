@@ -25,12 +25,12 @@ impl ReflMapStruct {
             deconstructor_raw: deconstructor as *const (),
             factory_wrapper: move |f, p| {
                 let factory_raw = unsafe { std::mem::transmute::<_, fn(P) -> T>(f) };
-                
+
                 Some(Box::new(factory_raw(P::tuple_from_vec_of_any(p)?)) as Box<dyn Any>)
             },
             deconstructor_wrapper: move |f, v| {
                 let deconstructor_raw = unsafe { std::mem::transmute::<_, fn(T) -> P>(f) };
-                
+
                 Some(P::tuple_into_vec_of_any(deconstructor_raw(*v.downcast().ok()?)))
             },
             fields,
@@ -52,10 +52,7 @@ pub struct ReflMapStructField {
 }
 
 impl ReflMapStructField {
-    pub fn new<T: 'static, F: 'static>(
-        ref_getter: fn(&T) -> &F,
-        mut_getter: fn(&mut T) -> &mut F,
-    ) -> Self {
+    pub fn new<T: 'static, F: 'static>(ref_getter: fn(&T) -> &F, mut_getter: fn(&mut T) -> &mut F) -> Self {
         Self {
             ref_getter_raw: ref_getter as *const (),
             mut_getter_raw: mut_getter as *const (),
