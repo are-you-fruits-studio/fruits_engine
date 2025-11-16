@@ -160,7 +160,7 @@ pub fn update_parents_add_missing_children(mut world: ExclusiveWorldAccess) {
 
 // - Calculate GlobalTransform from LocalTransform and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_transform(
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalTransform>>,
     local_transform_q: WorldQuery<&LocalTransform>,
     mut global_transform_q: WorldQuery<&mut GlobalTransform>,
 ) {
@@ -489,7 +489,7 @@ pub fn calculate_global_rect_pos(
 
 // - Calculate GlobalDisableableComponent from LocalDisableableComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_disableable(
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalDisableableComponent>>,
     local_disableable_q: WorldQuery<&LocalDisableableComponent>,
     mut global_disableable_q: WorldQuery<&mut GlobalDisableableComponent>,
 ) {

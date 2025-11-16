@@ -320,6 +320,52 @@ impl<T: 'static> Copy for RegistrySpecificTypeId<T> {}
 
 //
 
+pub trait TypeCache : 'static + Copy {
+    fn new(types: &TypesRegistryCache) -> Self;
+}
+
+impl<T: 'static> TypeCache for RegistrySpecificTypeId<T> {
+    fn new(types: &TypesRegistryCache) -> Self {
+        Self::new(types)
+    }
+}
+
+macro_rules! type_cache_tuple {
+    ($($c: ident),*) => {
+        impl<
+        $($c: TypeCache),*
+        > TypeCache for (
+        $($c,)*
+        ) {
+            fn new(_types: &TypesRegistryCache) -> Self {
+                (
+                    $($c::new(_types),)*
+                )
+            }
+        }
+    };
+}
+
+type_cache_tuple!();
+type_cache_tuple!(C0);
+type_cache_tuple!(C0, C1);
+type_cache_tuple!(C0, C1, C2);
+type_cache_tuple!(C0, C1, C2, C3);
+type_cache_tuple!(C0, C1, C2, C3, C4);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13);
+type_cache_tuple!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13, C14);
+
+
+//
+
 #[derive(Clone)]
 pub struct TypesRegistryCache {
     cache: Arc<RwLock<HashMap<TypeId, u64>>>,

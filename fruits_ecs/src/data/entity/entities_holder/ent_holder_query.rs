@@ -8,6 +8,7 @@ pub struct EntitiesHolderQuery<'d, A: ArchetypeIteratorItem, F: QueryFilter = ()
     archetype_indices: Vec<u64>,
     type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache,
     type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache,
+    type_cache_filter: F::TypeCache,
     _phantom: (PhantomData<fn(A::Item<'static>) -> A::Item<'static>>, PhantomData<fn(F) -> F>),
 }
 
@@ -30,15 +31,18 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         let archetypes = entities.archetypes();
 
         if components.is_empty() {
+            let type_cache_filter = F::TypeCache::new(types);
+
             // Query is with entities only (should iterate all entities).
             return Self {
                 archetype_indices: (0..archetypes.len())
-                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), types))
+                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), type_cache_filter))
                     .collect::<Vec<_>>(),
                 entities,
                 types,
-                type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
-                type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+                type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+                type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+                type_cache_filter,
                 _phantom: Default::default(),
             };
         }
@@ -49,13 +53,16 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
         for component in required_components.clone() {
             let Some(archetypes_with_component) = archetypes.ids_by_component(component) else {
+                let type_cache_filter = F::TypeCache::new(types);
+
                 // Query is with some required component that no archetype has (should iterate none).
                 return Self {
                     entities,
                     types,
                     archetype_indices: Vec::new(),
-                    type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
-                    type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+                    type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+                    type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+                    type_cache_filter,
                     _phantom: Default::default(),
                 };
             };
@@ -71,20 +78,25 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         }
 
         let Some((_, archetypes_with_rarest_component)) = archetypes_with_rarest_component else {
+            let type_cache_filter = F::TypeCache::new(types);
+
             // Query has optional components only (should iterate all entities).
             return Self {
                 archetype_indices: (0..archetypes.len())
-                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), types))
+                    .filter(|ai| F::matches(archetypes.by_id_ref(*ai).unwrap().layout(), type_cache_filter))
                     .collect::<Vec<_>>(),
                 entities,
                 types,
-                type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
-                type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+                type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+                type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+                type_cache_filter,
                 _phantom: Default::default(),
             };
         };
 
         let mut suitable_archetypes = Vec::new();
+
+        let type_cache_filter = F::TypeCache::new(types);
 
         for archetype_id in archetypes_with_rarest_component.iter() {
             let archetype = archetypes.by_id_ref(*archetype_id).unwrap();
@@ -92,7 +104,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             let contains_all_components = required_components.clone().all(|c| archetype.contains_component_type(c));
 
             // Archetypes that are missing any required component are skipped.
-            if contains_all_components && F::matches(archetype.layout(), types) {
+            if contains_all_components && F::matches(archetype.layout(), type_cache_filter) {
                 suitable_archetypes.push(*archetype_id);
             }
         }
@@ -101,8 +113,9 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
             entities,
             types,
             archetype_indices: suitable_archetypes,
-            type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::get_type_cache(types),
-            type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::get_type_cache(types),
+            type_cache: <<A as ArchetypeIteratorItem>::Item<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+            type_cache_readonly: <<A as ArchetypeIteratorItem>::ReadOnlyItem<'static> as ArchetypeIteratorItem>::TypeCache::new(types),
+            type_cache_filter,
             _phantom: Default::default(),
         }
     }
@@ -138,7 +151,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
             let archetype = self.entities.archetypes().by_id_ref(location.archetype_id)?;
 
-            if !F::matches(archetype.layout(), self.types) {
+            if !F::matches(archetype.layout(), self.type_cache_filter) {
                 return None;
             }
 
@@ -172,7 +185,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
             let archetype = self.entities.archetypes().by_id_ref(location.archetype_id)?;
 
-            if !F::matches(archetype.layout(), self.types) {
+            if !F::matches(archetype.layout(), self.type_cache_filter) {
                 return None;
             }
 
@@ -306,7 +319,10 @@ impl<'a, A: ArchetypeIteratorItem> Iterator for QueryIterMut<'a, A> {
 // }
 
 pub trait QueryFilter: 'static {
-    fn matches(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool;
+    type TypeCache: TypeCache;
+
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache;
+    fn matches(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> bool;
 }
 
 pub struct WithoutFilter<T: Component> {
@@ -314,8 +330,13 @@ pub struct WithoutFilter<T: Component> {
 }
 
 impl<C: 'static + Component> QueryFilter for WithoutFilter<C> {
-    fn matches(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool {
-        layout.get_component(types.get_or_register::<C>()).is_none()
+    type TypeCache = RegistrySpecificTypeId<C>;
+
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        Self::TypeCache::new(types)
+    }
+    fn matches(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> bool {
+        layout.get_component(type_cache.id()).is_none()
     }
 }
 
@@ -324,8 +345,13 @@ pub struct WithFilter<T: Component> {
 }
 
 impl<C: 'static + Component> QueryFilter for WithFilter<C> {
-    fn matches(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool {
-        layout.get_component(types.get_or_register::<C>()).is_some()
+    type TypeCache = RegistrySpecificTypeId<C>;
+
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        Self::TypeCache::new(types)
+    }
+    fn matches(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> bool {
+        layout.get_component(type_cache.id()).is_some()
     }
 }
 
@@ -336,9 +362,21 @@ macro_rules! query_filter_tuple {
         > QueryFilter for (
         $($q,)*
         ) {
-            fn matches(_layout: &ArchetypeLayout, _types: &TypesRegistryCache) -> bool {
+            type TypeCache = (
+                $($q::TypeCache,)*
+            );
+
+            fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+                Self::TypeCache::new(types)
+            }
+            fn matches(_layout: &ArchetypeLayout, _types_cache: Self::TypeCache) -> bool {
+                #[allow(non_snake_case)]
+                let (
+                    $($q,)*
+                ) = _types_cache;
+
                 true
-                $(&& $q::matches(_layout, _types))*
+                $(&& $q::matches(_layout, $q))*
             }
         }
     };
@@ -355,7 +393,10 @@ query_filter_tuple!(Q1, Q2, Q3, Q4, Q5, Q6, Q7);
 
 // todo: to sealed
 pub trait OrFilterArg: 'static {
-    fn or(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool;
+    type TypeCache: TypeCache;
+
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache;
+    fn or(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> bool;
 }
 
 pub struct OrFilter<A: OrFilterArg> {
@@ -363,8 +404,13 @@ pub struct OrFilter<A: OrFilterArg> {
 }
 
 impl<A: OrFilterArg> QueryFilter for OrFilter<A> {
-    fn matches(layout: &ArchetypeLayout, types: &TypesRegistryCache) -> bool {
-        A::or(layout, types)
+    type TypeCache = A::TypeCache;
+
+    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
+        A::get_type_cache(types)
+    }
+    fn matches(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> bool {
+        A::or(layout, type_cache)
     }
 }
 
@@ -375,9 +421,24 @@ macro_rules! query_filter_or {
         > OrFilterArg for (
         $($q,)*
         ) {
-            fn or(_layout: &ArchetypeLayout, _types: &TypesRegistryCache) -> bool {
+            type TypeCache = (
+                $($q::TypeCache,)*
+            );
+
+            fn get_type_cache(_types: &TypesRegistryCache) -> Self::TypeCache {
+                (
+                    $($q::TypeCache::new(_types),)*
+                )
+            }
+
+            fn or(_layout: &ArchetypeLayout, _types_cache: Self::TypeCache) -> bool {
+                #[allow(non_snake_case)]
+                let (
+                    $($q,)*
+                ) = _types_cache;
+
                 false
-                $(|| $q::matches(_layout, _types))*
+                $(|| $q::matches(_layout, $q))*
             }
         }
     };

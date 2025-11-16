@@ -8,9 +8,8 @@ pub unsafe trait ArchetypeIteratorItem {
     type Item<'w>: 'w + ArchetypeIteratorItem;
     type ReadOnlyItem<'w>: 'w + ArchetypeIteratorItem;
     type IterState;
-    type TypeCache: Copy;
+    type TypeCache: TypeCache;
 
-    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache;
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState;
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w>;
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache);
@@ -21,10 +20,6 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     type ReadOnlyItem<'w> = &'w C;
     type IterState = u64;
     type TypeCache = RegistrySpecificTypeId<C>;
-
-    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
-        Self::TypeCache::new(types)
-    }
 
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
         layout
@@ -58,10 +53,6 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     type IterState = u64;
     type TypeCache = RegistrySpecificTypeId<C>;
 
-    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
-        Self::TypeCache::new(types)
-    }
-
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
         layout
             .get_component(type_cache.id())
@@ -94,10 +85,6 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     type IterState = Option<u64>;
     type TypeCache = RegistrySpecificTypeId<C>;
 
-    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
-        Self::TypeCache::new(types)
-    }
-
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
         layout.get_component(type_cache.id()).map(|t| t.chunk_offset)
     }
@@ -127,10 +114,6 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     type IterState = Option<u64>;
     type TypeCache = RegistrySpecificTypeId<C>;
 
-    fn get_type_cache(types: &TypesRegistryCache) -> Self::TypeCache {
-        Self::TypeCache::new(types)
-    }
-
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState {
         layout.get_component(type_cache.id()).map(|i| i.chunk_offset)
     }
@@ -159,10 +142,6 @@ unsafe impl ArchetypeIteratorItem for Entity {
     type ReadOnlyItem<'w> = Entity;
     type IterState = ();
     type TypeCache = ();
-
-    fn get_type_cache(_types: &TypesRegistryCache) -> Self::TypeCache {
-        ()
-    }
 
     unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _type_cache: Self::TypeCache) -> Self::IterState {}
 
@@ -203,14 +182,8 @@ macro_rules! archetype_iterator_item_impl {
                 $($P::IterState),+
             );
             type TypeCache = (
-                $($P::TypeCache),+
+                $($P::TypeCache,)+
             );
-
-            fn get_type_cache(_types: &TypesRegistryCache) -> Self::TypeCache {
-                (
-                    $($P::get_type_cache(_types)),+
-                )
-            }
 
             unsafe fn prepare_iter_state(_layout: &ArchetypeLayout, _type_cache: Self::TypeCache) -> Self::IterState {
                 unsafe {

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use fruits_ecs::{EntitiesHolderMut, Entity, WorldQuery};
+use fruits_ecs::{EntitiesHolderMut, Entity, QueryFilter, WorldQuery};
 
 use crate::{ChildComponent, ParentComponent};
 
@@ -49,8 +49,8 @@ pub fn hierarchy_iter_breadth_first_parent_to_child(
 }
 
 /// f(optional parent, children)
-pub fn hierarchy_iter_depth_first_parent_to_child<R>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+pub fn hierarchy_iter_depth_first_parent_to_child<R, F: QueryFilter>(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), F>,
     mut f: impl FnMut(Entity, &[Entity]) -> R,
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
@@ -105,8 +105,8 @@ pub fn hierarchy_iter_depth_first_child_to_parent<R>(
 }
 
 /// f(src, dst, is_moving_to_root)
-pub fn hierarchy_iter_depth_first<R>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+pub fn hierarchy_iter_depth_first<R, F: QueryFilter>(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), F>,
     mut f: impl FnMut(Entity, Entity, bool) -> R,
 ) {
     let roots = q
@@ -142,10 +142,10 @@ pub fn hierarchy_iter_depth_first<R>(
         loop {
             let children = get_children(entity);
 
-            if child_idx_to_check < children.len() {
+            if let Some(&child_entity) = children.get(child_idx_to_check) {
                 stack.push_back((entity, child_idx_to_check + 1));
-                let child_entity = children[child_idx_to_check];
                 f(entity, child_entity, false);
+
                 entity = child_entity;
                 child_idx_to_check = 0;
                 continue;
@@ -154,6 +154,7 @@ pub fn hierarchy_iter_depth_first<R>(
             // todo: handle root
             if let Some((parent_ent, parent_idx_to_check)) = stack.pop_back() {
                 f(entity, parent_ent, true);
+
                 entity = parent_ent;
                 child_idx_to_check = parent_idx_to_check;
                 continue;
