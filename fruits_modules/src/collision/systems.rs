@@ -20,7 +20,7 @@ pub fn update_collision_world(
     });
 
     //if collision_world.is_empty() {
-    *collision_world = CollisionWorldResource::new(iter.collect::<Vec<_>>());
+    *collision_world = CollisionWorldResource::new(iter);
     // collision_world.refill().extend(iter);
     //}
 }

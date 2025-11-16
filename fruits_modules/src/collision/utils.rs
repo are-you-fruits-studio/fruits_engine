@@ -6,28 +6,32 @@ use crate::collision::{CollisionAabb, CollisionShape, overlaps};
 
 #[repr(C)]
 #[derive(Default, Debug)]
-pub struct Bvh<T> {
+pub struct Bvh<T: Clone> {
     root: FfiOption<BvhNode<T>>,
 }
 
 #[repr(C)]
 #[derive(Debug)]
-struct BvhNode<T> {
+struct BvhNode<T: Clone> {
     aabb: CollisionAabb,
     core: BvhNodeCore<T>,
 }
 
 #[repr(C)]
 #[derive(Debug)]
-enum BvhNodeCore<T> {
+enum BvhNodeCore<T: Clone> {
     Leaf(CollisionShape, T),
     Branch(FfiBox<[BvhNode<T>; 2]>),
 }
 
-impl<T> Bvh<T> {
-    pub fn new(values: Vec<(CollisionShape, T)>) -> Self {
+impl<T: Clone> Bvh<T> {
+    pub fn new(values: impl Iterator<Item = (CollisionShape, T)>) -> Self {
+        let mut values = values
+            .map(|(s, t)| (s, s.to_aabb(), t))
+            .collect::<Vec<_>>();
+
         Self {
-            root: BvhNode::new(values, 0).into(),
+            root: BvhNode::new(&mut values, 0).into(),
         }
     }
 
@@ -46,34 +50,32 @@ impl<T: Clone> Bvh<T> {
     }
 }
 
-impl<T> BvhNode<T> {
-    fn new(mut values: Vec<(CollisionShape, T)>, depth: usize) -> Option<Self> {
+impl<T: Clone> BvhNode<T> {
+    fn new(values: &mut [(CollisionShape, CollisionAabb, T)], depth: usize) -> Option<Self> {
         if values.is_empty() {
             return None;
         }
         if values.len() == 1 {
-            let (shape, item) = values.pop().unwrap();
+            let (shape, aabb, item) = values[0].clone();
 
             return Some(Self {
-                aabb: shape.to_aab(),
+                aabb,
                 core: BvhNodeCore::Leaf(shape, item),
             });
         }
 
         let axis = depth % 3;
         values.sort_unstable_by(|a, b| {
-            let aab_a = a.0.to_aab();
-            let aab_b = b.0.to_aab();
-
-            let va = aab_a.center[axis] - aab_a.extents[axis];
-            let vb = aab_b.center[axis] - aab_b.extents[axis];
+            let va = a.1.center[axis] - a.1.extents[axis];
+            let vb = b.1.center[axis] - b.1.extents[axis];
 
             va.partial_cmp(&vb).unwrap()
         });
 
         let mid = values.len() / 2;
-        let right = BvhNode::new(values.split_off(mid), depth + 1).unwrap();
-        let left = BvhNode::new(values, depth + 1).unwrap();
+        let (left, right) = values.split_at_mut(mid);
+        let left = BvhNode::new(left, depth + 1).unwrap();
+        let right = BvhNode::new(right, depth + 1).unwrap();
 
         let aabb = left.aabb.merge(right.aabb);
 

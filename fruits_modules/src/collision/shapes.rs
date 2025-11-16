@@ -68,7 +68,7 @@ impl CollisionSphere {
 }
 
 impl CollisionShape {
-    pub fn to_aab(&self) -> CollisionAabb {
+    pub fn to_aabb(&self) -> CollisionAabb {
         match self {
             CollisionShape::Point(collision_point) => CollisionAabb {
                 center: *collision_point,

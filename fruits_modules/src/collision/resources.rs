@@ -11,7 +11,7 @@ pub struct CollisionWorldResource {
 }
 
 impl CollisionWorldResource {
-    pub fn new(values: Vec<(CollisionShape, Entity)>) -> Self {
+    pub fn new(values: impl Iterator<Item = (CollisionShape, Entity)>) -> Self {
         Self {
             //collision_shapes: values,
             collision_shapes: Bvh::new(values),
