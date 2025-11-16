@@ -1,6 +1,7 @@
-use std::{collections::HashMap, ffi::c_void};
+use std::ffi::c_void;
 
 use fruits_ffi::{FfiDroppable, FfiVec};
+use fruits_utils::close_int_map::CloseIntMap;
 
 use crate::*;
 
@@ -11,10 +12,10 @@ struct ArchetypeLayoutItemsMap {
 }
 
 impl ArchetypeLayoutItemsMap {
-    pub fn new(map: HashMap<u64, ArchetypeItemLayout>) -> Self {
+    pub fn new(map: CloseIntMap<ArchetypeItemLayout>) -> Self {
         unsafe extern "C" fn ffi_get(this: *const c_void, key: u64) -> *const ArchetypeItemLayout {
             unsafe {
-                match (&*(this as *const HashMap<u64, ArchetypeItemLayout>)).get(&key) {
+                match (&*(this as *const CloseIntMap<ArchetypeItemLayout>)).get(key as usize) {
                     Some(l) => &raw const *l,
                     None => std::ptr::null_mut(),
                 }
@@ -78,7 +79,7 @@ impl ArchetypeLayout {
         let entity_data = TypeData::of::<Entity>();
         let entities_per_chunk_count = Self::to_entities_per_chunk_count(&components_set, &types);
 
-        let mut components_map = HashMap::new();
+        let mut components_map = CloseIntMap::new();
         let mut components_list = FfiVec::new();
         let mut offset = 0;
 
@@ -100,7 +101,7 @@ impl ArchetypeLayout {
             }
 
             components_map.insert(
-                component_id,
+                component_id as usize,
                 ArchetypeItemLayout {
                     type_data: component_type,
                     chunk_offset: aligned_offset,
