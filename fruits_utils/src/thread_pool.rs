@@ -83,6 +83,10 @@ impl ThreadPool {
         }
     }
 
+    pub fn threads_count(&self) -> usize {
+        self.threads.len()
+    }
+
     pub fn push_job_unhandled<F: 'static + Send + FnOnce() -> T, T>(&self, f: F) {
         let job = Box::new(move || _ = f());
 
