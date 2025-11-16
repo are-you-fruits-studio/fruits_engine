@@ -77,8 +77,8 @@ pub fn hierarchy_iter_depth_first_parent_to_child<R, F: QueryFilter>(
 }
 
 /// f(optional parent, children)
-pub fn hierarchy_iter_depth_first_child_to_parent<R>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+pub fn hierarchy_iter_depth_first_child_to_parent<R, F: QueryFilter>(
+    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), F>,
     mut f: impl FnMut(Entity, &[Entity]) -> R,
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {

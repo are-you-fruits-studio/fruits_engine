@@ -138,19 +138,15 @@ pub fn update_parents_remove_invalid_children(
 }
 
 // - Update ParentComponents according to ChildComponents
-//     - Add missing children to parent components with creation if needed
-pub fn update_parents_add_missing_children(mut world: ExclusiveWorldAccess) {
-    let mut ec = world.entities_mut();
-
-    let children = ec
-        .query::<(Entity, &ChildComponent)>()
-        .iter()
-        .map(|(e, c)| (e, c.parent))
-        .filter(|(_, pe)| ec.get_component::<ParentComponent>(*pe).is_some())
-        .collect::<Vec<_>>();
-
-    for (child_entity, parent_entity) in children.into_iter() {
-        let parent = ec.get_component_mut::<ParentComponent>(parent_entity).unwrap();
+//     - Add missing children to parent components
+pub fn update_parents_add_missing_children(
+    child_q: WorldQuery<(Entity, &ChildComponent)>,
+    mut parent_q: WorldQuery<&mut ParentComponent>,
+) {
+    for (child_entity, child_c) in child_q.iter() {
+        let Some(parent) = parent_q.get_mut(child_c.parent) else {
+            continue;
+        };
 
         if !parent.children.contains(&child_entity) {
             parent.children.push(child_entity);
@@ -210,7 +206,7 @@ pub fn calculate_global_rect_scale_hierarchy_independent(
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
 pub fn calculate_global_rect_scale_children_based(
     render_state: Res<RenderApiResource>,
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
     local_rect_q: WorldQuery<(&LocalRectComponent, Option<&RectChildAlignComponent>)>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
@@ -278,7 +274,7 @@ pub fn calculate_global_rect_scale_children_based(
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_rect_scale_parent_based(
     render_state: Res<RenderApiResource>,
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
@@ -336,7 +332,7 @@ pub fn calculate_global_rect_scale_parent_based(
 
 pub fn calculate_global_rect_pos(
     render_state: Res<RenderApiResource>,
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
     align_q: WorldQuery<&RectChildAlignComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
