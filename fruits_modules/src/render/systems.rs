@@ -1122,7 +1122,6 @@ pub fn render_opaque_instanced(
             render_state
                 .queue()
                 .write_buffer(&standard_render_res.instance_buffer, 0, matrices_bytes);
-            render_state.queue().submit([]);
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
@@ -1438,7 +1437,6 @@ pub fn render_transparent_instanced(
             render_state
                 .queue()
                 .write_buffer(&standard_render_res.instance_buffer, 0, matrices_bytes);
-            render_state.queue().submit([]);
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
