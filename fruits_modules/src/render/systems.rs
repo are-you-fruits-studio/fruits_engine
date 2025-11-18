@@ -1259,6 +1259,7 @@ pub fn render_opaque_batched(
 
                 vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
                 vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();
+                vertex.color = vertex.color.map(|x| x.powf(2.2));
 
                 batch_cpu_buffer[batch_buffer_i] = vertex;
 

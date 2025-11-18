@@ -37,9 +37,9 @@ pub(crate) fn get_render_data<'a, 'b>(
     };
 
     let uniform = StandardUniform {
-        color: material.color,
+        color: material.color.map(|x| x.powf(2.2)),
+        emission_color: material.emission_color.map(|x| x.powf(2.2)),
         metallic: material.metallic,
-        emission_color: material.emission_color,
         roughness: material.roughness,
         alpha_threshold: material.alpha_threshold.unwrap_or(0.0),
         camera_position_world: standard_render_res.camera_pos,

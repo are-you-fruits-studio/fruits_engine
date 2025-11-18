@@ -236,7 +236,7 @@ fn code_fn_fs_main(is_lit: bool, is_transparent: bool) -> String {
     code.push_str(
         r#"
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = in.color * textureSample(color_texture, color_sampler, in.uv);
     "#,
     );
@@ -244,9 +244,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
     if !is_transparent {
         code.push_str(
             r#"
-    if (color.w < global_data.alpha_threshold) {{
+    if (color.w < global_data.alpha_threshold) {
         discard;
-    }}
+    }
 
     color.w = 1.0;
         "#,
@@ -277,7 +277,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {{
     code.push_str(
         r#"
     return vec4<f32>(color.xyz, color.w);
-}}
+}
     "#,
     );
 
