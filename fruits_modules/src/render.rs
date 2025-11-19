@@ -100,55 +100,17 @@ pub(crate) fn add_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(render_gizmos);
 
     update
-        .order_system(update_camera_uniform)
-        .before_system(render_opaque_instanced);
-    update
-        .order_system(update_camera_uniform)
-        .before_system(render_opaque_batched);
-    update
-        .order_system(update_camera_uniform)
-        .before_system(render_transparent_instanced);
-    update
-        .order_system(update_camera_uniform)
-        .before_system(render_transparent_batched);
-    update
-        .order_system(render_opaque_instanced)
-        .before_system(render_opaque_batched);
-    update
-        .order_system(render_opaque_batched)
-        .before_system(render_transparent_instanced);
-    update
-        .order_system(render_transparent_instanced)
-        .before_system(render_transparent_batched);
-    update
         .order_system(recreate_depth_texture_resource)
-        .before_system(clear_depth);
-    update
-        .order_system(recreate_transparent_target_resource)
-        .before_system(clear_transparent_target);
-    update.order_system(clear_depth).before_system(render_opaque_instanced);
-    update.order_system(clear_depth).before_system(render_opaque_batched);
-    update
-        .order_system(clear_transparent_target)
-        .before_system(render_transparent_instanced);
-    update
-        .order_system(clear_transparent_target)
-        .before_system(render_transparent_batched);
-    update.order_system(render_opaque_instanced).before_system(render_gizmos);
-    update.order_system(render_opaque_batched).before_system(render_gizmos);
-    update
-        .order_system(render_opaque_instanced)
-        .before_system(render_transparent_final);
-    update
-        .order_system(render_opaque_batched)
-        .before_system(render_transparent_final);
-    update
-        .order_system(render_transparent_instanced)
-        .before_system(render_transparent_final);
-    update
-        .order_system(render_transparent_batched)
-        .before_system(render_transparent_final);
-    update.order_system(render_transparent_final).before_system(render_gizmos);
+        .before_system(recreate_transparent_target_resource)
+        .before_system(clear_depth)
+        .before_system(clear_transparent_target)
+        .before_system(update_camera_uniform)
+        .before_system(render_opaque_instanced)
+        .before_system(render_opaque_batched)
+        .before_system(render_transparent_instanced)
+        .before_system(render_transparent_batched)
+        .before_system(render_transparent_final)
+        .before_system(render_gizmos);
 
     update
         .order_system(update_text_batched_mesh)

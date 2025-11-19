@@ -82,20 +82,32 @@ impl<'a> OrderHelper<'a> {
         }
     }
 
-    pub fn before_system<M1: 'static>(self, s: impl SystemWithMarker<M1> + Any) {
+    pub fn before_system<M1: 'static>(self, s: impl SystemWithMarker<M1> + Any) -> OrderHelper<'a> {
         let next = OrderEntry {
             entry_type: OrderEntryType::System,
             id: FfiString::from_string(std::any::type_name_of_val(&s).to_string()),
         };
-        self.builder.systems.order(self.prev, next);
+
+        self.builder.systems.order(self.prev, next.clone());
+
+        OrderHelper::<'a> {
+            builder: self.builder,
+            prev: next,
+        }
     }
 
-    pub fn before_group(self, g: &'static str) {
+    pub fn before_group(self, g: &'static str) -> OrderHelper<'a> {
         let next = OrderEntry {
             entry_type: OrderEntryType::Group,
             id: FfiString::from_string(g.to_string()),
         };
-        self.builder.systems.order(self.prev, next);
+
+        self.builder.systems.order(self.prev, next.clone());
+
+        OrderHelper::<'a> {
+            builder: self.builder,
+            prev: next,
+        }
     }
 }
 

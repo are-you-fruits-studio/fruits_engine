@@ -23,8 +23,8 @@ use crate::{
         ScreenSpaceResource, StandardInstance, StandardRenderAssetsResource, StandardTexture, StandardUniform, StandardVertex,
         TextComponent, VerticalAlign,
         utils::{
-            self, BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX,
-            STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX,
+            self, TRIANGLES_PER_BATCHED_DRAW_MAX, GIZMO_LINES_PER_DRAW_MAX,
+            INSTANCES_PER_DRAW_MAX,
         },
     },
     transform::{GlobalRectComponent, GlobalTransform},
@@ -208,7 +208,7 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
     });
 
     let instance_cpu_buffer =
-        vec![Mat4::<f32>::IDENTITY.into_array(); STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX].into_boxed_slice();
+        vec![Mat4::<f32>::IDENTITY.into_array(); INSTANCES_PER_DRAW_MAX].into_boxed_slice();
 
     let instance_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Instance Buffer"),
@@ -217,7 +217,7 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
     });
 
     let batched_vertex_cpu_buffer =
-        vec![StandardVertex::default(); BATCHED_MESH_MATERIAL_TRIANGLES_PER_DRAW_MAX * 3].into_boxed_slice();
+        vec![StandardVertex::default(); TRIANGLES_PER_BATCHED_DRAW_MAX * 3].into_boxed_slice();
 
     let batched_vertex_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
         label: Some("Batch vertex buffer"),
@@ -1116,7 +1116,7 @@ pub fn render_opaque_instanced(
             window_to_clip_mat,
         );
 
-        for matrices in matrices.chunks(STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX) {
+        for matrices in matrices.chunks(INSTANCES_PER_DRAW_MAX) {
             let matrices_bytes = fruits_utils::mem::as_bytes_slice(matrices);
 
             render_state
@@ -1431,7 +1431,7 @@ pub fn render_transparent_instanced(
             window_to_clip_mat,
         );
 
-        for matrices in matrices.chunks(STANDARD_MESH_MATERIAL_INSTANCES_PER_DRAW_MAX) {
+        for matrices in matrices.chunks(INSTANCES_PER_DRAW_MAX) {
             let matrices_bytes = fruits_utils::mem::as_bytes_slice(matrices);
 
             render_state
