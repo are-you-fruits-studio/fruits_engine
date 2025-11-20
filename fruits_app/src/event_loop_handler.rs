@@ -11,7 +11,7 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-use crate::InputResource;
+use crate::{InputResource, WindowResource, WindowState};
 
 enum EventLoopHandlerState {
     Created(WorldBuilder),
@@ -55,8 +55,11 @@ impl ApplicationHandler for EventLoopHandler {
 
         let state = RenderApiResource::new(Arc::clone(&window));
 
+        let window_state = WindowState::from_window(&window);
+
         world.data_mut().resources_mut().insert(state).ok().unwrap();
         world.data_mut().resources_mut().insert(InputResource::new()).ok().unwrap();
+        world.data_mut().resources_mut().insert(WindowResource::new(window_state)).ok().unwrap();
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 
@@ -170,6 +173,13 @@ impl ApplicationHandler for EventLoopHandler {
                 input.keyboard.clear_frame();
                 input.mouse.clear_frame();
                 input.gamepad.clear_frame();
+
+                let window_res = res.get_mut::<WindowResource>().unwrap();
+
+                let window_state_next = window_res.next_state().clone();
+                let window_state_prev = std::mem::replace(window_res.prev_state_mut(), window_state_next.clone());
+
+                WindowState::apply_difference(&window_state_prev, &window_state_next, &window);
 
                 window.request_redraw();
                 // println!("ayf: redraw end");
