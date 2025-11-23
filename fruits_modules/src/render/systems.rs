@@ -924,7 +924,7 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
 }
 
 pub fn update_masked_batched_mesh(
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<BatchedMeshComponent>>,
+    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
     mask_q: WorldQuery<&GlobalRectComponent, WithFilter<ChildrenRectMaskComponent>>,
     mut mesh_q: WorldQuery<&mut BatchedMeshComponent>,
 ) {
