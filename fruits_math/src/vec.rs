@@ -1,4 +1,5 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::mem::ManuallyDrop;
 
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
@@ -40,16 +41,17 @@ macro_rules! vec_impl {
                 unsafe { &mut *(a as *mut [T; members_count!($($I),+)] as *mut $V<T>) }
             }
             #[inline]
-            pub fn into_array(self) -> [T; members_count!($($I),+)] {
-                [
-                    $(self.$I),+
-                ]
+            pub const fn into_array(self) -> [T; members_count!($($I),+)] {
+                unsafe {
+                    let v = ManuallyDrop::new(self);
+                    (&raw const v as *const [T; members_count!($($I),+)]).read()
+                }
             }
             #[inline]
-            pub fn from_array(a: [T; members_count!($($I),+)]) -> Self {
-                let [$($I),+] = a;
-                Self {
-                    $($I),+
+            pub const fn from_array(a: [T; members_count!($($I),+)]) -> Self {
+                unsafe {
+                    let a = ManuallyDrop::new(a);
+                    (&raw const a as *const Self).read()
                 }
             }
             #[inline]
