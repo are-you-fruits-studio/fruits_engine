@@ -11,7 +11,7 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-use crate::{InputResource, WindowResource, WindowState};
+use crate::{GamepadInputStorage, InputResource, WindowResource, WindowState};
 
 enum EventLoopHandlerState {
     Created(WorldBuilder),
@@ -150,11 +150,23 @@ impl ApplicationHandler for EventLoopHandler {
                 let input = res.get_mut::<InputResource>().unwrap();
 
                 if let Some(gamepad_host) = gamepad_host {
+                    fn get_or_create_gamepad(input: &mut InputResource, gamepad_id: usize) -> &mut GamepadInputStorage {
+                        input.gamepads.entry(gamepad_id).or_insert_with(|| GamepadInputStorage::new())
+                    }
+                        
+                    for (gamepad_id, _) in gamepad_host.gamepads() {
+                        get_or_create_gamepad(input, gamepad_id.into());
+                    }
+
                     while let Some(gamepad_evt) = gamepad_host.next_event() {
+                        let gamepad_id: usize = gamepad_evt.id.into();
+                        
                         match gamepad_evt.event {
-                            gilrs::EventType::ButtonPressed(button, _) => input.gamepad.press(button),
-                            gilrs::EventType::ButtonReleased(button, _) => input.gamepad.release(button),
-                            gilrs::EventType::AxisChanged(axis, axis_value, _) => input.gamepad.write_axis(axis, axis_value),
+                            gilrs::EventType::Connected => _ = get_or_create_gamepad(input, gamepad_id),
+                            gilrs::EventType::Disconnected => _ = input.gamepads.remove(&gamepad_id),
+                            gilrs::EventType::ButtonPressed(button, _) => get_or_create_gamepad(input, gamepad_id).press(button),
+                            gilrs::EventType::ButtonReleased(button, _) => get_or_create_gamepad(input, gamepad_id).release(button),
+                            gilrs::EventType::AxisChanged(axis, axis_value, _) => get_or_create_gamepad(input, gamepad_id).write_axis(axis, axis_value),
                             // todo: handle other gamepad events
                             _ => (),
                         }
@@ -170,9 +182,7 @@ impl ApplicationHandler for EventLoopHandler {
                 let mut res = world_data.resources_mut();
 
                 let input = res.get_mut::<InputResource>().unwrap();
-                input.keyboard.clear_frame();
-                input.mouse.clear_frame();
-                input.gamepad.clear_frame();
+                input.clear_frame();
 
                 let window_res = res.get_mut::<WindowResource>().unwrap();
 

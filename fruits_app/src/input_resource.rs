@@ -12,7 +12,7 @@ pub use winit::keyboard::KeyCode;
 pub struct InputResource {
     pub keyboard: KeyboardInputStorage,
     pub mouse: MouseInputStorage,
-    pub gamepad: GamepadInputStorage,
+    pub gamepads: HashMap<usize, GamepadInputStorage>,
 }
 
 impl InputResource {
@@ -20,8 +20,14 @@ impl InputResource {
         Self {
             keyboard: KeyboardInputStorage::new(),
             mouse: MouseInputStorage::new(),
-            gamepad: GamepadInputStorage::new(),
+            gamepads: HashMap::new(),
         }
+    }
+
+    pub fn clear_frame(&mut self) {
+        self.keyboard.clear_frame();
+        self.mouse.clear_frame();
+        self.gamepads.values_mut().for_each(|g| g.clear_frame());
     }
 }
 
