@@ -28,8 +28,9 @@ members = [
     "fruits_prefab",
     "fruits_asset",
     "fruits_wavefront",
-    "fruits_serialization_macros"
-, "fruits_control_flow_macros"]
+    "fruits_serialization_macros",
+    "fruits_control_flow_macros"
+]
 
 [package]
 name = "fruits_engine"

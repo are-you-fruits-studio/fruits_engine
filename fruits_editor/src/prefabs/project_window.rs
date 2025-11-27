@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{features::scroll::ScrollHandleAreaComponent, *};
 
 pub fn project_window(mut world: WorldDataMut) -> Entity {
     let (res, mut ec, evt) = world.as_tuple_mut();
@@ -18,8 +18,9 @@ pub fn project_window(mut world: WorldDataMut) -> Entity {
     let ent_header = ec.create_entity();
     let ent_header_text = ec.create_entity();
     let ent_scroll = ec.create_entity();
-    let ent_scroll_view = ec.create_entity();
+    let ent_scroll_handle_area = ec.create_entity();
     let ent_scroll_handle = ec.create_entity();
+    let ent_scroll_view = ec.create_entity();
     let ent_scroll_content = ec.create_entity();
 
     EntityComponentsBuilder::new(ec.as_mut(), ent_root)
@@ -115,6 +116,49 @@ pub fn project_window(mut world: WorldDataMut) -> Entity {
         })
         .add_component(ImageComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#757575ff").unwrap()),
+            ..Default::default()
+        });
+
+    EntityComponentsBuilder::new(ec.as_mut(), ent_scroll_handle_area)
+        .add_component(GlobalRectComponent::default())
+        .add_component(LocalRectComponent {
+            anchor: Vec2::new(1.0, 0.5),
+            pivot: Vec2::new(1.0, 0.5),
+            scale: Vec2::new(UiVal::px(20.0).into(), UiVal::pd(1.0).into()),
+            ..Default::default()
+        })
+        .add_component(ChildComponent {
+            parent: ent_scroll,
+        })
+        .add_component(BatchedMeshComponent::default())
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
+        .add_component(ImageComponent {
+            color: Vec4::from_array(parse_color_rgba_f32("#686868ff").unwrap()),
+            ..Default::default()
+        })
+        .add_component(ButtonComponent)
+        .add_component(ScrollHandleAreaComponent {
+            content: ent_scroll_content,
+            handle: ent_scroll_handle,
+        });
+
+    EntityComponentsBuilder::new(ec.as_mut(), ent_scroll_handle)
+        .add_component(GlobalRectComponent::default())
+        .add_component(LocalRectComponent {
+            scale: Vec2::new(UiVal::pd(1.0).into(), UiVal::px(100.0).into()),
+            ..Default::default()
+        })
+        .add_component(ChildComponent {
+            parent: ent_scroll_handle_area,
+        })
+        .add_component(BatchedMeshComponent::default())
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
+        .add_component(ImageComponent {
+            color: Vec4::from_array(parse_color_rgba_f32("#bebebeff").unwrap()),
             ..Default::default()
         });
 

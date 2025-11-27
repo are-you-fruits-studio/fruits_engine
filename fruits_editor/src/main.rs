@@ -6,6 +6,7 @@ mod prefabs;
 mod resources;
 mod systems;
 mod utils;
+mod features;
 
 use std::path::PathBuf;
 
@@ -206,6 +207,8 @@ fn run_editor_app() {
             .order_system(select_file_system)
             .before_system(update_project_entry_selection_system);
     }
+
+    features::scroll::register_feature(world.as_mut());
 
     app.run();
 }
