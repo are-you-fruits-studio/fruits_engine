@@ -8,11 +8,6 @@ pub struct UiInteractionResource {
     pub drag: Entity,
 }
 
-#[derive(Resource, Default)]
-pub struct UiRaycastResource {
-    pub bvh: Bvh<Entity>,
-}
-
 #[derive(Resource, Clone)]
 pub struct StandardAssetsResource {
     pub material_panel: AssetHandle<StandardMaterial>,
@@ -22,6 +17,7 @@ pub struct StandardAssetsResource {
 #[derive(Resource, Clone, Default)]
 pub struct SelectedFileResource {
     pub path: OsString,
+    pub file_data: Vec<u8>,
 }
 
 #[derive(Resource, Clone, Default)]

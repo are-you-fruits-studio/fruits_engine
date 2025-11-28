@@ -1,30 +1,54 @@
 use crate::*;
 
+pub fn register_feature(mut world: WorldBuilderMut) {
+    world.data_mut().resources_mut().insert(ProjectWindowCache::default()).ok().unwrap();
+
+    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(update_project_window_content_system);
+    
+    world.behavior_mut().get_mut(Schedule::Update)
+        .order_system(update_project_window_content_system)
+        .before_system(prepare_ui_raycast_system);
+}
+
+#[derive(Resource, Debug, Default)]
+pub struct ProjectWindowCache {
+    pub dir_entry: ProjectWindowDataEntry,
+}
+
 pub fn update_project_window_content_system(
     mut world: ExclusiveWorldAccess,
 ) {
-    let assets = world.resources().get::<StandardAssetsResource>().unwrap().clone();
+    let (mut res, mut ent, evt) = world.as_tuple_mut();
 
-    let standard_render_assets_res = world.resources().get::<StandardRenderAssetsResource>().unwrap();
+    let assets = res.get::<StandardAssetsResource>().unwrap().clone();
+
+    let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
 
     let font = standard_render_assets_res.font_px_8_8.clone();
 
-    let contents = world.entities().query_filtered::<Entity, WithFilter<ProjectWindowContentComponent>>().iter().collect::<Vec<_>>();
-
-    let mut ec = world.entities_mut();
+    let contents = ent.query_filtered::<Entity, WithFilter<ProjectWindowContentComponent>>().iter().collect::<Vec<_>>();
 
     let Ok(current_dir) = std::env::current_dir() else {
         return;
     };
 
+    
+    let cache = res.get_mut::<ProjectWindowCache>().unwrap();
+
     let entry = ProjectWindowDataEntry::scan(&current_dir);
 
+    if cache.dir_entry == entry {
+        return;
+    }
+
+    cache.dir_entry = entry.clone();
+
     for content in contents {
-        fruits_engine::modules::utils::destroy_entity_children(ec.as_mut(), content);
+        fruits_engine::modules::utils::destroy_entity_children(ent.as_mut(), content);
 
         for entry in &entry.children {
             spawn_project_window_entries(
-                ec.as_mut(),
+                ent.as_mut(),
                 &assets.material_text,
                 &assets.material_panel,
                 &font,

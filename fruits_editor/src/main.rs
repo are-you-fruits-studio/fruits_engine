@@ -1,7 +1,6 @@
 // #![windows_subsystem = "windows"]
 
 mod components;
-mod events;
 mod prefabs;
 mod resources;
 mod systems;
@@ -10,7 +9,7 @@ mod features;
 
 use std::path::PathBuf;
 
-use crate::{components::*, events::*, resources::*, systems::*, utils::*};
+use crate::{components::*, features::ui_interaction::*, resources::*, systems::*, utils::*};
 
 use fruits_engine::prelude::*;
 
@@ -181,27 +180,14 @@ fn run_editor_app() {
     {
         let mut update = world_behavior.get_mut(Schedule::Update);
 
-        update.insert_system(update_project_window_content_system);
-
         update
             .group(SYSTEM_GROUP)
-            .insert_child_system(prepare_ui_raycast_system)
-            .insert_child_system(check_button_system)
             .insert_child_system(select_file_system)
             .insert_child_system(update_project_entry_selection_system)
             .insert_child_system(inspect_file_system);
 
-        update
-            .order_system(update_project_window_content_system)
-            .before_group(SYSTEM_GROUP_TRANSFORM);
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_RENDER);
-        update.order_group(SYSTEM_GROUP_TRANSFORM).before_group(SYSTEM_GROUP);
-        update
-            .order_system(update_project_window_content_system)
-            .before_system(prepare_ui_raycast_system);
-        update
-            .order_system(prepare_ui_raycast_system)
-            .before_system(check_button_system);
+        update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_TRANSFORM);
         update.order_system(check_button_system).before_system(select_file_system);
         update
             .order_system(select_file_system)
@@ -209,6 +195,8 @@ fn run_editor_app() {
     }
 
     features::scroll::register_feature(world.as_mut());
+    features::ui_interaction::register_feature(world.as_mut());
+    features::project_window_entries::register_feature(world.as_mut());
 
     app.run();
 }
@@ -242,7 +230,6 @@ fn init_system(mut world: ExclusiveWorldAccess) {
     });
 
     res.insert(UiInteractionResource::default()).ok().unwrap();
-    res.insert(UiRaycastResource::default()).ok().unwrap();
     res.insert(SelectedFileResource::default()).ok().unwrap();
     res.insert(InspectedFileResource::default()).ok().unwrap();
 
@@ -255,5 +242,6 @@ fn init_system(mut world: ExclusiveWorldAccess) {
 
     prefabs::project_window(world.as_mut());
     prefabs::scene_window(world.as_mut());
+    prefabs::inspector_window(world.as_mut());
 }
 //

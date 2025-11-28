@@ -1,6 +1,6 @@
 use std::ffi::OsString;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ProjectWindowDataEntry {
     pub name: String,
     pub path: OsString,

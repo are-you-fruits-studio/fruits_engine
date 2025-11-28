@@ -1,12 +1,12 @@
 use fruits_engine::prelude::*;
 
-use crate::resources::UiRaycastResource;
+use crate::{SYSTEM_GROUP, features::ui_interaction::UiRaycastResource};
 
 pub fn register_feature(mut world: WorldBuilderMut) {
     world.data_mut().resources_mut().insert(ScrollResource { active_scroll: Entity::EMPTY }).ok().unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).insert_system(start_end_scrolling_system);
-    world.behavior_mut().get_mut(Schedule::Update).insert_system(move_scroll_handle_system);
+    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(start_end_scrolling_system);
+    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(move_scroll_handle_system);
 }
 
 #[derive(Component)]

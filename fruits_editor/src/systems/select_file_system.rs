@@ -1,9 +1,9 @@
-use crate::*;
+use crate::{features::ui_interaction::ButtonClickEvent, *};
 
 pub fn select_file_system(
     button_click_evt: Evt<ButtonClickEvent>,
     entry_q: WorldQuery<&ProjectWindowEntryComponent>,
-    mut inspected_file_res: ResMut<SelectedFileResource>,
+    mut selected_file_res: ResMut<SelectedFileResource>,
 ) {
     let Some(button_click_evt) = button_click_evt.last() else {
         return;
@@ -13,5 +13,5 @@ pub fn select_file_system(
         return;
     };
 
-    inspected_file_res.path = entry_c.path.clone();
+    selected_file_res.path = entry_c.path.clone();
 }

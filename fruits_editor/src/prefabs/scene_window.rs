@@ -25,9 +25,9 @@ pub fn scene_window(mut world: WorldDataMut) -> Entity {
     EntityComponentsBuilder::new(ec.as_mut(), ent_root)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            anchor: Vec2::new(1.0, 0.5),
-            pivot: Vec2::new(1.0, 0.5),
-            scale: Vec2::new(Some(UiVal::pd(0.5)).into(), Some(UiVal::pd(1.0)).into()),
+            anchor: Vec2::new(0.5, 0.5),
+            pivot: Vec2::new(0.5, 0.5),
+            scale: Vec2::new(Some(UiVal::pd(0.333)).into(), Some(UiVal::pd(1.0)).into()),
             ..Default::default()
         })
         .add_component(BatchedMeshComponent::default())
