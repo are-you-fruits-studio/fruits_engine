@@ -9,7 +9,7 @@ mod features;
 
 use std::path::PathBuf;
 
-use crate::{components::*, features::ui_interaction::*, resources::*, systems::*, utils::*};
+use crate::{components::*, features::{project_window_selection::select_file_system, ui_interaction::*}, resources::*, systems::*, utils::*};
 
 use fruits_engine::prelude::*;
 
@@ -182,21 +182,18 @@ fn run_editor_app() {
 
         update
             .group(SYSTEM_GROUP)
-            .insert_child_system(select_file_system)
-            .insert_child_system(update_project_entry_selection_system)
-            .insert_child_system(inspect_file_system);
+            .insert_child_system(update_scene_entries_system);
 
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_RENDER);
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_TRANSFORM);
-        update.order_system(check_button_system).before_system(select_file_system);
-        update
-            .order_system(select_file_system)
-            .before_system(update_project_entry_selection_system);
+        update.order_system(select_file_system).before_system(update_scene_entries_system);
     }
 
     features::scroll::register_feature(world.as_mut());
     features::ui_interaction::register_feature(world.as_mut());
     features::project_window_entries::register_feature(world.as_mut());
+    features::project_window_selection::register_feature(world.as_mut());
+    features::inspector_window::register_feature(world.as_mut());
 
     app.run();
 }
@@ -230,8 +227,6 @@ fn init_system(mut world: ExclusiveWorldAccess) {
     });
 
     res.insert(UiInteractionResource::default()).ok().unwrap();
-    res.insert(SelectedFileResource::default()).ok().unwrap();
-    res.insert(InspectedFileResource::default()).ok().unwrap();
 
     res.insert(StandardAssetsResource {
         material_panel: material_panel.clone(),

@@ -1,20 +1,15 @@
-use crate::*;
+use crate::{features::project_window_selection::{FileSelectedEvent, SelectedFileResource}, *};
 
-pub fn inspect_file_system(
+pub fn update_scene_entries_system(
     mut world: ExclusiveWorldAccess,
 ) {
-    let inspected_file_res = world.resources().get::<InspectedFileResource>().unwrap();
     let selected_file_res = world.resources().get::<SelectedFileResource>().unwrap();
 
-    if inspected_file_res.path == selected_file_res.path {
+    if world.events().get::<FileSelectedEvent>().is_empty() {
         return;
     }
 
-    let inspected_path = selected_file_res.path.clone();
-
-    world.resources_mut().get_mut::<InspectedFileResource>().unwrap().path = inspected_path.clone();
-    
-    let prefab = std::fs::read_to_string(&inspected_path).ok().map(|t| Prefab::deserialize(&t)).flatten();
+    let prefab = std::fs::read_to_string(&selected_file_res.path).ok().map(|t| Prefab::deserialize(&t)).flatten();
     
     let contents = world.entities().query_filtered::<Entity, WithFilter<SceneWindowContentComponent>>().iter().collect::<Vec<_>>();
 

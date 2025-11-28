@@ -7,6 +7,8 @@ pub fn register_feature(mut world: WorldBuilderMut) {
 
     world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(start_end_scrolling_system);
     world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(move_scroll_handle_system);
+
+    world.behavior_mut().get_mut(Schedule::Update).order_system(start_end_scrolling_system).before_system(move_scroll_handle_system);
 }
 
 #[derive(Component)]

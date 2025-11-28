@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{features::inspector_window::InspectorWindowComponent, *};
 
 pub fn inspector_window(mut world: WorldDataMut) -> Entity {
     let (res, mut ec, evt) = world.as_tuple_mut();
@@ -151,7 +151,8 @@ pub fn inspector_window(mut world: WorldDataMut) -> Entity {
             spacing: UiSpacing::Chunk,
             ..Default::default()
         })
-        .add_component(ParentComponent { children: vec![].into() });
+        .add_component(ParentComponent { children: vec![].into() })
+        .add_component(InspectorWindowComponent);
 
     ent_root
 }
