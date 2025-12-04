@@ -8,12 +8,19 @@ fn main() {
     fps_counter::add_module_to(world.as_mut());
 
     world.behavior_mut().get_mut(Schedule::Start).insert_system(init);
+    world.behavior_mut().get_mut(Schedule::Update).insert_system(update_cursor_system);
 
     world
         .behavior_mut()
         .get_mut(Schedule::Start)
         .order_group(SYSTEM_GROUP_RENDER)
         .before_system(init);
+    
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(update_cursor_system)
+        .before_group(SYSTEM_GROUP_TRANSFORM);
 
     let mut world_data = world.data_mut();
 
@@ -43,6 +50,11 @@ fn main() {
     println!("start");
     app.run();
     println!("end");
+}
+
+#[derive(Component, Default)]
+pub struct CursorComponent {
+    vel: Vec2<f32>,
 }
 
 fn init(mut world: ExclusiveWorldAccess) {
@@ -372,4 +384,35 @@ fn init(mut world: ExclusiveWorldAccess) {
     )
     .ok()
     .unwrap();
+
+    //
+
+    let ent_cursor = ec.create_entity();
+
+    ec.add_component(ent_cursor, GlobalRectComponent::default()).ok().unwrap();
+    ec.add_component(ent_cursor, LocalRectComponent {
+        anchor: Vec2::splat(0.0),
+        pivot: Vec2::splat(0.0),
+        scale: Vec2::splat(UiVal::px(3.0).into()),
+        ..Default::default()
+    }).ok().unwrap();
+    ec.add_component(ent_cursor, BatchedMeshComponent::default()).ok().unwrap();
+    ec.add_component(ent_cursor, StandardMaterialComponent { material: material_white.clone() }).ok().unwrap();
+    ec.add_component(ent_cursor, ImageComponent {
+        color: Vec4::new(1.0, 1.0, 1.0, 1.0),
+        ..Default::default()
+    }).ok().unwrap();
+    ec.add_component(ent_cursor, CursorComponent::default()).ok().unwrap();
+}
+
+fn update_cursor_system(
+    input: Res<InputResource>,
+    mut q: WorldQuery<(&mut CursorComponent, &mut LocalRectComponent)>,
+) {
+    for (cursor, rect) in q.iter_mut() {
+        let a = rect.offset.map(|x| x.val);
+        let b = Vec2::from_array(input.mouse.position.map(|x| UiVal::px(x as f32))).map(|x| x.val);
+        let x = Vec2::from_fn(|i| damp(a[i], b[i], &mut cursor.vel[i], 5.0, 0.1, 1.0 / 60.0));
+        rect.offset = x.map(UiVal::px);
+    }
 }

@@ -55,3 +55,97 @@ pub fn lerp<T: Number>(a: T, b: T, t: T) -> T {
 pub fn inv_lerp<T: Number>(a: T, b: T, x: T) -> T {
     (x - a) / (b - a)
 }
+
+pub fn damp(
+    current: f32,
+    target: f32,
+    velocity: &mut f32,
+    smooth_time: f32,
+    damping: f32,
+    delta_time: f32,
+) -> f32 {
+    let smooth_time = smooth_time.max(1e-4);
+    let omega = 2.0 / smooth_time;
+
+    // Let the damping be fully free (negative included!)
+    let zeta = damping;
+
+    // Solve as usual for displacement from target
+    let x0 = current - target;
+    let v0 = *velocity;
+    let t = delta_time;
+
+    let mut new_x;
+    let mut new_v;
+
+    if zeta < 1.0 {
+        // Underdamped **OR negative damping**
+        //
+        // For negative ζ, the exponent becomes POSITIVE
+        // and the oscillation amplitude grows each frame.
+        let omega_d_sq = 1.0 - zeta * zeta;
+        let omega_d = if omega_d_sq > 0.0 {
+            omega * omega_d_sq.sqrt()
+        } else {
+            // If ζ < -1, we switch into real exponent regime
+            // (it will be handled below)
+            0.0
+        };
+
+        if omega_d_sq > 0.0 {
+            // Underdamped branch (ζ < 1)
+            let exp = (-zeta * omega * t).exp();
+
+            let c1 = x0;
+            let c2 = (v0 + zeta * omega * x0) / omega_d;
+
+            let cos = (omega_d * t).cos();
+            let sin = (omega_d * t).sin();
+
+            new_x = exp * (c1 * cos + c2 * sin);
+            new_v = exp * (-zeta * omega * (c1 * cos + c2 * sin)
+                + (-c1 * omega_d * sin + c2 * omega_d * cos));
+        } else {
+            // ζ <= -1: real exponential instability (no oscillation)
+            let tmp = (zeta * zeta - 1.0).sqrt();
+            let r1 = -omega * (zeta - tmp);
+            let r2 = -omega * (zeta + tmp);
+
+            let denom = r1 - r2;
+            let c1 = (v0 - r2 * x0) / denom;
+            let c2 = x0 - c1;
+
+            let e1 = (r1 * t).exp();
+            let e2 = (r2 * t).exp();
+
+            new_x = c1 * e1 + c2 * e2;
+            new_v = c1 * r1 * e1 + c2 * r2 * e2;
+        }
+    } else if (zeta - 1.0).abs() < 1e-6 {
+        // Critical damping
+        let exp = (-omega * t).exp();
+        let c1 = x0;
+        let c2 = v0 + omega * x0;
+
+        new_x = (c1 + c2 * t) * exp;
+        new_v = exp * (c2 - omega * (c1 + c2 * t));
+    } else {
+        // Overdamped
+        let tmp = (zeta * zeta - 1.0).sqrt();
+        let r1 = -omega * (zeta - tmp);
+        let r2 = -omega * (zeta + tmp);
+
+        let denom = r1 - r2;
+        let c1 = (v0 - r2 * x0) / denom;
+        let c2 = x0 - c1;
+
+        let e1 = (r1 * t).exp();
+        let e2 = (r2 * t).exp();
+
+        new_x = c1 * e1 + c2 * e2;
+        new_v = c1 * r1 * e1 + c2 * r2 * e2;
+    }
+
+    *velocity = new_v;
+    target + new_x
+}

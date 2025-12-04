@@ -1,29 +1,3 @@
-// todo: to proc macros
-#[macro_export]
-macro_rules! rgb_u8 {
-    ($v: literal) => {
-        const { parse_color_rgb_u8($v).expect("invalid color string") }
-    };
-}
-#[macro_export]
-macro_rules! rgba_u8 {
-    ($v: literal) => {
-        const { parse_color_rgba_u8($v).expect("invalid color string") }
-    };
-}
-#[macro_export]
-macro_rules! rgb_f32 {
-    ($v: literal) => {
-        const { parse_color_rgb_f32($v).expect("invalid color string") }
-    };
-}
-#[macro_export]
-macro_rules! rgba_f32 {
-    ($v: literal) => {
-        const { parse_color_rgba_f32($v).expect("invalid color string") }
-    };
-}
-
 const fn parse_hex(ascii_char: u8) -> Option<u8> {
     Some(match ascii_char {
         b'0' => 0,

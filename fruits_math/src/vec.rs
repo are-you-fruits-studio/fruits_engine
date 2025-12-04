@@ -55,7 +55,7 @@ macro_rules! vec_impl {
                 }
             }
             #[inline]
-            pub fn from_fn(f: impl Fn(usize) -> T) -> Self {
+            pub fn from_fn(f: impl FnMut(usize) -> T) -> Self {
                 Self::from_array(std::array::from_fn(f))
             }
             #[inline]
