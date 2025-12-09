@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub enum JsonNumber {
     I(i128),
     F(f64),
@@ -72,7 +72,7 @@ impl Display for JsonNumber {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, PartialOrd)]
 pub enum JsonValue {
     #[default]
     Null,
@@ -103,7 +103,7 @@ impl JsonField {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct JsonObject {
     fields: HashMap<String, JsonValue>,
     field_names: Vec<String>,
@@ -157,6 +157,30 @@ impl JsonObject {
             let value = &self.fields[name];
             (name, value)
         })
+    }
+}
+
+impl PartialOrd for JsonObject {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        for i in 0..usize::max(self.field_names.len(), other.field_names.len()) {
+            let self_field_name = self.field_names.get(i);
+            let other_field_name = other.field_names.get(i);
+
+            match self_field_name.partial_cmp(&other_field_name) {
+                Some(core::cmp::Ordering::Equal) => {}
+                ord => return ord,
+            }
+
+            let self_field_value = self.fields.get(self_field_name.unwrap());
+            let other_field_value = other.fields.get(other_field_name.unwrap());
+
+            match self_field_value.partial_cmp(&other_field_value) {
+                Some(core::cmp::Ordering::Equal) => {}
+                ord => return ord,
+            }
+        }
+
+        Some(core::cmp::Ordering::Equal)
     }
 }
 

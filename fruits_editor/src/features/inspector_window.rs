@@ -1,6 +1,6 @@
 use fruits_engine::prelude::utils::destroy_entity_children;
 
-use crate::{features::project_window_selection::{FileSelectedEvent, SelectedFileResource}, *};
+use crate::{features::{input_field::InputFieldComponent, project_window_selection::{FileSelectedEvent, SelectedFileResource}}, *};
 
 pub fn register_feature(mut world: WorldBuilderMut) {
     world.data_mut().resources_mut().insert(InspectedAssetResource::default()).ok().unwrap();
@@ -103,26 +103,20 @@ pub fn update_inspector_window_system(
                     assets.material_text.clone(),
                     font.clone(),
                 );
-                spawn_text_ent(
+                spawn_text_field(
                     ent.as_mut(),
                     window_ent,
-                    format!("metallic: {}", material.metallic).into(),
+                    String::from("metallic").into(),
+                    material.metallic.to_string().into(),
                     assets.material_panel.clone(),
                     assets.material_text.clone(),
                     font.clone(),
                 );
-                spawn_text_ent(
+                spawn_text_field(
                     ent.as_mut(),
                     window_ent,
-                    format!("roughness: {}", material.roughness).into(),
-                    assets.material_panel.clone(),
-                    assets.material_text.clone(),
-                    font.clone(),
-                );
-                spawn_input_area_ent(
-                    ent.as_mut(),
-                    window_ent,
-                    format!("roughness: {}", material.roughness).into(),
+                    String::from("roughness").into(),
+                    material.roughness.to_string().into(),
                     assets.material_panel.clone(),
                     assets.material_text.clone(),
                     font.clone(),
@@ -130,6 +124,56 @@ pub fn update_inspector_window_system(
             },
         }
     }
+}
+
+fn spawn_text_field(
+    mut ent: EntitiesHolderMut,
+    ent_parent: Entity,
+    text_name: FfiString,
+    text_value: FfiString,
+    material_panel: AssetHandle<StandardMaterial>,
+    material_text: AssetHandle<StandardMaterial>,
+    font: AssetHandle<Font>,
+) {
+    let ent_root = ent.create_entity();
+    let ent_name = ent.create_entity();
+    let ent_value = ent.create_entity();
+
+    ent.add_component(ent_root, GlobalRectComponent::default()).ok().unwrap();
+    ent.add_component(ent_root, LocalRectComponent {
+        scale: Vec2::new(UiVal::pd(1.0).into(), None.into()),
+        ..Default::default()
+    }).ok().unwrap();
+    ent.add_component(ent_root, ChildComponent { parent: ent_parent, }).ok().unwrap();
+    ent.add_component(ent_root, ParentComponent { children: vec![ent_name, ent_value].into(), }).ok().unwrap();
+    ent.add_component(ent_root, RectChildAlignComponent {
+        direction: UiDirection::Horizontal,
+        spacing: UiSpacing::SpaceBetween,
+        min_gap: UiVal::px(0.0),
+        anchor: Vec2::new(0.5, 0.5),
+    }).ok().unwrap();
+    ent.get_component_mut::<ParentComponent>(ent_parent).unwrap().children.push(ent_root);
+    
+    ent.add_component(ent_name, GlobalRectComponent::default()).ok().unwrap();
+    ent.add_component(ent_name, LocalRectComponent {
+        scale: Vec2::new(UiVal::pd(0.5).into(), None.into()),
+        ..Default::default()
+    }).ok().unwrap();
+    ent.add_component(ent_name, ChildComponent { parent: ent_root, }).ok().unwrap();
+    ent.add_component(ent_name, ParentComponent { children: vec![].into() }).ok().unwrap();
+    ent.add_component(ent_name, RectChildAlignComponent::default()).ok().unwrap();
+    
+    ent.add_component(ent_value, GlobalRectComponent::default()).ok().unwrap();
+    ent.add_component(ent_value, LocalRectComponent {
+        scale: Vec2::new(UiVal::pd(0.5).into(), None.into()),
+        ..Default::default()
+    }).ok().unwrap();
+    ent.add_component(ent_value, ChildComponent { parent: ent_root, }).ok().unwrap();
+    ent.add_component(ent_value, ParentComponent { children: vec![].into() }).ok().unwrap();
+    ent.add_component(ent_value, RectChildAlignComponent::default()).ok().unwrap();
+
+    spawn_text_ent(ent.as_mut(), ent_name, text_name, material_panel.clone(), material_text.clone(), font.clone());
+    spawn_input_area_ent(ent, ent_value, text_value, material_panel, material_text, font);
 }
 
 fn spawn_text_ent(
@@ -184,6 +228,7 @@ fn spawn_input_area_ent(
 ) {
     let ent_root = ent.create_entity();
     let ent_background = ent.create_entity();
+    let ent_selection_border = ent.create_entity();
     let ent_text = ent.create_entity();
 
     ent.add_component(ent_root, GlobalRectComponent::default()).ok().unwrap();
@@ -192,13 +237,33 @@ fn spawn_input_area_ent(
         ..Default::default()
     }).ok().unwrap();
     ent.add_component(ent_root, ChildComponent { parent: ent_parent, }).ok().unwrap();
+    ent.add_component(ent_root, InputFieldComponent {
+        text: ent_text,
+        selection_border: ent_selection_border,
+    }).ok().unwrap();
     ent.add_component(ent_root, StandardMaterialComponent { material: material_panel.clone() }).ok().unwrap();
     ent.add_component(ent_root, BatchedMeshComponent::default()).ok().unwrap();
+    ent.add_component(ent_root, ButtonComponent).ok().unwrap();
     ent.add_component(ent_root, ImageComponent {
         color: Vec4::from_array(rgba_f32_array!("#a7a7a7ff")),
         ..Default::default()
     }).ok().unwrap();
     ent.get_component_mut::<ParentComponent>(ent_parent).unwrap().children.push(ent_root);
+
+    ent.add_component(ent_selection_border, GlobalRectComponent::default()).ok().unwrap();
+    ent.add_component(ent_selection_border, LocalRectComponent {
+        z: 0.0,
+        ..Default::default()
+    }).ok().unwrap();
+    ent.add_component(ent_selection_border, GlobalDisableableComponent::default()).ok().unwrap();
+    ent.add_component(ent_selection_border, LocalDisableableComponent::default()).ok().unwrap();
+    ent.add_component(ent_selection_border, ChildComponent { parent: ent_root, }).ok().unwrap();
+    ent.add_component(ent_selection_border, StandardMaterialComponent { material: material_panel.clone() }).ok().unwrap();
+    ent.add_component(ent_selection_border, BatchedMeshComponent::default()).ok().unwrap();
+    ent.add_component(ent_selection_border, ImageComponent {
+        color: Vec4::from_array(rgba_f32_array!("#5c66ebff")),
+        ..Default::default()
+    }).ok().unwrap();
 
     ent.add_component(ent_background, GlobalRectComponent::default()).ok().unwrap();
     ent.add_component(ent_background, LocalRectComponent {

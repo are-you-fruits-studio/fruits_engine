@@ -219,7 +219,7 @@ impl<T: JsonSerializable> JsonSerializable for Vec<T> {
 
 impl<K: 'static + JsonSerializable + Eq + Hash, V: JsonSerializable> JsonSerializable for HashMap<K, V> {
     fn to_json(&self) -> JsonValue {
-        let mut json = JsonObject::new();
+        let mut fields = Vec::with_capacity(self.len());
 
         for (key, val) in self {
             let key_json = key.to_json();
@@ -232,7 +232,15 @@ impl<K: 'static + JsonSerializable + Eq + Hash, V: JsonSerializable> JsonSeriali
                 _ => String::new(),
             };
 
-            json.push_field(key_str, val.to_json()).ok().unwrap();
+            fields.push((key_str, val.to_json()));
+        }
+
+        fields.sort_by(|l, r| l.0.cmp(&r.0));
+
+        let mut json = JsonObject::new();
+
+        for (field_name, field_value) in fields {
+            json.push_field(field_name, field_value).ok().unwrap();
         }
 
         json.into()
@@ -342,6 +350,9 @@ impl<T: 'static + JsonSerializable + Eq + Hash> JsonSerializable for HashSet<T> 
         for item in self {
             vec.push(item.to_json());
         }
+
+        // todo: optimize?
+        vec.sort_by_cached_key(|j| j.to_string());
 
         JsonValue::Array(vec)
     }

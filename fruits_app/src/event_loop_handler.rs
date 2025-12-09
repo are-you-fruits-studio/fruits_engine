@@ -11,7 +11,7 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-use crate::{GamepadInputStorage, InputResource, WindowResource, WindowState};
+use crate::{GamepadInputStorage, InputResource, TextInputEvent, WindowResource, WindowState};
 
 enum EventLoopHandlerState {
     Created(WorldBuilder),
@@ -104,7 +104,7 @@ impl ApplicationHandler for EventLoopHandler {
         };
 
         let mut world_data = world.data_mut();
-        let mut res = world_data.resources_mut();
+        let (mut res, ent, mut evt) = world_data.as_tuple_mut();
 
         let render_state = res.get_mut::<RenderApiResource>().unwrap();
 
@@ -130,6 +130,10 @@ impl ApplicationHandler for EventLoopHandler {
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.repeat {
                     return;
+                }
+
+                if let Some(text) = event.text {
+                    evt.get_mut().push(TextInputEvent(text));
                 }
 
                 let PhysicalKey::Code(key_code) = event.physical_key else {

@@ -194,6 +194,7 @@ fn run_editor_app() {
     features::project_window_entries::register_feature(world.as_mut());
     features::project_window_selection::register_feature(world.as_mut());
     features::inspector_window::register_feature(world.as_mut());
+    features::input_field::register_feature(world.as_mut());
 
     app.run();
 }
