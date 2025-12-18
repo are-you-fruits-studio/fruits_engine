@@ -3,5 +3,8 @@ name = "fruits_prefab"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["lib"]
+
 [dependencies]
-fruits_ecs = { path = "../fruits_ecs" }
+fruits_serialization = { path = "../fruits_serialization" }

@@ -19,6 +19,16 @@ pub struct VersionIndex {
     pub version: u64,
 }
 
+impl VersionIndex {
+    pub const EMPTY: VersionIndex = VersionIndex { index: 0, version: 0 };
+}
+
+impl Default for VersionIndex {
+    fn default() -> Self {
+        Self::EMPTY
+    }
+}
+
 impl Ord for VersionIndex {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.index.cmp(&other.index) {

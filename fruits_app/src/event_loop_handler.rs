@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use fruits_ecs::{Schedule, World, WorldBuilder};
-use fruits_modules::RenderApiResource;
+use fruits_render_core::RenderApiResource;
 use gilrs::Gilrs;
 use winit::{
     application::ApplicationHandler,

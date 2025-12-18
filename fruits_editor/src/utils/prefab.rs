@@ -1,22 +1,23 @@
 use crate::*;
 
+// todo: remove in favor of Prefab
 #[derive(Debug)]
-pub struct Prefab {
-    pub entities: Vec<PrefabEntity>,
+pub struct InspectorPrefab {
+    pub entities: Vec<InspectorPrefabEntity>,
 }
 
 #[derive(Debug)]
-pub struct PrefabEntity {
-    pub components: Vec<PrefabComponent>,
+pub struct InspectorPrefabEntity {
+    pub components: Vec<InspectorPrefabComponent>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PrefabComponent {
+pub struct InspectorPrefabComponent {
     pub type_name: String,
     pub data: ReflRepr,
 }
 
-impl Prefab {
+impl InspectorPrefab {
     pub fn instantiate(world: WorldDataMut) -> Entity {
         todo!()
     }
@@ -49,10 +50,10 @@ impl Prefab {
                 return None;
             };
 
-            result_entities.push(PrefabEntity { components: Vec::new() });
+            result_entities.push(InspectorPrefabEntity { components: Vec::new() });
         }
 
-        Some(Prefab {
+        Some(InspectorPrefab {
             entities: result_entities,
         })
     }

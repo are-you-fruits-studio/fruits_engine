@@ -25,11 +25,17 @@ members = [
     "fruits_math_macros",
     "fruits_entry_point",
     "fruits_app_launcher",
-    "fruits_prefab",
-    "fruits_asset",
+    "fruits_asset_loading",
+    "fruits_asset_storage",
     "fruits_wavefront",
     "fruits_serialization_macros",
-    "fruits_control_flow_macros"
+    "fruits_control_flow_macros",
+    "fruits_render",
+    "fruits_transform",
+    "fruits_collision",
+    "fruits_asset_storage",
+    "fruits_render_core",
+    "fruits_prefab"
 ]
 
 [package]
@@ -53,6 +59,11 @@ fruits_serialization = { path = "./fruits_serialization" }
 fruits_reflection = { path = "./fruits_reflection" }
 fruits_entry_point = { path = "./fruits_entry_point" }
 fruits_app_launcher = { path = "./fruits_app_launcher" }
-fruits_asset = { path = "./fruits_asset" }
+fruits_asset_loading = { path = "./fruits_asset_loading" }
+fruits_asset_storage = { path = "./fruits_asset_storage" }
 fruits_ffi = { path = "./fruits_ffi" }
 fruits_control_flow_macros = { path = "./fruits_control_flow_macros" }
+fruits_transform = { path = "./fruits_transform" }
+fruits_render = { path = "./fruits_render" }
+fruits_render_core = { path = "./fruits_render_core" }
+fruits_collision = { path = "./fruits_collision" }

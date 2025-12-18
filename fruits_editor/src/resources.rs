@@ -1,6 +1,4 @@
-use std::ffi::OsString;
-
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 #[derive(Resource, Clone, Default)]
 pub struct UiInteractionResource {

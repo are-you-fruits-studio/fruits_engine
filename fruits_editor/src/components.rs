@@ -1,6 +1,6 @@
 use std::ffi::OsString;
 
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 #[derive(Component)]
 pub struct ProjectWindowContentComponent;

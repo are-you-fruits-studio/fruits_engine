@@ -9,9 +9,9 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-pollster = "0.4.0"
-winit = "0.30.12"
-wgpu = "26.0.1"
+pollster = "0.4"
+winit = "0.30"
+wgpu = "26"
 gilrs = "0.11.0"
 fruits_ecs = { path = "../fruits_ecs" }
-fruits_modules = { path = "../fruits_modules" }
+fruits_render_core = { path = "../fruits_render_core" }

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use crate::{components::*, features::{project_window_selection::select_file_system, ui_interaction::*}, resources::*, systems::*, utils::*};
 
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 const SYSTEM_GROUP: &'static str = "fruits_editor";
 
@@ -50,7 +50,7 @@ fn build_app(project_path: &str) {
         path.push("scripts/Cargo.toml");
 
         let _status = std::process::Command::new("cargo")
-            .args(["build", "--manifest-path", path.to_str().unwrap()])
+            .args(["build", "--release", "--manifest-path", path.to_str().unwrap()])
             .stderr(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
             .status()
@@ -65,7 +65,7 @@ fn build_app(project_path: &str) {
         let mut src_path = PathBuf::from(project_path);
         src_path.push("scripts");
         src_path.push("target");
-        src_path.push("debug");
+        src_path.push("release");
         src_path.push(format!("{}.dll", project_name));
 
         let mut dst_path = PathBuf::from(project_path);
@@ -132,7 +132,7 @@ fn main() {
         path.push("launcher/Cargo.toml");
 
         let _status = std::process::Command::new("cargo")
-            .args(["build", "--manifest-path", path.to_str().unwrap()])
+            .args(["build", "--release", "--manifest-path", path.to_str().unwrap()])
             .stderr(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
             .status()
@@ -147,7 +147,7 @@ fn main() {
         let mut src_path = PathBuf::from(project_path);
         src_path.push("launcher");
         src_path.push("target");
-        src_path.push("debug");
+        src_path.push("release");
         src_path.push("launcher.exe");
 
         let mut dst_path = PathBuf::from(project_path);
@@ -160,6 +160,32 @@ fn main() {
         _ = std::fs::create_dir(dst_dir_path);
         std::fs::copy(src_path, dst_path).unwrap();
     }
+
+    {
+        let mut src_path = PathBuf::from(project_path);
+        src_path.push("assets");
+        
+        let mut dst_path = PathBuf::from(project_path);
+        dst_path.push("builds");
+        dst_path.push("assets");
+
+        _ = std::fs::create_dir(&dst_path);
+        copy_dir_all(src_path, dst_path).unwrap();
+    }
+}
+
+fn copy_dir_all(src: impl AsRef<std::path::Path>, dst: impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    std::fs::create_dir_all(&dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }
 
 fn run_editor_app() {

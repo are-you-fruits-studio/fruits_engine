@@ -56,6 +56,18 @@ impl From<String> for FfiString {
     }
 }
 
+impl From<&str> for FfiString {
+    fn from(value: &str) -> Self {
+        Self::from_string(value.to_string())
+    }
+}
+
+impl From<&mut str> for FfiString {
+    fn from(value: &mut str) -> Self {
+        Self::from_string(value.to_string())
+    }
+}
+
 impl Debug for FfiString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(self.as_str(), f)

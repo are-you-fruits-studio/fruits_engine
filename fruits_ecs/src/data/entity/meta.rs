@@ -8,7 +8,7 @@ use fruits_utils::index_version_collection::{VersionCollection, VersionIndex};
 pub struct Entity(VersionIndex);
 
 impl Entity {
-    pub const EMPTY: Entity = Entity(VersionIndex { index: 0, version: 0 });
+    pub const EMPTY: Entity = Entity(VersionIndex::EMPTY);
 
     pub fn version_index(&self) -> VersionIndex {
         self.0

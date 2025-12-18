@@ -1,5 +1,3 @@
-use fruits_engine::prelude::utils::destroy_entity_children;
-
 use crate::{features::{input_field::InputFieldComponent, project_window_selection::{FileSelectedEvent, SelectedFileResource}}, *};
 
 pub fn register_feature(mut world: WorldBuilderMut) {
@@ -22,8 +20,30 @@ pub struct InspectedAssetResource {
 #[derive(Component, Default)]
 pub struct InspectorWindowComponent;
 
+pub struct JsonFieldComponent {
+    name: Entity,
+    value: Entity,
+}
+
+#[derive(Component, Default)]
+pub struct JsonValueComponent {
+    data: Entity,
+    value_type: JsonValueComponentType,
+}
+
 #[derive(Event, Default)]
 pub struct InspectedAssetChangedEvent;
+
+#[derive(Default)]
+pub enum JsonValueComponentType {
+    #[default]
+    Null,
+    Bool,
+    Number,
+    String,
+    Array,
+    Object,
+}
 
 pub enum InspectedAsset {
     Material(StandardMaterial),
@@ -103,20 +123,22 @@ pub fn update_inspector_window_system(
                     assets.material_text.clone(),
                     font.clone(),
                 );
-                spawn_text_field(
-                    ent.as_mut(),
-                    window_ent,
-                    String::from("metallic").into(),
-                    material.metallic.to_string().into(),
-                    assets.material_panel.clone(),
-                    assets.material_text.clone(),
-                    font.clone(),
+
+                let json = JsonValue::Object(JsonObject::new()
+                    .with_field("roughness", material.roughness).ok().unwrap()
+                    .with_field("metallic", material.metallic).ok().unwrap()
+                    .with_field("is_lit", material.is_lit).ok().unwrap()
+                    .with_field("alpha_threshold", material.alpha_threshold.to_json()).ok().unwrap()
+                    .with_field("color", color_to_string(material.color).to_json()).ok().unwrap()
+                    .with_field("emission_color", color_to_string(material.emission_color).to_json()).ok().unwrap()
                 );
-                spawn_text_field(
+
+                //
+
+                spawn_json(
                     ent.as_mut(),
                     window_ent,
-                    String::from("roughness").into(),
-                    material.roughness.to_string().into(),
+                    &json,
                     assets.material_panel.clone(),
                     assets.material_text.clone(),
                     font.clone(),
@@ -124,6 +146,42 @@ pub fn update_inspector_window_system(
             },
         }
     }
+}
+
+fn spawn_json(
+    mut ent: EntitiesHolderMut,
+    ent_parent: Entity,
+    json: &JsonValue,
+    material_panel: AssetHandle<StandardMaterial>,
+    material_text: AssetHandle<StandardMaterial>,
+    font: AssetHandle<Font>,
+) -> Entity {
+    Entity::EMPTY
+    // todo
+    // match json {
+    //     JsonValue::Null => {
+    //         let input = spawn_input_area_ent(ent.as_mut(), ent_parent, "null".into(), material_panel, material_text, font);
+    //         ent.add_component(input, JsonValueComponent {
+    //             value_type: JsonValueComponentType::Null,
+    //             data: input
+    //         }).ok().unwrap();
+    //         input
+    //     },
+    //     JsonValue::Bool(v) => spawn_input_area_ent(ent, ent_parent, v.to_string().into(), material_panel, material_text, font),
+    //     JsonValue::Number(v) => spawn_input_area_ent(ent, ent_parent, v.to_string().into(), material_panel, material_text, font),
+    //     JsonValue::String(v) => spawn_input_area_ent(ent, ent_parent, v.to_string().into(), material_panel, material_text, font),
+    //     JsonValue::Array(v) => {
+    //         for v in v {
+    //             spawn_json(ent.as_mut(), ent_parent, v, material_panel.clone(), material_text.clone(), font.clone());
+    //         }
+    //     },
+    //     JsonValue::Object(v) => {
+    //         for (field_name, field_value) in v.fields() {
+    //             spawn_text_ent(ent.as_mut(), ent_parent, field_name.clone().into(), material_panel.clone(), material_text.clone(), font.clone());
+    //             spawn_json(ent.as_mut(), ent_parent, field_value, material_panel.clone(), material_text.clone(), font.clone());
+    //         }
+    //     },
+    // }
 }
 
 fn spawn_text_field(
@@ -134,8 +192,9 @@ fn spawn_text_field(
     material_panel: AssetHandle<StandardMaterial>,
     material_text: AssetHandle<StandardMaterial>,
     font: AssetHandle<Font>,
-) {
+) -> Entity {
     let ent_root = ent.create_entity();
+
     let ent_name = ent.create_entity();
     let ent_value = ent.create_entity();
 
@@ -174,6 +233,8 @@ fn spawn_text_field(
 
     spawn_text_ent(ent.as_mut(), ent_name, text_name, material_panel.clone(), material_text.clone(), font.clone());
     spawn_input_area_ent(ent, ent_value, text_value, material_panel, material_text, font);
+
+    ent_root
 }
 
 fn spawn_text_ent(
@@ -183,8 +244,9 @@ fn spawn_text_ent(
     material_panel: AssetHandle<StandardMaterial>,
     material_text: AssetHandle<StandardMaterial>,
     font: AssetHandle<Font>,
-) {
+) -> Entity {
     let ent_root = ent.create_entity();
+
     let ent_text = ent.create_entity();
 
     ent.add_component(ent_root, GlobalRectComponent::default()).ok().unwrap();
@@ -199,6 +261,11 @@ fn spawn_text_ent(
         color: Vec4::from_array(rgba_f32_array!("#38383800")),
         ..Default::default()
     }).ok().unwrap();
+    // todo
+    // ent.add_component(ent_root, JsonValueComponent {
+    //     value_type: JsonValueComponentType::Null,
+    //     data: 
+    // }).ok().unwrap();
     ent.get_component_mut::<ParentComponent>(ent_parent).unwrap().children.push(ent_root);
 
     ent.add_component(ent_text, GlobalRectComponent::default()).ok().unwrap();
@@ -216,6 +283,8 @@ fn spawn_text_ent(
         vertical_align: VerticalAlign::Middle,
         horizontal_align: HorizontalAlign::Left,
     }).ok().unwrap();
+
+    ent_root
 }
 
 fn spawn_input_area_ent(
@@ -225,8 +294,9 @@ fn spawn_input_area_ent(
     material_panel: AssetHandle<StandardMaterial>,
     material_text: AssetHandle<StandardMaterial>,
     font: AssetHandle<Font>,
-) {
+) -> Entity {
     let ent_root = ent.create_entity();
+
     let ent_background = ent.create_entity();
     let ent_selection_border = ent.create_entity();
     let ent_text = ent.create_entity();
@@ -294,4 +364,18 @@ fn spawn_input_area_ent(
         vertical_align: VerticalAlign::Middle,
         horizontal_align: HorizontalAlign::Left,
     }).ok().unwrap();
+
+    ent_root
+}
+
+fn color_to_string(color: Vec4<f32>) -> String {
+    let mut text = String::new();
+
+    text.push('#');
+    for v in color.as_array() {
+        let v = (v * 255.0).clamp(0.0, 255.0) as u8;
+        text.push_str(&format!("{:02x}", v));
+    }
+
+    text
 }

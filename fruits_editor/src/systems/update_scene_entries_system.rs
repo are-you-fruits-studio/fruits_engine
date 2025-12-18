@@ -9,7 +9,7 @@ pub fn update_scene_entries_system(
         return;
     }
 
-    let prefab = std::fs::read_to_string(&selected_file_res.path).ok().map(|t| Prefab::deserialize(&t)).flatten();
+    let prefab = std::fs::read_to_string(&selected_file_res.path).ok().map(|t| InspectorPrefab::deserialize(&t)).flatten();
     
     let contents = world.entities().query_filtered::<Entity, WithFilter<SceneWindowContentComponent>>().iter().collect::<Vec<_>>();
 
@@ -22,7 +22,7 @@ pub fn update_scene_entries_system(
     let mut ec = world.entities_mut();
 
     for content in contents {
-        fruits_engine::modules::utils::destroy_entity_children(ec.as_mut(), content);
+        destroy_entity_children(ec.as_mut(), content);
 
         let Some(prefab) = &prefab else {
             continue;
@@ -47,7 +47,7 @@ fn spawn_scene_window_entry(
     material_panel: &AssetHandle<StandardMaterial>,
     font: &AssetHandle<Font>,
     parent: Entity,
-    src: &PrefabEntity,
+    src: &InspectorPrefabEntity,
  ) {
     let ent_entry = ec.create_entity();
     let ent_name_container = ec.create_entity();

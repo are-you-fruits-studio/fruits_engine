@@ -1,4 +1,4 @@
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 use crate::{SYSTEM_GROUP, features::ui_interaction::UiRaycastResource};
 

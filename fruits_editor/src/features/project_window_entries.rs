@@ -44,7 +44,7 @@ pub fn update_project_window_content_system(
     cache.dir_entry = entry.clone();
 
     for content in contents {
-        fruits_engine::modules::utils::destroy_entity_children(ent.as_mut(), content);
+        destroy_entity_children(ent.as_mut(), content);
 
         for entry in &entry.children {
             spawn_project_window_entries(

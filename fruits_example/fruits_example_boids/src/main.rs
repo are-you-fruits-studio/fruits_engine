@@ -1,11 +1,11 @@
 use std::time::Instant;
 
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 fn main() {
     let mut app = App::new();
 
-    fruits_engine::modules::add_defult_modules_to(app.ecs_mut().as_mut());
+    add_defult_modules_to(app.ecs_mut().as_mut());
 
     let ecs = app.ecs_mut();
 

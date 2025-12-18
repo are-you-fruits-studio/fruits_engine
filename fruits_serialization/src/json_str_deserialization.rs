@@ -4,6 +4,8 @@ use crate::{
 };
 
 const NULL_CHARS: &[char] = &['n', 'u', 'l', 'l'];
+const TRUE_CHARS: &[char] = &['t', 'r', 'u', 'e'];
+const FALSE_CHARS: &[char] = &['f', 'a', 'l', 's', 'e'];
 
 enum InsideObjectState {
     BetweenFields,
@@ -67,7 +69,7 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                     if c == 't' {
                         break 'm State::InsideBool {
                             result: true,
-                            compared_chars: &['t', 'r', 'u', 'e'],
+                            compared_chars: TRUE_CHARS,
                             matching_chars: 1,
                         };
                     }
@@ -75,7 +77,7 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                     if c == 'f' {
                         break 'm State::InsideBool {
                             result: false,
-                            compared_chars: &['f', 'a', 'l', 's', 'e'],
+                            compared_chars: FALSE_CHARS,
                             matching_chars: 1,
                         };
                     }
@@ -131,7 +133,7 @@ fn to_json_peekable<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<&m
                         return None;
                     };
 
-                    if matching_chars >= (NULL_CHARS.len() - 1) {
+                    if matching_chars >= (compared_chars.len() - 1) {
                         return Some(JsonValue::Bool(result));
                     }
 

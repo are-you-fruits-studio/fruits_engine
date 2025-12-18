@@ -1,34 +1,20 @@
+use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{Schedule, WorldBuilder, WorldBuilderMut};
+use fruits_prefab::Prefab;
 
-mod asset;
-mod collision;
 pub mod fps_counter;
-mod render;
-mod transform;
-
-pub use asset::*;
-pub use collision::*;
-pub use render::*;
-pub use transform::*;
-
-pub mod utils {
-    pub use crate::render::utils::*;
-    pub use crate::transform::utils::*;
-}
 
 pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
-    collision::add_module_to(world.as_mut());
-    transform::add_module_to(world.as_mut());
-    render::add_module_to(world.as_mut());
+    fruits_collision::add_collision_module_to(world.as_mut());
+    fruits_transform::add_transform_module_to(world.as_mut());
+    fruits_render::add_render_module_to(world.as_mut());
+
+    world.data_mut().resources_mut().insert(AssetStorageResource::<Prefab>::new()).ok().unwrap();
 
     world
         .behavior_mut()
         .get_mut(Schedule::Update)
-        .order_group(collision::SYSTEM_GROUP_COLLISION)
-        .before_group(transform::SYSTEM_GROUP_TRANSFORM);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .order_group(transform::SYSTEM_GROUP_TRANSFORM)
-        .before_group(render::SYSTEM_GROUP_RENDER);
+        .order_group(fruits_collision::SYSTEM_GROUP_COLLISION)
+        .before_group(fruits_transform::SYSTEM_GROUP_TRANSFORM)
+        .before_group(fruits_render::SYSTEM_GROUP_RENDER);
 }

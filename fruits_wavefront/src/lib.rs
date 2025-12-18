@@ -24,7 +24,10 @@ pub fn parse_obj(raw: &str) -> Option<ObjMesh> {
         }
 
         let mut parts = line.split_whitespace();
-        let Some(tag) = parts.next() else { continue };
+
+        let Some(tag) = parts.next() else {
+            continue
+        };
 
         match tag {
             "v" => {

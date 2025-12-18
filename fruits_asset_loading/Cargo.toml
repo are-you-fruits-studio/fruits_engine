@@ -1,0 +1,21 @@
+[package]
+name = "fruits_asset_loading"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+fruits_modules = { path = "../fruits_modules" }
+fruits_utils = { path = "../fruits_utils" }
+fruits_ecs = { path = "../fruits_ecs" }
+fruits_serialization = { path = "../fruits_serialization" }
+fruits_math = { path = "../fruits_math" }
+fruits_ffi = { path = "../fruits_ffi" }
+fruits_wavefront = { path = "../fruits_wavefront" }
+fruits_render_core = { path = "../fruits_render_core" }
+fruits_render = { path = "../fruits_render" }
+fruits_asset_storage = { path = "../fruits_asset_storage" }
+fruits_prefab = { path = "../fruits_prefab" }
+image = "0.25"

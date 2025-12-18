@@ -1,12 +1,12 @@
 use core::f32;
 
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 fn main() {
     let mut app = App::new();
 
     add_defult_modules_to(app.ecs_mut().as_mut());
-    fruits_engine::modules::fps_counter::add_module_to(app.ecs_mut().as_mut());
+    fps_counter::add_module_to(app.ecs_mut().as_mut());
 
     app.ecs_mut().behavior_mut().get_mut(Schedule::Start).insert_system(init);
 
@@ -217,7 +217,7 @@ fn draw_collisions(mut gizmos: ResMut<GizmosResource>) {
     }
     .into();
 
-    let overlaps = fruits_engine::modules::overlaps(sh1, sh2);
+    let overlaps = overlaps(sh1, sh2);
 
     let lines = gizmos.space(RenderSpace::World);
     let color = if overlaps {

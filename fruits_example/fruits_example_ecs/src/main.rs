@@ -1,6 +1,6 @@
 use std::sync::{LazyLock, Mutex};
 
-use fruits_engine::prelude::*;
+use fruits_engine::*;
 
 fn main() {
     let mut app = App::new();
