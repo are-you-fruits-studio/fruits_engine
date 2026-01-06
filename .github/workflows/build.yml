@@ -107,7 +107,7 @@ jobs:
           OUT="dist/${PKG}"
           mkdir -p "$OUT"
           cp "target/${{ matrix.target }}/release/fruits_editor" "$OUT/fruits_engine"
-          tar -C dist -czf "dist/${PKG}.tar.gz" "$PKG"
+          tar -C "dist/$PKG" -czf "dist/${PKG}.tar.gz" fruits_engine 
           sha256sum "dist/${PKG}.tar.gz" > "dist/${PKG}.tar.gz.sha256"
 
       - name: Package (Windows)
