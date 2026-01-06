@@ -4,7 +4,7 @@ use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::ResourcesHolderMut;
 use fruits_ffi::FfiString;
 use fruits_render_core::{RenderApiResource, StandardMesh, StandardVertex};
-use fruits_serialization::JsonValue;
+use fruits_json::JsonValue;
 
 pub fn get_or_load_mesh_from_world(res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardMesh>> {
     let (render_api, meshes) = unsafe {

@@ -1,6 +1,6 @@
 use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{Schedule, WorldBuilder, WorldBuilderMut};
-use fruits_prefab::Prefab;
+use fruits_prefab::{Prefab, PrefabComponentsDeserializerResource};
 
 pub mod fps_counter;
 
@@ -10,6 +10,7 @@ pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
     fruits_render::add_render_module_to(world.as_mut());
 
     world.data_mut().resources_mut().insert(AssetStorageResource::<Prefab>::new()).ok().unwrap();
+    world.data_mut().resources_mut().insert(PrefabComponentsDeserializerResource::default()).ok().unwrap();
 
     world
         .behavior_mut()

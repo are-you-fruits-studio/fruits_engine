@@ -6,7 +6,7 @@ use fruits_ffi::FfiString;
 use fruits_math::{Vec4, parse_color_rgba_f32};
 use fruits_render::{RenderSpace, StandardMaterial};
 use fruits_render_core::{RenderApiResource, StandardTexture};
-use fruits_serialization::JsonValue;
+use fruits_json::JsonValue;
 
 use crate::get_or_load_texture;
 

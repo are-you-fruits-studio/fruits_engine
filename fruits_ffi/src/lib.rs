@@ -7,6 +7,7 @@ mod option;
 mod slice;
 mod string;
 mod vec;
+mod any;
 
 pub use alloc::*;
 pub use boxed::*;
@@ -17,3 +18,4 @@ pub use option::*;
 pub use slice::*;
 pub use string::*;
 pub use vec::*;
+pub use any::*;

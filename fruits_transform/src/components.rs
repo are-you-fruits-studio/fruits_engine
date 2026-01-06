@@ -1,9 +1,10 @@
 use fruits_ecs::{Component, Entity};
 use fruits_ffi::{FfiOption, FfiVec};
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
+use serde::{Deserialize, Serialize};
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GlobalTransform {
     pub position: Vec3<f32>,
     pub scale_rotation: Mat3<f32>,
@@ -21,7 +22,7 @@ impl Default for GlobalTransform {
 }
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LocalTransform {
     pub position: Vec3<f32>,
     pub rotation: Quat<f32>,
@@ -53,7 +54,7 @@ pub struct ChildComponent {
 }
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Debug, PartialEq, Default)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct GlobalRectComponent {
     pub center: Vec2<f32>,
     pub scale: Vec2<f32>,
@@ -61,7 +62,7 @@ pub struct GlobalRectComponent {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UiDirection {
     Vertical,
     Horizontal,
@@ -77,7 +78,7 @@ impl UiDirection {
 }
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LocalRectComponent {
     pub parent_padding_min: Vec2<UiVal>,
     pub parent_padding_max: Vec2<UiVal>,
@@ -102,7 +103,7 @@ impl Default for LocalRectComponent {
 }
 
 #[repr(C)]
-#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct GlobalDisableableComponent {
     pub is_disabled: bool,
 }
@@ -112,7 +113,7 @@ impl Default for GlobalDisableableComponent {
     }
 }
 #[repr(C)]
-#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct LocalDisableableComponent {
     pub is_disabled: bool,
 }
@@ -123,7 +124,7 @@ impl Default for LocalDisableableComponent {
 }
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RectChildAlignComponent {
     pub anchor: Vec2<f32>,
     pub direction: UiDirection,
@@ -143,7 +144,7 @@ impl Default for RectChildAlignComponent {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UiSpacing {
     Chunk,
     SpaceBetween,
@@ -152,14 +153,14 @@ pub enum UiSpacing {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UiVal {
     pub unit: UiUnit,
     pub val: f32,
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum UiUnit {
     Px,
     Pw,

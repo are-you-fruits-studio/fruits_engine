@@ -4,7 +4,7 @@ use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::ResourcesHolderMut;
 use fruits_ffi::FfiString;
 use fruits_render_core::{FilterMode, RenderApiResource, StandardTexture};
-use fruits_serialization::JsonValue;
+use fruits_json::JsonValue;
 use image::GenericImageView;
 
 pub fn get_or_load_texture_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardTexture>> {

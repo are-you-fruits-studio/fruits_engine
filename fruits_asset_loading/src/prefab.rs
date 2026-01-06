@@ -3,26 +3,28 @@ use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
 use fruits_ffi::FfiString;
-use fruits_prefab::{Prefab, PrefabComponent};
-use fruits_serialization::{JsonObject, JsonSerializable, JsonValue};
+use fruits_prefab::{Prefab, PrefabComponent, PrefabComponentsDeserializerResource};
+use fruits_json::{JsonObject, JsonSerializable, JsonValue};
 
 //
 
 pub fn get_or_load_prefab_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<Prefab>> {
-    let (prefabs) = unsafe {
+    let (prefabs, /*deserializer*/) = unsafe {
         (
             // &*res.get_ptr::<RenderApiResource>()?,
             // &mut *res.get_ptr::<AssetStorageResource<StandardMaterial>>()?,
             // &mut *res.get_ptr::<AssetStorageResource<StandardTexture>>()?,
-            &mut *res.get_ptr::<AssetStorageResource<Prefab>>()?
+            &mut *res.get_ptr::<AssetStorageResource<Prefab>>()?,
+            // &*res.get_ptr::<PrefabComponentsDeserializerResource>()?,
         )
     };
 
-    get_or_load_prefab(prefabs, key)
+    get_or_load_prefab(prefabs, /*deserializer, */key)
 }
 
 pub fn get_or_load_prefab(
     prefabs: &mut AssetStorageResource<Prefab>,
+    // deserializer: &PrefabComponentsDeserializerResource,
     // todo
     // render_api: &RenderApiResource,
     // materials: &mut AssetStorageResource<StandardMaterial>,
@@ -68,15 +70,15 @@ fn deserialize_prefab(
     // render_api: &RenderApiResource,
     data: &str,
 ) -> Option<Prefab> {
-    let Some(raw_prefab) = JsonValue::parse(&mut data.chars()) else {
+    let Ok(raw_prefab) = serde_json::from_str::<serde_json::Value>(data) else {
         return None;
     };
 
-    let JsonValue::Object(raw_prefab) = raw_prefab else {
+    let serde_json::Value::Object(raw_prefab) = raw_prefab else {
         return None;
     };
 
-    let Some(JsonValue::String(asset_type)) = raw_prefab.get_value("asset_type") else {
+    let Some(serde_json::Value::String(asset_type)) = raw_prefab.get("asset_type") else {
         return None;
     };
 
@@ -84,47 +86,47 @@ fn deserialize_prefab(
         return None;
     }
 
-    let Some(JsonValue::Array(prefab_entities)) = raw_prefab.get_value("entities") else {
+    let Some(serde_json::Value::Array(prefab_entities)) = raw_prefab.get("entities") else {
         return None;
     };
 
     let mut prefab = Prefab::empty();
 
     for prefab_entity in prefab_entities {
-        let JsonValue::Object(prefab_entity) = prefab_entity else {
+        let serde_json::Value::Object(prefab_entity) = prefab_entity else {
             continue;
         };
 
-        let Some(JsonValue::Number(prefab_entity_id)) = prefab_entity.get_value("entity_id") else {
+        let Some(serde_json::Value::Number(prefab_entity_id)) = prefab_entity.get("entity_id") else {
             continue;
         };
 
-        let Some(JsonValue::Array(prefab_components)) = prefab_entity.get_value("components") else {
+        let Some(serde_json::Value::Array(prefab_components)) = prefab_entity.get("components") else {
             continue;
         };
 
         let mut components = Vec::new();
 
         for prefab_component in prefab_components {
-            let JsonValue::Object(prefab_component) = prefab_component else {
+            let serde_json::Value::Object(prefab_component) = prefab_component else {
                 continue;
             };
 
-            let Some(JsonValue::String(prefab_component_id)) = prefab_component.get_value("component_id") else {
+            let Some(serde_json::Value::String(prefab_component_id)) = prefab_component.get("component_id") else {
                 continue;
             };
 
-            let Some(prefab_component_data) = prefab_component.get_value("data") else {
+            let Some(prefab_component_data) = prefab_component.get("data") else {
                 continue;
             };
 
             components.push(PrefabComponent {
-                id: prefab_component_id.clone(),
+                component_id: prefab_component_id.clone(),
                 data: prefab_component_data.clone(),
             });
         }
 
-        prefab.entities.insert(prefab_entity_id.to_i() as usize, components);
+        prefab.entities.insert(prefab_entity_id.as_i128().unwrap() as usize, components);
     }
 
     Some(prefab)
@@ -165,7 +167,7 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
         let entity = *ctx.entities.get(&entity_id).unwrap();
 
         for prefab_component in prefab_components {
-            deserializer.deserialize(&prefab_component.id, &prefab_component.data, entity, ent.as_mut(), res);
+            deserializer.deserialize(&prefab_component.component_id, prefab_component.data.clone(), entity, ent.as_mut(), res);
         }
     }
 
@@ -173,69 +175,15 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
 }
 
 // todo: prefabs instantiation needs to:
-// - spawn entities
-// - spawn components on the entities
+// + spawn entities
+// + spawn components on the entities
 // - access to other entities inside the prefab
-// - access to other prefabs
 // - access to materials
 // - access to meshes
 // - access to textures
 // - access to fonts
+// - access to other prefabs
 // - access to other assets
-
-pub struct PrefabComponentDeserializer<C: JsonSerializable + Component> {
-    _phantom: PhantomData<fn(C) -> C>,
-}
-
-impl<C: JsonSerializable + Component> Default for PrefabComponentDeserializer<C> {
-    fn default() -> Self {
-        Self { _phantom: PhantomData }
-    }
-}
-
-trait AbstractPrefabComponentDeserializer {
-    fn deserialize(&self, data: &JsonValue, entity: Entity, entities: EntitiesHolderMut, res: ResourcesHolderRef) -> bool;
-}
-
-impl<C: JsonSerializable + Component> AbstractPrefabComponentDeserializer for PrefabComponentDeserializer<C> {
-    fn deserialize(&self, data: &JsonValue, entity: Entity, mut entities: EntitiesHolderMut, res: ResourcesHolderRef) -> bool {
-        let Some(component) = C::from_json(data) else {
-            return false;
-        };
-
-        entities.add_component(entity, component).is_ok()
-    }
-}
-
-// todo: ffi
-#[derive(Resource)]
-pub struct PrefabComponentsDeserializerResource {
-    deserializers: HashMap<String, Box<dyn AbstractPrefabComponentDeserializer + Send + Sync>>,
-}
-
-impl PrefabComponentsDeserializerResource {
-    pub fn register<C: JsonSerializable + Component>(&mut self) {
-        self.deserializers.insert(
-            std::any::type_name::<C>().to_string(),
-            Box::new(PrefabComponentDeserializer::<C>::default()),
-        );
-    }
-
-    pub fn deserialize(
-        &self,
-        id: &str,
-        data: &JsonValue,
-        entity: Entity,
-        entities: EntitiesHolderMut,
-        res: ResourcesHolderRef,
-    ) -> bool {
-        let Some(deserializer) = self.deserializers.get(id) else {
-            return false;
-        };
-
-        deserializer.deserialize(data, entity, entities, res)
-    }
-}
 
 const EXAMPLE: &str = r#"
 [

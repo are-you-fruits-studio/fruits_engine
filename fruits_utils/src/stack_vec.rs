@@ -1,5 +1,5 @@
 use std::{
-    mem::MaybeUninit,
+    mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
@@ -71,6 +71,21 @@ impl<T, const C: usize> StackVec<T, C> {
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         // Safety. Init state is managed by len.
         unsafe { std::slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut T, self.len) }
+    }
+
+    pub fn try_into_array(self) -> Result<[T; C], Self> {
+        Ok(unsafe {
+            if self.len != C {
+                return Err(self);
+            }
+
+            let this = ManuallyDrop::new(self);
+
+            let buf_ptr = &raw const this.buf;
+            let buf_ptr = buf_ptr as *const [T; C];
+
+            buf_ptr.read()
+        })
     }
 }
 

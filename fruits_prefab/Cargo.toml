@@ -7,4 +7,6 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-fruits_serialization = { path = "../fruits_serialization" }
+fruits_ecs = { path = "../fruits_ecs" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }

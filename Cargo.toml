@@ -28,7 +28,7 @@ members = [
     "fruits_asset_loading",
     "fruits_asset_storage",
     "fruits_wavefront",
-    "fruits_serialization_macros",
+    "fruits_json_macros",
     "fruits_control_flow_macros",
     "fruits_render",
     "fruits_transform",
@@ -36,7 +36,7 @@ members = [
     "fruits_asset_storage",
     "fruits_render_core",
     "fruits_prefab"
-]
+, "fruits_json"]
 
 [package]
 name = "fruits_engine"
@@ -67,3 +67,5 @@ fruits_transform = { path = "./fruits_transform" }
 fruits_render = { path = "./fruits_render" }
 fruits_render_core = { path = "./fruits_render_core" }
 fruits_collision = { path = "./fruits_collision" }
+fruits_prefab = { path = "./fruits_prefab" }
+fruits_json = { path = "./fruits_json" }

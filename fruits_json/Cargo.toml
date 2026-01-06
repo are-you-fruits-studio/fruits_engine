@@ -1,5 +1,5 @@
 [package]
-name = "fruits_serialization"
+name = "fruits_json"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,5 +10,3 @@ crate-type = ["lib"]
 
 [dependencies]
 fruits_json_macros = { path = "../fruits_json_macros" }
-serde = { version = "1" }
-serde_json = { version = "1" }

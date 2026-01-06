@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
+use serde::{Deserialize, Serialize};
+
 #[repr(C)]
+#[derive(Serialize, Deserialize)]
 pub enum FfiOption<T> {
     Some(T),
     None,

@@ -1,5 +1,5 @@
 [package]
-name = "fruits_serialization_macros"
+name = "fruits_json_macros"
 version = "0.1.0"
 edition = "2024"
 

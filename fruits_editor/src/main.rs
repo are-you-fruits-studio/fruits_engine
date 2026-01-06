@@ -13,6 +13,8 @@ use crate::{components::*, features::{project_window_selection::select_file_syst
 
 use fruits_engine::*;
 
+mod app_building;
+
 const SYSTEM_GROUP: &'static str = "fruits_editor";
 
 fn main() {
@@ -28,7 +30,7 @@ fn main() {
     }
 
     if args[1].as_str() == "build" {
-        build_app(&args[2]);
+        app_building::build_app(&args[2]);
     }
 
     if args[1].as_str() == "run" {
@@ -39,153 +41,6 @@ fn main() {
         // todo: pass project path
         run_editor_app();
     }
-}
-
-fn build_app(project_path: &str) {
-    let project_name = PathBuf::from(project_path);
-    let project_name = project_name.file_name().unwrap().to_str().unwrap();
-
-    {
-        let mut path = PathBuf::from(project_path);
-        path.push("scripts/Cargo.toml");
-
-        let _status = std::process::Command::new("cargo")
-            .args(["build", "--release", "--manifest-path", path.to_str().unwrap()])
-            .stderr(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .status()
-            .expect("failed to execute process");
-
-        if !_status.success() {
-            panic!("unsuccessful exit");
-        }
-    }
-
-    {
-        let mut src_path = PathBuf::from(project_path);
-        src_path.push("scripts");
-        src_path.push("target");
-        src_path.push("release");
-        src_path.push(format!("{}.dll", project_name));
-
-        let mut dst_path = PathBuf::from(project_path);
-        dst_path.push("builds");
-
-        let dst_dir_path = dst_path.clone();
-
-        dst_path.push("app.dll");
-
-        _ = std::fs::create_dir(dst_dir_path);
-        std::fs::copy(src_path, dst_path).unwrap();
-    }
-
-    //
-
-    {
-        let mut path = PathBuf::from(project_path);
-        path.push("launcher");
-
-        if !std::fs::exists(&path).unwrap_or(true) {
-            std::fs::create_dir(&path).unwrap();
-
-            let mut cargo_path = path.clone();
-            cargo_path.push("Cargo.toml");
-
-            std::fs::write(
-                cargo_path,
-                r#"
-[package]
-name = "launcher"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-fruits_engine = { git = "https://github.com/unknownMusician/fruits_engine.git", branch = "wip/project-editor" }
-            "#
-                .trim(),
-            )
-            .unwrap();
-
-            let mut src_path = path.clone();
-            src_path.push("src");
-
-            std::fs::create_dir(&src_path).unwrap();
-
-            let mut main_path = src_path.clone();
-            main_path.push("main.rs");
-
-            std::fs::write(
-                main_path,
-                r#"
-fn main() {
-    fruits_engine::app::launch_app();
-}
-            "#
-                .trim(),
-            )
-            .unwrap()
-        }
-    }
-
-    {
-        let mut path = PathBuf::from(project_path);
-        path.push("launcher/Cargo.toml");
-
-        let _status = std::process::Command::new("cargo")
-            .args(["build", "--release", "--manifest-path", path.to_str().unwrap()])
-            .stderr(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .status()
-            .expect("failed to execute process");
-
-        if !_status.success() {
-            panic!("unsuccessful exit");
-        }
-    }
-
-    {
-        let mut src_path = PathBuf::from(project_path);
-        src_path.push("launcher");
-        src_path.push("target");
-        src_path.push("release");
-        src_path.push("launcher.exe");
-
-        let mut dst_path = PathBuf::from(project_path);
-        dst_path.push("builds");
-
-        let dst_dir_path = dst_path.clone();
-
-        dst_path.push(format!("{}.exe", project_name));
-
-        _ = std::fs::create_dir(dst_dir_path);
-        std::fs::copy(src_path, dst_path).unwrap();
-    }
-
-    {
-        let mut src_path = PathBuf::from(project_path);
-        src_path.push("assets");
-        
-        let mut dst_path = PathBuf::from(project_path);
-        dst_path.push("builds");
-        dst_path.push("assets");
-
-        _ = std::fs::create_dir(&dst_path);
-        copy_dir_all(src_path, dst_path).unwrap();
-    }
-}
-
-fn copy_dir_all(src: impl AsRef<std::path::Path>, dst: impl AsRef<std::path::Path>) -> std::io::Result<()> {
-    std::fs::create_dir_all(&dst)?;
-    for entry in std::fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        } else {
-            std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        }
-    }
-    Ok(())
 }
 
 fn run_editor_app() {

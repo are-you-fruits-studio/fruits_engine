@@ -7,3 +7,4 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
