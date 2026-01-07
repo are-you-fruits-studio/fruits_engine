@@ -42,9 +42,9 @@ fn create_and_destroy_entity(mut w: ExclusiveWorldAccess) {
     let e = ec.create_entity();
 
     ec.add_component(e, MaliciousComponent(Vec::with_capacity(8))).ok().unwrap();
-    //ec.add_component(e, LoudComponent::new());
+    ec.add_component(e, LoudComponent::new()).ok().unwrap();
 
-    // ec.remove_component::<MaliciousComponent>(e);
+    ec.remove_component::<MaliciousComponent>(e);
 
     ec.destroy_entity(e);
 }
@@ -55,7 +55,7 @@ fn test_resource_existence(res: Option<Res<SomeResource>>) {
 
 fn test_optionals(mut q: WorldQuery<(&SomeComponent1, Option<&mut SomeComponent2>)>) {
     dbg!(q.len());
-    for (c1, c2) in q.iter_mut() {
+    for (_c1, c2) in q.iter_mut() {
         dbg!(c2.is_some());
     }
 }
@@ -70,7 +70,10 @@ struct SomeComponent1;
 struct SomeComponent2;
 
 #[derive(Component)]
-struct MaliciousComponent(Vec<u8>);
+struct MaliciousComponent(
+    #[allow(dead_code)]
+    Vec<u8>
+);
 
 #[derive(Component)]
 struct LoudComponent {

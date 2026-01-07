@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem::{self, ManuallyDrop, MaybeUninit}, ops::{Index, IndexMut, Mul}};
+use std::{marker::PhantomData, mem::ManuallyDrop, ops::{Index, IndexMut, Mul}};
 
 use fruits_utils::{mem::{AllBitVariationsValid, AllBitsInit}, stack_vec::StackVec};
 use serde::{Deserialize, Serialize, de::Visitor, ser::SerializeSeq};

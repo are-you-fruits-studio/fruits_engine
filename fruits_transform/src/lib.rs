@@ -4,7 +4,7 @@ mod utils;
 
 pub use self::{components::*, systems::*, utils::*};
 
-use fruits_ecs::{Schedule, SystemsHolderBuilderMut, WorldBuilder, WorldBuilderMut};
+use fruits_ecs::{Schedule, SystemsHolderBuilderMut, WorldBuilderMut};
 
 pub const SYSTEM_GROUP_TRANSFORM: &'static str = "fruits_transform";
 

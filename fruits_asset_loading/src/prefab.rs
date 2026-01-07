@@ -1,14 +1,13 @@
-use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
 use fruits_ffi::FfiString;
 use fruits_prefab::{Prefab, PrefabComponent, PrefabComponentsDeserializerResource};
-use fruits_json::{JsonObject, JsonSerializable, JsonValue};
 
 //
 
-pub fn get_or_load_prefab_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<Prefab>> {
+pub fn get_or_load_prefab_from_world(res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<Prefab>> {
     let (prefabs, /*deserializer*/) = unsafe {
         (
             // &*res.get_ptr::<RenderApiResource>()?,
@@ -48,7 +47,7 @@ pub fn get_or_load_prefab(
     // todo: make copying assets folder into the build directory a part of the build process
     let raw_prefab = match std::fs::read_to_string(path) {
         Ok(data) => data,
-        Err(err) => return None,
+        Err(_err) => return None,
     };
 
     let Some(prefab) = deserialize_prefab(&raw_prefab) else {
@@ -141,7 +140,7 @@ struct PrefabComponentSpawnCtx {
 }
 
 pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) -> Option<Entity> {
-    let (res, mut ent, evt) = world.as_tuple_mut();
+    let (res, mut ent, _evt) = world.as_tuple_mut();
 
     let res = res.as_ref();
 
@@ -185,7 +184,7 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
 // - access to other prefabs
 // - access to other assets
 
-const EXAMPLE: &str = r#"
+const _EXAMPLE: &str = r#"
 [
   {
     "entity_id": 0,

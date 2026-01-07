@@ -1,15 +1,21 @@
 // #![windows_subsystem = "windows"]
 
 mod components;
+mod features;
 mod prefabs;
 mod resources;
 mod systems;
 mod utils;
-mod features;
 
 use std::path::PathBuf;
 
-use crate::{components::*, features::{project_window_selection::select_file_system, ui_interaction::*}, resources::*, systems::*, utils::*};
+use crate::{
+    components::*,
+    features::{project_window_selection::select_file_system, ui_interaction::*},
+    resources::*,
+    systems::*,
+    utils::*,
+};
 
 use fruits_engine::*;
 
@@ -61,13 +67,13 @@ fn run_editor_app() {
     {
         let mut update = world_behavior.get_mut(Schedule::Update);
 
-        update
-            .group(SYSTEM_GROUP)
-            .insert_child_system(update_scene_entries_system);
+        update.group(SYSTEM_GROUP).insert_child_system(update_scene_entries_system);
 
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_RENDER);
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_TRANSFORM);
-        update.order_system(select_file_system).before_system(update_scene_entries_system);
+        update
+            .order_system(select_file_system)
+            .before_system(update_scene_entries_system);
     }
 
     features::scroll::register_feature(world.as_mut());

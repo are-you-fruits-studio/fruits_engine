@@ -10,7 +10,7 @@ use fruits_json::JsonValue;
 
 use crate::get_or_load_texture;
 
-pub fn get_or_load_material_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardMaterial>> {
+pub fn get_or_load_material_from_world(res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardMaterial>> {
     let (render_api, materials, textures) = unsafe {
         (
             &*res.get_ptr::<RenderApiResource>()?,
@@ -44,7 +44,7 @@ pub fn get_or_load_material(
     // todo: make copying assets folder into the build directory a part of the build process
     let raw_material = match std::fs::read_to_string(path) {
         Ok(data) => data,
-        Err(err) => return None,
+        Err(_err) => return None,
     };
 
     let Some(material) = deserialize_material(textures, render_api, &raw_material) else {

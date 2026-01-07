@@ -7,7 +7,7 @@ use fruits_render_core::{FilterMode, RenderApiResource, StandardTexture};
 use fruits_json::JsonValue;
 use image::GenericImageView;
 
-pub fn get_or_load_texture_from_world(mut res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardTexture>> {
+pub fn get_or_load_texture_from_world(res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardTexture>> {
     let (render_api, textures) = unsafe {
         (
             &*res.get_ptr::<RenderApiResource>()?,
@@ -39,7 +39,7 @@ pub fn get_or_load_texture(
     // todo: make copying assets folder into the build directory a part of the build process
     let raw_texture = match std::fs::read_to_string(path) {
         Ok(data) => data,
-        Err(err) => return None,
+        Err(_err) => return None,
     };
 
     let Some(texture) = deserialize_texture(&raw_texture, render_api) else {
@@ -81,7 +81,7 @@ fn deserialize_texture(data: &str, render_api: &RenderApiResource) -> Option<Sta
 
     let texture_data = match std::fs::read(path) {
         Ok(data) => data,
-        Err(err) => return None,
+        Err(_err) => return None,
     };
 
     let img = image::load_from_memory(&texture_data).ok()?;

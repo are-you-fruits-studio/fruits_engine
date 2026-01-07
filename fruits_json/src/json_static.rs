@@ -1,5 +1,4 @@
 use std::{
-    any::{Any, TypeId},
     collections::{BTreeMap, HashMap, HashSet},
     hash::Hash,
 };
@@ -148,7 +147,7 @@ impl JsonSerializable for () {
         Some(())
     }
 
-    fn fill_partially_from_json(&mut self, json: &JsonValue) {}
+    fn fill_partially_from_json(&mut self, _json: &JsonValue) {}
 }
 
 impl<T: JsonSerializable> JsonSerializable for Option<T> {

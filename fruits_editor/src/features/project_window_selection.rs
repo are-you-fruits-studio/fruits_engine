@@ -3,13 +3,32 @@ use std::ffi::OsString;
 use crate::*;
 
 pub fn register_feature(mut world: WorldBuilderMut) {
-    world.data_mut().resources_mut().insert(SelectedFileResource::default()).ok().unwrap();
+    world
+        .data_mut()
+        .resources_mut()
+        .insert(SelectedFileResource::default())
+        .ok()
+        .unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(select_file_system);
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(update_project_entry_selection_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .group(SYSTEM_GROUP)
+        .insert_child_system(select_file_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .group(SYSTEM_GROUP)
+        .insert_child_system(update_project_entry_selection_system);
 
-    world.behavior_mut().get_mut(Schedule::Update).order_system(check_button_system).before_system(select_file_system);
-    world.behavior_mut().get_mut(Schedule::Update)
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(check_button_system)
+        .before_system(select_file_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
         .order_system(select_file_system)
         .before_system(update_project_entry_selection_system);
 }

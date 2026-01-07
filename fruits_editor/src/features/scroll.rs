@@ -3,12 +3,31 @@ use fruits_engine::*;
 use crate::{SYSTEM_GROUP, features::ui_interaction::UiRaycastResource};
 
 pub fn register_feature(mut world: WorldBuilderMut) {
-    world.data_mut().resources_mut().insert(ScrollResource { active_scroll: Entity::EMPTY }).ok().unwrap();
+    world
+        .data_mut()
+        .resources_mut()
+        .insert(ScrollResource {
+            active_scroll: Entity::EMPTY,
+        })
+        .ok()
+        .unwrap();
 
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(start_end_scrolling_system);
-    world.behavior_mut().get_mut(Schedule::Update).group(SYSTEM_GROUP).insert_child_system(move_scroll_handle_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .group(SYSTEM_GROUP)
+        .insert_child_system(start_end_scrolling_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .group(SYSTEM_GROUP)
+        .insert_child_system(move_scroll_handle_system);
 
-    world.behavior_mut().get_mut(Schedule::Update).order_system(start_end_scrolling_system).before_system(move_scroll_handle_system);
+    world
+        .behavior_mut()
+        .get_mut(Schedule::Update)
+        .order_system(start_end_scrolling_system)
+        .before_system(move_scroll_handle_system);
 }
 
 #[derive(Component)]
@@ -29,16 +48,20 @@ fn start_end_scrolling_system(
 ) {
     if input.mouse.is_just_released(MouseButton::Left) {
         scroll_res.active_scroll = Entity::EMPTY;
-    } else if input.mouse.is_just_pressed(MouseButton::Left) {        
+    } else if input.mouse.is_just_pressed(MouseButton::Left) {
         let pos = Vec2::from_array(input.mouse.position.map(|v| v as f32));
 
         let mut hits = Vec::new();
 
-        raycast_res.bvh.query(CollisionLine {
-            bounds: LineBoundType::UNRESTRICTED,
-            start: pos.xyn(0.0),
-            end: pos.xyn(1.0),
-        }.into(), &mut hits);
+        raycast_res.bvh.query(
+            CollisionLine {
+                bounds: LineBoundType::UNRESTRICTED,
+                start: pos.xyn(0.0),
+                end: pos.xyn(1.0),
+            }
+            .into(),
+            &mut hits,
+        );
 
         return_if_not!(Some(clicked_ent) = hits.into_iter().next());
 

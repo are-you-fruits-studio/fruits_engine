@@ -24,7 +24,9 @@ pub fn build_app(project_path: &str) {
         [project_path, "launcher", "target", "release", "launcher.exe"]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", format!("{project_name}.exe").as_str()].iter().collect::<PathBuf>(),
+        [project_path, "builds", format!("{project_name}.exe").as_str()]
+            .iter()
+            .collect::<PathBuf>(),
     )
     .unwrap();
 
@@ -32,10 +34,7 @@ pub fn build_app(project_path: &str) {
     let assets_dst = [project_path, "builds", "assets"].iter().collect::<PathBuf>();
 
     if std::fs::exists(assets_src).unwrap_or(true) {
-        copy_dir_all(
-            [project_path, "assets"].iter().collect::<PathBuf>(),
-            assets_dst,
-        ).unwrap();
+        copy_dir_all([project_path, "assets"].iter().collect::<PathBuf>(), assets_dst).unwrap();
     }
 }
 

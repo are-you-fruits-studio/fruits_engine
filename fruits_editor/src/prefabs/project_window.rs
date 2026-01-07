@@ -127,9 +127,7 @@ pub fn project_window(mut world: WorldDataMut) -> Entity {
             scale: Vec2::new(UiVal::px(20.0).into(), UiVal::pd(1.0).into()),
             ..Default::default()
         })
-        .add_component(ChildComponent {
-            parent: ent_scroll,
-        })
+        .add_component(ChildComponent { parent: ent_scroll })
         .add_component(BatchedMeshComponent::default())
         .add_component(StandardMaterialComponent {
             material: material_panel.clone(),

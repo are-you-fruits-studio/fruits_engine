@@ -253,7 +253,7 @@ fn update_time(mut time: ResMut<TimeResource>) {
 fn move_cube_new(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut LocalTransform, &MovingCubeComponent)>) {
     let mut i = 0;
 
-    for (entity, transform, _) in query.iter_mut() {
+    for (_entity, transform, _) in query.iter_mut() {
         i += 1;
 
         if i == 1 {
@@ -269,7 +269,7 @@ fn move_cube_new(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut Lo
 fn rotate_cube(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut LocalTransform, &RotatingCubeComponent)>) {
     let mut i = 0;
 
-    for (entity, transform, _) in query.iter_mut() {
+    for (_entity, transform, _) in query.iter_mut() {
         i += 1;
 
         transform.rotation = Quat::rotation_y(time.time as f64 * 1.0_f64 * i as f64) * Quat::rotation_z(-45.0_f64.to_radians());

@@ -151,9 +151,7 @@ impl<const N: usize> Iterator for BitArrayIntoIter<N> {
 
 //
 
-struct BitVec {
-    // todo
-}
+// todo: BitVec
 
 //
 

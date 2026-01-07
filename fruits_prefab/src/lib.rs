@@ -37,7 +37,7 @@ trait AbstractPrefabComponentDeserializer {
 }
 
 impl<C: Component + for<'de> Deserialize<'de>> AbstractPrefabComponentDeserializer for PrefabComponentDeserializer<C> {
-    fn deserialize(&self, data: serde_json::Value, entity: Entity, mut entities: EntitiesHolderMut, res: ResourcesHolderRef) -> bool {
+    fn deserialize(&self, data: serde_json::Value, entity: Entity, mut entities: EntitiesHolderMut, _res: ResourcesHolderRef) -> bool {
         let Ok(component) = serde_json::from_value::<C>(data) else {
             return false;
         };

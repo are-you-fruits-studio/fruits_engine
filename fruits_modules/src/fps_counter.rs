@@ -18,15 +18,16 @@ struct FpsResource {
 }
 
 impl FpsResource {
-    pub fn last_frame_times_s(&self) -> &VecDeque<f64> {
-        &self.last_frame_times_s
-    }
-    pub fn last_fps(&self) -> usize {
-        self.last_fps
-    }
-    pub fn last_frame_time_ms(&self) -> f64 {
-        self.last_frame_time_ms
-    }
+    // todo
+    // pub fn last_frame_times_s(&self) -> &VecDeque<f64> {
+    //     &self.last_frame_times_s
+    // }
+    // pub fn last_fps(&self) -> usize {
+    //     self.last_fps
+    // }
+    // pub fn last_frame_time_ms(&self) -> f64 {
+    //     self.last_frame_time_ms
+    // }
 }
 
 fn count_fps_system(mut res: ResMut<FpsResource>) {

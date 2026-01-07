@@ -80,7 +80,7 @@ pub fn derive_reflect_ty(stream: TokenStream) -> TokenStream {
                 write!(result, r#" ),"#).unwrap();
             }
         }
-        syn::Data::Union(data_union) => panic!("Union types are not supported."),
+        syn::Data::Union(_) => panic!("Union types are not supported."),
     }
 
     result.push_str(" } ");

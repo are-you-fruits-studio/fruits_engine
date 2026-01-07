@@ -38,7 +38,7 @@ pub fn get_or_load_mesh(
     // todo: make copying assets folder into the build directory a part of the build process
     let raw_mesh = match std::fs::read_to_string(path) {
         Ok(data) => data,
-        Err(err) => return None,
+        Err(_err) => return None,
     };
 
     let Some(mesh) = deserialize_mesh(&raw_mesh, render_api) else {
@@ -80,7 +80,7 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
 
     let mesh_data = match std::fs::read_to_string(path) {
         Ok(data) => data,
-        Err(err) => return None,
+        Err(_err) => return None,
     };
 
     let obj = fruits_wavefront::parse_obj(&mesh_data)?;
@@ -105,7 +105,7 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
     Some(mesh)
 }
 
-fn array_of_option_to_option_of_array<T, const N: usize>(array: [Option<T>; N]) -> Option<[T; N]> {
+fn _array_of_option_to_option_of_array<T, const N: usize>(array: [Option<T>; N]) -> Option<[T; N]> {
     for item in &array {
         if item.is_none() {
             return None;

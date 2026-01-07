@@ -242,6 +242,7 @@ impl TypesRegistryAccessNative {
         result
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         let self_data = self.data.read().unwrap();
 

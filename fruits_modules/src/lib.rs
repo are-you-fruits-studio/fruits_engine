@@ -1,5 +1,5 @@
 use fruits_asset_storage::AssetStorageResource;
-use fruits_ecs::{Schedule, WorldBuilder, WorldBuilderMut};
+use fruits_ecs::{Schedule, WorldBuilderMut};
 use fruits_prefab::{Prefab, PrefabComponentsDeserializerResource};
 
 pub mod fps_counter;

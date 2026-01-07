@@ -30,7 +30,7 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         Ok(EntitiesInfo {
             // Safety. Managed by caller
-            ec: unsafe { input.world_data.entities() },
+            ec: input.world_data.entities(),
         })
     }
 }

@@ -65,7 +65,6 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                     .as_ref()
                     .map(|i| i.to_token_stream().to_string())
                     .unwrap_or_else(|| i.to_string());
-                let field_type = field.ty.to_token_stream().to_string();
 
                 write!(
                     to_json_impl,
@@ -144,7 +143,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
             from_json_impl.push_str("_ => return None,");
             from_json_impl.push_str("})");
         }
-        syn::Data::Union(data_union) => panic!("Union types are not supported."),
+        syn::Data::Union(_) => panic!("Union types are not supported."),
     }
 
     to_json_impl.push_str(" } ");

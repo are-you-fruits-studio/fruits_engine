@@ -36,7 +36,7 @@ members = [
     "fruits_asset_storage",
     "fruits_render_core",
     "fruits_prefab"
-, "fruits_json"]
+, "fruits_json", "fruits_serialization_macros"]
 
 [package]
 name = "fruits_engine"

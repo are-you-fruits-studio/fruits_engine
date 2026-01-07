@@ -2,101 +2,7 @@ use std::{
     any::Any, borrow::Cow, collections::HashMap, error::Error, fmt::{Debug, Display}
 };
 
-pub struct ExampleStruct<T> {
-    pub data: Vec<T>,
-    pub name: String,
-    pub age: u32,
-}
-
-impl<T: 'static> TransSerializable for ExampleStruct<T> {
-    fn serialize(&self, ctx: &SerializerContext) -> Result<serde_json::Value, SerializationError> {
-        // serialize_tuple
-        // serialize_struct
-        // serialize_enum
-        ctx.serialize_struct()
-            .serialize_field("data", &self.data)
-            .serialize_field("name", &self.name)
-            .serialize_field("age", &self.age)
-            .end()
-    }
-
-    fn deserialize(ctx: &DeserializerContext, value: &serde_json::Value) -> Result<Self, DeserializationError> {
-        let serde_json::Value::Object(map) = value else {
-            return Err(DeserializationError::InvalidInput);
-        };
-
-        Ok(Self {
-            age: ctx.deserialize(map.get("age").ok_or_else(|| DeserializationError::InvalidInput)?)?,
-            data: ctx.deserialize(map.get("data").ok_or_else(|| DeserializationError::InvalidInput)?)?,
-            name: ctx.deserialize(map.get("name").ok_or_else(|| DeserializationError::InvalidInput)?)?,
-        })
-    }
-}
-
-pub struct ExampleTuple<T>(Vec<T>, String, u32);
-
-impl<T: 'static> TransSerializable for ExampleTuple<T> {
-    fn serialize(&self, ctx: &SerializerContext) -> Result<serde_json::Value, SerializationError> {
-        // serialize_tuple
-        // serialize_struct
-        // serialize_enum
-        ctx.serialize_tuple()
-            .serialize_element(&self.data)
-            .serialize_element(&self.name)
-            .serialize_element(&self.age)
-            .end()
-    }
-
-    fn deserialize(ctx: &DeserializerContext, value: &serde_json::Value) -> Result<Self, DeserializationError> {
-        let serde_json::Value::Array(array) = value else {
-            return Err(DeserializationError::InvalidInput);
-        };
-
-        Ok(Self(
-            ctx.deserialize(array.get(0).ok_or_else(|| DeserializationError::InvalidInput)?)?,
-            ctx.deserialize(array.get(1).ok_or_else(|| DeserializationError::InvalidInput)?)?,
-            ctx.deserialize(array.get(2).ok_or_else(|| DeserializationError::InvalidInput)?)?,
-        ))
-    }
-}
-
-pub enum ExampleEnum<T> {
-    Data(Vec<T>),
-    Name(String),
-    Age(u32),
-    Struct { data: Vec<T>, name: String, age: u32 }
-}
-
-impl<T: 'static> TransSerializable for ExampleEnum<T> {
-    fn serialize(&self, ctx: &SerializerContext) -> Result<serde_json::Value, SerializationError> {
-        match self {
-            ExampleEnum::Data(e0) => ctx.serialize_tuple().serialize_element(e0).end_enum("Data"),
-            ExampleEnum::Name(e0) => ctx.serialize_tuple().serialize_element(e0).end_enum("Name"),
-            ExampleEnum::Age(e0) => ctx.serialize_tuple().serialize_element(e0).end_enum("Age"),
-            ExampleEnum::Struct { data, name, age } => ctx.serialize_struct()
-                .serialize_field("data", data)
-                .serialize_field("name", name)
-                .serialize_field("age", age)
-                .end_enum("Struct"),
-        }
-    }
-
-    fn deserialize(ctx: &DeserializerContext, value: &serde_json::Value) -> Result<Self, DeserializationError> {
-        let serde_json::Value::Object(array) = value else {
-            return Err(DeserializationError::InvalidInput);
-        };
-
-        // todo
-        todo!()
-        // Ok(Self(
-        //     ctx.deserialize(array.get(0).ok_or_else(|| DeserializationError::InvalidInput)?)?,
-        //     ctx.deserialize(array.get(1).ok_or_else(|| DeserializationError::InvalidInput)?)?,
-        //     ctx.deserialize(array.get(2).ok_or_else(|| DeserializationError::InvalidInput)?)?,
-        // ))
-    }
-}
-
-//
+use serde::{Deserialize, Serialize};
 
 pub trait TransSerializable: Sized + 'static {
     fn serialize(&self, ctx: &SerializerContext) -> Result<serde_json::Value, SerializationError>;
@@ -165,14 +71,14 @@ impl SerializerRegistry {
     pub fn register<T: 'static>(&mut self, serializer: impl 'static + TransSerializer<Deserialized = T>) {
         let serializer = Box::new(AbstractSerializer::new(serializer));
 
-        let type_name = serializer.name_override().unwrap_or(std::any::type_name::<T>().into());
+        let type_name = std::any::type_name::<T>().into();
 
         self.serializers.insert(type_name, serializer);
     }
 
     pub fn get<T: 'static>(&self) -> Option<(&AbstractSerializer<T>, &str)> {
         let type_name = std::any::type_name::<T>();
-        let (type_name, serializer) = self.serializers.get_key_value(&type_name)?;
+        let (type_name, serializer) = self.serializers.get_key_value(type_name)?;
         let serializer = serializer.self_as_any();
         let serializer = serializer.downcast_ref::<AbstractSerializer<T>>().unwrap();
 
@@ -189,7 +95,7 @@ impl SerializerRegistry {
 //
 
 pub struct SerializationError {
-    type_name: Cow<'static, str>,
+    pub type_name: Cow<'static, str>,
 }
 impl Display for SerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -254,25 +160,11 @@ impl GlobalSerializer {
         .serialize(value)
     }
 
-    pub fn serialize_virtual(&self, value: &dyn Any) -> Result<serde_json::Value, SerializationError> {
-        SerializerContext {
-            registry: &self.serializers,
-        }
-        .serialize_virtual(value)
-    }
-
     pub fn deserialize<T: 'static>(&self, data: &serde_json::Value) -> Result<T, DeserializationError> {
         DeserializerContext {
             registry: &self.serializers,
         }
         .deserialize(data)
-    }
-
-    pub fn deserialize_virtual(&self, data: &serde_json::Value) -> Result<Box<dyn Any>, DeserializationError> {
-        DeserializerContext {
-            registry: &self.serializers,
-        }
-        .deserialize_virtual(data)
     }
 }
 
@@ -283,7 +175,7 @@ pub struct StructSerializerCtx<'r> {
 }
 
 impl<'r> StructSerializerCtx<'r> {
-    pub fn serialize_field<T>(mut self, name: impl Into<String>, value: &T) -> Self {
+    pub fn serialize_field<T: 'static>(mut self, name: impl Into<String>, value: &T) -> Self {
         if self.error.is_some() {
             return self;
         }
@@ -301,7 +193,7 @@ impl<'r> StructSerializerCtx<'r> {
         self
     }
 
-    pub fn end_struct(self) -> Result<serde_json::Value, SerializationError> {
+    pub fn end(self) -> Result<serde_json::Value, SerializationError> {
         if let Some(serialization_error) = self.error {
             return Err(serialization_error);
         }
@@ -312,10 +204,6 @@ impl<'r> StructSerializerCtx<'r> {
     pub fn end_enum(self, variant_name: impl Into<String>) -> Result<serde_json::Value, SerializationError> {
         if let Some(serialization_error) = self.error {
             return Err(serialization_error);
-        }
-
-        if self.fields.len() == 0 {
-            return Ok(serde_json::Value::String(variant_name.into()));
         }
 
         let mut variant_as_json = serde_json::Map::<String, serde_json::Value>::new();
@@ -333,7 +221,7 @@ pub struct TupleSerializerCtx<'r> {
 }
 
 impl<'r> TupleSerializerCtx<'r> {
-    pub fn serialize_element<T>(mut self, value: &T) -> Self {
+    pub fn serialize_element<T: 'static>(mut self, value: &T) -> Self {
         if self.error.is_some() {
             return self;
         }
@@ -362,10 +250,6 @@ impl<'r> TupleSerializerCtx<'r> {
     pub fn end_enum(self, variant_name: impl Into<String>) -> Result<serde_json::Value, SerializationError> {
         if let Some(serialization_error) = self.error {
             return Err(serialization_error);
-        }
-
-        if self.fields.len() == 0 {
-            return Ok(serde_json::Value::String(variant_name.into()));
         }
 
         let mut variant_as_json = serde_json::Map::<String, serde_json::Value>::new();
@@ -397,33 +281,7 @@ impl<'r> SerializerContext<'r> {
             });
         };
 
-        let mut json_value = serializer.serialize(self, value)?;
-
-        Self::try_annotate_type(&mut json_value, type_name)?;
-
-        Ok(json_value)
-    }
-
-    pub fn serialize_virtual(&self, value: &dyn Any) -> Result<serde_json::Value, SerializationError> {
-        let Some((serializer, type_name)) = self.registry.get_virtual_by_id(&Any::type_id(value)) else {
-            return Err(SerializationError { type_name: "<missing>".into() });
-        };
-
-        let mut json_value = serializer.serialize(&self, value)?;
-
-        Self::try_annotate_type(&mut json_value, type_name)?;
-
-        Ok(json_value)
-    }
-
-    fn try_annotate_type(json_value: &mut serde_json::Value, type_name: Cow<'static, str>) -> Result<(), SerializationError> {
-        if let serde_json::Value::Object(json_object) = json_value {
-            if let Err(_) = json_object.push_field("$type", String::from(type_name)) {
-                return Err(SerializationError { type_name });
-            }
-        }
-
-        Ok(())
+        Ok(serializer.serialize(self, value)?)
     }
 }
 
@@ -434,35 +292,19 @@ impl<'r> DeserializerContext<'r> {
     pub fn deserialize<T: 'static>(&self, data: &serde_json::Value) -> Result<T, DeserializationError> {
         let Some((serializer, _)) = self.registry.get() else {
             return Err(DeserializationError::NoSerializerRegistered {
-                type_name: String::from(std::any::type_name::<T>()),
+                type_name: std::any::type_name::<T>().into(),
             });
         };
         serializer.deserialize(self, data)
     }
+}
 
-    pub fn deserialize_virtual(&self, data: &serde_json::Value) -> Result<Box<dyn Any>, DeserializationError> {
-        let serde_json::Value::Object(json_object) = data else {
-            return Err(DeserializationError::InvalidInput);
-        };
+impl<T: 'static + Serialize + for<'de> Deserialize<'de>> TransSerializable for T {
+    fn serialize(&self, _ctx: &SerializerContext) -> Result<serde_json::Value, SerializationError> {
+        serde_json::value::to_value(self).map_err(|_| SerializationError { type_name: std::any::type_name::<T>().into() })
+    }
 
-        let Some(type_name) = json_object.get_value("$type") else {
-            return Err(DeserializationError::NoSerializerRegistered {
-                type_name: String::from("<missing>"),
-            });
-        };
-
-        let serde_json::Value::String(type_name) = type_name else {
-            return Err(DeserializationError::NoSerializerRegistered {
-                type_name: type_name.to_string(),
-            });
-        };
-
-        let Some(serializer) = self.registry.get_virtual_by_name(type_name) else {
-            return Err(DeserializationError::NoSerializerRegistered {
-                type_name: String::from(type_name),
-            });
-        };
-
-        serializer.deserialize(self, data)
+    fn deserialize(_ctx: &DeserializerContext, value: &serde_json::Value) -> Result<Self, DeserializationError> {
+        serde_json::value::from_value(value.clone()).map_err(|_| DeserializationError::InvalidInput)
     }
 }

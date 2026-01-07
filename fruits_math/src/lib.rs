@@ -75,8 +75,8 @@ pub fn damp(
     let v0 = *velocity;
     let t = delta_time;
 
-    let mut new_x;
-    let mut new_v;
+    let new_x;
+    let new_v;
 
     if zeta < 1.0 {
         // Underdamped **OR negative damping**

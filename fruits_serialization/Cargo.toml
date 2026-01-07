@@ -9,6 +9,6 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-fruits_json_macros = { path = "../fruits_json_macros" }
+fruits_serialization_macros = { path = "../fruits_serialization_macros" }
 serde = { version = "1" }
 serde_json = { version = "1" }
