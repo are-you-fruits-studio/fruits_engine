@@ -1,6 +1,9 @@
+use std::ops::{Deref, DerefMut};
+
 use fruits_asset_storage::AssetStorageResource;
-use fruits_ecs::{Schedule, WorldBuilderMut};
+use fruits_ecs::{Resource, Schedule, WorldBuilderMut};
 use fruits_prefab::{Prefab, PrefabComponentsDeserializerResource};
+use fruits_serialization::GlobalSerializer;
 
 pub mod fps_counter;
 
@@ -11,6 +14,7 @@ pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
 
     world.data_mut().resources_mut().insert(AssetStorageResource::<Prefab>::new()).ok().unwrap();
     world.data_mut().resources_mut().insert(PrefabComponentsDeserializerResource::default()).ok().unwrap();
+    world.data_mut().resources_mut().insert(SerializersResource::default()).ok().unwrap();
 
     world
         .behavior_mut()
@@ -18,4 +22,23 @@ pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
         .order_group(fruits_collision::SYSTEM_GROUP_COLLISION)
         .before_group(fruits_transform::SYSTEM_GROUP_TRANSFORM)
         .before_group(fruits_render::SYSTEM_GROUP_RENDER);
+}
+
+#[derive(Default)]
+pub struct SerializersResource(GlobalSerializer);
+
+impl Resource for SerializersResource { }
+
+impl Deref for SerializersResource {
+    type Target = GlobalSerializer;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SerializersResource {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }

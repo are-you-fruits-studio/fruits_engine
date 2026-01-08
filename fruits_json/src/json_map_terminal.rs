@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{json_repr::JsonValue, *};
+use crate::{json_map::*, json_repr::JsonValue};
 
 // todo: overflow check
 
@@ -173,7 +173,7 @@ impl<T: 'static> Serializer for OptionSerializer<T> {
     }
 }
 
-pub fn register_default_terminals(global: &mut crate::GlobalSerializer) {
+pub fn register_default_terminals(global: &mut GlobalSerializer) {
     register_self_and_related_default_terminals(global, StringSerializer);
     register_self_and_related_default_terminals(global, StrSerializer);
     register_self_and_related_default_terminals(global, BoolSerializer);
@@ -192,7 +192,7 @@ pub fn register_default_terminals(global: &mut crate::GlobalSerializer) {
     register_self_and_related_default_terminals(global, F64Serializer);
 }
 
-pub fn register_self_and_related_default_terminals<S: 'static + Serializer>(global: &mut crate::GlobalSerializer, serializer: S) {
+pub fn register_self_and_related_default_terminals<S: 'static + Serializer>(global: &mut GlobalSerializer, serializer: S) {
     global.register(serializer);
     global.register(VecSerializer::<S::Deserialized>::default());
     global.register(BoxedSliceSerializer::<S::Deserialized>::default());

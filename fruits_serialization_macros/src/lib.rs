@@ -33,9 +33,9 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
     let mut impl_serialize = String::new();
     let mut impl_deserialize = String::new();
 
-    write!(impl_serialize, r#"fn serialize(&self, ctx: &SerializerContext) -> Result<serde_json::Value, SerializationError> {{ "#).unwrap();
+    write!(impl_serialize, r#"fn serialize(&self, ctx: &SerializerCtx) -> Result<serde_json::Value, SerializationError> {{ "#).unwrap();
 
-    write!(impl_deserialize, r#"fn deserialize(ctx: &DeserializerContext, value: &serde_json::Value) -> Result<Self, DeserializationError> {{ "#).unwrap();
+    write!(impl_deserialize, r#"fn deserialize(ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self, DeserializationError> {{ "#).unwrap();
 
     match input.data {
         syn::Data::Struct(data_struct) => {

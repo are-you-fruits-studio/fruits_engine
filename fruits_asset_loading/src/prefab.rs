@@ -3,7 +3,9 @@ use std::{collections::HashMap, path::PathBuf};
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
 use fruits_ffi::FfiString;
+use fruits_modules::SerializersResource;
 use fruits_prefab::{Prefab, PrefabComponent, PrefabComponentsDeserializerResource};
+use fruits_serialization::{DeserializationError, SerializerCtx, TransSerializer, SerializationError, SerializerRegistry};
 
 //
 
@@ -145,7 +147,8 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
     let res = res.as_ref();
 
     let prefabs = res.get::<AssetStorageResource<Prefab>>()?;
-    let deserializer = res.get::<PrefabComponentsDeserializerResource>().unwrap();
+    let components_deserializer = res.get::<PrefabComponentsDeserializerResource>().unwrap();
+    let serializers = res.get::<SerializersResource>().unwrap();
 
     let prefab = prefabs.get(&prefab)?;
 
@@ -162,21 +165,81 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
         }
     }
 
+    let entities_serialized = HashMap::new();
+
+    let mut serializer_local = SerializerRegistry::new();
+
+    serializer_local.register(EntityTransSerializer::new(
+        &ctx.entities,
+        &entities_serialized,
+    ));
+
+    let serializer_ctx = SerializerCtx::new(serializers.registry(), Some(&serializer_local));
+
     for (&entity_id, prefab_components) in &prefab.entities {
         let entity = *ctx.entities.get(&entity_id).unwrap();
 
         for prefab_component in prefab_components {
-            deserializer.deserialize(&prefab_component.component_id, prefab_component.data.clone(), entity, ent.as_mut(), res);
+            components_deserializer.deserialize(
+                &prefab_component.component_id,
+                prefab_component.data.clone(),
+                entity,
+                serializer_ctx,
+                ent.as_mut(),
+                res,
+            );
         }
     }
 
     ctx.entities.get(&ctx.root_entity_id).copied()
 }
 
+pub struct EntityTransSerializer<'brw> {
+    entities_deserialized: &'brw HashMap<usize, Entity>,
+    entities_serialized: &'brw HashMap<Entity, usize>,
+}
+
+impl<'brw> EntityTransSerializer<'brw> {
+    pub fn new(
+        entities_deserialized: &'brw HashMap<usize, Entity>,
+        entities_serialized: &'brw HashMap<Entity, usize>,
+    ) -> Self {
+        Self {
+            entities_deserialized,
+            entities_serialized,
+        }
+    }
+}
+
+impl<'brw> TransSerializer for EntityTransSerializer<'brw> {
+    type Deserialized = Entity;
+
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+        let Some(value) = self.entities_serialized.get(value) else {
+            return Ok(serde_json::Value::Null);
+        };
+
+        Ok(serde_json::Value::Number((*value).into()))
+    }
+
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+        match value {
+            serde_json::Value::Null => Ok(Entity::EMPTY),
+            serde_json::Value::Number(number) => {
+                let number = number.as_u64().ok_or_else(|| DeserializationError::InvalidInput)? as usize;
+                
+                self.entities_deserialized.get(&number).copied().ok_or_else(|| DeserializationError::InvalidInput)
+            },
+            _ => Err(DeserializationError::InvalidInput),
+        }
+    }
+}
+
+
 // todo: prefabs instantiation needs to:
 // + spawn entities
 // + spawn components on the entities
-// - access to other entities inside the prefab
+// + access to other entities inside the prefab
 // - access to materials
 // - access to meshes
 // - access to textures

@@ -1,6 +1,6 @@
 use std::{alloc::Layout, ffi::c_void, mem::ManuallyDrop};
 
-use crate::FfiStrSliceRef;
+use crate::{FfiBox, FfiStrSliceRef};
 
 #[repr(C)]
 pub struct FfiAny {
@@ -34,6 +34,10 @@ impl FfiAny {
     }
     pub fn name(&self) -> &'static str {
         unsafe { (self.meta.name_fn)().into_slice::<'static>() }
+    }
+
+    pub unsafe fn into_box<T>(self) -> FfiBox<T> {
+        unsafe { FfiBox::from_ffi_any(self) }
     }
 
     pub unsafe fn dealloc_without_drop(self) {

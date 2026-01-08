@@ -1,25 +1,61 @@
+use fruits_engine::{Entity, EntityTransSerializer, index_version_collection::VersionIndex};
 use fruits_serialization::*;
 
 fn main() {
-    const RAW_DATA: &str = "
-v 0.123 0.234 0.345 1.0
+    let mut global_serializer = GlobalSerializer::new();
 
-vt 0.500 1 [0]
+    global_serializer.register(StandardTransSerializer::<UserInfo>::default());
+    global_serializer.register(StandardTransSerializer::<String>::default());
+    // global_serializer.register(StandardTransSerializer::<u32>::default());
+    global_serializer.register(StandardTransSerializer::<SomeComponent>::default());
 
-vn 0.707 0.000 0.707
+    //
 
-vp 0.310000 3.210000 2.100000
+    let component = SomeComponent {
+        entity: Entity::from_version_index(VersionIndex { index: 1, version: 5 }),
+        user_info: UserInfo {
+            name: String::from("winner1337"),
+            age: 10,
+        },
+    };
 
-# Polygonal face element (see below)
-f 1 2 3
-f 3/1 4/2 5/3
-f 6/4/1 3/5/3 7/6/5
-f 7//1 8//2 9//3
-    ";
+    //
 
-    let obj = fruits_wavefront::parse_obj(RAW_DATA);
+    let entities_deserialized = [
+        (25, Entity::from_version_index(VersionIndex { index: 1, version: 5 })),
+    ].into_iter().collect();
+    let entities_serialized = [
+        (Entity::from_version_index(VersionIndex { index: 1, version: 5 }), 25),
+    ].into_iter().collect();
+    
+    let mut local_serializer = SerializerRegistry::new();
 
-    dbg!(obj);
+    local_serializer.register(EntityTransSerializer::new(
+        &entities_deserialized,
+        &entities_serialized,
+    ));
+
+    let serialized_component = global_serializer.serialize(&component, Some(&local_serializer)).unwrap();
+
+    println!("{}", serde_json::to_string_pretty(&serialized_component).unwrap());
+
+    let deserialized_component = global_serializer.deserialize::<SomeComponent>(&serialized_component, Some(&local_serializer)).unwrap();
+
+    dbg!(deserialized_component);
+}
+
+#[derive(TransSerializable, Debug)]
+pub struct SomeComponent {
+    pub entity: Entity,
+    pub user_info: UserInfo,
+}
+
+//
+
+#[derive(TransSerializable, Debug)]
+pub struct UserInfo {
+    pub name: String,
+    pub age: u32,
 }
 
 #[derive(TransSerializable)]

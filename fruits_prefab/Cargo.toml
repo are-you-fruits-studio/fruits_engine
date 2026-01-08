@@ -8,5 +8,6 @@ crate-type = ["lib"]
 
 [dependencies]
 fruits_ecs = { path = "../fruits_ecs" }
+fruits_serialization = { path = "../fruits_serialization" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }

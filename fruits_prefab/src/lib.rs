@@ -1,6 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use fruits_ecs::*;
+use fruits_serialization::SerializerCtx;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -22,23 +23,37 @@ impl Prefab {
     }
 }
 
-pub struct PrefabComponentDeserializer<C: Component + for<'de> Deserialize<'de>> {
+pub struct PrefabComponentDeserializer<C: Component> {
     _phantom: PhantomData<fn(C) -> C>,
 }
 
-impl<C: Component + for<'de> Deserialize<'de>> Default for PrefabComponentDeserializer<C> {
+impl<C: Component> Default for PrefabComponentDeserializer<C> {
     fn default() -> Self {
         Self { _phantom: PhantomData }
     }
 }
 
 trait AbstractPrefabComponentDeserializer {
-    fn deserialize(&self, data: serde_json::Value, entity: Entity, entities: EntitiesHolderMut, res: ResourcesHolderRef) -> bool;
+    fn deserialize(
+        &self,
+        data: serde_json::Value,
+        entity: Entity,
+        serializer_ctx: SerializerCtx,
+        entities: EntitiesHolderMut,
+        res: ResourcesHolderRef,
+    ) -> bool;
 }
 
-impl<C: Component + for<'de> Deserialize<'de>> AbstractPrefabComponentDeserializer for PrefabComponentDeserializer<C> {
-    fn deserialize(&self, data: serde_json::Value, entity: Entity, mut entities: EntitiesHolderMut, _res: ResourcesHolderRef) -> bool {
-        let Ok(component) = serde_json::from_value::<C>(data) else {
+impl<C: Component> AbstractPrefabComponentDeserializer for PrefabComponentDeserializer<C> {
+    fn deserialize(
+        &self,
+        data: serde_json::Value,
+        entity: Entity,
+        serializer_ctx: SerializerCtx,
+        mut entities: EntitiesHolderMut,
+        _res: ResourcesHolderRef,
+    ) -> bool {
+        let Ok(component) = serializer_ctx.deserialize::<C>(&data) else {
             return false;
         };
 
@@ -53,7 +68,7 @@ pub struct PrefabComponentsDeserializerResource {
 }
 
 impl PrefabComponentsDeserializerResource {
-    pub fn register<C: Component + for<'de> Deserialize<'de>>(&mut self) {
+    pub fn register<C: Component>(&mut self) {
         self.deserializers.insert(
             std::any::type_name::<C>().to_string(),
             Box::new(PrefabComponentDeserializer::<C>::default()),
@@ -65,6 +80,7 @@ impl PrefabComponentsDeserializerResource {
         id: &str,
         data: serde_json::Value,
         entity: Entity,
+        serializer_ctx: SerializerCtx,
         entities: EntitiesHolderMut,
         res: ResourcesHolderRef,
     ) -> bool {
@@ -72,9 +88,6 @@ impl PrefabComponentsDeserializerResource {
             return false;
         };
 
-        deserializer.deserialize(data, entity, entities, res)
+        deserializer.deserialize(data, entity, serializer_ctx, entities, res)
     }
 }
-
-//
-
