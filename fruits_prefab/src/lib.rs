@@ -38,7 +38,7 @@ trait AbstractPrefabComponentDeserializer {
         &self,
         data: serde_json::Value,
         entity: Entity,
-        serializer_ctx: SerializerCtx,
+        serializer_ctx: &SerializerCtx,
         entities: EntitiesHolderMut,
         res: ResourcesHolderRef,
     ) -> bool;
@@ -49,7 +49,7 @@ impl<C: Component> AbstractPrefabComponentDeserializer for PrefabComponentDeseri
         &self,
         data: serde_json::Value,
         entity: Entity,
-        serializer_ctx: SerializerCtx,
+        serializer_ctx: &SerializerCtx,
         mut entities: EntitiesHolderMut,
         _res: ResourcesHolderRef,
     ) -> bool {
@@ -80,7 +80,7 @@ impl PrefabComponentsDeserializerResource {
         id: &str,
         data: serde_json::Value,
         entity: Entity,
-        serializer_ctx: SerializerCtx,
+        serializer_ctx: &SerializerCtx,
         entities: EntitiesHolderMut,
         res: ResourcesHolderRef,
     ) -> bool {

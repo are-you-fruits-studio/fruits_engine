@@ -96,6 +96,9 @@ impl<'r> ResourcesHolderMut<'r> {
     }
 }
 
+unsafe impl<'r> Send for ResourcesHolderMut<'r> { }
+unsafe impl<'r> Sync for ResourcesHolderMut<'r> { }
+
 //
 
 #[derive(Copy, Clone)]
@@ -117,3 +120,6 @@ impl<'r> ResourcesHolderRef<'r> {
         resources_holder_get::<T>(self.res, self.types)
     }
 }
+
+unsafe impl<'r> Send for ResourcesHolderRef<'r> { }
+unsafe impl<'r> Sync for ResourcesHolderRef<'r> { }

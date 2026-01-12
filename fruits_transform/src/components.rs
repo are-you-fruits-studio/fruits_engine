@@ -1,6 +1,7 @@
 use fruits_ecs::{Component, Entity};
 use fruits_ffi::{FfiOption, FfiVec};
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
+use fruits_serialization::*;
 use serde::{Deserialize, Serialize};
 
 #[repr(C)]
@@ -48,7 +49,7 @@ pub struct ParentComponent {
 }
 
 #[repr(C)]
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, PartialEq, TransSerializable)]
 pub struct ChildComponent {
     pub parent: Entity,
 }

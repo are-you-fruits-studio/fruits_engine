@@ -4,6 +4,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
+use fruits_ffi::FfiAny;
 use serde::{Deserialize, Serialize};
 
 use crate::SerializerRegistry;
@@ -168,16 +169,12 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             error: None,
         }
     }
-    pub fn serialize_enum(self) -> TupleSerializerCtx<'brw, 'local> {
-        TupleSerializerCtx {
-            ctx: self,
-            elements: Vec::new(),
-            error: None,
-        }
+    pub fn serialize_enum_variant(&self, variant_name: impl Into<String>, value: serde_json::Value) -> serde_json::Value {
+        serde_json::Value::Object([(variant_name.into(), value)].into_iter().collect())
     }
     //
     pub fn serialize<T: 'static>(&self, value: &T) -> Result<serde_json::Value, SerializationError> {
-        if let Some(registry_local) = self.registry_local {
+        if let Some(registry_local) = &self.registry_local {
             if let Some(serializer) = registry_local.get() {
                 return serializer.serialize(self, value);
             }
@@ -192,7 +189,7 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
         })
     }
     pub fn deserialize<T: 'static>(&self, data: &serde_json::Value) -> Result<T, DeserializationError> {
-        if let Some(registry_local) = self.registry_local {
+        if let Some(registry_local) = &self.registry_local {
             if let Some(serializer) = registry_local.get() {
                 return serializer.deserialize(self, data);
             }
@@ -206,16 +203,31 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             type_name: std::any::type_name::<T>().into(),
         })
     }
-}
-impl<'brw, 'local: 'brw> Clone for SerializerCtx<'brw, 'local> {
-    fn clone(&self) -> Self {
-        Self {
-            registry_global: self.registry_global,
-            registry_local: self.registry_local,
+    pub fn deserialize_any(&self, id: &str, data: &serde_json::Value) -> Result<FfiAny, DeserializationError> {
+        if let Some(registry_local) = self.registry_local {
+            if let Some(serializer) = registry_local.get_virtual(id) {
+                return serializer.deserialize_any(self, data);
+            }
         }
+
+        if let Some(serializer) = self.registry_global.get_virtual(id) {
+            return serializer.deserialize_any(self, data);
+        }
+
+        Err(DeserializationError::NoSerializerRegistered {
+            type_name: id.to_string().into(),
+        })
     }
 }
-impl<'brw, 'local: 'brw> Copy for SerializerCtx<'brw, 'local> { }
+// impl<'brw, 'local: 'brw> Clone for SerializerCtx<'brw, 'local> {
+//     fn clone(&self) -> Self {
+//         Self {
+//             registry_global: self.registry_global,
+//             registry_local: self.registry_local,
+//         }
+//     }
+// }
+// impl<'brw, 'local: 'brw> Copy for SerializerCtx<'brw, 'local> { }
 
 impl<T: 'static + Serialize + for<'de> Deserialize<'de>> TransSerializable for T {
     fn serialize(&self, _ctx: &SerializerCtx) -> Result<serde_json::Value, SerializationError> {

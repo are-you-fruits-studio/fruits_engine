@@ -109,7 +109,7 @@ fn deserialize_material(
     }
 
     if let Some(JsonValue::String(color_tex)) = raw_material.get_value("color_tex") {
-        if let Some(color_tex) = get_or_load_texture(textures, render_api, color_tex) {
+        if let Some(color_tex) = get_or_load_texture(render_api, textures, color_tex) {
             material.color_tex = Some(color_tex);
         };
     }

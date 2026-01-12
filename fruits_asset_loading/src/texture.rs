@@ -15,12 +15,12 @@ pub fn get_or_load_texture_from_world(res: ResourcesHolderMut, key: &str) -> Opt
         )
     };
 
-    get_or_load_texture(textures, render_api, key)
+    get_or_load_texture(render_api, textures, key)
 }
 
 pub fn get_or_load_texture(
-    textures: &mut AssetStorageResource<StandardTexture>,
     render_api: &RenderApiResource,
+    textures: &mut AssetStorageResource<StandardTexture>,
     key: &str,
 ) -> Option<AssetHandle<StandardTexture>> {
     if let Some(stored_texture) = textures.get_registered(key) {

@@ -14,12 +14,12 @@ pub fn get_or_load_mesh_from_world(res: ResourcesHolderMut, key: &str) -> Option
         )
     };
 
-    get_or_load_mesh(meshes, render_api, key)
+    get_or_load_mesh(render_api, meshes, key)
 }
 
 pub fn get_or_load_mesh(
-    meshes: &mut AssetStorageResource<StandardMesh>,
     render_api: &RenderApiResource,
+    meshes: &mut AssetStorageResource<StandardMesh>,
     key: &str,
 ) -> Option<AssetHandle<StandardMesh>> {
     if let Some(stored_mesh) = meshes.get_registered(key) {

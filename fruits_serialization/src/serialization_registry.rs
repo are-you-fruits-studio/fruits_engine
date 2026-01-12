@@ -1,5 +1,7 @@
 use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 
+use fruits_ffi::FfiAny;
+
 use crate::{DeserializationError, SerializationError, SerializerCtx, TransSerializable};
 
 pub trait TransSerializer {
@@ -51,12 +53,13 @@ impl<'se, T: 'static> AbstractSerializer<'se, T> {
     }
 }
 
-trait VirtualSerializer<'se>: 'se {
+pub(crate) trait VirtualSerializer<'se>: 'se {
     fn deserialized_type_name(&self) -> &'static str;
+    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, DeserializationError>;
 }
 
 impl<'se> dyn VirtualSerializer<'se> + Send + Sync {
-    pub fn downcast_serializer_ref<'r, T: 'se>(&'r self) -> Option<&'r AbstractSerializer<'se, T>>
+    pub(crate) fn downcast_serializer_ref<'r, T: 'se>(&'r self) -> Option<&'r AbstractSerializer<'se, T>>
         where 'se: 'r
     {
         unsafe {
@@ -72,6 +75,10 @@ impl<'se> dyn VirtualSerializer<'se> + Send + Sync {
 impl<'se, T: 'static> VirtualSerializer<'se> for AbstractSerializer<'se, T> {
     fn deserialized_type_name(&self) -> &'static str {
         std::any::type_name::<T>()
+    }
+    
+    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, DeserializationError> {
+        self.deserialize(ctx, value).map(FfiAny::new)
     }
 }
 
@@ -96,7 +103,7 @@ impl<'se> SerializerRegistry<'se> {
         self.serializers.insert(type_name, serializer);
     }
 
-    pub(crate) fn get<'r, T: 'static>(&'r self) -> Option<&'r AbstractSerializer<'r, T>>
+    pub(crate) fn get<'r, T: 'static>(&'r self) -> Option<&'r AbstractSerializer<'se, T>>
         where 'se: 'r
     {
         let type_name = std::any::type_name::<T>();
@@ -104,6 +111,12 @@ impl<'se> SerializerRegistry<'se> {
         let serializer = serializer.downcast_serializer_ref::<T>().unwrap();
 
         Some(serializer)
+    }
+
+    pub(crate) fn get_virtual<'r>(&'r self, id: &str) -> Option<&'r (dyn VirtualSerializer<'se> + Send + Sync)>
+        where 'se: 'r
+    {
+        self.serializers.get(id).map(|b| &**b)
     }
 }
 

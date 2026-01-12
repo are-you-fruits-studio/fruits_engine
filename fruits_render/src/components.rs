@@ -3,6 +3,7 @@ use fruits_ecs::Component;
 use fruits_ffi::{FfiString, FfiVec};
 use fruits_math::Vec4;
 use fruits_render_core::{StandardMesh, StandardVertex};
+use fruits_serialization::*;
 use fruits_transform::UiVal;
 
 use crate::Font;
@@ -17,7 +18,7 @@ pub struct StandardRenderComponent {
 }
 
 #[repr(C)]
-#[derive(Component, Clone)]
+#[derive(Component, Clone, TransSerializable)]
 pub struct StandardMeshComponent {
     pub mesh: AssetHandle<StandardMesh>,
 }
@@ -30,7 +31,7 @@ pub struct BatchedMeshComponent {
 }
 
 #[repr(C)]
-#[derive(Component, Clone)]
+#[derive(Component, Clone, TransSerializable)]
 pub struct StandardMaterialComponent {
     pub material: AssetHandle<StandardMaterial>,
 }

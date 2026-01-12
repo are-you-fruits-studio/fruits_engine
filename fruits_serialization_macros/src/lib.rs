@@ -24,8 +24,12 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
     write!(result, r#"impl{impl_generics} TransSerializable for {type_name}<{type_generics}> where Self: 'static "#).unwrap();
 
+    let mut where_clause_text = String::new();
+
     if let Some(where_clause) = input.generics.where_clause {
-        write!(result, r#", {}"#, where_clause.predicates.to_token_stream().to_string()).unwrap();
+        where_clause_text.push_str(", ");
+        where_clause_text.push_str(&where_clause.predicates.to_token_stream().to_string());
+        result.push_str(&where_clause_text);
     }
 
     write!(result, r#" {{ "#).unwrap();
@@ -42,8 +46,8 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
             let is_tuple = matches!(&data_struct.fields, syn::Fields::Unnamed{ .. });
 
             match is_tuple {
-                true => write!(impl_serialize, r#"ctx.serialize_tuple()"#).unwrap(),
-                false => write!(impl_serialize, r#"ctx.serialize_struct()"#).unwrap(),
+                true => write!(impl_serialize, r#"Ok(serde_json::Value::Array(vec!["#).unwrap(),
+                false => write!(impl_serialize, r#"Ok(serde_json::Value::Object(["#).unwrap(),
             };
 
             match is_tuple {
@@ -63,7 +67,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
                         write!(
                             impl_serialize,
-                            r#".serialize_field("{field_name}", &self.{field_name})"#
+                            r#"(String::from("{field_name}"), ctx.serialize(&self.{field_name})?),"#
                         )
                         .unwrap();
 
@@ -78,7 +82,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                     for (field_idx, _) in fields_unnamed.unnamed.iter().enumerate() {
                         write!(
                             impl_serialize,
-                            r#".serialize_element(&self.{field_idx})"#
+                            r#"ctx.serialize(&self.{field_idx})?,"#
                         )
                         .unwrap();
 
@@ -92,7 +96,10 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                 syn::Fields::Unit => (),
             }
 
-            impl_serialize.push_str(".end()");
+            match is_tuple {
+                true => write!(impl_serialize, r#"]))"#).unwrap(),
+                false => write!(impl_serialize, r#"].into_iter().collect()))"#).unwrap(),
+            }
 
             match is_tuple {
                 true => write!(impl_deserialize, r#"))"#).unwrap(),
@@ -100,7 +107,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
             }
         }
         syn::Data::Enum(data_enum) => {
-            write!(impl_serialize, r#"match self {{"#).unwrap();
+            write!(impl_serialize, r#"Ok(match self {{"#).unwrap();
 
             write!(impl_deserialize, r#"let serde_json::Value::Object(object) = value else {{ return Err(DeserializationError::InvalidInput); }};"#).unwrap();
             write!(impl_deserialize, r#"if object.len() != 1 {{ return Err(DeserializationError::InvalidInput); }}"#).unwrap();
@@ -109,7 +116,6 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
 
             for variant in data_enum.variants {
                 let variant_name = variant.ident.to_string();
-                let is_tuple = matches!(&variant.fields, syn::Fields::Unnamed{ .. });
 
                 let deconstruction = match &variant.fields {
                     syn::Fields::Named(fields_named) => format!(" {{ {} }}", fields_named.named.iter().map(|f| f.ident.as_ref().unwrap().to_token_stream().to_string()).collect::<Vec<_>>().join(", ")),
@@ -117,43 +123,45 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                     syn::Fields::Unit => String::from(""),
                 };
 
-                match is_tuple {
-                    true => write!(impl_serialize, r#"Self::{variant_name}{deconstruction} => ctx.serialize_tuple()"#).unwrap(),
-                    false => write!(impl_serialize, r#"Self::{variant_name}{deconstruction} => ctx.serialize_struct()"#).unwrap(),
-                }
+                write!(impl_serialize, r#"Self::{variant_name}{deconstruction} => serde_json::Value::Object([(String::from("{variant_name}"), "#).unwrap();
 
                 match &variant.fields {
                     syn::Fields::Named(fields_named) => {
+                        write!(impl_serialize, r#"serde_json::Value::Object(["#).unwrap();
                         write!(impl_deserialize, r#"("{variant_name}", serde_json::Value::Object(object)) => Ok(Self::{variant_name} {{"#).unwrap();
                         
                         for field in &fields_named.named {
                             let field_name = field.ident.as_ref().unwrap().to_token_stream().to_string();
                             
-                            write!(impl_serialize, r#".serialize_field("{field_name}", {field_name})"#).unwrap();
+                            write!(impl_serialize, r#"(("{field_name}", ctx.serialize({field_name})?),"#).unwrap();
                             write!(impl_deserialize, r#"{field_name}: ctx.deserialize(object.get("{field_name}").ok_or_else(|| DeserializationError::InvalidInput)?)?,"#).unwrap();
                         }
                         
+                        write!(impl_serialize, r#"].into_iter().collect()),"#).unwrap();
                         write!(impl_deserialize, r#"}}),"#).unwrap();
                     },
                     syn::Fields::Unnamed(fields_unnamed) => {
+                        write!(impl_serialize, r#"serde_json::Value::Array(vec!["#).unwrap();
                         write!(impl_deserialize, r#"("{variant_name}", serde_json::Value::Array(array)) => Ok(Self::{variant_name}("#).unwrap();
 
                         for (field_idx, _) in fields_unnamed.unnamed.iter().enumerate() {
-                            write!(impl_serialize, r#".serialize_element(f{field_idx})"#).unwrap();
+                            write!(impl_serialize, r#"ctx.serialize(f{field_idx})?,"#).unwrap();
                             write!(impl_deserialize, r#"ctx.deserialize(array.get({field_idx}).ok_or_else(|| DeserializationError::InvalidInput)?)?,"#).unwrap();
                         }
 
+                        write!(impl_serialize, r#"]),"#).unwrap();
                         write!(impl_deserialize, r#")),"#).unwrap();
                     },
                     syn::Fields::Unit => {
+                        write!(impl_serialize, r#"serde_json::Value::Object([].into_iter().collect()),"#).unwrap();
                         write!(impl_deserialize, r#"("{variant_name}", _) => Ok(Self::{variant_name}),"#).unwrap();
                     },
                 }
-                
-                write!(impl_serialize, r#".end_enum("{variant_name}"),"#).unwrap();
+
+                write!(impl_serialize, r#")].into_iter().collect())"#).unwrap();
             }
 
-            impl_serialize.push_str("}");
+            impl_serialize.push_str("})");
 
             impl_deserialize.push_str("_ => Err(DeserializationError::InvalidInput),");
             impl_deserialize.push_str("}");
