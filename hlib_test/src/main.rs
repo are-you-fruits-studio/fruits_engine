@@ -33,6 +33,7 @@ fn main() {
     local_serializer.register(EntityTransSerializer::new(
         &entities_deserialized,
         &entities_serialized,
+        true,
     ));
 
     let serialized_component = global_serializer.serialize(&component, Some(&local_serializer)).unwrap();

@@ -133,7 +133,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                         for field in &fields_named.named {
                             let field_name = field.ident.as_ref().unwrap().to_token_stream().to_string();
                             
-                            write!(impl_serialize, r#"(("{field_name}", ctx.serialize({field_name})?),"#).unwrap();
+                            write!(impl_serialize, r#"(String::from("{field_name}"), ctx.serialize({field_name})?),"#).unwrap();
                             write!(impl_deserialize, r#"{field_name}: ctx.deserialize(object.get("{field_name}").ok_or_else(|| DeserializationError::InvalidInput)?)?,"#).unwrap();
                         }
                         
@@ -158,7 +158,7 @@ pub fn derive_json_serializable(stream: TokenStream) -> TokenStream {
                     },
                 }
 
-                write!(impl_serialize, r#")].into_iter().collect())"#).unwrap();
+                write!(impl_serialize, r#")].into_iter().collect()),"#).unwrap();
             }
 
             impl_serialize.push_str("})");

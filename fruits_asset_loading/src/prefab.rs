@@ -450,9 +450,9 @@ impl<'m, 'brw: 'm> TransSerializer for PrefabLoadTransSerializer<'m, 'brw> {
 // + spawn entities
 // + spawn components on the entities
 // + access to other entities inside the prefab
-// - access to materials
-// - access to meshes
-// - access to textures
+// + access to materials
+// + access to meshes
+// + access to textures
 // - access to fonts
 // - access to other prefabs
 // - access to other assets
