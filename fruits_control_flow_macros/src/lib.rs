@@ -1,69 +1,53 @@
-use proc_macro::TokenStream;
-
-#[proc_macro]
-pub fn return_if(stream: TokenStream) -> TokenStream {
-    let mut result = String::new();
-
-    result.push_str("if ");
-    result.push_str(&stream.to_string());
-    result.push_str(" { return; }");
-
-    result.parse().unwrap()
+#[macro_export]
+macro_rules! return_if {
+    ($cond: expr) => {
+        if $cond {
+            return;
+        }
+    };
 }
 
-#[proc_macro]
-pub fn continue_if(stream: TokenStream) -> TokenStream {
-    let mut result = String::new();
-
-    result.push_str("if ");
-    result.push_str(&stream.to_string());
-    result.push_str(" { continue; }");
-
-    result.parse().unwrap()
+#[macro_export]
+macro_rules! continue_if {
+    ($cond: expr) => {
+        if $cond {
+            continue;
+        }
+    };
 }
 
-#[proc_macro]
-pub fn break_if(stream: TokenStream) -> TokenStream {
-    let mut result = String::new();
-
-    result.push_str("if ");
-    result.push_str(&stream.to_string());
-    result.push_str(" { break; }");
-
-    result.parse().unwrap()
+#[macro_export]
+macro_rules! break_if {
+    ($cond: expr) => {
+        if $cond {
+            break;
+        }
+    };
 }
 
-//
-
-#[proc_macro]
-pub fn return_if_not(stream: TokenStream) -> TokenStream {
-    let mut result = String::new();
-
-    result.push_str("let ");
-    result.push_str(&stream.to_string());
-    result.push_str(" else { return; };");
-
-    result.parse().unwrap()
+#[macro_export]
+macro_rules! return_if_not {
+    ($p: pat = $e: expr) => {
+        let $p = $e else {
+            return;
+        };
+    };
 }
 
-#[proc_macro]
-pub fn continue_if_not(stream: TokenStream) -> TokenStream {
-    let mut result = String::new();
-
-    result.push_str("let ");
-    result.push_str(&stream.to_string());
-    result.push_str(" else { continue; };");
-
-    result.parse().unwrap()
+#[macro_export]
+macro_rules! continue_if_not {
+    ($p: pat = $e: expr) => {
+        let $p = $e else {
+            continue;
+        };
+    };
 }
 
-#[proc_macro]
-pub fn break_if_not(stream: TokenStream) -> TokenStream {
-    let mut result = String::new();
-
-    result.push_str("let ");
-    result.push_str(&stream.to_string());
-    result.push_str(" else { break; };");
-
-    result.parse().unwrap()
+#[macro_export]
+macro_rules! break_if_not {
+    ($p: pat = $e: expr) => {
+        let $p = $e else {
+            break;
+        };
+    };
 }
