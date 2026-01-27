@@ -35,22 +35,22 @@ impl<T: Eq + Hash + Clone> Graph<T> {
         self.backward.get(node)
     }
 
-    pub fn to_vec(&self) -> Vec<T> {
+    pub fn to_vec(&self) -> Result<Vec<T>, HashSet<T>> {
         Self::to_vec_internal(&self.backward, &self.nodes)
     }
 
-    pub fn to_vec_rev(&self) -> Vec<T> {
+    pub fn to_vec_rev(&self) -> Result<Vec<T>, HashSet<T>> {
         Self::to_vec_internal(&self.forward, &self.nodes)
     }
 
-    fn to_vec_internal(inverted: &HashMap<T, HashSet<T>>, nodes: &HashSet<T>) -> Vec<T> {
+    fn to_vec_internal(inverted: &HashMap<T, HashSet<T>>, nodes: &HashSet<T>) -> Result<Vec<T>, HashSet<T>> {
         let mut max_to_min = inverted.clone();
 
         let mut ordered_set = HashSet::<T>::new();
         let mut ordered = Vec::<T>::new();
 
         while !max_to_min.is_empty() {
-            let (min, max) = Self::most_min(&max_to_min);
+            let (min, max) = Self::most_min(&max_to_min)?;
 
             if ordered_set.insert(min.clone()) {
                 ordered.push(min.clone());
@@ -75,10 +75,10 @@ impl<T: Eq + Hash + Clone> Graph<T> {
             }
         }
 
-        ordered
+        Ok(ordered)
     }
 
-    fn most_min(max_to_min: &HashMap<T, HashSet<T>>) -> (T, T) {
+    fn most_min(max_to_min: &HashMap<T, HashSet<T>>) -> Result<(T, T), HashSet<T>> {
         let mut visited = HashSet::<T>::new();
 
         let (mut max, mut mins) = max_to_min.iter().next().unwrap();
@@ -87,16 +87,13 @@ impl<T: Eq + Hash + Clone> Graph<T> {
             let min = mins.iter().next().unwrap();
 
             let Some(new_mins) = max_to_min.get(min) else {
-                return (min.clone(), max.clone());
+                return Ok((min.clone(), max.clone()));
             };
 
             mins = new_mins;
             max = min;
         }
 
-        panic!(
-            "The Graph contains circular dependencies. Cycle contains {} elements.",
-            visited.len()
-        );
+        Err(visited)
     }
 }

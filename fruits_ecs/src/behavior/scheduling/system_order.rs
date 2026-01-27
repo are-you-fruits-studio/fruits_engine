@@ -111,9 +111,13 @@ pub fn sort_systems_by_order(
     for ty in systems.keys() {
         graph.insert_node(ty.clone());
     }
+    
+    let graph_vec = match graph.to_vec() {
+        Ok(x) => x,
+        Err(err) => panic!("The systems graph contains circular dependencies:\n{}", err.into_iter().collect::<Vec<_>>().join("\n")),
+    };
 
-    graph
-        .to_vec()
+    graph_vec
         .into_iter()
         .map(|t| systems.remove(&t).unwrap())
         .collect::<FfiVec<_>>()
@@ -172,7 +176,12 @@ fn flatten_groups(groups: &HashMap<FfiString, HashSet<OrderEntry>>) -> HashMap<F
 
     let mut flat_groups = HashMap::<FfiString, HashSet<FfiString>>::new();
 
-    for group in group_hierarchy.to_vec_rev() {
+    let group_hierarchy_vec = match group_hierarchy.to_vec_rev() {
+        Ok(x) => x,
+        Err(err) => panic!("The systems graph contains circular dependencies:\n{}", err.into_iter().collect::<Vec<_>>().join("\n")),
+    };
+
+    for group in group_hierarchy_vec {
         let mut flat_group_children = HashSet::<FfiString>::new();
 
         for group_child in groups.get(&group).iter().copied().flatten() {
