@@ -100,16 +100,22 @@ pub fn sort_systems_by_order(
     mut systems: HashMap<FfiString, SystemFfi>,
     systems_ordering: &HashSet<(FfiString, FfiString)>,
 ) -> FfiVec<SystemFfi> {
+    let mut systems_ordering_ordered = systems_ordering.iter().cloned().collect::<Vec<_>>();
+    systems_ordering_ordered.sort();
+
+    let mut system_names_ordered = systems.keys().cloned().collect::<Vec<_>>();
+    system_names_ordered.sort();
+
     let mut graph = Graph::new();
 
-    for (src, dst) in systems_ordering.iter() {
+    for (src, dst) in systems_ordering_ordered.iter() {
         if systems.contains_key(src) && systems.contains_key(dst) {
             graph.insert_edge(src.clone(), dst.clone());
         }
     }
 
-    for ty in systems.keys() {
-        graph.insert_node(ty.clone());
+    for ty in system_names_ordered {
+        graph.insert_node(ty);
     }
     
     let graph_vec = match graph.to_vec() {
