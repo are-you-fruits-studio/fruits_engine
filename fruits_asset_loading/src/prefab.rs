@@ -7,7 +7,7 @@ use fruits_modules::SerializersResource;
 use fruits_prefab::{Prefab, PrefabComponent, PrefabComponentsDeserializerResource};
 use fruits_render::StandardMaterial;
 use fruits_render_core::{RenderApiResource, StandardMesh, StandardTexture};
-use fruits_serialization::{DeserializationError, SerializerCtx, TransSerializer, SerializationError, SerializerRegistry};
+use fruits_serialization::{SerializationError, SerializationResult, SerializerCtx, SerializerRegistry, TransSerializer};
 
 use crate::{get_or_load_material, get_or_load_mesh, get_or_load_texture};
 
@@ -191,7 +191,7 @@ fn load_prefab_dependencies(
 
     let mut serializer_local = SerializerRegistry::new();
 
-    serializer_local.register(EntityTransSerializer::new(&entities_deserialized, &entities_serialized, true));
+    serializer_local.register(EntityTransSerializer::new(&entities_deserialized, &entities_serialized));
     serializer_local.register(TextureLoadTransSerializer(render_api, &textures));
     serializer_local.register(MaterialLoadTransSerializer(render_api, &materials, &textures));
     serializer_local.register(MeshLoadTransSerializer(render_api, &meshes));
@@ -239,7 +239,7 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
 
     let mut serializer_local = SerializerRegistry::new();
 
-    serializer_local.register(EntityTransSerializer::new(&ctx.entities, &entities_serialized, false));
+    serializer_local.register(EntityTransSerializer::new(&ctx.entities, &entities_serialized));
     serializer_local.register(AssetGetTransSerializer::new(&textures));
     serializer_local.register(AssetGetTransSerializer::new(&materials));
     serializer_local.register(AssetGetTransSerializer::new(&meshes));
@@ -271,19 +271,16 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
 pub struct EntityTransSerializer<'brw> {
     entities_deserialized: &'brw HashMap<usize, Entity>,
     entities_serialized: &'brw HashMap<Entity, usize>,
-    should_ignore_errors: bool,
 }
 
 impl<'brw> EntityTransSerializer<'brw> {
     pub fn new(
         entities_deserialized: &'brw HashMap<usize, Entity>,
         entities_serialized: &'brw HashMap<Entity, usize>,
-        should_ignore_errors: bool,
     ) -> Self {
         Self {
             entities_deserialized,
             entities_serialized,
-            should_ignore_errors,
         }
     }
 }
@@ -291,26 +288,27 @@ impl<'brw> EntityTransSerializer<'brw> {
 impl<'brw> TransSerializer for EntityTransSerializer<'brw> {
     type Deserialized = Entity;
 
-    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
-        let Some(value) = self.entities_serialized.get(value) else {
-            return Ok(serde_json::Value::Null);
-        };
-
-        Ok(serde_json::Value::Number((*value).into()))
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
+        SerializationResult {
+            result: match self.entities_serialized.get(value) {
+                Some(value) => serde_json::Value::Number((*value).into()),
+                None => serde_json::Value::Null,
+            },
+            err: None,
+        }
     }
 
-    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         let result = match value {
             serde_json::Value::Null => Some(Entity::EMPTY),
             serde_json::Value::Number(number) => number.as_u64().map(|n| self.entities_deserialized.get(&(n as usize))).flatten().copied(),
             _ => None,
         };
 
-        if self.should_ignore_errors {
-            Ok(result.unwrap_or_else(|| Entity::EMPTY))
-        } else {
-            result.ok_or_else(|| DeserializationError::InvalidInput)
-        }
+        Ok(SerializationResult {
+            result: result.unwrap_or_else(|| Entity::EMPTY),
+            err: if result.is_none() { Some(SerializationError::InvalidInput) } else { None }
+        })
     }
 }
 
@@ -327,16 +325,19 @@ impl<'brw, T: 'static> AssetGetTransSerializer<'brw, T> {
 impl<'brw, T> TransSerializer for AssetGetTransSerializer<'brw, T> {
     type Deserialized = AssetHandle<T>;
 
-    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
         todo!()
     }
 
-    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         let serde_json::Value::String(value) = value else {
-            return Err(DeserializationError::InvalidInput);
+            return Err(SerializationError::InvalidInput);
         };
 
-        self.res.get_registered(value).cloned().ok_or_else(|| DeserializationError::InvalidInput)
+        Ok(SerializationResult {
+            result: self.res.get_registered(value).cloned().ok_or_else(|| SerializationError::InvalidInput)?,
+            err: None,
+        })
     }
 }
 
@@ -347,20 +348,23 @@ pub struct TextureLoadTransSerializer<'m, 'brw: 'm>(
 impl<'m, 'brw: 'm> TransSerializer for TextureLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<StandardTexture>;
 
-    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
         todo!()
     }
 
-    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         let serde_json::Value::String(value) = value else {
-            return Err(DeserializationError::InvalidInput);
+            return Err(SerializationError::InvalidInput);
         };
 
-        get_or_load_texture(
-            self.0,
-            &mut self.1.lock().unwrap(),
-            value,
-        ).ok_or_else(|| DeserializationError::InvalidInput)
+        Ok(SerializationResult {
+            result: get_or_load_texture(
+                self.0,
+                &mut self.1.lock().unwrap(),
+                value,
+            ).ok_or_else(|| SerializationError::InvalidInput)?,
+            err: None,
+        })
     }
 }
 
@@ -372,21 +376,24 @@ pub struct MaterialLoadTransSerializer<'m, 'brw: 'm>(
 impl<'m, 'brw: 'm> TransSerializer for MaterialLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<StandardMaterial>;
 
-    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
         todo!()
     }
 
-    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         let serde_json::Value::String(value) = value else {
-            return Err(DeserializationError::InvalidInput);
+            return Err(SerializationError::InvalidInput);
         };
 
-        get_or_load_material(
-            self.0,
-            &mut self.1.lock().unwrap(),
-            &mut self.2.lock().unwrap(),
-            value,
-        ).ok_or_else(|| DeserializationError::InvalidInput)
+        Ok(SerializationResult {
+            result: get_or_load_material(
+                self.0,
+                &mut self.1.lock().unwrap(),
+                &mut self.2.lock().unwrap(),
+                value,
+            ).ok_or_else(|| SerializationError::InvalidInput)?,
+            err: None,
+        })
     }
 }
 
@@ -397,20 +404,23 @@ pub struct MeshLoadTransSerializer<'m, 'brw: 'm>(
 impl<'m, 'brw: 'm> TransSerializer for MeshLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<StandardMesh>;
 
-    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
         todo!()
     }
 
-    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         let serde_json::Value::String(value) = value else {
-            return Err(DeserializationError::InvalidInput);
+            return Err(SerializationError::InvalidInput);
         };
 
-        get_or_load_mesh(
-            self.0,
-            &mut self.1.lock().unwrap(),
-            value,
-        ).ok_or_else(|| DeserializationError::InvalidInput)
+        Ok(SerializationResult {
+            result: get_or_load_mesh(
+                self.0,
+                &mut self.1.lock().unwrap(),
+                value,
+            ).ok_or_else(|| SerializationError::InvalidInput)?,
+            err: None,
+        })
     }
 }
 
@@ -425,24 +435,27 @@ pub struct PrefabLoadTransSerializer<'m, 'brw: 'm>(
 impl<'m, 'brw: 'm> TransSerializer for PrefabLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<Prefab>;
 
-    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+    fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
         todo!()
     }
 
-    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, _ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         let serde_json::Value::String(value) = value else {
-            return Err(DeserializationError::InvalidInput);
+            return Err(SerializationError::InvalidInput);
         };
 
-        get_or_load_prefab(
-            self.0,
-            self.1,
-            &mut self.2.lock().unwrap(),
-            &mut self.3.lock().unwrap(),
-            &mut self.4.lock().unwrap(),
-            &mut self.5.lock().unwrap(),
-            value,
-        ).ok_or_else(|| DeserializationError::InvalidInput)
+        Ok(SerializationResult {
+            result: get_or_load_prefab(
+                self.0,
+                self.1,
+                &mut self.2.lock().unwrap(),
+                &mut self.3.lock().unwrap(),
+                &mut self.4.lock().unwrap(),
+                &mut self.5.lock().unwrap(),
+                value,
+            ).ok_or_else(|| SerializationError::InvalidInput)?,
+            err: None,
+        })
     }
 }
 

@@ -2,13 +2,13 @@ use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 
 use fruits_ffi::FfiAny;
 
-use crate::{DeserializationError, SerializationError, SerializerCtx, TransSerializable};
+use crate::{SerializationError, SerializationResult, SerializerCtx, TransSerializable};
 
 pub trait TransSerializer {
     type Deserialized: 'static;
 
-    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError>;
-    fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError>;
+    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value>;
+    fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError>;
 }
 
 // todo: ffi
@@ -25,11 +25,11 @@ impl<T: TransSerializable> Default for StandardTransSerializer<T> {
 impl<T: TransSerializable> TransSerializer for StandardTransSerializer<T> {
     type Deserialized = T;
 
-    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> Result<serde_json::Value, SerializationError> {
+    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
         T::serialize(value, ctx)
     }
 
-    fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self::Deserialized, DeserializationError> {
+    fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
         T::deserialize(ctx, value)
     }
 }
@@ -45,17 +45,17 @@ impl<'se, T: 'static> AbstractSerializer<'se, T> {
             serializer: Box::new(serializer),
         }
     }
-    pub fn serialize(&self, ctx: &SerializerCtx, value: &T) -> Result<serde_json::Value, SerializationError> {
+    pub fn serialize(&self, ctx: &SerializerCtx, value: &T) -> SerializationResult<serde_json::Value> {
         self.serializer.serialize(ctx, value)
     }
-    pub fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<T, DeserializationError> {
+    pub fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<T>, SerializationError> {
         self.serializer.deserialize(ctx, value)
     }
 }
 
 pub(crate) trait VirtualSerializer<'se>: 'se {
     fn deserialized_type_name(&self) -> &'static str;
-    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, DeserializationError>;
+    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, SerializationError>;
 }
 
 impl<'se> dyn VirtualSerializer<'se> + Send + Sync {
@@ -77,7 +77,7 @@ impl<'se, T: 'static> VirtualSerializer<'se> for AbstractSerializer<'se, T> {
         std::any::type_name::<T>()
     }
     
-    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, DeserializationError> {
+    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, SerializationError> {
         self.deserialize(ctx, value).map(FfiAny::new)
     }
 }
@@ -137,11 +137,11 @@ impl GlobalSerializer {
         self.serializers.register(serializer)
     }
 
-    pub fn serialize<'r, 'ctx: 'r, T: 'static>(&self, value: &T, ctx: Option<&'r SerializerRegistry<'ctx>>) -> Result<serde_json::Value, SerializationError> {
+    pub fn serialize<'r, 'ctx: 'r, T: 'static>(&self, value: &T, ctx: Option<&'r SerializerRegistry<'ctx>>) -> SerializationResult<serde_json::Value> {
         SerializerCtx::new(&self.serializers, ctx).serialize(value)
     }
 
-    pub fn deserialize<'r, 'ctx: 'r, T: 'static>(&self, data: &serde_json::Value, ctx: Option<&'r SerializerRegistry<'ctx>>) -> Result<T, DeserializationError> {
+    pub fn deserialize<'r, 'ctx: 'r, T: 'static>(&self, data: &serde_json::Value, ctx: Option<&'r SerializerRegistry<'ctx>>) -> Result<SerializationResult<T>, SerializationError> {
         SerializerCtx::new(&self.serializers, ctx).deserialize(data)
     }
 

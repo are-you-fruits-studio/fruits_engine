@@ -9,6 +9,7 @@ pub mod stack_vec;
 pub mod thread_pool;
 pub mod typed_map;
 pub mod close_int_map;
+pub mod try_default;
 
 pub struct AssumeSend<T>(T);
 

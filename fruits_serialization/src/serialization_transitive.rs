@@ -9,17 +9,61 @@ use serde::{Deserialize, Serialize};
 
 use crate::SerializerRegistry;
 
-pub trait TransSerializable: Sized + 'static {
-    fn serialize(&self, ctx: &SerializerCtx) -> Result<serde_json::Value, SerializationError>;
-    fn deserialize(ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self, DeserializationError>;
+pub struct SerializationResult<T> {
+    pub result: T,
+    pub err: Option<SerializationError>,
 }
 
-pub struct SerializationError {
-    pub type_name: Cow<'static, str>,
+impl<T> SerializationResult<T> {
+    pub fn unwrap(self) -> T {
+        if let Some(err) = self.err {
+            panic!("{err}");
+        }
+
+        self.result
+    }
+}
+
+impl<T: Debug> Debug for SerializationResult<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SerializationResult")
+            .field("result", &self.result)
+            .field("err", &self.err)
+            .finish()
+    }
+}
+
+pub trait SerializationErrorExt {
+    fn consume_non_fatal<T>(&mut self, result: SerializationResult<T>) -> T;
+}
+
+impl SerializationErrorExt for Option<SerializationError> {
+    fn consume_non_fatal<T>(&mut self, result: SerializationResult<T>) -> T {
+        if self.is_none() {
+            *self = result.err;
+        }
+        result.result
+    }
+}
+
+pub trait TransSerializable: Sized + 'static {
+    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<serde_json::Value>;
+// todo: separate types for recoverable errors and fatal errors.
+    fn deserialize(ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError>;
+}
+
+pub enum SerializationError {
+    NoSerializerRegistered { type_name: Cow<'static, str> },
+    InvalidInput,
 }
 impl Display for SerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "failed to serialize {} - probably serializer for the type is not registered", self.type_name)
+        match self {
+            Self::NoSerializerRegistered { type_name } => {
+                write!(f, "failed to deserialize {} - serializer for the type is not registered", type_name)
+            }
+            Self::InvalidInput => write!(f, "failed to deserialize - invalid deserialization input"),
+        }
     }
 }
 impl Debug for SerializationError {
@@ -33,31 +77,6 @@ impl Error for SerializationError {
     }
 }
 
-pub enum DeserializationError {
-    NoSerializerRegistered { type_name: Cow<'static, str> },
-    InvalidInput,
-}
-impl Display for DeserializationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NoSerializerRegistered { type_name } => {
-                write!(f, "failed to deserialize {} - serializer for the type is not registered", type_name)
-            }
-            Self::InvalidInput => write!(f, "failed to deserialize - invalid deserialization input"),
-        }
-    }
-}
-impl Debug for DeserializationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <DeserializationError as Display>::fmt(&self, f)
-    }
-}
-impl Error for DeserializationError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-}
-
 pub struct StructSerializerCtx<'brw, 'local: 'brw> {
     ctx: SerializerCtx<'brw, 'local>,
     fields: serde_json::Map<String, serde_json::Value>,
@@ -66,14 +85,13 @@ pub struct StructSerializerCtx<'brw, 'local: 'brw> {
 
 impl<'brw, 'local: 'brw> StructSerializerCtx<'brw, 'local> {
     pub fn serialize_field<T: 'static>(mut self, name: impl Into<String>, value: &T) -> Self {
-        if self.error.is_some() {
-            return self;
+        let result = self.ctx.serialize(value);
+
+        if let Some(err) = result.err && self.error.is_none() {
+            self.error = Some(err);
         }
 
-        match self.ctx.serialize(value) {
-            Ok(serialized_value) => _ = self.fields.insert(name.into(), serialized_value),
-            Err(err) => self.error = Some(err),
-        }
+        self.fields.insert(name.into(), result.result);
 
         self
     }
@@ -107,14 +125,13 @@ pub struct TupleSerializerCtx<'brw, 'local: 'brw> {
 
 impl<'brw, 'local: 'brw> TupleSerializerCtx<'brw, 'local> {
     pub fn serialize_element<T: 'static>(mut self, value: &T) -> Self {
-        if self.error.is_some() {
-            return self;
+        let result = self.ctx.serialize(value);
+
+        if let Some(err) = result.err && self.error.is_none() {
+            self.error = Some(err);
         }
 
-        match self.ctx.serialize(value) {
-            Ok(serialized_value) => self.elements.push(serialized_value),
-            Err(err) => self.error = Some(err),
-        }
+        self.elements.push(result.result);
 
         self
     }
@@ -173,7 +190,7 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
         serde_json::Value::Object([(variant_name.into(), value)].into_iter().collect())
     }
     //
-    pub fn serialize<T: 'static>(&self, value: &T) -> Result<serde_json::Value, SerializationError> {
+    pub fn serialize<T: 'static>(&self, value: &T) -> SerializationResult<serde_json::Value> {
         if let Some(registry_local) = &self.registry_local {
             if let Some(serializer) = registry_local.get() {
                 return serializer.serialize(self, value);
@@ -184,11 +201,14 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             return serializer.serialize(self, value);
         }
 
-        Err(SerializationError {
-            type_name: std::any::type_name::<T>().into(),
-        })
+        SerializationResult {
+            result: serde_json::Value::Null,
+            err: Some(SerializationError::NoSerializerRegistered {
+                type_name: std::any::type_name::<T>().into(),
+            }),
+        }
     }
-    pub fn deserialize<T: 'static>(&self, data: &serde_json::Value) -> Result<T, DeserializationError> {
+    pub fn deserialize<T: 'static>(&self, data: &serde_json::Value) -> Result<SerializationResult<T>, SerializationError> {
         if let Some(registry_local) = &self.registry_local {
             if let Some(serializer) = registry_local.get() {
                 return serializer.deserialize(self, data);
@@ -199,11 +219,11 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             return serializer.deserialize(self, data);
         }
 
-        Err(DeserializationError::NoSerializerRegistered {
+        Err(SerializationError::NoSerializerRegistered {
             type_name: std::any::type_name::<T>().into(),
         })
     }
-    pub fn deserialize_any(&self, id: &str, data: &serde_json::Value) -> Result<FfiAny, DeserializationError> {
+    pub fn deserialize_any(&self, id: &str, data: &serde_json::Value) -> Result<FfiAny, SerializationError> {
         if let Some(registry_local) = self.registry_local {
             if let Some(serializer) = registry_local.get_virtual(id) {
                 return serializer.deserialize_any(self, data);
@@ -214,7 +234,7 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             return serializer.deserialize_any(self, data);
         }
 
-        Err(DeserializationError::NoSerializerRegistered {
+        Err(SerializationError::NoSerializerRegistered {
             type_name: id.to_string().into(),
         })
     }
@@ -229,14 +249,17 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
 // }
 // impl<'brw, 'local: 'brw> Copy for SerializerCtx<'brw, 'local> { }
 
-impl<T: 'static + Serialize + for<'de> Deserialize<'de>> TransSerializable for T {
-    fn serialize(&self, _ctx: &SerializerCtx) -> Result<serde_json::Value, SerializationError> {
-        serde_json::value::to_value(self).map_err(|_| SerializationError {
-            type_name: std::any::type_name::<T>().into(),
-        })
-    }
+//
 
-    fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<Self, DeserializationError> {
-        serde_json::value::from_value(value.clone()).map_err(|_| DeserializationError::InvalidInput)
-    }
-}
+// todo
+// impl<T: 'static + Serialize + for<'de> Deserialize<'de>> TransSerializable for T {
+//     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
+//         serde_json::value::to_value(self).map_err(|_| SerializationError::NoSerializerRegistered {
+//             type_name: std::any::type_name::<T>().into(),
+//         })
+//     }
+
+//     fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
+//         serde_json::value::from_value(value.clone()).map_err(|_| SerializationError::InvalidInput)
+//     }
+// }
