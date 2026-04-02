@@ -18,7 +18,7 @@ unsafe impl<'e, R: Resource> SystemParam for Res<'e, R> {
     type Item<'b> = Res<'b, R>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<R>(),
             details: DataUsageDetails {
                 is_mutable: false,
@@ -39,7 +39,7 @@ unsafe impl<'e, R: Resource> SystemParam for Option<Res<'e, R>> {
     type Item<'b> = Option<Res<'b, R>>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<R>(),
             details: DataUsageDetails {
                 is_mutable: false,

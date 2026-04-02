@@ -18,7 +18,7 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
     type Item<'b> = EntitiesInfo<'b>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<Entity>(),
             details: DataUsageDetails {
                 is_mutable: false,

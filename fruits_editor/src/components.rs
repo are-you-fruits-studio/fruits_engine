@@ -15,3 +15,26 @@ pub struct ProjectWindowEntryComponent {
 
 #[derive(Component)]
 pub struct SceneWindowContentComponent;
+
+#[derive(Component)]
+pub enum SerializedValueComponent {
+    Container { container: Entity, ty: SerializedValueContainerType },
+    Primitive { text: Entity, ty: SerializedValuePrimitiveType },
+}
+
+pub struct SerializedFieldComponent {
+    pub key_text: Entity,
+    pub value_container: Entity
+}
+
+pub enum SerializedValueContainerType {
+    Array,
+    Object,
+}
+
+pub enum SerializedValuePrimitiveType {
+    Null,
+    Bool,
+    Number,
+    String,
+}

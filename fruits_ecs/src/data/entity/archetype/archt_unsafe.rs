@@ -37,7 +37,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
     }
 
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: false,
@@ -69,7 +69,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
     }
 
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: true,
@@ -98,7 +98,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
     }
 
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: false,
@@ -127,7 +127,7 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     }
 
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
                 is_mutable: true,
@@ -155,7 +155,7 @@ unsafe impl ArchetypeIteratorItem for Entity {
     }
 
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add(DataUsageEntry {
+        usage.add_world(DataUsageEntry {
             type_id: types.get_or_register::<Entity>(),
             details: DataUsageDetails {
                 is_mutable: false,

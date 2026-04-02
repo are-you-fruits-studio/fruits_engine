@@ -34,6 +34,12 @@ impl FfiString {
     pub fn clear(&mut self) {
         self.data.clear();
     }
+
+    pub fn push_str(&mut self, string: &str) {
+        for &byte in string.as_bytes() {
+            self.data.push(byte);
+        }
+    }
 }
 
 impl Deref for FfiString {

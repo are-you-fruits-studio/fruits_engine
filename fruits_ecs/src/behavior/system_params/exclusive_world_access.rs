@@ -23,7 +23,7 @@ unsafe impl<'b> SystemParam for ExclusiveWorldAccess<'b> {
     type Item<'e> = ExclusiveWorldAccess<'e>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, _types: &TypesRegistryCache) {
-        usage.add_all_mutable();
+        usage.add_all_mutable_to_world();
     }
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {

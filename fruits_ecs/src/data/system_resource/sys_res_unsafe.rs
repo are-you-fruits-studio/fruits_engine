@@ -1,5 +1,9 @@
 use crate::*;
 
+pub trait SystemResource: 'static + Default { }
+
+//
+
 fn resources_holder_typed_get_or_insert<'a, T: 'static + Default>(
     res: &'a SystemResourcesHolderUnsafeFfi,
     types: &TypesRegistryCache,

@@ -10,6 +10,7 @@ pub mod thread_pool;
 pub mod typed_map;
 pub mod close_int_map;
 pub mod try_default;
+pub mod versioned;
 
 pub struct AssumeSend<T>(T);
 

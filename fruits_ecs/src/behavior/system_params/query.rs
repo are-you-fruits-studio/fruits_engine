@@ -7,7 +7,7 @@ unsafe impl<'e, A: ArchetypeIteratorItem, F: QueryFilter> SystemParam for WorldQ
     type Item<'b> = WorldQuery<'b, A::Item<'b>, F>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        if !usage.can_add_anything() {
+        if !usage.can_add_anything_to_world() {
             // todo
             panic!("fruits: Invalid system DataUsage.");
         }
