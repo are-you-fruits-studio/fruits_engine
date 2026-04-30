@@ -259,7 +259,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var light = light();
 
     var color_lit = cook_torrance_brdf(
-        normalize(-in.normal_world),
+        normalize(in.normal_world),
         normalize(global_data.camera_position_world - in.position_world),
         color.xyz,
         global_data.metallic,
