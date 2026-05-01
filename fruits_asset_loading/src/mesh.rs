@@ -6,6 +6,13 @@ use fruits_ffi::FfiString;
 use fruits_render_core::{RenderApiResource, StandardMesh, StandardVertex};
 use fruits_json::JsonValue;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum CoordinateSpaceType {
+    LeftHandZForward,
+    RightHandZBack,
+    RightHandZUp,
+}
+
 pub fn get_or_load_mesh_from_world(res: ResourcesHolderMut, key: &str) -> Option<AssetHandle<StandardMesh>> {
     let (render_api, meshes) = unsafe {
         (
@@ -53,15 +60,15 @@ pub fn get_or_load_mesh(
 }
 
 fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<StandardMesh> {
-    let Some(raw_mesh) = JsonValue::parse(&mut data.chars()) else {
+    let Some(mesh_asset) = JsonValue::parse(&mut data.chars()) else {
         return None;
     };
 
-    let JsonValue::Object(raw_mesh) = raw_mesh else {
+    let JsonValue::Object(mesh_asset) = mesh_asset else {
         return None;
     };
 
-    let Some(JsonValue::String(asset_type)) = raw_mesh.get_value("asset_type") else {
+    let Some(JsonValue::String(asset_type)) = mesh_asset.get_value("asset_type") else {
         return None;
     };
 
@@ -69,9 +76,27 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
         return None;
     }
 
-    let Some(JsonValue::String(raw_mesh)) = raw_mesh.get_value("raw_mesh") else {
+    let Some(JsonValue::String(raw_mesh)) = mesh_asset.get_value("raw_mesh") else {
         return None;
     };
+
+    let coordinate_space_type = match mesh_asset.get_value("coordinate_space") {
+        Some(JsonValue::String(coordinate_space)) => {
+            match coordinate_space.as_str() {
+                "right_hand_z_up" => CoordinateSpaceType::RightHandZUp,
+                "right_hand_z_back" => CoordinateSpaceType::RightHandZBack,
+                _ => CoordinateSpaceType::LeftHandZForward,
+            }
+        },
+        _ => CoordinateSpaceType::LeftHandZForward,
+    };
+
+    let has_clockwise_winding = match mesh_asset.get_value("has_clockwise_winding") {
+        Some(JsonValue::Bool(true)) => true,
+        _ => false,
+    };
+
+    dbg!(coordinate_space_type);
 
     let mut path = PathBuf::new();
 
@@ -98,7 +123,29 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
         }
     }
 
-    let indices = (0..vertices.len()).map(|i| i as u16).collect::<Vec<_>>();
+    if coordinate_space_type == CoordinateSpaceType::RightHandZBack {
+        for vertex in &mut vertices {
+            vertex.position[2] *= -1.0;
+            vertex.normal[2] *= -1.0;
+        }
+
+    } else if coordinate_space_type == CoordinateSpaceType::RightHandZUp {
+        for vertex in &mut vertices {
+            (vertex.position[1], vertex.position[2]) = (vertex.position[2], vertex.position[1]);
+            (vertex.normal[1], vertex.normal[2]) = (vertex.normal[2], vertex.normal[1]);
+        }
+    }
+
+    let mut indices = (0..vertices.len()).map(|i| i as u16).collect::<Vec<_>>();
+
+    if has_clockwise_winding {
+        if coordinate_space_type == CoordinateSpaceType::RightHandZBack || coordinate_space_type == CoordinateSpaceType::RightHandZUp {
+            for i in 0..(indices.len() / 3) {
+                let offset = i * 3;
+                (indices[offset + 1], indices[offset + 2]) = (indices[offset + 2], indices[offset + 1])
+            }
+        }
+    }
 
     let mesh = render_api.create_mesh(&vertices, &indices);
 
