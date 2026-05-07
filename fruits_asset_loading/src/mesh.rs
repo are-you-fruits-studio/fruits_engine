@@ -96,6 +96,15 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
         _ => false,
     };
 
+    let has_inverted_u = match mesh_asset.get_value("has_inverted_u") {
+        Some(JsonValue::Bool(true)) => true,
+        _ => false,
+    };
+    let has_inverted_v = match mesh_asset.get_value("has_inverted_v") {
+        Some(JsonValue::Bool(true)) => true,
+        _ => false,
+    };
+
     dbg!(coordinate_space_type);
 
     let mut path = PathBuf::new();
@@ -144,6 +153,17 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
                 let offset = i * 3;
                 (indices[offset + 1], indices[offset + 2]) = (indices[offset + 2], indices[offset + 1])
             }
+        }
+    }
+
+    if has_inverted_u {
+        for vertex in &mut vertices {
+            vertex.uv[0] = 1.0 - vertex.uv[0];
+        }
+    }
+    if has_inverted_v {
+        for vertex in &mut vertices {
+            vertex.uv[1] = 1.0 - vertex.uv[1];
         }
     }
 
