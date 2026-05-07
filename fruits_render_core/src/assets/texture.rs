@@ -58,13 +58,12 @@ impl StandardTexture {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 usage: TextureUsages::COPY_SRC
                     | TextureUsages::COPY_DST
                     | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::STORAGE_BINDING
                     | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[TextureFormat::Rgba8Unorm],
+                view_formats: &[TextureFormat::Rgba8UnormSrgb],
             },
             TextureDataOrder::LayerMajor,
             data,
