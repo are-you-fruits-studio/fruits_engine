@@ -6,6 +6,7 @@ const config = {
   tagline: 'Rust game engine documentation',
   url: 'https://are-you-fruits-studio.github.io',
   baseUrl: '/fruits_engine/',
+  favicon: 'img/favicon.png',
   organizationName: 'are-you-fruits-studio',
   projectName: 'fruits_engine',
   trailingSlash: false,
@@ -102,7 +103,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Fruits Engine contributors.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Are You Fruits?.`,
       },
       prism: {
         theme: themes.github,

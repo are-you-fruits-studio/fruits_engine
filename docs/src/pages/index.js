@@ -11,10 +11,10 @@ export default function Home() {
       <main className="home">
         <section className="home__hero">
           <div className="container">
-            <p className="home__eyebrow">Rust game engine</p>
+            <p className="home__eyebrow">Are You Fruits?</p>
             <h1>Fruits Engine</h1>
             <p className="home__intro">
-              Documentation preview for engine concepts and API reference.
+              Documentation for engine concepts and API reference.
             </p>
             <div className="home__actions">
               <Link className="button button--primary" to="/docs/getting-started">
