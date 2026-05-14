@@ -412,6 +412,9 @@ FakesAssemblies/
 node_modules/
 docs/build/
 docs/.docusaurus/
+docs/api-reference/**
+!docs/api-reference/
+!docs/api-reference/.gitkeep
 
 # Visual Studio 6 build log
 *.plg

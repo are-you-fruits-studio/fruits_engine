@@ -87,10 +87,6 @@ const config = {
                 label: 'Docs',
                 to: '/docs/getting-started',
               },
-              {
-                label: 'API Reference',
-                to: '/api-reference/overview',
-              },
             ],
           },
           {
@@ -103,7 +99,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Are You Fruits?.`,
+        copyright: `Copyright (c) ${new Date().getFullYear()} Are You Fruits?.`,
       },
       prism: {
         theme: themes.github,
