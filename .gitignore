@@ -415,6 +415,7 @@ docs/.docusaurus/
 docs/api-reference/**
 !docs/api-reference/
 !docs/api-reference/.gitkeep
+docs/sidebars-rust.ts
 
 # Visual Studio 6 build log
 *.plg
