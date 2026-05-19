@@ -416,6 +416,11 @@ docs/api-reference/**
 !docs/api-reference/
 !docs/api-reference/.gitkeep
 docs/sidebars-rust.ts
+docs/src/components/RustCode/
+docs/src/components/RustCrateLink/
+docs/src/components/RustModuleTitle/
+docs/src/theme/DocSidebarItem/
+docs/src/css/rust-documentation.css
 
 # Visual Studio 6 build log
 *.plg

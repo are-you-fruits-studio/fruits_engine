@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: docs/package.json
+          cache-dependency-path: docs/package-lock.json
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -47,43 +47,14 @@ jobs:
         run: cargo install cargo-doc-docusaurus --version 0.1.1 --locked
         working-directory: .
 
-      - name: Generate rustdoc JSON
-        run: cargo +nightly doc --workspace --no-deps
+      - name: Generate API reference
+        run: ./docs/scripts/generate-docs-api.sh
         working-directory: .
         env:
           RUSTDOCFLAGS: -Z unstable-options --output-format json
 
-      - name: Generate Docusaurus API reference
-        run: |
-          find docs/api-reference -mindepth 1 ! -name '.gitkeep' -exec rm -rf {} +
-          mkdir -p docs/api-reference
-
-          cargo doc-docusaurus components init docs
-
-          workspace_crates="$(find target/doc -maxdepth 1 -name '*.json' -printf '%f\n' \
-            | sed 's/\.json$//' \
-            | sort \
-            | paste -sd, -)"
-
-          for json in target/doc/*.json; do
-            cargo doc-docusaurus "$json" \
-              -o docs/api-reference \
-              --base-path "/api-reference" \
-              --workspace-crates "$workspace_crates"
-          done
-
-          find docs/api-reference -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
-            | xargs -0 -r sed -i '/^displayed_sidebar:/d'
-
-          find docs/api-reference -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
-            | xargs -0 -r perl -0pi -e 's/(?<!!)\[([^\]\n]+)\]\((?!https?:\/\/|mailto:|#)([^)\n]+)\)/$1/g'
-
-          find docs/api-reference -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
-            | xargs -0 -r perl -0pi -e 's/<Link\b(?=[^>]*\bto="(?!https?:\/\/|mailto:|#)[^"]*")[^>]*>(.*?)<\/Link>/$1/gs; s/^import Link from .@docusaurus\/Link.;\n//mg'
-        working-directory: .
-
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build website
         run: npm run build
