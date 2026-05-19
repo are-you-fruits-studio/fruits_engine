@@ -48,7 +48,7 @@ jobs:
         working-directory: .
 
       - name: Generate API reference
-        run: ./docs/scripts/generate-docs-api.sh
+        run: bash ./docs/scripts/generate-docs-api.sh
         working-directory: .
         env:
           RUSTDOCFLAGS: -Z unstable-options --output-format json
