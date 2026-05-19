@@ -74,6 +74,9 @@ jobs:
 
           find docs/api-reference -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
             | xargs -0 -r sed -i '/^displayed_sidebar:/d'
+
+          find docs/api-reference -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
+            | xargs -0 -r perl -0pi -e 's/(?<!!)\[([^\]\n]+)\]\((?!https?:\/\/|mailto:|#)([^)\n]+)\)/$1/g'
         working-directory: .
 
       - name: Install dependencies
