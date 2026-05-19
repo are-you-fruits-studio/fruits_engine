@@ -71,6 +71,9 @@ jobs:
               --base-path "/api-reference" \
               --workspace-crates "$workspace_crates"
           done
+
+          find docs/api-reference -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
+            | xargs -0 -r sed -i '/^displayed_sidebar:/d'
         working-directory: .
 
       - name: Install dependencies

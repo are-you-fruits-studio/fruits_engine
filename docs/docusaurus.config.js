@@ -46,7 +46,7 @@ const config = {
         path: 'api-reference',
         routeBasePath: 'api-reference',
         sidebarPath: require.resolve('./api-sidebars.js'),
-        showLastUpdateTime: true,
+        showLastUpdateTime: false,
       },
     ],
   ],
