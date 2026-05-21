@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "fruits_alloc_monitor",
+    "fruits_audio",
     "fruits_app",
     "fruits_example/fruits_example_cubes",
     "fruits_example/fruits_example_boids",
@@ -35,8 +36,12 @@ members = [
     "fruits_collision",
     "fruits_asset_storage",
     "fruits_render_core",
-    "fruits_prefab"
-, "fruits_json", "fruits_serialization_macros"]
+    "fruits_prefab",
+    "fruits_json",
+    "fruits_serialization_macros",
+    "fruits_audio",
+    "fruits_example/fruits_audio_screen_saver"
+]
 
 [package]
 name = "fruits_engine"
@@ -50,6 +55,7 @@ crate-type = ["lib"]
 
 [dependencies]
 fruits_app = { path = "./fruits_app" }
+fruits_audio = { path = "./fruits_audio" }
 fruits_ecs = { path = "./fruits_ecs" }
 fruits_modules = { path = "./fruits_modules" }
 fruits_utils = { path = "./fruits_utils" }

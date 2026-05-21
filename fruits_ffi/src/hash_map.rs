@@ -19,6 +19,9 @@ pub struct FfiHashMap<K: 'static + Eq + Hash, V: 'static> {
     vtable: FfiStaticRef<FfiHashMapVTable<K, V>>,
 }
 
+unsafe impl<K: Eq + Hash + Send, V: Send> Send for FfiHashMap<K, V> {}
+unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for FfiHashMap<K, V> {}
+
 unsafe extern "C" fn ffi_insert<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: K, v: V) -> FfiOption<V> {
     unsafe {
         let this = &mut *(this as *mut HashMap<K, V>);

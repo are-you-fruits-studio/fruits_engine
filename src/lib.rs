@@ -18,3 +18,4 @@ pub use fruits_render::*;
 pub use fruits_render_core::*;
 pub use fruits_collision::*;
 pub use fruits_prefab::*;
+pub use fruits_audio::*;

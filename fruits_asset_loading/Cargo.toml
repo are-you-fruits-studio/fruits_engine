@@ -17,8 +17,10 @@ fruits_wavefront = { path = "../fruits_wavefront" }
 fruits_render_core = { path = "../fruits_render_core" }
 fruits_render = { path = "../fruits_render" }
 fruits_asset_storage = { path = "../fruits_asset_storage" }
+fruits_audio = { path = "../fruits_audio" }
 fruits_prefab = { path = "../fruits_prefab" }
 fruits_serialization = { path = "../fruits_serialization" }
 image = "0.25"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
+hound = "3.5"

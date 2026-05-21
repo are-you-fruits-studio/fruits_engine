@@ -2,11 +2,13 @@ mod material;
 mod mesh;
 mod texture;
 mod prefab;
+mod audio_clip;
 
 pub use material::*;
 pub use mesh::*;
 pub use texture::*;
 pub use prefab::*;
+pub use audio_clip::*;
 
 // todo: specify supported file formats.
 
@@ -15,6 +17,8 @@ pub use prefab::*;
 // + texture (import details of the existing: .bmp, .png, .jpg)
 // + material
 // - font
+// +/2 prefab
+// + audio_clip
 
 const _MATERIAL_FILE_EXAMPLE: &str = r##"
 {
@@ -52,5 +56,12 @@ const _FONT_FILE_EXAMPLE: &str = r##"
     "characters_uv": { "a": [[0.5, 0.7], [0.55, 0.75]] },
     "missing_character_uv": [[0.5, 0.7], [0.55, 0.75]],
     "character_ratio": 0.756
+}
+"##;
+
+const _AUDIO_CLIP_FILE_EXAMPLE: &str = r##"
+{
+    "asset_type": "audio",
+    "raw_audio": "path/to/audio.asset"
 }
 "##;

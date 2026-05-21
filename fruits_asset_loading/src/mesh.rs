@@ -105,8 +105,6 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
         _ => false,
     };
 
-    dbg!(coordinate_space_type);
-
     let mut path = PathBuf::new();
 
     path.push("assets");
