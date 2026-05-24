@@ -2,13 +2,13 @@ use std::{borrow::Cow, collections::HashMap, marker::PhantomData};
 
 use fruits_ffi::FfiAny;
 
-use crate::{SerializationError, SerializationResult, SerializerCtx, TransSerializable};
+use crate::{SerializationResult, SerializedValue, SerializerCtx, TransSerializable};
 
 pub trait TransSerializer {
     type Deserialized: 'static;
 
-    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value>;
-    fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError>;
+    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue>;
+    fn deserialize(&self, ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>>;
 }
 
 // todo: ffi
@@ -25,11 +25,11 @@ impl<T: TransSerializable> Default for StandardTransSerializer<T> {
 impl<T: TransSerializable> TransSerializer for StandardTransSerializer<T> {
     type Deserialized = T;
 
-    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<serde_json::Value> {
+    fn serialize(&self, ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
         T::serialize(value, ctx)
     }
 
-    fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self::Deserialized>, SerializationError> {
+    fn deserialize(&self, ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         T::deserialize(ctx, value)
     }
 }
@@ -45,17 +45,17 @@ impl<'se, T: 'static> AbstractSerializer<'se, T> {
             serializer: Box::new(serializer),
         }
     }
-    pub fn serialize(&self, ctx: &SerializerCtx, value: &T) -> SerializationResult<serde_json::Value> {
+    pub fn serialize(&self, ctx: &SerializerCtx, value: &T) -> SerializationResult<SerializedValue> {
         self.serializer.serialize(ctx, value)
     }
-    pub fn deserialize(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<T>, SerializationError> {
+    pub fn deserialize(&self, ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<T>> {
         self.serializer.deserialize(ctx, value)
     }
 }
 
 pub(crate) trait VirtualSerializer<'se>: 'se {
     fn deserialized_type_name(&self) -> &'static str;
-    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, SerializationError>;
+    fn deserialize_any(&self, ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<FfiAny>>;
 }
 
 impl<'se> dyn VirtualSerializer<'se> + Send + Sync {
@@ -77,8 +77,8 @@ impl<'se, T: 'static> VirtualSerializer<'se> for AbstractSerializer<'se, T> {
         std::any::type_name::<T>()
     }
     
-    fn deserialize_any(&self, ctx: &SerializerCtx, value: &serde_json::Value) -> Result<FfiAny, SerializationError> {
-        self.deserialize(ctx, value).map(FfiAny::new)
+    fn deserialize_any(&self, ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<FfiAny>> {
+        self.deserialize(ctx, value).map(|o| o.map(FfiAny::new))
     }
 }
 
@@ -137,12 +137,16 @@ impl GlobalSerializer {
         self.serializers.register(serializer)
     }
 
-    pub fn serialize<'r, 'ctx: 'r, T: 'static>(&self, value: &T, ctx: Option<&'r SerializerRegistry<'ctx>>) -> SerializationResult<serde_json::Value> {
-        SerializerCtx::new(&self.serializers, ctx).serialize(value)
+    pub fn serialize<'r, 'ctx: 'r, T: 'static>(&'r self, value: &T, ctx: Option<&'r SerializerRegistry<'ctx>>) -> SerializationResult<SerializedValue> {
+        self.to_ctx(ctx).serialize(value)
     }
 
-    pub fn deserialize<'r, 'ctx: 'r, T: 'static>(&self, data: &serde_json::Value, ctx: Option<&'r SerializerRegistry<'ctx>>) -> Result<SerializationResult<T>, SerializationError> {
-        SerializerCtx::new(&self.serializers, ctx).deserialize(data)
+    pub fn deserialize<'r, 'ctx: 'r, T: 'static>(&'r self, data: &SerializedValue, ctx: Option<&'r SerializerRegistry<'ctx>>) -> SerializationResult<Option<T>> {
+        self.to_ctx(ctx).deserialize(data)
+    }
+
+    pub fn to_ctx<'r, 'ctx: 'r>(&'r self, ctx: Option<&'r SerializerRegistry<'ctx>>) -> SerializerCtx<'r, 'ctx> {
+        SerializerCtx::new(&self.serializers, ctx)
     }
 
     pub fn registry(&self) -> &SerializerRegistry<'static> {

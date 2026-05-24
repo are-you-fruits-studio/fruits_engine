@@ -1,33 +1,17 @@
 use crate::*;
 
 pub fn register_feature(mut world: WorldBuilderMut) {
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(SelectedInputFieldResource::default())
-        .ok()
-        .unwrap();
+    world.data_mut().resources_mut().insert(SelectedInputFieldResource::default()).ok().unwrap();
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
-        .insert_child_system(select_input_field_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
-        .insert_child_system(highlight_selected_input_field_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
+    let mut behavior = world.behavior_mut();
+    let mut update = behavior.get_mut(Schedule::Update);
+
+    update.group(SYSTEM_GROUP)
+        .insert_child_system(select_input_field_system)
+        .insert_child_system(highlight_selected_input_field_system)
         .insert_child_system(update_selected_input_field_text_system);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .order_system(check_button_system)
+    update.order_system(check_button_system)
         .before_system(select_input_field_system)
         .before_system(highlight_selected_input_field_system)
         .before_system(update_selected_input_field_text_system);

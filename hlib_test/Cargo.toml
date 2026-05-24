@@ -7,7 +7,6 @@ edition = "2024"
 
 [dependencies]
 fruits_serialization = { path = "../fruits_serialization" }
-fruits_wavefront = { path = "../fruits_wavefront" }
 fruits_engine = { path = "../../fruits_engine" }
 serde_json = { version = "1" }
 serde = { version = "1", features = ["derive"] }

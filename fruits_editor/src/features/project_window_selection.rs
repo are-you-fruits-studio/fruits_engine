@@ -10,26 +10,16 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .ok()
         .unwrap();
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
-        .insert_child_system(select_file_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
+    let mut behavior = world.behavior_mut();
+    let mut update = behavior.get_mut(Schedule::Update);
+
+    update.group(SYSTEM_GROUP)
+        .insert_child_system(select_file_system)
         .insert_child_system(update_project_entry_selection_system);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
+    update
         .order_system(check_button_system)
-        .before_system(select_file_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .order_system(select_file_system)
+        .before_system(select_file_system)
         .before_system(update_project_entry_selection_system);
 }
 

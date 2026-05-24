@@ -10,20 +10,15 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .ok()
         .unwrap();
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
+    let mut behavior = world.behavior_mut();
+    let mut update = behavior.get_mut(Schedule::Update);
+
+    update
         .group(SYSTEM_GROUP)
-        .insert_child_system(prepare_ui_raycast_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
+        .insert_child_system(prepare_ui_raycast_system)
         .insert_child_system(check_button_system);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
+    update
         .order_system(prepare_ui_raycast_system)
         .before_system(check_button_system);
 }

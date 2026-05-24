@@ -1,26 +1,79 @@
 use std::{
     borrow::Cow,
     error::Error,
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Write},
 };
 
 use fruits_ffi::FfiAny;
-use serde::{Deserialize, Serialize};
+use indexmap::IndexMap;
 
-use crate::SerializerRegistry;
+use crate::{SerializedComposite, SerializedCompositeValues, SerializedEnumMetadata, SerializedMap, SerializedValue, SerializerRegistry};
+
+// todo: ffi
 
 pub struct SerializationResult<T> {
     pub result: T,
-    pub err: Option<SerializationError>,
+    pub err: Vec<SerializationError>,
 }
 
 impl<T> SerializationResult<T> {
     pub fn unwrap(self) -> T {
-        if let Some(err) = self.err {
-            panic!("{err}");
+        if let Some(err) = self.format_err() {
+            panic!("{}", err);
         }
 
         self.result
+    }
+
+    pub fn format_err(&self) -> Option<String> {
+        if self.err.is_empty() {
+            return None;
+        }
+
+        let mut message = String::new();
+
+        for err in &self.err {
+            writeln!(&mut message, "{}", err).unwrap();
+        }
+
+        Some(message)
+    }
+
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> SerializationResult<U> {
+        SerializationResult {
+            result: f(self.result),
+            err: self.err,
+        }
+    }
+
+    pub fn unwrap_and_store(self, error: &mut Vec<SerializationError>) -> T {
+        error.extend_from_slice(&self.err);
+        self.result
+    }
+}
+
+impl<T> SerializationResult<Option<T>> {
+    pub fn into_result(self) -> Result<SerializationResult<T>, Vec<SerializationError>> {
+        match self.result {
+            Some(result) => Ok(SerializationResult {
+                result,
+                err: self.err,
+            }),
+            None => Err(self.err),
+        }
+    }
+
+    pub fn from_result(result: Result<SerializationResult<T>, Vec<SerializationError>>) -> Self {
+        match result {
+            Ok(result) => SerializationResult {
+                result: Some(result.result),
+                err: result.err,
+            },
+            Err(error) => SerializationResult {
+                result: None,
+                err: error,
+            },
+        }
     }
 }
 
@@ -33,36 +86,23 @@ impl<T: Debug> Debug for SerializationResult<T> {
     }
 }
 
-pub trait SerializationErrorExt {
-    fn consume_non_fatal<T>(&mut self, result: SerializationResult<T>) -> T;
-}
-
-impl SerializationErrorExt for Option<SerializationError> {
-    fn consume_non_fatal<T>(&mut self, result: SerializationResult<T>) -> T {
-        if self.is_none() {
-            *self = result.err;
-        }
-        result.result
-    }
-}
-
 pub trait TransSerializable: Sized + 'static {
-    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<serde_json::Value>;
-// todo: separate types for recoverable errors and fatal errors.
-    fn deserialize(ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError>;
+    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue>;
+    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>>;
 }
 
+#[derive(Clone)]
 pub enum SerializationError {
-    NoSerializerRegistered { type_name: Cow<'static, str> },
-    InvalidInput,
+    MissingSerializer { type_name: Cow<'static, str> },
+    InvalidInput { message: String },
 }
 impl Display for SerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoSerializerRegistered { type_name } => {
+            Self::MissingSerializer { type_name } => {
                 write!(f, "failed to deserialize {} - serializer for the type is not registered", type_name)
             }
-            Self::InvalidInput => write!(f, "failed to deserialize - invalid deserialization input"),
+            Self::InvalidInput { message } => write!(f, "failed to deserialize - invalid deserialization input: {}", message),
         }
     }
 }
@@ -74,86 +114,6 @@ impl Debug for SerializationError {
 impl Error for SerializationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
-    }
-}
-
-pub struct StructSerializerCtx<'brw, 'local: 'brw> {
-    ctx: SerializerCtx<'brw, 'local>,
-    fields: serde_json::Map<String, serde_json::Value>,
-    error: Option<SerializationError>,
-}
-
-impl<'brw, 'local: 'brw> StructSerializerCtx<'brw, 'local> {
-    pub fn serialize_field<T: 'static>(mut self, name: impl Into<String>, value: &T) -> Self {
-        let result = self.ctx.serialize(value);
-
-        if let Some(err) = result.err && self.error.is_none() {
-            self.error = Some(err);
-        }
-
-        self.fields.insert(name.into(), result.result);
-
-        self
-    }
-
-    pub fn end(self) -> Result<serde_json::Value, SerializationError> {
-        if let Some(serialization_error) = self.error {
-            return Err(serialization_error);
-        }
-
-        Ok(serde_json::Value::Object(self.fields))
-    }
-
-    pub fn end_enum(self, variant_name: impl Into<String>) -> Result<serde_json::Value, SerializationError> {
-        if let Some(serialization_error) = self.error {
-            return Err(serialization_error);
-        }
-
-        let mut variant_as_json = serde_json::Map::<String, serde_json::Value>::new();
-
-        variant_as_json.insert(variant_name.into(), serde_json::Value::Object(self.fields));
-
-        Ok(serde_json::Value::Object(variant_as_json))
-    }
-}
-
-pub struct TupleSerializerCtx<'brw, 'local: 'brw> {
-    ctx: SerializerCtx<'brw, 'local>,
-    elements: Vec<serde_json::Value>,
-    error: Option<SerializationError>,
-}
-
-impl<'brw, 'local: 'brw> TupleSerializerCtx<'brw, 'local> {
-    pub fn serialize_element<T: 'static>(mut self, value: &T) -> Self {
-        let result = self.ctx.serialize(value);
-
-        if let Some(err) = result.err && self.error.is_none() {
-            self.error = Some(err);
-        }
-
-        self.elements.push(result.result);
-
-        self
-    }
-
-    pub fn end(self) -> Result<serde_json::Value, SerializationError> {
-        if let Some(serialization_error) = self.error {
-            return Err(serialization_error);
-        }
-
-        Ok(serde_json::Value::Array(self.elements))
-    }
-
-    pub fn end_enum(self, variant_name: impl Into<String>) -> Result<serde_json::Value, SerializationError> {
-        if let Some(serialization_error) = self.error {
-            return Err(serialization_error);
-        }
-
-        let mut variant_as_json = serde_json::Map::<String, serde_json::Value>::new();
-
-        variant_as_json.insert(variant_name.into(), serde_json::Value::Array(self.elements));
-
-        Ok(serde_json::Value::Object(variant_as_json))
     }
 }
 
@@ -172,25 +132,74 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
         }
     }
 
-    pub fn serialize_struct(self) -> StructSerializerCtx<'brw, 'local> {
-        StructSerializerCtx {
-            ctx: self,
-            fields: serde_json::Map::new(),
-            error: None,
+    fn clone(&self) -> Self {
+        Self {
+            registry_global: self.registry_global,
+            registry_local: self.registry_local,
         }
     }
-    pub fn serialize_tuple(self) -> TupleSerializerCtx<'brw, 'local> {
-        TupleSerializerCtx {
-            ctx: self,
+
+    pub fn deserialize_map<T: 'static>(
+        &self,
+        value: &SerializedValue,
+        f: impl FnOnce(&mut MapDeserializerCtx) -> Option<T>,
+    ) -> SerializationResult<Option<T>> {
+        let mut ctx = MapDeserializerCtx::new(
+            self.clone(),
+            value,
+        );
+
+        SerializationResult {
+            result: f(&mut ctx),
+            err: ctx.error,
+        }
+    }
+    pub fn deserialize_list<T: 'static>(
+        &self,
+        value: &SerializedValue,
+        f: impl FnOnce(&mut ListDeserializerCtx) -> Option<T>,
+    ) -> SerializationResult<Option<T>> {
+        let mut ctx = ListDeserializerCtx::new(
+            self.clone(),
+            value,
+        );
+
+        SerializationResult {
+            result: f(&mut ctx),
+            err: ctx.error,
+        }
+    }
+    pub fn deserialize_enum<T>(&self) -> EnumDeserializerCtx<'brw, 'local, T> {
+        EnumDeserializerCtx::new(self.clone())
+    }
+
+    pub fn serialize_map(&self) -> MapSerializerCtx<'brw, 'local> {
+        MapSerializerCtx {
+            ctx: self.clone(),
+            fields: IndexMap::new(),
+            error: Vec::new(),
+        }
+    }
+    pub fn serialize_list(&self) -> ListSerializerCtx<'brw, 'local> {
+        ListSerializerCtx {
+            ctx: self.clone(),
             elements: Vec::new(),
-            error: None,
+            error: Vec::new(),
         }
     }
-    pub fn serialize_enum_variant(&self, variant_name: impl Into<String>, value: serde_json::Value) -> serde_json::Value {
-        serde_json::Value::Object([(variant_name.into(), value)].into_iter().collect())
+
+    pub fn get_field<'a, T: 'static>(&self, value: &'a IndexMap<String, SerializedValue>, name: &str) -> SerializationResult<Option<T>> {
+        let serialized_value = value.get(name).unwrap_or_else(|| &SerializedValue::Null);
+
+        self.deserialize(serialized_value)
     }
-    //
-    pub fn serialize<T: 'static>(&self, value: &T) -> SerializationResult<serde_json::Value> {
+    pub fn get_element<'a, T: 'static>(&self, value: &'a Vec<SerializedValue>, idx: usize) -> SerializationResult<Option<T>> {
+        let serialized_value = value.get(idx).unwrap_or_else(|| &SerializedValue::Null);
+
+        self.deserialize(serialized_value)
+    }
+
+    pub fn serialize<T: 'static>(&self, value: &T) -> SerializationResult<SerializedValue> {
         if let Some(registry_local) = &self.registry_local {
             if let Some(serializer) = registry_local.get() {
                 return serializer.serialize(self, value);
@@ -202,13 +211,13 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
         }
 
         SerializationResult {
-            result: serde_json::Value::Null,
-            err: Some(SerializationError::NoSerializerRegistered {
+            result: SerializedValue::Null,
+            err: vec![SerializationError::MissingSerializer {
                 type_name: std::any::type_name::<T>().into(),
-            }),
+            }],
         }
     }
-    pub fn deserialize<T: 'static>(&self, data: &serde_json::Value) -> Result<SerializationResult<T>, SerializationError> {
+    pub fn deserialize<T: 'static>(&self, data: &SerializedValue) -> SerializationResult<Option<T>> {
         if let Some(registry_local) = &self.registry_local {
             if let Some(serializer) = registry_local.get() {
                 return serializer.deserialize(self, data);
@@ -219,11 +228,14 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             return serializer.deserialize(self, data);
         }
 
-        Err(SerializationError::NoSerializerRegistered {
-            type_name: std::any::type_name::<T>().into(),
-        })
+        SerializationResult {
+            result: None,
+            err: vec![SerializationError::MissingSerializer {
+                type_name: std::any::type_name::<T>().into(),
+            }],
+        }
     }
-    pub fn deserialize_any(&self, id: &str, data: &serde_json::Value) -> Result<FfiAny, SerializationError> {
+    pub fn deserialize_any(&self, id: &str, data: &SerializedValue) -> SerializationResult<Option<FfiAny>> {
         if let Some(registry_local) = self.registry_local {
             if let Some(serializer) = registry_local.get_virtual(id) {
                 return serializer.deserialize_any(self, data);
@@ -234,11 +246,208 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
             return serializer.deserialize_any(self, data);
         }
 
-        Err(SerializationError::NoSerializerRegistered {
-            type_name: id.to_string().into(),
-        })
+        SerializationResult {
+            result: None,
+            err: vec![SerializationError::MissingSerializer {
+                type_name: id.to_string().into(),
+            }],
+        }
     }
 }
+
+pub struct MapSerializerCtx<'brw, 'local: 'brw> {
+    ctx: SerializerCtx<'brw, 'local>,
+    fields: IndexMap<String, SerializedValue>,
+    error: Vec<SerializationError>,
+}
+
+impl<'brw, 'local: 'brw> MapSerializerCtx<'brw, 'local> {
+    pub fn with_field<T: 'static>(mut self, name: impl Into<String>, value: &T) -> Self {
+        let result = self.ctx.serialize(value);
+
+        self.error.extend_from_slice(&result.err);
+        self.fields.insert(name.into(), result.result);
+
+        self
+    }
+
+    pub fn finish_as_map(self, is_rigid: bool) -> SerializationResult<SerializedValue> {
+        SerializationResult {
+            err: self.error,
+            result: SerializedValue::Composite(SerializedComposite {
+                values: SerializedCompositeValues::Map(SerializedMap {
+                    values: self.fields,
+                    enum_metadata: None,
+                }),
+                is_rigid,
+            })
+        }
+    }
+
+    pub fn finish_as_enum(self, is_rigid: bool, variant: impl Into<String>, variants: Vec<String>) -> SerializationResult<SerializedValue> {
+        SerializationResult {
+            err: self.error,
+            result: SerializedValue::Composite(SerializedComposite {
+                values: SerializedCompositeValues::Map(SerializedMap {
+                    values: self.fields,
+                    enum_metadata: Some(SerializedEnumMetadata {
+                        variant: variant.into(),
+                        variants,
+                    }),
+                }),
+                is_rigid,
+            })
+        }
+    }
+}
+
+pub struct ListSerializerCtx<'brw, 'local: 'brw> {
+    ctx: SerializerCtx<'brw, 'local>,
+    elements: Vec<SerializedValue>,
+    error: Vec<SerializationError>,
+}
+
+impl<'brw, 'local: 'brw> ListSerializerCtx<'brw, 'local> {
+    pub fn with_element<T: 'static>(mut self, value: &T) -> Self {
+        let result = self.ctx.serialize(value);
+
+        self.error.extend_from_slice(&result.err);
+        self.elements.push(result.result);
+
+        self
+    }
+
+    pub fn finish_as_list(self, is_rigid: bool) -> SerializationResult<SerializedValue> {
+        SerializationResult {
+            err: self.error,
+            result: SerializedValue::Composite(SerializedComposite {
+                values: SerializedCompositeValues::List(self.elements),
+                is_rigid,
+            })
+        }
+    }
+}
+
+//
+
+
+
+pub struct MapDeserializerCtx<'brw, 'local: 'brw> {
+    ctx: SerializerCtx<'brw, 'local>,
+    fields: IndexMap<String, SerializedValue>,
+    error: Vec<SerializationError>,
+}
+
+impl<'brw, 'local: 'brw> MapDeserializerCtx<'brw, 'local> {
+    pub fn new(ctx: SerializerCtx<'brw, 'local>, value: &SerializedValue) -> Self {
+        let fields = match value {
+            SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::Map(value), .. }) => value.values.clone(),
+            _ => IndexMap::new()
+        };
+
+        Self {
+            ctx,
+            fields,
+            error: Vec::new(),
+        }
+    }
+
+    pub fn get_field<'a, T: 'static>(&mut self, name: &str) -> Option<T> {
+        let serialized_value = self.fields.get(name).unwrap_or_else(|| &SerializedValue::Null);
+
+        let result = self.ctx.deserialize(serialized_value);
+        self.error.extend_from_slice(&result.err);
+        result.result
+    }
+}
+
+pub struct ListDeserializerCtx<'brw, 'local: 'brw> {
+    ctx: SerializerCtx<'brw, 'local>,
+    elements: Vec<SerializedValue>,
+    error: Vec<SerializationError>,
+}
+
+impl<'brw, 'local: 'brw> ListDeserializerCtx<'brw, 'local> {
+    pub fn new(ctx: SerializerCtx<'brw, 'local>, value: &SerializedValue) -> Self {
+        let elements = match value {
+            SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::List(value), .. }) => value.clone(),
+            _ => Vec::new()
+        };
+
+        Self {
+            ctx,
+            elements,
+            error: Vec::new(),
+        }
+    }
+
+    pub fn get_element<'a, T: 'static>(&mut self, idx: usize) -> Option<T> {
+        let serialized_value = self.elements.get(idx).unwrap_or_else(|| &SerializedValue::Null);
+
+        let result = self.ctx.deserialize(serialized_value);
+        self.error.extend_from_slice(&result.err);
+        result.result
+    }
+}
+
+pub struct EnumDeserializerCtx<'brw, 'local: 'brw, T> {
+    ctx: SerializerCtx<'brw, 'local>,
+    variants: Vec<(String, Box<dyn FnMut(SerializerCtx<'brw, 'local>, &SerializedValue) -> SerializationResult<Option<T>>>)>,
+}
+
+impl<'brw, 'local: 'brw, T> EnumDeserializerCtx<'brw, 'local, T> {
+    pub fn new(ctx: SerializerCtx<'brw, 'local>) -> Self {
+        Self {
+            ctx,
+            variants: Vec::new(),
+        }
+    }
+    pub fn variant(mut self, variant: impl Into<String>, deserializer: impl 'static + FnMut(SerializerCtx<'brw, 'local>, &SerializedValue) -> SerializationResult<Option<T>>) -> Self {
+        self.variants.push((variant.into(), Box::new(deserializer)));
+        self
+    }
+
+    pub fn finish(mut self, value: &SerializedValue) -> SerializationResult<Option<T>> {
+        let mut err = Vec::new();
+
+        if let SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::Map(SerializedMap { enum_metadata: Some(enum_metadata), .. }), .. }) = value {
+            for (variant, deserializer) in &mut self.variants {
+                if variant == &enum_metadata.variant {
+                    let result = deserializer(self.ctx.clone(), value);
+                    
+                    err.extend_from_slice(&result.err);
+                    if let Some(value) = result.result {
+                        return SerializationResult {
+                            result: Some(value),
+                            err,
+                        };
+                    }
+                    break;
+                }
+            }
+        }
+
+        err.push(SerializationError::InvalidInput { message: String::from("Deserializizing enum without a valid variant") });
+
+        for (_variant, deserializer) in &mut self.variants {
+            let result = deserializer(self.ctx.clone(), value);
+            err.extend_from_slice(&result.err);
+
+            if let Some(value) = result.result {
+                return SerializationResult {
+                    result: Some(value),
+                    err,
+                };
+            }
+        }
+
+        SerializationResult {
+            result: None,
+            err,
+        }
+    }
+}
+
 // impl<'brw, 'local: 'brw> Clone for SerializerCtx<'brw, 'local> {
 //     fn clone(&self) -> Self {
 //         Self {
@@ -253,13 +462,13 @@ impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
 
 // todo
 // impl<T: 'static + Serialize + for<'de> Deserialize<'de>> TransSerializable for T {
-//     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
+//     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
 //         serde_json::value::to_value(self).map_err(|_| SerializationError::NoSerializerRegistered {
 //             type_name: std::any::type_name::<T>().into(),
 //         })
 //     }
 
-//     fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
+//     fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> Result<SerializationResult<Self>, SerializationError> {
 //         serde_json::value::from_value(value.clone()).map_err(|_| SerializationError::InvalidInput)
 //     }
 // }

@@ -1,13 +1,12 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use fruits_ecs::*;
-use fruits_serialization::SerializerCtx;
-use serde::{Deserialize, Serialize};
+use fruits_serialization::{SerializedValue, SerializerCtx};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct PrefabComponent {
     pub component_id: String,
-    pub data: serde_json::Value,
+    pub data: SerializedValue,
 }
 
 #[derive(Debug)]
@@ -36,7 +35,7 @@ impl<C: Component> Default for PrefabComponentDeserializer<C> {
 trait AbstractPrefabComponentDeserializer {
     fn deserialize(
         &self,
-        data: serde_json::Value,
+        data: SerializedValue,
         entity: Entity,
         serializer_ctx: &SerializerCtx,
         entities: EntitiesHolderMut,
@@ -47,13 +46,13 @@ trait AbstractPrefabComponentDeserializer {
 impl<C: Component> AbstractPrefabComponentDeserializer for PrefabComponentDeserializer<C> {
     fn deserialize(
         &self,
-        data: serde_json::Value,
+        data: SerializedValue,
         entity: Entity,
         serializer_ctx: &SerializerCtx,
         mut entities: EntitiesHolderMut,
         _res: ResourcesHolderRef,
     ) -> bool {
-        let Ok(component) = serializer_ctx.deserialize::<C>(&data) else {
+        let Some(component) = serializer_ctx.deserialize::<C>(&data).result else {
             return false;
         };
 
@@ -78,7 +77,7 @@ impl PrefabComponentsDeserializerResource {
     pub fn deserialize(
         &self,
         id: &str,
-        data: serde_json::Value,
+        data: SerializedValue,
         entity: Entity,
         serializer_ctx: &SerializerCtx,
         entities: EntitiesHolderMut,

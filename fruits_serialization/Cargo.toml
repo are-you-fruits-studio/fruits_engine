@@ -13,3 +13,4 @@ fruits_serialization_macros = { path = "../fruits_serialization_macros" }
 fruits_ffi = { path = "../fruits_ffi" }
 serde = { version = "1" }
 serde_json = { version = "1" }
+indexmap = "2.14"

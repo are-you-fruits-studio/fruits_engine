@@ -3,6 +3,7 @@ use std::mem::ManuallyDrop;
 
 use serde::{Deserialize, Serialize};
 
+use fruits_serialization::*;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
 use super::num::{Number, Primitive};
@@ -15,7 +16,7 @@ macro_rules! members_count {
 
 macro_rules! vec_impl {
     ($V: ident, $($I: ident),+) => {
-        #[derive(Copy, Clone, Debug, Hash, Default, PartialEq, Eq, Serialize, Deserialize)]
+        #[derive(Copy, Clone, Debug, Hash, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TransSerializable)]
         #[repr(C)]
         pub struct $V<T> {
             $(pub $I: T),+

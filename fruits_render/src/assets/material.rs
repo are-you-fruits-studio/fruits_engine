@@ -1,6 +1,7 @@
 use fruits_asset_storage::AssetHandle;
 use fruits_math::{Mat4, Vec3, Vec4};
 use fruits_render_core::StandardTexture;
+use fruits_serialization::*;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 
 use crate::RenderSpace;
@@ -36,7 +37,7 @@ impl Default for StandardUniform {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, TransSerializable)]
 pub struct StandardMaterial {
     pub space: RenderSpace,
     pub color: Vec4<f32>,

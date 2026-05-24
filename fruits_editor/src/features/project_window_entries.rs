@@ -8,15 +8,13 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .ok()
         .unwrap();
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
+    let mut behavior = world.behavior_mut();
+    let mut update = behavior.get_mut(Schedule::Update);
+
+    update.group(SYSTEM_GROUP)
         .insert_child_system(update_project_window_content_system);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
+    update
         .order_system(update_project_window_content_system)
         .before_system(prepare_ui_raycast_system);
 }

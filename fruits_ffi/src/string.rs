@@ -31,6 +31,10 @@ impl FfiString {
         unsafe { str::from_utf8_unchecked_mut(self.data.as_slice_mut()) }
     }
 
+    pub fn to_string(&self) -> String {
+        self.as_str().to_string()
+    }
+
     pub fn clear(&mut self) {
         self.data.clear();
     }

@@ -1,44 +1,24 @@
-use fruits_engine::versioned::Versioned;
 use fruits_engine::*;
 
 use crate::{
     features::{
         input_field::InputFieldComponent,
-        project_window_selection::{FileSelectedEvent, SelectedFileResource},
+        project_window_parsing::{InspectedAsset, InspectedAssetResource, parse_selected_file_system}, project_window_selection::FileSelectedEvent, serialization::SerializerResource,
     },
     *,
 };
 
 pub fn register_feature(mut world: WorldBuilderMut) {
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(InspectedAssetResource::default())
-        .ok()
-        .unwrap();
+    let mut behavior = world.behavior_mut();
+    let mut update = behavior.get_mut(Schedule::Update);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
-        .insert_child_system(parse_selected_file_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
-        .insert_child_system(update_inspector_window_system);
+    update.group(SYSTEM_GROUP)
+        .insert_child_system(update_inspector_window_system)
+        .insert_child_system(save_inspector_window_system);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .order_system(select_file_system)
-        .before_system(parse_selected_file_system)
+    update.order_system(parse_selected_file_system)
+        .before_system(save_inspector_window_system)
         .before_system(update_inspector_window_system);
-}
-
-#[derive(Resource, Default)]
-pub struct InspectedAssetResource {
-    data: Versioned<Option<InspectedAsset>>,
 }
 
 pub struct GenericSystemResource<T: 'static + Default>(T);
@@ -57,81 +37,8 @@ pub struct InspectorWindowComponent {
     pub content_container : Entity,
 }
 
-pub struct JsonFieldComponent {
-    name: Entity,
-    value: Entity,
-}
-
-#[derive(Component, Default)]
-pub struct JsonValueComponent {
-    data: Entity,
-    value_type: JsonValueComponentType,
-}
-
-#[derive(Default)]
-pub enum JsonValueComponentType {
-    #[default]
-    Null,
-    Bool,
-    Number,
-    String,
-    Array,
-    Object,
-}
-
-pub enum InspectedAsset {
-    Material(StandardMaterial),
-}
-
-pub fn parse_selected_file_system(
-    file_selected_evt: Evt<FileSelectedEvent>,
-    selected_file: Res<SelectedFileResource>,
-    mut inspected_asset: ResMut<InspectedAssetResource>,
-) {
-    return_if!(file_selected_evt.is_empty());
-
-    let parsed_result = 'parsing: {
-        let Ok(file_text) = String::from_utf8(selected_file.file_data.clone()) else {
-            break 'parsing None;
-        };
-
-        let Some(JsonValue::Object(json)) = JsonValue::parse(&mut file_text.chars()) else {
-            break 'parsing None;
-        };
-
-        let Some(JsonValue::String(asset_type)) = json.get_value("asset_type") else {
-            break 'parsing None;
-        };
-
-        let asset_type = asset_type.clone();
-
-        Some((json, asset_type))
-    };
-
-    let Some((json, asset_type)) = parsed_result else {
-        *inspected_asset.data = None;
-        return;
-    };
-
-    match asset_type.as_str() {
-        "material" => {
-            let mut material = StandardMaterial::default();
-
-            if let Some(JsonValue::Number(metallic)) = json.get_value("metallic") {
-                material.metallic = metallic.to_f() as f32;
-            };
-
-            if let Some(JsonValue::Number(roughness)) = json.get_value("roughness") {
-                material.roughness = roughness.to_f() as f32;
-            };
-
-            *inspected_asset.data = Some(InspectedAsset::Material(material));
-        }
-        _ => {
-            *inspected_asset.data = None;
-        }
-    }
-}
+#[derive(Event)]
+pub struct InspectedAssetEditedEvent;
 
 pub fn save_inspector_window_system(mut world: ExclusiveWorldAccess) {
     let (mut res, mut ent, mut evt) = world.as_tuple_mut();
@@ -139,7 +46,7 @@ pub fn save_inspector_window_system(mut world: ExclusiveWorldAccess) {
     let Some(window_c) = ent.query::<&InspectorWindowComponent>().iter().next().copied() else {
         return;
     };
-    
+
     let Some(parent_c) = ent.get_component::<ParentComponent>(window_c.content_container) else {
         return;
     };
@@ -148,24 +55,46 @@ pub fn save_inspector_window_system(mut world: ExclusiveWorldAccess) {
         return;
     };
 
-    let parsed_json = parse_json(ent.as_ref(), content_ent);
+    let inspected_asset = res.get_mut::<InspectedAssetResource>().unwrap();
+    let Some(stored_inspected_asset) = &inspected_asset.data else {
+        return;
+    };
+
+    let mut serialized = parse_serialized(ent.as_ref(), content_ent);
+
+    if let SerializedValue::Composite(serialized) = &mut serialized {
+        if let SerializedCompositeValues::Map(serialized) = &mut serialized.values {
+            serialized.values.insert_before(0, String::from("asset_type"), SerializedValue::Primitive(SerializedPrimitive::String(stored_inspected_asset.to_asset_type().to_string())));
+        }
+    }
+
+    let serializer_ctx = res.get::<SerializerResource>().unwrap().0.to_ctx(None);
+    let asset = InspectedAsset::from_serialized(&serializer_ctx, &serialized);
+
+    let Some(asset) = asset else {
+        return;
+    };
+
+    let inspected_asset = res.get_mut::<InspectedAssetResource>().unwrap();
+    if inspected_asset.data.as_ref() == Some(&asset) {
+        return;
+    }
+
+    inspected_asset.data = Some(asset);
+    evt.get_mut().push(InspectedAssetEditedEvent);
 }
 
 pub fn update_inspector_window_system(
     mut world: ExclusiveWorldAccess,
-    mut inspected_asset_changed_l: Local<GenericSystemResource<Option<u64>>>,
 ) {
     let (mut res, mut ent, mut evt) = world.as_tuple_mut();
 
-    let inspected_asset_resource_ver = res.get::<InspectedAssetResource>().map(|a| Versioned::version(&a.data));
-
-    if std::mem::replace(&mut inspected_asset_changed_l.0, inspected_asset_resource_ver) == inspected_asset_resource_ver {
-        return;
-    }
+    return_if!(evt.get::<FileSelectedEvent>().is_empty());
 
     let inspected_asset = res.get::<InspectedAssetResource>().unwrap();
     let assets = res.get::<StandardAssetsResource>().unwrap().clone();
     let render_assets = res.get::<StandardRenderAssetsResource>().unwrap();
+    let serializer = res.get::<SerializerResource>().unwrap();
     let container_q = ent.query::<&InspectorWindowComponent>().iter().copied().collect::<Vec<_>>();
 
     let font = render_assets.font_px_8_8.clone();
@@ -176,77 +105,50 @@ pub fn update_inspector_window_system(
         let asset_type_text = ent.get_component_mut::<TextComponent>(window_c.asset_type_text).unwrap();
         asset_type_text.text.clear();
 
-        match &*inspected_asset.data {
+        match &inspected_asset.data {
             None => {
 
             },
             Some(InspectedAsset::Material(material)) => {
                 asset_type_text.text.push_str("asset type: material");
 
-                let json = JsonValue::Object(
-                    JsonObject::new()
-                        .with_field("roughness", material.roughness)
-                        .ok()
-                        .unwrap()
-                        .with_field("metallic", material.metallic)
-                        .ok()
-                        .unwrap()
-                        .with_field("is_lit", material.is_lit)
-                        .ok()
-                        .unwrap()
-                        .with_field("alpha_threshold", material.alpha_threshold.to_json())
-                        .ok()
-                        .unwrap()
-                        .with_field("color", color_to_string(material.color).to_json())
-                        .ok()
-                        .unwrap()
-                        .with_field("emission_color", color_to_string(material.emission_color).to_json())
-                        .ok()
-                        .unwrap()
-                        .with_field("values", vec![
-                            55,
-                            42,
-                            1,
-                            -2,
-                        ].to_json())
-                        .ok()
-                        .unwrap(),
-                );
+                let serialized = material.serialize(&serializer.0.to_ctx(None)).result;
 
                 //
 
-                let ent_json = spawn_json(
+                let ent_serialized = spawn_serialized(
                     ent.as_mut(),
                     window_c.content_container,
-                    &json,
+                    &serialized,
                     assets.material_panel.clone(),
                     assets.material_text.clone(),
                     font.clone(),
                 );
 
-                let parsed_json = parse_json(ent.as_ref(), ent_json);
-
-                dbg!(parsed_json);
+                // todo: remove
+                // let parsed_json = parse_json(ent.as_ref(), ent_json);
+                // dbg!(parsed_json);
             }
         }
     }
 }
 
-fn parse_json(
+fn parse_serialized(
     ent: EntitiesHolderRef,
     ent_target: Entity,
-) -> JsonValue {
+) -> SerializedValue {
     let Some(serialized_value_component) = ent.get_component::<SerializedValueComponent>(ent_target) else {
-        return JsonValue::Null;
+        return SerializedValue::Null;
     };
 
     match serialized_value_component {
         SerializedValueComponent::Primitive { text, ty } => {
             let default_result = match ty {
-                SerializedValuePrimitiveType::Null => JsonValue::Null,
-                SerializedValuePrimitiveType::Bool => JsonValue::Bool(false),
-                SerializedValuePrimitiveType::Number => JsonValue::Number(JsonNumber::I(0)),
-                SerializedValuePrimitiveType::String => JsonValue::String(String::new()),
+                SerializedValuePrimitiveType::Null => SerializedValue::Null,
+                SerializedValuePrimitiveType::Bool => SerializedValue::Primitive(SerializedPrimitive::Bool(false)),
+                SerializedValuePrimitiveType::Int => SerializedValue::Primitive(SerializedPrimitive::Int(0)),
+                SerializedValuePrimitiveType::Float => SerializedValue::Primitive(SerializedPrimitive::Float(0.0)),
+                SerializedValuePrimitiveType::String => SerializedValue::Primitive(SerializedPrimitive::String(String::new())),
             };
 
             let Some(input_c) = ent.get_component::<InputFieldComponent>(*text) else {
@@ -258,21 +160,35 @@ fn parse_json(
             };
             
             match ty {
-                SerializedValuePrimitiveType::Null => JsonValue::Null,
-                SerializedValuePrimitiveType::Bool => JsonValue::Bool(text_c.text.as_str() == "true" || text_c.text.as_str() == "True"),
-                SerializedValuePrimitiveType::Number => JsonValue::Number(JsonNumber::F(text_c.text.as_str().parse().unwrap_or(0.0))),
-                SerializedValuePrimitiveType::String => JsonValue::String(text_c.text.as_str().to_string()),
+                SerializedValuePrimitiveType::Null => SerializedValue::Null,
+                SerializedValuePrimitiveType::Bool => SerializedValue::Primitive(SerializedPrimitive::Bool(text_c.text.as_str() == "true" || text_c.text.as_str() == "True")),
+                SerializedValuePrimitiveType::Int => SerializedValue::Primitive(SerializedPrimitive::Int(text_c.text.as_str().parse().unwrap_or(0))),
+                SerializedValuePrimitiveType::Float => SerializedValue::Primitive(SerializedPrimitive::Float(text_c.text.as_str().parse().unwrap_or(0.0))),
+                SerializedValuePrimitiveType::String => SerializedValue::Primitive(SerializedPrimitive::String(text_c.text.as_str().to_string())),
             }
         },
-        SerializedValueComponent::Container { container, ty } => {
+        SerializedValueComponent::Container { container, ty, enum_metadata: enum_metadata_ent } => {
             let default_result = match ty {
-                SerializedValueContainerType::Array => JsonValue::Array(Vec::new()),
-                SerializedValueContainerType::Object => JsonValue::Object(JsonObject::new()),
+                SerializedValueContainerType::List => SerializedValue::Composite(SerializedComposite { is_rigid: false, values: SerializedCompositeValues::List(Vec::new()) }),
+                SerializedValueContainerType::Map => SerializedValue::Composite(SerializedComposite { is_rigid: false, values: SerializedCompositeValues::Map(SerializedMap::default()) }),
             };
 
             let Some(container_parent_c) = ent.get_component::<ParentComponent>(*container) else {
                 return default_result;
             };
+
+            let mut enum_metadata = None;
+
+            if let Some(enum_metadata_c) = ent.get_component::<SerializedEnumMetadataComponent>(*enum_metadata_ent) {
+                if let Some(input_c) = ent.get_component::<InputFieldComponent>(enum_metadata_c.value_text) {
+                    if let Some(text_c) = ent.get_component::<TextComponent>(input_c.text) {
+                        enum_metadata = Some(SerializedEnumMetadata {
+                            variant: text_c.text.to_string(),
+                            variants: enum_metadata_c.variants.clone(),
+                        });
+                    };
+                };
+            }
 
             let mut values = Vec::new();
 
@@ -289,7 +205,7 @@ fn parse_json(
                     continue;
                 };
 
-                let value = parse_json(ent, *value_ent);
+                let value = parse_serialized(ent, *value_ent);
 
                 let key = match ent.get_component::<InputFieldComponent>(field_c.key_text) {
                     Some(input_c) => match ent.get_component::<TextComponent>(input_c.text) {
@@ -306,201 +222,147 @@ fn parse_json(
             }
             
             match ty {
-                SerializedValueContainerType::Array => JsonValue::Array(values.into_iter().map(|(k, v)| v).collect()),
-                SerializedValueContainerType::Object => JsonValue::Object({
-                    let mut obj = JsonObject::new();
+                SerializedValueContainerType::List => SerializedValue::Composite(SerializedComposite {
+                    is_rigid: false,
+                    values: SerializedCompositeValues::List(values.into_iter().map(|(k, v)| v).collect()),
+                }),
+                SerializedValueContainerType::Map => SerializedValue::Composite(SerializedComposite {
+                    is_rigid: false,
+                    values: SerializedCompositeValues::Map({
+                        let mut map = SerializedMap::default();
 
-                    for (key, value) in values {
-                        obj.push_field(key, value).ok();
-                    }
-
-                    obj
+                        map.enum_metadata = enum_metadata;
+    
+                        for (key, value) in values {
+                            map.values.insert(key, value);
+                        }
+                
+                        map
+                    })
                 }),
             }
         },
     }
 }
 
-fn spawn_json(
+fn spawn_serialized(
     mut ent: EntitiesHolderMut,
     ent_parent: Entity,
-    json: &JsonValue,
+    serialized: &SerializedValue,
     material_panel: AssetHandle<StandardMaterial>,
     material_text: AssetHandle<StandardMaterial>,
     font: AssetHandle<Font>,
 ) -> Entity {
-    match json {
-        JsonValue::Null => todo!(),
-        JsonValue::Bool(json_bool) => {
-            let ent_text = spawn_input_area_ent(ent.as_mut(), ent_parent, json_bool.to_string().into(), material_panel.clone(), material_text.clone(), font.clone());
+    match serialized {
+        SerializedValue::Null => todo!(),
+        SerializedValue::Primitive(serialized) => {
+            let (text, ty) = match serialized {
+                SerializedPrimitive::Bool(serialized) => (serialized.to_string().into(), SerializedValuePrimitiveType::Bool),
+                SerializedPrimitive::Int(serialized) => (serialized.to_string().into(), SerializedValuePrimitiveType::Int),
+                SerializedPrimitive::Float(serialized) => (serialized.to_string().into(), SerializedValuePrimitiveType::Float),
+                SerializedPrimitive::String(serialized) => (serialized.to_string().into(), SerializedValuePrimitiveType::String),
+            };
 
-            ent.add_component(ent_text, SerializedValueComponent::Primitive { text: ent_text, ty: SerializedValuePrimitiveType::Bool }).ok().unwrap();
-
+            let ent_text = spawn_input_area_ent(ent.as_mut(), ent_parent, text, material_panel.clone(), material_text.clone(), font.clone());
+            ent.add_component(ent_text, SerializedValueComponent::Primitive { text: ent_text, ty }).ok().unwrap();
             ent_text
         },
-        JsonValue::Number(json_number) => {
-            let ent_text = spawn_input_area_ent(ent.as_mut(), ent_parent, json_number.to_string().into(), material_panel.clone(), material_text.clone(), font.clone());
-            
-            ent.add_component(ent_text, SerializedValueComponent::Primitive { text: ent_text, ty: SerializedValuePrimitiveType::Number }).ok().unwrap();
-
-            ent_text
-        },
-        JsonValue::String(json_string) => {
-            let ent_text = spawn_input_area_ent(ent.as_mut(), ent_parent, json_string.to_string().into(), material_panel.clone(), material_text.clone(), font.clone());
-            
-            ent.add_component(ent_text, SerializedValueComponent::Primitive { text: ent_text, ty: SerializedValuePrimitiveType::String }).ok().unwrap();
-
-            ent_text
-        },
-        JsonValue::Array(json_values) => {
-            let ent_root = ent.create_entity();
-            
-            ent.add_component(ent_root, GlobalRectComponent::default()).ok().unwrap();
-            ent.add_component(ent_root, LocalRectComponent::default()).ok().unwrap();
-            ent.add_component(ent_root, ChildComponent { parent: ent_parent }).ok().unwrap();
-            ent.add_component(ent_root, ParentComponent { children: vec![].into() }).ok().unwrap();
-            ent.add_component(ent_root, RectChildAlignComponent {
-                direction: UiDirection::Vertical,
-                spacing: UiSpacing::Chunk,
-                anchor: Vec2::new(0.0, 0.0),
-                min_gap: UiVal::px(0.0),
-            }).ok().unwrap();
-            ent.add_component(ent_root, SerializedValueComponent::Container { container: ent_root, ty: SerializedValueContainerType::Array }).ok().unwrap();
-
-            ent.get_component_mut::<ParentComponent>(ent_parent)
-                .unwrap()
-                .children
-                .push(ent_root);
-
-            for (i, json_value) in json_values.iter().enumerate() {
-                let ent_field = ent.create_entity();
-
-                ent.add_component(ent_field, GlobalRectComponent::default()).ok().unwrap();
-                ent.add_component(ent_field, LocalRectComponent {
-                    scale: Vec2::new(UiVal::pw(1.0).into(), None.into()),
-                    ..Default::default()
-                }).ok().unwrap();
-                ent.add_component(ent_field, ChildComponent { parent: ent_root }).ok().unwrap();
-                ent.add_component(ent_field, ParentComponent { children: vec![].into() }).ok().unwrap();
-                ent.add_component(ent_field, RectChildAlignComponent {
-                    direction: UiDirection::Vertical,
-                    spacing: UiSpacing::Chunk,
-                    anchor: Vec2::new(1.0, 0.0),
-                    min_gap: UiVal::px(0.0),
-                }).ok().unwrap();
-                ent.get_component_mut::<ParentComponent>(ent_root)
-                    .unwrap()
-                    .children
-                    .push(ent_field);
-
-                let (ent_key, ent_key_text) = spawn_text_ent(ent.as_mut(), ent_field, i.to_string().into(), material_panel.clone(), material_text.clone(), font.clone());
-
-                let ent_value_container = ent.create_entity();
-
-                ent.add_component(ent_value_container, GlobalRectComponent::default()).ok().unwrap();
-                ent.add_component(ent_value_container, LocalRectComponent {
-                    scale: Vec2::new(UiVal::pw(1.0).into(), None.into()),
-                    parent_padding_min: Vec2::new(UiVal::px(20.0), UiVal::px(0.0)),
-                    ..Default::default()
-                }).ok().unwrap();
-                ent.add_component(ent_value_container, ChildComponent { parent: ent_field }).ok().unwrap();
-                ent.add_component(ent_value_container, ParentComponent { children: vec![].into() }).ok().unwrap();
-                ent.add_component(ent_value_container, RectChildAlignComponent {
-                    direction: UiDirection::Vertical,
-                    spacing: UiSpacing::Chunk,
-                    anchor: Vec2::new(0.5, 0.5),
-                    min_gap: UiVal::px(0.0),
-                }).ok().unwrap();
-                ent.get_component_mut::<ParentComponent>(ent_field)
-                    .unwrap()
-                    .children
-                    .push(ent_value_container);
-
-                spawn_json(ent.as_mut(), ent_value_container, json_value, material_panel.clone(), material_text.clone(), font.clone());
+        SerializedValue::Composite(serialized) => match &serialized.values {
+            SerializedCompositeValues::List(serialized_list) => {
+                let ent_root = spawn_default_layout_ent(ent.as_mut(), ent_parent, false);
                 
-                ent.add_component(ent_field, SerializedFieldComponent { key_text: ent_key_text, value_container: ent_value_container }).ok().unwrap();
-            }
+                ent.add_component(ent_root, SerializedValueComponent::Container {
+                    container: ent_root,
+                    ty: SerializedValueContainerType::List,
+                    enum_metadata: Entity::EMPTY,
+                }).ok().unwrap();
 
-            ent_root
-        },
-        JsonValue::Object(json_object) => {
-            let ent_root = ent.create_entity();
-            
-            ent.add_component(ent_root, GlobalRectComponent::default()).ok().unwrap();
-            ent.add_component(ent_root, LocalRectComponent::default()).ok().unwrap();
-            ent.add_component(ent_root, ChildComponent { parent: ent_parent }).ok().unwrap();
-            ent.add_component(ent_root, ParentComponent { children: vec![].into() }).ok().unwrap();
-            ent.add_component(ent_root, RectChildAlignComponent {
-                direction: UiDirection::Vertical,
-                spacing: UiSpacing::Chunk,
-                anchor: Vec2::new(0.0, 0.0),
-                min_gap: UiVal::px(0.0),
-            }).ok().unwrap();
-            ent.add_component(ent_root, SerializedValueComponent::Container { container: ent_root, ty: SerializedValueContainerType::Object }).ok().unwrap();
+                for (i, serialized_value) in serialized_list.iter().enumerate() {
+                    let ent_field = spawn_default_layout_ent(ent.as_mut(), ent_root, false);
 
-            ent.get_component_mut::<ParentComponent>(ent_parent)
-                .unwrap()
-                .children
-                .push(ent_root);
+                    let (ent_key, ent_key_text) = spawn_text_ent(ent.as_mut(), ent_field, i.to_string().into(), material_panel.clone(), material_text.clone(), font.clone());
 
-            for field_name in json_object.field_names() {
-                let field_value = json_object.get_value(field_name).unwrap();
+                    let ent_value_container = spawn_default_layout_ent(ent.as_mut(), ent_field, true);
 
-                //
+                    spawn_serialized(ent.as_mut(), ent_value_container, serialized_value, material_panel.clone(), material_text.clone(), font.clone());
+                    
+                    ent.add_component(ent_field, SerializedFieldComponent { key_text: ent_key_text, value_container: ent_value_container }).ok().unwrap();
+                }
+
+                ent_root
+            },
+            SerializedCompositeValues::Map(serialized_map) => {
+                let ent_root = spawn_default_layout_ent(ent.as_mut(), ent_parent, false);
                 
-                let ent_field = ent.create_entity();
+                let mut enum_metadata_ent = Entity::EMPTY;
 
-                ent.add_component(ent_field, GlobalRectComponent::default()).ok().unwrap();
-                ent.add_component(ent_field, LocalRectComponent {
-                    scale: Vec2::new(UiVal::pw(1.0).into(), None.into()),
-                    ..Default::default()
+                if let Some(enum_metadata) = &serialized_map.enum_metadata {
+                    let ent_enum_field = spawn_default_layout_ent(ent.as_mut(), ent_root, false);
+
+                    enum_metadata_ent = ent_enum_field;
+
+                    let (ent_key_enum, ent_key_text_enum) = spawn_text_ent(ent.as_mut(), ent_enum_field, String::from("$enum_variant").into(), material_panel.clone(), material_text.clone(), font.clone());
+
+                    let ent_value_container = spawn_default_layout_ent(ent.as_mut(), ent_enum_field, true);
+
+                    let enum_metadata_input_ent = spawn_input_area_ent(ent.as_mut(), ent_value_container, enum_metadata.variant.clone().into(), material_panel.clone(), material_text.clone(), font.clone());
+
+                    ent.add_component(ent_enum_field, SerializedEnumMetadataComponent { value_text: enum_metadata_input_ent, variants: enum_metadata.variants.clone() }).ok().unwrap();
+                }
+
+                ent.add_component(ent_root, SerializedValueComponent::Container {
+                    container: ent_root,
+                    ty: SerializedValueContainerType::Map,
+                    enum_metadata: enum_metadata_ent
                 }).ok().unwrap();
-                ent.add_component(ent_field, ChildComponent { parent: ent_root }).ok().unwrap();
-                ent.add_component(ent_field, ParentComponent { children: vec![].into() }).ok().unwrap();
-                ent.add_component(ent_field, RectChildAlignComponent {
-                    direction: UiDirection::Vertical,
-                    spacing: UiSpacing::Chunk,
-                    anchor: Vec2::new(1.0, 0.0),
-                    min_gap: UiVal::px(0.0),
-                }).ok().unwrap();
-                ent.get_component_mut::<ParentComponent>(ent_root)
-                    .unwrap()
-                    .children
-                    .push(ent_field);
 
-                let (ent_key, ent_key_text) = spawn_text_ent(ent.as_mut(), ent_field, field_name.clone().into(), material_panel.clone(), material_text.clone(), font.clone());
+                for (field_name, field_value) in &serialized_map.values {
+                    let ent_field = spawn_default_layout_ent(ent.as_mut(), ent_root, false);
 
-                let ent_value_container = ent.create_entity();
+                    let (ent_key, ent_key_text) = spawn_text_ent(ent.as_mut(), ent_field, field_name.clone().into(), material_panel.clone(), material_text.clone(), font.clone());
 
-                ent.add_component(ent_value_container, GlobalRectComponent::default()).ok().unwrap();
-                ent.add_component(ent_value_container, LocalRectComponent {
-                    scale: Vec2::new(UiVal::pw(1.0).into(), None.into()),
-                    parent_padding_min: Vec2::new(UiVal::px(20.0), UiVal::px(0.0)),
-                    ..Default::default()
-                }).ok().unwrap();
-                ent.add_component(ent_value_container, ChildComponent { parent: ent_field }).ok().unwrap();
-                ent.add_component(ent_value_container, ParentComponent { children: vec![].into() }).ok().unwrap();
-                ent.add_component(ent_value_container, RectChildAlignComponent {
-                    direction: UiDirection::Vertical,
-                    spacing: UiSpacing::Chunk,
-                    anchor: Vec2::new(0.5, 0.5),
-                    min_gap: UiVal::px(0.0),
-                }).ok().unwrap();
-                ent.get_component_mut::<ParentComponent>(ent_field)
-                    .unwrap()
-                    .children
-                    .push(ent_value_container);
+                    let ent_value_container = spawn_default_layout_ent(ent.as_mut(), ent_field, true);
 
-                //
+                    spawn_serialized(ent.as_mut(), ent_value_container, field_value, material_panel.clone(), material_text.clone(), font.clone());
+                    
+                    ent.add_component(ent_field, SerializedFieldComponent { key_text: ent_key_text, value_container: ent_value_container }).ok().unwrap();
+                }
 
-                spawn_json(ent.as_mut(), ent_value_container, field_value, material_panel.clone(), material_text.clone(), font.clone());
-                
-                ent.add_component(ent_field, SerializedFieldComponent { key_text: ent_key_text, value_container: ent_value_container }).ok().unwrap();
-            }
-
-            ent_root
+                ent_root
+            },
         },
     }
+}
+
+fn spawn_default_layout_ent(
+    mut ent: EntitiesHolderMut,
+    ent_parent: Entity,
+    is_padded: bool,
+) -> Entity {
+    let entity = ent.create_entity();
+
+    let mut local_rect = LocalRectComponent::default();
+    local_rect.scale = Vec2::new(UiVal::pw(1.0).into(), None.into());
+    if is_padded {
+        local_rect.parent_padding_min = Vec2::new(UiVal::px(20.0), UiVal::px(0.0));
+    }
+
+    ent.add_component(entity, GlobalRectComponent::default()).ok().unwrap();
+    ent.add_component(entity, local_rect).ok().unwrap();
+    ent.add_component(entity, ChildComponent { parent: ent_parent }).ok().unwrap();
+    ent.add_component(entity, ParentComponent { children: vec![].into() }).ok().unwrap();
+    ent.add_component(entity, RectChildAlignComponent {
+        direction: UiDirection::Vertical,
+        spacing: UiSpacing::Chunk,
+        anchor: Vec2::new(1.0, 0.0),
+        min_gap: UiVal::px(0.0),
+    }).ok().unwrap();
+
+    if let Some(parent_c) = ent.get_component_mut::<ParentComponent>(ent_parent) {
+        parent_c.children.push(entity);
+    }
+
+    entity
 }
 
 fn spawn_text_field(

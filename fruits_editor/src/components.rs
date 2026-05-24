@@ -18,7 +18,7 @@ pub struct SceneWindowContentComponent;
 
 #[derive(Component)]
 pub enum SerializedValueComponent {
-    Container { container: Entity, ty: SerializedValueContainerType },
+    Container { container: Entity, ty: SerializedValueContainerType, enum_metadata: Entity },
     Primitive { text: Entity, ty: SerializedValuePrimitiveType },
 }
 
@@ -27,14 +27,20 @@ pub struct SerializedFieldComponent {
     pub value_container: Entity
 }
 
+pub struct SerializedEnumMetadataComponent {
+    pub value_text: Entity,
+    pub variants: Vec<String>,
+}
+
 pub enum SerializedValueContainerType {
-    Array,
-    Object,
+    List,
+    Map,
 }
 
 pub enum SerializedValuePrimitiveType {
     Null,
     Bool,
-    Number,
+    Int,
+    Float,
     String,
 }

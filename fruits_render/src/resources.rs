@@ -4,6 +4,7 @@ use fruits_asset_storage::AssetHandle;
 use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
 use fruits_render_core::{StandardTexture, StandardVertex};
+use fruits_serialization::*;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
 use crate::Font;
@@ -126,7 +127,7 @@ impl Default for ScreenSpaceResource {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, TransSerializable)]
 pub enum RenderSpace {
     Clip,
     Window,

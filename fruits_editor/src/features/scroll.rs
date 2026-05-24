@@ -12,20 +12,14 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .ok()
         .unwrap();
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
-        .insert_child_system(start_end_scrolling_system);
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
-        .group(SYSTEM_GROUP)
+    let mut behavior = world.behavior_mut();
+    let mut update = behavior.get_mut(Schedule::Update);
+
+    update.group(SYSTEM_GROUP)
+        .insert_child_system(start_end_scrolling_system)
         .insert_child_system(move_scroll_handle_system);
 
-    world
-        .behavior_mut()
-        .get_mut(Schedule::Update)
+    update
         .order_system(start_end_scrolling_system)
         .before_system(move_scroll_handle_system);
 }

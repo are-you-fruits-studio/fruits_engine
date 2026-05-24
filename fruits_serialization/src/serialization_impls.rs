@@ -1,51 +1,112 @@
-use crate::{SerializationError, SerializationResult, SerializerCtx, TransSerializable};
+use crate::{SerializationError, SerializationResult, SerializedComposite, SerializedCompositeValues, SerializedPrimitive, SerializedValue, SerializerCtx, TransSerializable};
 
 // todo: other types
 
-impl TransSerializable for String {
-    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
+impl TransSerializable for SerializedValue {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: serde_json::Value::String(self.clone()),
-            err: None,
+            result: self.clone(),
+            err: Vec::new(),
         }
     }
 
-    fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-        Ok(match value {
-            serde_json::Value::String(string) => SerializationResult { result: string.clone(), err: None },
-            _ => SerializationResult { result: Default::default(), err: Some(SerializationError::InvalidInput) },
-        })
+    fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        SerializationResult {
+            result: Some(value.clone()),
+            err: Vec::new(),
+        }
+    }
+}
+
+impl TransSerializable for String {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(self.clone())),
+            err: Vec::new(),
+        }
+    }
+
+    fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        let mut err = Vec::new();
+
+        SerializationResult {
+            result: Some(match value {
+                SerializedValue::Primitive(value) => match value {
+                    SerializedPrimitive::Bool(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from bool") });
+                        value.to_string()
+                    },
+                    SerializedPrimitive::Int(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from int") });
+                        value.to_string()
+                    },
+                    SerializedPrimitive::Float(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from float") });
+                        value.to_string()
+                    },
+                    SerializedPrimitive::String(value) => value.clone(),
+                },
+                SerializedValue::Null => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from null, using empty string") });
+                    String::new()
+                },
+                SerializedValue::Composite { .. } => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from composite, using empty string") });
+                    String::new()
+                },
+            }),
+            err,
+        }
     }
 }
 
 impl TransSerializable for &'static str {
-    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: serde_json::Value::String(String::from(*self)),
-            err: None,
+            result: SerializedValue::Primitive(SerializedPrimitive::String(self.to_string())),
+            err: Vec::new(),
         }
     }
 
-    fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-        Ok(match value {
-            serde_json::Value::String(string) if string.len() == 0 => SerializationResult { result: "", err: None },
-            _ => SerializationResult { result: Default::default(), err: Some(SerializationError::InvalidInput) },
-        })
+    fn deserialize(_ctx: &SerializerCtx, _value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        SerializationResult {
+            result: Some(Default::default()),
+            err: vec![SerializationError::InvalidInput { message: String::from("&str cannot be desrialized, using empty string") }],
+        }
+    }
+}
+
+impl TransSerializable for u128 {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        let mut err = Vec::new();
+
+        let value = if *self > i128::MAX as u128 {
+            err.push(SerializationError::InvalidInput { message: String::from("Int value is too high and is clamped.") });
+            i128::MAX
+        } else {
+            *self as i128
+        };
+
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::Int(value)),
+            err,
+        }
+    }
+
+    fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        deserialize_int(value, 0, i128::MAX).map(|v| Some(v as Self))
     }
 }
 
 macro_rules! trans_serializable_int_impl {
     ($T: ident) => {
         impl TransSerializable for $T {
-            fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
-                SerializationResult { result: number_from_i(*self as i128).into(), err: None }
+            fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+                serialize_int(*self as i128)
             }
         
-            fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-                Ok(match value {
-                    serde_json::Value::Number(num) => SerializationResult { result: number_to_i(num, $T::MIN as i128, $T::MAX as i128) as $T, err: None },
-                    _ => SerializationResult { result: Default::default(), err: Some(SerializationError::InvalidInput) },
-                })
+            fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+                deserialize_int(value, Self::MIN as i128, Self::MAX as i128).map(|v| Some(v as Self))
             }
         }
     };
@@ -53,66 +114,107 @@ macro_rules! trans_serializable_int_impl {
 macro_rules! trans_serializable_float_impl {
     ($T: ident) => {
         impl TransSerializable for $T {
-            fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
-                SerializationResult { result: number_from_f(*self as f64).into(), err: None }
+            fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+                serialize_float(*self as f64)
             }
         
-            fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-                Ok(match value {
-                    serde_json::Value::Number(num) => SerializationResult { result: number_to_f(num, $T::MIN as f64, $T::MAX as f64) as $T, err: None },
-                    _ => SerializationResult { result: Default::default(), err: Some(SerializationError::InvalidInput) },
-                })
+            fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+                deserialize_float(value).map(|v| Some(v as Self))
             }
         }
     };
 }
 
-fn number_to_i(number: &serde_json::Number, min: i128, max: i128) -> i128 {
-    if let Some(number) = number.as_u64() {
-        (number as i128).clamp(min, max)
-    } else if let Some(number) = number.as_i64() {
-        (number as i128).clamp(min, max)
-    } else if let Some(number) = number.as_f64() {
-        if number <= min as f64 {
-            min
-        } else if number >= max as f64 {
-            max
-        } else {
-            number as i128
-        }
-    } else {
-        0
+fn serialize_int(value: i128) -> SerializationResult<SerializedValue> {
+    SerializationResult {
+        err: Vec::new(),
+        result: SerializedValue::Primitive(SerializedPrimitive::Int(value))
     }
 }
 
-fn number_to_f(number: &serde_json::Number, min: f64, max: f64) -> f64 {
-    if let Some(number) = number.as_u64() {
-        (number as f64).clamp(min, max)
-    } else if let Some(number) = number.as_i64() {
-        (number as f64).clamp(min, max)
-    } else if let Some(number) = number.as_f64() {
-        (number as f64).clamp(min, max)
-    } else {
-        0.0
+fn serialize_float(value: f64) -> SerializationResult<SerializedValue> {
+    SerializationResult {
+        err: Vec::new(),
+        result: SerializedValue::Primitive(SerializedPrimitive::Float(value))
     }
 }
 
-fn number_from_i(mut number: i128) -> serde_json::Number {
-    if number > u64::MAX as i128 {
-        number = u64::MAX as i128
-    } else if number < i64::MIN as i128 {
-        number = u64::MAX as i128
-    }
+fn deserialize_int(value: &SerializedValue, min: i128, max: i128) -> SerializationResult<i128> {
+    let mut err = Vec::new();
 
-    serde_json::Number::from_i128(number).unwrap()
+    SerializationResult {
+        result: match value {
+            SerializedValue::Null => {
+                err.push(SerializationError::InvalidInput { message: String::from("Deserializing int from null, using 0") });
+                0
+            },
+            SerializedValue::Composite { .. } => {
+                err.push(SerializationError::InvalidInput { message: String::from("Deserializing int from composite, using 0") });
+                0
+            },
+            SerializedValue::Primitive(value) => {
+                match value {
+                    SerializedPrimitive::Bool(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing int from bool") });
+                        if *value { 1 } else { 0 }
+                    },
+                    SerializedPrimitive::Int(value) => {
+                        let clamped_value = (*value).clamp(min, max);
+                        if *value != clamped_value {
+                            err.push(SerializationError::InvalidInput { message: String::from("Int value is too high/low and is clamped.") });
+                        }
+                        clamped_value
+                    },
+                    SerializedPrimitive::Float(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing int from float") });
+                        (*value as i128).clamp(min, max)
+                    },
+                    SerializedPrimitive::String(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing int from string") });
+                        value.parse::<i128>().unwrap_or(0).clamp(min, max)
+                    },
+                }
+            },
+        },
+        err,
+    }
 }
 
-fn number_from_f(mut number: f64) -> serde_json::Number {
-    if !number.is_finite() {
-        number = 0.0;
-    }
+fn deserialize_float(value: &SerializedValue) -> SerializationResult<f64> {
+    let mut err = Vec::new();
 
-    serde_json::Number::from_f64(number).unwrap()
+    SerializationResult {
+        result: match value {
+            SerializedValue::Null => {
+                err.push(SerializationError::InvalidInput { message: String::from("Deserializing float from null, using 0") });
+                0.0
+            },
+            SerializedValue::Composite { .. } => {
+                err.push(SerializationError::InvalidInput { message: String::from("Deserializing float from composite, using 0") });
+                0.0
+            },
+            SerializedValue::Primitive(value) => {
+                match value {
+                    SerializedPrimitive::Bool(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing float from bool") });
+                        if *value { 1.0 } else { 0.0 }
+                    },
+                    SerializedPrimitive::Int(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing float from int") });
+                        *value as f64
+                    },
+                    SerializedPrimitive::Float(value) => {
+                        *value
+                    },
+                    SerializedPrimitive::String(value) => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing float from string") });
+                        value.parse::<f64>().unwrap_or(0.0)
+                    },
+                }
+            },
+        },
+        err,
+    }
 }
 
 trans_serializable_int_impl!(u8);
@@ -123,108 +225,235 @@ trans_serializable_int_impl!(u32);
 trans_serializable_int_impl!(i32);
 trans_serializable_int_impl!(u64);
 trans_serializable_int_impl!(i64);
-trans_serializable_int_impl!(u128);
 trans_serializable_int_impl!(i128);
 trans_serializable_float_impl!(f32);
 trans_serializable_float_impl!(f64);
 
-impl TransSerializable for char {
-    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
+impl TransSerializable for bool {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: serde_json::Value::String(String::from(*self)),
-            err: None,
+            err: Vec::new(),
+            result: SerializedValue::Primitive(SerializedPrimitive::Bool(*self))
         }
     }
 
-    fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-        Ok(match value {
-            serde_json::Value::String(string) if string.len() > 1 => SerializationResult { result: string.chars().next().unwrap(), err: None },
-            _ => SerializationResult { result: Default::default(), err: Some(SerializationError::InvalidInput) },
-        })
+    fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        let mut err = Vec::new();
+
+        SerializationResult {
+            result: Some(match value {
+                SerializedValue::Null => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing bool from null, using false") });
+                    false
+                },
+                SerializedValue::Composite { .. } => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing bool from composite, using false") });
+                    false
+                },
+                SerializedValue::Primitive(value) => {
+                    match value {
+                        SerializedPrimitive::Bool(value) => {
+                            *value
+                        },
+                        SerializedPrimitive::Int(value) => {
+                            err.push(SerializationError::InvalidInput { message: String::from("Deserializing bool from int") });
+                            *value != 0
+                        },
+                        SerializedPrimitive::Float(value) => {
+                            err.push(SerializationError::InvalidInput { message: String::from("Deserializing bool from float") });
+                            *value != 0.0
+                        },
+                        SerializedPrimitive::String(value) => {
+                            err.push(SerializationError::InvalidInput { message: String::from("Deserializing bool from string") });
+                            match value.as_str().trim() {
+                                "1" | "true" | "True" | "TRUE" => true,
+                                _ => false
+                            }
+                        },
+                    }
+                },
+            }),
+            err,
+        }
     }
 }
 
-impl TransSerializable for bool {
-    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
+impl TransSerializable for char {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: serde_json::Number::from_u128(if *self { 1 } else { 0 }).unwrap().into(),
-            err: None,
+            result: SerializedValue::Primitive(SerializedPrimitive::String(String::from(*self))),
+            err: Vec::new(),
         }
     }
 
-    fn deserialize(_ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-        Ok(match value {
-            serde_json::Value::String(string) if string.len() > 1 => SerializationResult { result: string.trim().to_lowercase() == "true", err: None },
-            serde_json::Value::Number(number) => SerializationResult { result: number_to_i(number, i128::MIN, i128::MAX) != 0, err: None },
-            _ => SerializationResult { result: Default::default(), err: Some(SerializationError::InvalidInput) },
-        })
+    fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        let mut err = Vec::new();
+
+        SerializationResult {
+            result: Some(match value {
+                SerializedValue::Null => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing char from null, using default") });
+                    char::default()
+                },
+                SerializedValue::Composite { .. } => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing char from composite, using default") });
+                    char::default()
+                },
+                SerializedValue::Primitive(value) => {
+                    match value {
+                        SerializedPrimitive::Bool(value) => {
+                            err.push(SerializationError::InvalidInput { message: String::from("Deserializing char from bool") });
+                            value.to_string().chars().next().unwrap_or_default()
+                        },
+                        SerializedPrimitive::Int(value) => {
+                            err.push(SerializationError::InvalidInput { message: String::from("Deserializing char from int") });
+                            value.to_string().chars().next().unwrap_or_default()
+                        },
+                        SerializedPrimitive::Float(value) => {
+                            err.push(SerializationError::InvalidInput { message: String::from("Deserializing char from float") });
+                            value.to_string().chars().next().unwrap_or_default()
+                        },
+                        SerializedPrimitive::String(value) => {
+                            let mut chars = value.chars();
+
+                            if !(chars.next().is_some() && chars.next().is_none()) {
+                                err.push(SerializationError::InvalidInput { message: String::from("Deserializing char from string") });
+                            }
+
+                            value.chars().next().unwrap_or_default()
+                        },
+                    }
+                },
+            }),
+            err,
+        }
     }
 }
 
 impl<T: 'static> TransSerializable for Vec<T> {
-    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
-        let mut err = None;
+    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        let mut err = Vec::new();
         let mut vec = Vec::new();
 
         for element in self {
             let result = ctx.serialize(element);
 
+            err.extend_from_slice(&result.err);
             vec.push(result.result);
-
-            if let Some(result_err) = result.err && err.is_none() {
-                err = Some(result_err);
-            }
         }
         
-        SerializationResult { result: serde_json::Value::Array(vec), err }
+        SerializationResult {
+            result: SerializedValue::Composite(SerializedComposite {
+                is_rigid: false,
+                values: SerializedCompositeValues::List(vec),
+            }),
+            err,
+        }
     }
 
-    fn deserialize(ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
+    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        let mut err = Vec::new();
+
         let values = match value {
-            serde_json::Value::Null => &[],
-            serde_json::Value::Array(values) => values.as_slice(),
-            _ => std::slice::from_ref(value),
+            SerializedValue::Null => {
+                err.push(SerializationError::InvalidInput { message: String::from("Deserializing vec from null, using default") });
+                &[]
+            },
+            SerializedValue::Primitive { .. } => {
+                err.push(SerializationError::InvalidInput { message: String::from("Deserializing vec from primitive") });
+                std::slice::from_ref(value)
+            },
+            SerializedValue::Composite(composite) => {
+                if composite.is_rigid {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing vec from something rigid: like struct/tuple instead of list/map") });
+                }
+
+                match &composite.values {
+                    SerializedCompositeValues::Map { .. } => {
+                        err.push(SerializationError::InvalidInput { message: String::from("Deserializing vec from named values") });
+                        std::slice::from_ref(value)
+                    },
+                    SerializedCompositeValues::List(tuple) => {
+                        tuple.as_slice()
+                    },
+                }
+            },
         };
 
-        let mut err = None;
         let mut vec = Vec::new();
 
         for element in values {
-            match ctx.deserialize::<T>(element) {
-                Ok(result) => {
-                    vec.push(result.result);
+            let result = ctx.deserialize::<T>(element);
 
-                    if let Some(result_err) = result.err && err.is_none() {
-                        err = Some(result_err);
-                    }
-                },
-                Err(result_err) => {
-                    if err.is_none() {
-                        err = Some(result_err);
-                    }
-                },
+            err.extend_from_slice(&result.err);
+
+            if let Some(result) = result.result {
+                vec.push(result);
             };
         };
 
-        Ok(SerializationResult {
-            result: vec,
+        SerializationResult {
+            result: Some(vec),
             err: err,
-        })
+        }
     }
 }
 
 impl<T: 'static> TransSerializable for Option<T> {
-    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<serde_json::Value> {
-        match self {
-            Some(value) => ctx.serialize(value),
-            None => SerializationResult { result: serde_json::Value::Null, err: None },
+    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        let variants = ["None", "Some"].into_iter().map(String::from).collect();
+
+        match self {    
+            None => ctx.serialize_map()
+                .finish_as_enum(true, "None", variants),
+            Some(value) => ctx.serialize_map()
+                .with_field("0", value)
+                .finish_as_enum(true, "Some", variants),
         }
     }
 
-    fn deserialize(ctx: &SerializerCtx, value: &serde_json::Value) -> Result<SerializationResult<Self>, SerializationError> {
-        match value {
-            serde_json::Value::Null => Ok(SerializationResult { result: None, err: None }),
-            _ => ctx.deserialize(value),
+    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        ctx.deserialize_enum()
+            .variant("None", |ctx, value| {
+                ctx.deserialize_map(value, |_ctx| {
+                    Some(None)
+                })
+            })
+            .variant("Some", |ctx, value| {
+                ctx.deserialize_map(value, |ctx| {
+                    Some(Some(ctx.get_field("0")?))
+                })
+            })
+            .finish(value)
+    }
+}
+
+impl TransSerializable for () {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        SerializationResult {
+            result: SerializedValue::Null,
+            err: Vec::new(),
+        }
+    }
+
+    fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        let mut err = Vec::new();
+
+        SerializationResult {
+            result: Some(match value {
+                SerializedValue::Null => (),
+                SerializedValue::Primitive { .. } => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing unit from primitive") });
+                    ()
+                },
+                SerializedValue::Composite { .. } => {
+                    err.push(SerializationError::InvalidInput { message: String::from("Deserializing unit from composite") });
+                    ()
+                },
+            }),
+            err
         }
     }
 }
+
+// todo: other impls (for tuples, maps, arrays, ...)

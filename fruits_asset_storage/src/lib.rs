@@ -112,6 +112,17 @@ impl<T> PartialEq for AssetHandle<T> {
 }
 impl<T> Eq for AssetHandle<T> {}
 
+impl<T> PartialOrd for AssetHandle<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+impl<T> Ord for AssetHandle<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.index.cmp(&other.index)
+    }
+}
+
 impl<T> Clone for AssetHandle<T> {
     fn clone(&self) -> Self {
         Self {
