@@ -51,9 +51,13 @@ const config = {
             label: 'Docs',
           },
           {
-            href: '/fruits_engine/api-reference/fruits_engine/index.html',
+            // Raw <a> so the browser does a full navigation to the static rustdoc
+            // subtree. A normal navbar `href` item is wrapped in Docusaurus's
+            // client-side <Link>, which treats this baseUrl-relative path as an
+            // internal route, fails to match it, and renders the SPA 404.
+            type: 'html',
             position: 'left',
-            label: 'API Reference',
+            value: '<a class="navbar__item navbar__link" href="/fruits_engine/api-reference/fruits_engine/index.html">API Reference</a>',
           },
           {
             href: 'https://github.com/are-you-fruits-studio/fruits_engine',
