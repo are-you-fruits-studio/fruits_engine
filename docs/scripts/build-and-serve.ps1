@@ -3,7 +3,7 @@ param(
     [int]$Port = 3000,
     [switch]$SkipNpmInstall,
     [switch]$ForceNpmInstall,
-    [switch]$SkipRustdocJson,
+    [switch]$SkipRustdoc,
     [switch]$NoServe
 )
 
@@ -69,18 +69,11 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to install or update Rust nightly toolchain."
 }
 
-if (-not (Get-Command "cargo-doc-docusaurus" -ErrorAction SilentlyContinue)) {
-    cargo install cargo-doc-docusaurus --version 0.1.1 --locked
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to install cargo-doc-docusaurus."
-    }
-}
-
 Write-Host "==> Generating Rust API reference"
-if ($SkipRustdocJson) {
-    $env:SKIP_RUSTDOC_JSON = "1"
+if ($SkipRustdoc) {
+    $env:SKIP_RUSTDOC = "1"
 } else {
-    Remove-Item Env:\SKIP_RUSTDOC_JSON -ErrorAction SilentlyContinue
+    Remove-Item Env:\SKIP_RUSTDOC -ErrorAction SilentlyContinue
 }
 
 Invoke-Native $powershell "-ExecutionPolicy" "Bypass" "-File" (Join-Path $docsRoot "scripts\generate-docs-api.ps1")
@@ -103,6 +96,9 @@ if (-not $SkipNpmInstall -and ($ForceNpmInstall -or -not (Test-Path -LiteralPath
 
 Write-Host "==> Building Docusaurus static HTML"
 Invoke-Native $npm "run" "build"
+
+Write-Host "==> Copying rustdoc API reference into Docusaurus build"
+Invoke-Native $powershell "-ExecutionPolicy" "Bypass" "-File" (Join-Path $docsRoot "scripts\copy-rustdoc-to-build.ps1")
 
 if ($NoServe) {
     Write-Host "==> Build complete. Skipping local server because -NoServe was set."
@@ -127,4 +123,7 @@ if ($existingProcessId) {
 Write-Host "==> Starting local docs server in this terminal"
 Write-Host "Open: $docsUrl"
 Write-Host "Press Ctrl+C in this terminal to stop it."
-Invoke-Native $npm "run" "serve" "--" "--host" $HostName "--port" "$Port"
+# Use the GitHub Pages-faithful static server instead of `docusaurus serve`, which
+# 301-mangles rustdoc's relative *.html navigation. See serve-build.mjs for details.
+$node = Resolve-CommandPath "node" @("C:\Program Files\nodejs\node.exe")
+Invoke-Native $node (Join-Path $docsRoot "scripts\serve-build.mjs") "--host" $HostName "--port" "$Port"

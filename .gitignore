@@ -410,17 +410,12 @@ FakesAssemblies/
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
 node_modules/
+
+# Generated documentation artifacts
+target/doc/
 docs/build/
 docs/.docusaurus/
-docs/api-reference/**
-!docs/api-reference/
-!docs/api-reference/.gitkeep
-docs/sidebars-rust.ts
-docs/src/components/RustCode/
-docs/src/components/RustCrateLink/
-docs/src/components/RustModuleTitle/
-docs/src/theme/DocSidebarItem/
-docs/src/css/rust-documentation.css
+docs/node_modules/
 
 # Visual Studio 6 build log
 *.plg

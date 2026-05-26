@@ -20,9 +20,12 @@ export default function Home() {
               <Link className="button button--primary" to="/docs/getting-started">
                 Open Docs
               </Link>
-              <Link className="button button--secondary" to="/api-reference/fruits_engine">
+              <a
+                className="button button--secondary"
+                href="/fruits_engine/api-reference/fruits_engine/index.html"
+              >
                 View API Reference
-              </Link>
+              </a>
             </div>
           </div>
         </section>

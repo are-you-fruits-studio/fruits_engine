@@ -43,21 +43,19 @@ jobs:
           packages: libudev-dev pkg-config
           version: 1.1
 
-      - name: Install cargo-doc-docusaurus
-        run: cargo install cargo-doc-docusaurus --version 0.1.1 --locked
-        working-directory: .
-
       - name: Generate API reference
         run: bash ./docs/scripts/generate-docs-api.sh
         working-directory: .
-        env:
-          RUSTDOCFLAGS: -Z unstable-options --output-format json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build website
         run: npm run build
+
+      - name: Copy API reference into website build
+        run: bash ./docs/scripts/copy-rustdoc-to-build.sh
+        working-directory: .
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

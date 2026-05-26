@@ -4,41 +4,24 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 
-api_dir="docs/api-reference"
-base_path="/api-reference"
+target_doc_dir="target/doc"
+target_main_crate_index="$target_doc_dir/fruits_engine/index.html"
 
-if [[ "${SKIP_RUSTDOC_JSON:-0}" != "1" ]]; then
-  RUSTDOCFLAGS="${RUSTDOCFLAGS:--Z unstable-options --output-format json}" \
-    cargo +nightly doc --workspace --no-deps
-fi
-
-find "$api_dir" -mindepth 1 ! -name '.gitkeep' -exec rm -rf {} +
-mkdir -p "$api_dir"
-
-cargo doc-docusaurus components init docs
-
-workspace_crates="$(find target/doc -maxdepth 1 -name '*.json' -printf '%f\n' \
-  | sed 's/\.json$//' \
-  | sort \
-  | paste -sd, -)"
-
-if [[ -z "$workspace_crates" ]]; then
-  echo "No rustdoc JSON files found in target/doc. Run rustdoc JSON generation first." >&2
+if [[ "${SKIP_RUSTDOC:-0}" != "1" ]]; then
+  cargo +nightly doc --workspace --no-deps
+elif [[ ! -f "$target_main_crate_index" ]]; then
+  echo "Cannot skip rustdoc generation because target/doc/fruits_engine/index.html does not exist. Run with SKIP_RUSTDOC unset once." >&2
   exit 1
 fi
 
-for json in target/doc/*.json; do
-  cargo doc-docusaurus "$json" \
-    -o "$api_dir" \
-    --base-path "$base_path" \
-    --workspace-crates "$workspace_crates"
-done
+if [[ ! -d "$target_doc_dir" ]]; then
+  echo "Rustdoc output was not found at target/doc. Run cargo doc first." >&2
+  exit 1
+fi
 
-find "$api_dir" -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
-  | xargs -0 -r sed -i '/^displayed_sidebar:/d'
+if [[ ! -f "$target_main_crate_index" ]]; then
+  echo "Main rustdoc entry was not found: $target_main_crate_index" >&2
+  exit 1
+fi
 
-find "$api_dir" -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
-  | xargs -0 -r perl -0pi -e 's/(?<!!)\[([^\]\n]+)\]\((?!https?:\/\/|mailto:|#)([^)\n]+)\)/$1/g'
-
-find "$api_dir" -type f \( -name '*.md' -o -name '*.mdx' \) -print0 \
-  | xargs -0 -r perl -0pi -e 's/<Link\b(?=[^>]*\bto="(?!https?:\/\/|mailto:|#)[^"]*")[^>]*>(.*?)<\/Link>/$1/gs; s/^import Link from .@docusaurus\/Link.;\r?\n//mg'
+echo "Rustdoc API reference generated at: $target_doc_dir"

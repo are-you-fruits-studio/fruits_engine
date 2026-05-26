@@ -1,9 +1,13 @@
 # AGENTS.md
 
 ## Project Overview
-This repository contains a Rust game engine. The documentation stack is split into:
-1. API reference generated from Rust doc comments via `rustdoc`
-2. Conceptual and architectural documentation written in Markdown and built with `mdBook`
+This repository contains a Rust game engine. The documentation site is built with Docusaurus and published through GitHub Pages.
+
+The documentation stack is split into:
+1. API reference generated from Rust doc comments as native rustdoc HTML via `cargo doc`
+2. Conceptual, architectural, and guide documentation written manually as Markdown under the Docusaurus docs tree
+
+Generated API reference files are build artifacts. Do not commit generated rustdoc HTML, Docusaurus build output, or legacy `cargo-doc-docusaurus` artifacts unless the repository policy changes explicitly.
 
 ## Documentation Goals
 When working on documentation, prioritize:
@@ -50,15 +54,49 @@ For modules and crates:
 
 Prefer concise docs. Avoid repetitive wording.
 
-## mdBook Structure
-Documentation pages live in:
-- `docs/book/src/getting-started/`
-- `docs/book/src/concepts/`
-- `docs/book/src/architecture/`
-- `docs/book/src/guides/`
-- `docs/book/src/internals/`
+## Docusaurus Structure
+The Docusaurus site lives in `docs/`.
+
+Important paths:
+- `docs/docs/` - manually written documentation pages
+- `target/doc/` - generated native rustdoc HTML from `cargo doc`; do not commit
+- `docs/scripts/generate-docs-api.ps1` - Windows/local API generation pipeline
+- `docs/scripts/generate-docs-api.sh` - Linux/GitHub Actions API generation pipeline
+- `docs/scripts/build-and-serve.ps1` - local full docs build and foreground server
+- `docs/scripts/clean-docs-artifacts.ps1` - cleanup for generated docs artifacts
+- `docs/docusaurus.config.js` - Docusaurus configuration
+- `.github/workflows/docs.yml` - GitHub Pages build/deploy workflow
+
+Manual docs should be placed under `docs/docs/` and linked through `docs/sidebars.js`. API reference content should be produced from Rust doc comments instead of hand-editing generated rustdoc files.
 
 Keep pages focused and scoped.
+
+## Documentation Build Workflow
+For local verification on Windows, prefer:
+
+```powershell
+.\docs\scripts\build-and-serve.ps1
+```
+
+This script regenerates native rustdoc HTML, builds the Docusaurus static site, copies rustdoc verbatim into `docs/build/api-reference/`, and serves `docs/build` in the current terminal session.
+
+The local server is `docs/scripts/serve-build.mjs`, a small static server that emulates GitHub Pages exactly (serves `*.html` verbatim under the `/fruits_engine/` baseUrl). It is used instead of `docusaurus serve`, which 301-redirects `*.html` URLs and breaks rustdoc's relative navigation. rustdoc HTML is self-contained with relative links, so no path rewriting is performed during the copy.
+
+Useful options:
+- `-SkipRustdoc` - reuse existing `target/doc` rustdoc HTML
+- `-SkipNpmInstall` - reuse existing `docs/node_modules`
+- `-NoServe` - build only, without starting a local server
+- `-Port 3001` - use a different local server port
+
+To clean generated docs artifacts:
+
+```powershell
+.\docs\scripts\clean-docs-artifacts.ps1
+```
+
+Use `-RemoveNodeModules` only when a full dependency cleanup is intentionally needed.
+
+GitHub Pages is built by `.github/workflows/docs.yml`. The workflow runs the Linux API generation script through `bash`, installs Docusaurus dependencies with `npm ci`, builds the site, and deploys `docs/build`.
 
 ## Style
 Write in clear technical English.
@@ -83,10 +121,13 @@ Before finalizing docs changes:
 - ensure cross-references are not obviously broken
 - ensure examples are syntactically plausible
 - do not mention subsystems that do not exist in the repository
+- for documentation pipeline changes, run `.\docs\scripts\build-and-serve.ps1 -SkipRustdoc -SkipNpmInstall -NoServe` when existing rustdoc output and npm dependencies are available
+- if Rust public API docs changed, run the full docs build without `-SkipRustdoc` before considering the generated API reference validated
 
 ## Expected Outputs
 Good documentation tasks usually produce one or more of:
 - updated Rust doc comments
-- new or updated Markdown pages under `docs/book/src/`
+- new or updated Markdown pages under `docs/docs/`
 - improved crate/module overviews
+- documentation pipeline or Docusaurus configuration updates
 - a short summary of undocumented areas still remaining

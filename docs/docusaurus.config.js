@@ -10,7 +10,7 @@ const config = {
   organizationName: 'are-you-fruits-studio',
   projectName: 'fruits_engine',
   trailingSlash: false,
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: 'warn',
@@ -38,19 +38,6 @@ const config = {
     ],
   ],
 
-  plugins: [
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'api',
-        path: 'api-reference',
-        routeBasePath: 'api-reference',
-        sidebarPath: require.resolve('./api-sidebars.js'),
-        showLastUpdateTime: false,
-      },
-    ],
-  ],
-
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
@@ -64,9 +51,7 @@ const config = {
             label: 'Docs',
           },
           {
-            type: 'docSidebar',
-            sidebarId: 'apiSidebar',
-            docsPluginId: 'api',
+            href: '/fruits_engine/api-reference/fruits_engine/index.html',
             position: 'left',
             label: 'API Reference',
           },
