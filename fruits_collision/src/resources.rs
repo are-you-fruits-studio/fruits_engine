@@ -2,6 +2,10 @@ use fruits_ecs::{EntityId, Resource};
 
 use crate::*;
 
+/// ECS resource holding the broad-phase collision index for the world.
+///
+/// Wraps a bounding-volume hierarchy ([`Bvh`]) keyed by [`Entity`], rebuilt every frame by
+/// [`update_collision_world`](crate::update_collision_world). Query it with [`overlaps`](Self::overlaps).
 #[repr(transparent)]
 #[derive(Resource, Default)]
 pub struct CollisionWorldResource {
@@ -18,6 +22,7 @@ impl CollisionWorldResource {
         }
     }
 
+    /// Returns `true` if no colliders are indexed.
     pub fn is_empty(&self) -> bool {
         self.collision_shapes.is_empty()
     }
