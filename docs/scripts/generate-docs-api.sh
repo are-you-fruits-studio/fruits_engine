@@ -10,7 +10,7 @@ target_main_crate_index="$target_doc_dir/fruits_engine/index.html"
 if [[ "${SKIP_RUSTDOC:-0}" != "1" ]]; then
   if [[ "${CI:-}" == "true" ]] && command -v apt-get >/dev/null 2>&1 && ! pkg-config --exists alsa; then
     sudo apt-get update
-    sudo apt-get install -y libasound2-dev
+    sudo apt-get install -y pkg-config libasound2-dev libudev-dev
   fi
 
   cargo +nightly doc --workspace --no-deps
