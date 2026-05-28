@@ -8,6 +8,11 @@ target_doc_dir="target/doc"
 target_main_crate_index="$target_doc_dir/fruits_engine/index.html"
 
 if [[ "${SKIP_RUSTDOC:-0}" != "1" ]]; then
+  if [[ "${CI:-}" == "true" ]] && command -v apt-get >/dev/null 2>&1 && ! pkg-config --exists alsa; then
+    sudo apt-get update
+    sudo apt-get install -y libasound2-dev
+  fi
+
   cargo +nightly doc --workspace --no-deps
 elif [[ ! -f "$target_main_crate_index" ]]; then
   echo "Cannot skip rustdoc generation because target/doc/fruits_engine/index.html does not exist. Run with SKIP_RUSTDOC unset once." >&2
