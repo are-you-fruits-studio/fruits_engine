@@ -2,6 +2,8 @@ use std::{any::Any, collections::HashMap};
 
 use crate::tuple_from_vec_of_any::TupleFromVecOfAny;
 
+// todo: ffi?
+
 pub enum ReflMapType {
     Struct(ReflMapStruct),
 }

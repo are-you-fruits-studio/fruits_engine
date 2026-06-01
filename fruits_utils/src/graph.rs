@@ -3,6 +3,7 @@ use std::{
     hash::Hash,
 };
 
+// todo: ffi?
 #[derive(Default)]
 pub struct Graph<T: Eq + Hash + Clone> {
     forward: HashMap<T, HashSet<T>>,

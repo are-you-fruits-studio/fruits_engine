@@ -8,7 +8,7 @@ use crate::{
 
 pub fn update_collision_world(
     mut collision_world: ResMut<CollisionWorldResource>,
-    q: WorldQuery<(Entity, &ColliderComponent, Option<&GlobalTransform>)>,
+    q: WorldQuery<(EntityId, &ColliderComponent, Option<&GlobalTransform>)>,
 ) {
     let iter = q.iter().map(|(e, c, t)| {
         let mut shape = c.shape;

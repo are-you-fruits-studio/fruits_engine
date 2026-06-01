@@ -29,12 +29,10 @@ pub fn update_project_window_content_system(mut world: ExclusiveWorldAccess) {
 
     let assets = res.get::<StandardAssetsResource>().unwrap().clone();
 
-    let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
-
-    let font = standard_render_assets_res.font_px_8_8.clone();
+    let font = assets.font.clone();
 
     let contents = ent
-        .query_filtered::<Entity, WithFilter<ProjectWindowContentComponent>>()
+        .query_filtered::<EntityId, WithFilter<ProjectWindowContentComponent>>()
         .iter()
         .collect::<Vec<_>>();
 
@@ -73,7 +71,7 @@ fn spawn_project_window_entries(
     material_text: &AssetHandle<StandardMaterial>,
     material_panel: &AssetHandle<StandardMaterial>,
     font: &AssetHandle<Font>,
-    parent: Entity,
+    parent: EntityId,
     entry: &ProjectWindowDataEntry,
 ) {
     let ent_entry = ec.create_entity();

@@ -3,7 +3,7 @@ use crate::*;
 pub fn debug_layout_system(
     mut world: ExclusiveWorldAccess,
 ) {
-    let aligns = world.entities().query_filtered::<Entity, WithFilter<RectChildAlignComponent>>().iter().collect::<Vec<_>>();
+    let aligns = world.entities().query_filtered::<EntityId, WithFilter<RectChildAlignComponent>>().iter().collect::<Vec<_>>();
 
     for align in aligns {
         let children = world.entities_mut().get_component_mut::<ParentComponent>(align).map(|p| p.children.as_slice()).unwrap_or(&[]).to_vec();

@@ -5,6 +5,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+// todo: ffi?
 pub struct MorphVec<T> {
     buf: *mut u8,
     cap_bytes: usize,

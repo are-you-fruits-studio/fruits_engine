@@ -198,8 +198,8 @@ fn init(mut world: ExclusiveWorldAccess) {
 
 fn accumulate_boid_separation(
     boid_settings: Res<BoidSettings>,
-    targets_queue: WorldQuery<(Entity, &GlobalTransform, &BoidTarget)>,
-    mut boids_queue: WorldQuery<(Entity, &GlobalTransform, &mut Boid)>,
+    targets_queue: WorldQuery<(EntityId, &GlobalTransform, &BoidTarget)>,
+    mut boids_queue: WorldQuery<(EntityId, &GlobalTransform, &mut Boid)>,
 ) {
     let timer = Instant::now();
 

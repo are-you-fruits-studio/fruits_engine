@@ -19,23 +19,28 @@ pub fn register_feature(mut world: WorldBuilderMut) {
 
 #[derive(Component)]
 pub struct InputFieldComponent {
-    pub text: Entity,
-    pub selection_border: Entity,
+    pub text: EntityId,
+    pub selection_border: EntityId,
 }
 
 #[derive(Resource, Default)]
 pub struct SelectedInputFieldResource {
-    pub selected: Entity,
+    pub selected: EntityId,
 }
+
+#[derive(Event, Default)]
+pub struct InputFieldSelectionChangedEvent;
 
 pub fn select_input_field_system(
     input_res: Res<InputResource>,
     button_click_evt: Evt<ButtonClickEvent>,
     mut selected_input_res: ResMut<SelectedInputFieldResource>,
+    mut selected_input_changed_evt: EvtMut<InputFieldSelectionChangedEvent>,
     input_field_q: WorldQuery<&InputFieldComponent>,
 ) {
-    if input_res.mouse.is_just_pressed(MouseButton::Left) {
-        selected_input_res.selected = Entity::EMPTY;
+    if input_res.mouse.is_just_pressed(MouseButton::Left) && selected_input_res.selected != EntityId::EMPTY {
+        selected_input_res.selected = EntityId::EMPTY;
+        selected_input_changed_evt.push(InputFieldSelectionChangedEvent);
     }
 
     let Some(button_click_evt) = button_click_evt.last() else {
@@ -47,11 +52,12 @@ pub fn select_input_field_system(
     };
 
     selected_input_res.selected = button_click_evt.entity;
+    selected_input_changed_evt.push(InputFieldSelectionChangedEvent);
 }
 
 pub fn highlight_selected_input_field_system(
     selected_input_res: Res<SelectedInputFieldResource>,
-    input_field_q: WorldQuery<(&InputFieldComponent, Entity)>,
+    input_field_q: WorldQuery<(&InputFieldComponent, EntityId)>,
     mut disableable_q: WorldQuery<&mut LocalDisableableComponent>,
 ) {
     for (input_field_c, ent) in input_field_q.iter() {

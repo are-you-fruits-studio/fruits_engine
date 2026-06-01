@@ -12,7 +12,7 @@ fn entities_holder_query<'e, A: ArchetypeIteratorItem, F: QueryFilter>(
 fn entities_holder_add_component<C: 'static>(
     entities: &mut EntitiesHolderUnsafeFfi,
     types: &TypesRegistryCache,
-    entity: Entity,
+    entity: EntityId,
     component: C,
 ) -> Result<(), C> {
     unsafe {
@@ -29,7 +29,7 @@ fn entities_holder_add_component<C: 'static>(
 fn entities_holder_remove_component<C: 'static>(
     entities: &mut EntitiesHolderUnsafeFfi,
     types: &TypesRegistryCache,
-    entity: Entity,
+    entity: EntityId,
 ) -> Option<C> {
     unsafe {
         let mut component = MaybeUninit::<C>::uninit();
@@ -45,7 +45,7 @@ fn entities_holder_remove_component<C: 'static>(
 fn entities_holder_get_component_ptr<C: 'static>(
     entities: &EntitiesHolderUnsafeFfi,
     types: &TypesRegistryCache,
-    entity: Entity,
+    entity: EntityId,
 ) -> Option<*mut C> {
     entities
         .get_component_ptr(entity, types.get_or_register::<C>())
@@ -55,7 +55,7 @@ fn entities_holder_get_component_ptr<C: 'static>(
 fn entities_holder_get_component<'r, C: 'static>(
     entities: &'r EntitiesHolderUnsafeFfi,
     types: &TypesRegistryCache,
-    entity: Entity,
+    entity: EntityId,
 ) -> Option<&'r C> {
     unsafe { entities_holder_get_component_ptr::<C>(entities, types, entity).map(|p| &*p) }
 }
@@ -63,7 +63,7 @@ fn entities_holder_get_component<'r, C: 'static>(
 fn entities_holder_get_component_mut<'r, C: 'static>(
     entities: &'r mut EntitiesHolderUnsafeFfi,
     types: &TypesRegistryCache,
-    entity: Entity,
+    entity: EntityId,
 ) -> Option<&'r mut C> {
     unsafe { entities_holder_get_component_ptr::<C>(entities, types, entity).map(|p| &mut *p) }
 }
@@ -112,38 +112,38 @@ impl<'e> EntitiesHolderMut<'e> {
         self.entities.entities_count()
     }
 
-    pub fn contains_entity(&self, entity: Entity) -> bool {
+    pub fn contains_entity(&self, entity: EntityId) -> bool {
         self.entities.contains_entity(entity)
     }
 
-    pub fn create_entity(&mut self) -> Entity {
+    pub fn create_entity(&mut self) -> EntityId {
         self.entities.create_entity()
     }
 
-    pub fn destroy_entity(&mut self, entity: Entity) -> bool {
+    pub fn destroy_entity(&mut self, entity: EntityId) -> bool {
         self.entities.destroy_entity(entity)
     }
 
-    pub fn add_component<C: 'static>(&mut self, entity: Entity, component: C) -> Result<(), C> {
+    pub fn add_component<C: 'static>(&mut self, entity: EntityId, component: C) -> Result<(), C> {
         entities_holder_add_component(self.entities, self.types, entity, component)
     }
 
-    pub fn remove_component<C: 'static>(&mut self, entity: Entity) -> Option<C> {
+    pub fn remove_component<C: 'static>(&mut self, entity: EntityId) -> Option<C> {
         entities_holder_remove_component(self.entities, self.types, entity)
     }
 
-    pub fn get_component_ptr<C: 'static>(&self, entity: Entity) -> Option<*mut C> {
+    pub fn get_component_ptr<C: 'static>(&self, entity: EntityId) -> Option<*mut C> {
         entities_holder_get_component_ptr(self.entities, self.types, entity)
     }
 
-    pub fn get_component<'r, C: 'static>(&'r self, entity: Entity) -> Option<&'r C>
+    pub fn get_component<'r, C: 'static>(&'r self, entity: EntityId) -> Option<&'r C>
     where
         'e: 'r,
     {
         entities_holder_get_component(self.entities, self.types, entity)
     }
 
-    pub fn get_component_mut<'r, C: 'static>(&'r mut self, entity: Entity) -> Option<&'r mut C>
+    pub fn get_component_mut<'r, C: 'static>(&'r mut self, entity: EntityId) -> Option<&'r mut C>
     where
         'e: 'r,
     {
@@ -200,15 +200,15 @@ impl<'e> EntitiesHolderRef<'e> {
         self.entities.entities_count()
     }
 
-    pub fn contains_entity(self, entity: Entity) -> bool {
+    pub fn contains_entity(self, entity: EntityId) -> bool {
         self.entities.contains_entity(entity)
     }
 
-    pub fn get_component_ptr<C: 'static>(self, entity: Entity) -> Option<*mut C> {
+    pub fn get_component_ptr<C: 'static>(self, entity: EntityId) -> Option<*mut C> {
         entities_holder_get_component_ptr(self.entities, self.types, entity)
     }
 
-    pub fn get_component<C: 'static>(self, entity: Entity) -> Option<&'e C> {
+    pub fn get_component<C: 'static>(self, entity: EntityId) -> Option<&'e C> {
         entities_holder_get_component(self.entities, self.types, entity)
     }
 }

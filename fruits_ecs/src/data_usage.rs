@@ -40,6 +40,7 @@ impl DataUsage {
     }
 }
 
+// todo: ffi
 pub struct DataUsageBuilder {
     world_details: HashMap<u64, DataUsageDetails>,
     system_details: HashSet<u64>,

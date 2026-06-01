@@ -15,8 +15,8 @@ pub enum OrderEntryType {
 #[repr(C)]
 #[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct OrderEntry {
-    pub entry_type: OrderEntryType,
     pub id: FfiString,
+    pub entry_type: OrderEntryType,
 }
 
 pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &HashSet<(FfiString, FfiString)>) -> OrderGraph {

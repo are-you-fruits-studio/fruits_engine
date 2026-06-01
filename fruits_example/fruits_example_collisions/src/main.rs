@@ -232,7 +232,7 @@ fn draw_collisions(mut gizmos: ResMut<GizmosResource>) {
 
 //
 
-fn draw_gizmo_collision_shape(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionShape) {
+fn draw_gizmo_collision_shape(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: CollisionShape) {
     match sh {
         CollisionShape::Point(sh) => draw_gizmo_point(lines, color, sh),
         CollisionShape::Line(sh) => draw_gizmo_line(lines, color, sh),
@@ -243,7 +243,7 @@ fn draw_gizmo_collision_shape(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: 
     }
 }
 
-fn draw_gizmo_point(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: Vec3<f32>) {
+fn draw_gizmo_point(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: Vec3<f32>) {
     let scale = 0.05;
 
     lines.push(GizmoLine {
@@ -263,7 +263,7 @@ fn draw_gizmo_point(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: Vec3<f32>)
     });
 }
 
-fn draw_gizmo_line(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionLine) {
+fn draw_gizmo_line(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: CollisionLine) {
     let mut start = sh.start;
     let mut end = sh.end;
 
@@ -277,7 +277,7 @@ fn draw_gizmo_line(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionLi
     lines.push(GizmoLine { start, end, color });
 }
 
-fn draw_gizmo_box(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionBox) {
+fn draw_gizmo_box(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: CollisionBox) {
     let mat = sh.rotation.to_matrix();
 
     let ext = sh.extents;
@@ -346,7 +346,7 @@ fn draw_gizmo_box(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionBox
     });
 }
 
-fn draw_gizmo_aabb(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionAabb) {
+fn draw_gizmo_aabb(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: CollisionAabb) {
     let ext = sh.extents;
 
     lines.push(GizmoLine {
@@ -413,7 +413,7 @@ fn draw_gizmo_aabb(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionAa
     });
 }
 
-fn draw_gizmo_sphere(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: CollisionSphere) {
+fn draw_gizmo_sphere(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: CollisionSphere) {
     let precision = 20;
 
     let mut last_point = Option::<Vec2<f32>>::None;
@@ -471,7 +471,7 @@ fn draw_gizmo_sphere(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: Collision
     }
 }
 
-fn draw_gizmo_line_list(lines: &mut Vec<GizmoLine>, color: Vec4<f32>, sh: &[Vec3<f32>]) {
+fn draw_gizmo_line_list(lines: &mut FfiVec<GizmoLine>, color: Vec4<f32>, sh: &[Vec3<f32>]) {
     for i in 0..sh.len() {
         lines.push(GizmoLine {
             start: sh[(i + 0) % sh.len()],

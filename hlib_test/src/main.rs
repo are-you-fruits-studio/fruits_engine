@@ -1,9 +1,29 @@
-use fruits_engine::{Entity, EntityTransSerializer, index_version_collection::VersionIndex};
+use fruits_engine::{EntityId, FfiIndexMap, FfiString};
 use fruits_serialization::*;
 
 fn main() {
-    check_serialization();
+    check_index_map();
 }
+
+fn check_index_map() {
+    let mut map = FfiIndexMap::new();
+
+    map.insert(String::from("two"), 2);
+    map.insert(String::from("one"), 1);
+    map.insert(String::from("two"), 3);
+
+    *map.get_mut("two").unwrap() = 22;
+
+    map.insert(String::from("zero"), 0);
+
+    map.remove_swap("two");
+    map.remove_swap("zero");
+    map.remove_swap("one");
+    map.remove_swap("minus1");
+
+    dbg!(map);
+}
+
 fn check_serialization() {
     let mut global_serializer = GlobalSerializer::new();
 
@@ -122,7 +142,7 @@ impl TransSerializable for ExampleStruct {
 
 impl TransSerializable for ExampleUser {
     fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
-        let variants = ["Default", "Token"].into_iter().map(String::from).collect();
+        let variants = ["Default", "Token"].into_iter().map(FfiString::from).collect();
 
         match self {
             Self::Default { name, age } => ctx.serialize_map()
@@ -159,7 +179,7 @@ impl TransSerializable for ExampleUser {
 
 #[derive(TransSerializable, Debug)]
 pub struct SomeComponent {
-    pub entity: Entity,
+    pub entity: EntityId,
     pub user_info: UserInfo,
 }
 

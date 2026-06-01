@@ -1,3 +1,4 @@
+// todo: ffi?
 pub struct CloseIntMap<T> {
     inner: Vec<Option<Box<T>>>,
     offset: usize,

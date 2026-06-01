@@ -40,6 +40,7 @@ unsafe impl<const N: usize, T: AllBitVariationsValid> AllBitVariationsValid for 
 
 //
 
+// todo: useless?
 #[repr(transparent)]
 pub struct ReadOnly<T>(T);
 

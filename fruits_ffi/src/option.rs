@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{cmp::Ordering, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
 
@@ -97,6 +97,28 @@ impl<T: PartialEq> PartialEq for FfiOption<T> {
             (None, Some(_)) => false,
             (Some(_), None) => false,
             (Some(l), Some(r)) => l == r,
+        }
+    }
+}
+
+impl<T: PartialOrd> PartialOrd for FfiOption<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self.as_ref(), other.as_ref()) {
+            (None, None) => Some(Ordering::Equal),
+            (None, Some(_)) => Some(Ordering::Less),
+            (Some(_), None) => Some(Ordering::Greater),
+            (Some(l), Some(r)) => l.partial_cmp(r),
+        }
+    }
+}
+
+impl<T: Ord> Ord for FfiOption<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.as_ref(), other.as_ref()) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (Some(l), Some(r)) => l.cmp(r),
         }
     }
 }

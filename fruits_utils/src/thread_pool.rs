@@ -11,6 +11,8 @@ pub use job::*;
 
 use crate::exec_on_drop::ExecOnDrop;
 
+// todo: ffi?
+
 type Job = Box<dyn FnOnce() + Send>;
 
 enum Message {

@@ -1,5 +1,6 @@
 use fruits_math::{Vec3, Vec4};
 
+#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct GizmoLine {
     pub start: Vec3<f32>,

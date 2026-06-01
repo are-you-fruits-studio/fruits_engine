@@ -12,6 +12,7 @@ pub mod close_int_map;
 pub mod try_default;
 pub mod versioned;
 
+// todo
 pub struct AssumeSend<T>(T);
 
 impl<T> AssumeSend<T> {

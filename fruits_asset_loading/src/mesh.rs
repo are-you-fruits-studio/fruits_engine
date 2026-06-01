@@ -5,9 +5,11 @@ use fruits_ecs::ResourcesHolderMut;
 use fruits_ffi::FfiString;
 use fruits_render_core::{RenderApiResource, StandardMesh, StandardVertex};
 use fruits_json::JsonValue;
+use fruits_serialization::*;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum CoordinateSpaceType {
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, TransSerializable)]
+pub enum CoordinateSpaceType {
     LeftHandZForward,
     RightHandZBack,
     RightHandZUp,
@@ -83,8 +85,8 @@ fn deserialize_mesh(data: &str, render_api: &RenderApiResource) -> Option<Standa
     let coordinate_space_type = match mesh_asset.get_value("coordinate_space") {
         Some(JsonValue::String(coordinate_space)) => {
             match coordinate_space.as_str() {
-                "right_hand_z_up" => CoordinateSpaceType::RightHandZUp,
-                "right_hand_z_back" => CoordinateSpaceType::RightHandZBack,
+                "RightHandZUp" => CoordinateSpaceType::RightHandZUp,
+                "RightHandZBack" => CoordinateSpaceType::RightHandZBack,
                 _ => CoordinateSpaceType::LeftHandZForward,
             }
         },

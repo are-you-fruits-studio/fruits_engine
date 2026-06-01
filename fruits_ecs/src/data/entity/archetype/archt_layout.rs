@@ -76,7 +76,7 @@ pub struct ArchetypeLayout {
 
 impl ArchetypeLayout {
     pub fn new(types: TypesRegistryAccessFfi, components_set: UniqueComponentsSet) -> Self {
-        let entity_data = TypeData::of::<Entity>();
+        let entity_data = TypeData::of::<EntityId>();
         let entities_per_chunk_count = Self::to_entities_per_chunk_count(&components_set, &types);
 
         let mut components_map = CloseIntMap::new();
@@ -131,7 +131,7 @@ impl ArchetypeLayout {
     }
 
     fn to_entities_per_chunk_count(components_set: &UniqueComponentsSet, types: &TypesRegistryAccessFfi) -> u64 {
-        let entity_data = TypeData::of::<Entity>();
+        let entity_data = TypeData::of::<EntityId>();
         let components = components_set
             .components()
             .iter()
@@ -156,7 +156,7 @@ impl ArchetypeLayout {
         ArchetypeItemLayout {
             chunk_offset: 0,
             order: 0,
-            type_data: TypeData::of::<Entity>(),
+            type_data: TypeData::of::<EntityId>(),
         }
     }
 

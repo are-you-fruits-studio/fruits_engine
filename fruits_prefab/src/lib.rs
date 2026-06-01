@@ -1,27 +1,31 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use fruits_ecs::*;
+use fruits_ffi::{FfiIndexMap, FfiString, FfiVec};
 use fruits_serialization::{SerializedValue, SerializerCtx};
 
+#[repr(C)]
 #[derive(Debug)]
 pub struct PrefabComponent {
-    pub component_id: String,
+    pub component_id: FfiString,
     pub data: SerializedValue,
 }
 
+#[repr(C)]
 #[derive(Debug)]
 pub struct Prefab {
-    pub entities: HashMap<usize, Vec<PrefabComponent>>,
+    pub entities: FfiIndexMap<usize, FfiVec<PrefabComponent>>,
 }
 
 impl Prefab {
     pub fn empty() -> Self {
         Self {
-            entities: HashMap::new(),
+            entities: FfiIndexMap::new(),
         }
     }
 }
 
+#[repr(C)]
 pub struct PrefabComponentDeserializer<C: Component> {
     _phantom: PhantomData<fn(C) -> C>,
 }
@@ -36,7 +40,7 @@ trait AbstractPrefabComponentDeserializer {
     fn deserialize(
         &self,
         data: SerializedValue,
-        entity: Entity,
+        entity: EntityId,
         serializer_ctx: &SerializerCtx,
         entities: EntitiesHolderMut,
         res: ResourcesHolderRef,
@@ -47,7 +51,7 @@ impl<C: Component> AbstractPrefabComponentDeserializer for PrefabComponentDeseri
     fn deserialize(
         &self,
         data: SerializedValue,
-        entity: Entity,
+        entity: EntityId,
         serializer_ctx: &SerializerCtx,
         mut entities: EntitiesHolderMut,
         _res: ResourcesHolderRef,
@@ -78,7 +82,7 @@ impl PrefabComponentsDeserializerResource {
         &self,
         id: &str,
         data: SerializedValue,
-        entity: Entity,
+        entity: EntityId,
         serializer_ctx: &SerializerCtx,
         entities: EntitiesHolderMut,
         res: ResourcesHolderRef,

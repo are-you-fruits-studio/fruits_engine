@@ -19,7 +19,7 @@ impl OrderGraph {
                     return None;
                 }
 
-                directors_count[directed_node as usize] += 1;
+                directors_count[directed_node] += 1;
             }
             if dst.contains(&(src as u64)) {
                 return None;
@@ -47,6 +47,7 @@ impl OrderGraph {
     }
 }
 
+// todo: ffi?
 pub struct OrderGraphIterator {
     directions: FfiVec<FfiVec<u64>>,
     queue: VecDeque<u64>,
@@ -72,19 +73,19 @@ impl OrderGraphIterator {
         }
     }
 
-    pub fn start_next(&mut self) -> Option<usize> {
+    pub fn start_next(&mut self) -> Option<u64> {
         let node = self.queue.pop_front()?;
 
         self.processing_count += 1;
 
-        Some(node as usize)
+        Some(node)
     }
 
-    pub fn end(&mut self, node: usize) {
+    pub fn end(&mut self, node: u64) {
         self.processing_count -= 1;
 
-        for direction in self.directions[node].iter() {
-            let direction_directors_count = &mut self.unvisited_directors_count[*direction as usize];
+        for direction in self.directions[node as u64].iter() {
+            let direction_directors_count = &mut self.unvisited_directors_count[*direction];
 
             *direction_directors_count -= 1;
 

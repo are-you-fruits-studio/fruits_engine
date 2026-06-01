@@ -1,4 +1,4 @@
-use crate::{features::{project_window_selection::{FileSelectedEvent, SelectedFileResource}, serialization::SerializerResource}, *};
+use crate::{features::project_window_selection::{FileSelectedEvent, SelectedFileResource}, *};
 
 pub fn register_feature(mut world: WorldBuilderMut) {
     world
@@ -25,24 +25,40 @@ pub struct InspectedAssetResource {
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum InspectedAsset {
-    Material(StandardMaterial),
+    Material(SerializedMaterial),
+    Texture(SerializedTexture),
+    AudioClip(SerializedAudioClip),
+    Mesh(SerializedMesh),
 }
 
 impl InspectedAsset {
     pub(crate) fn to_asset_type(&self) -> &'static str {
         match self {
             InspectedAsset::Material { .. } => "material",
+            InspectedAsset::Texture { .. } => "texture",
+            InspectedAsset::AudioClip { .. } => "audio_clip",
+            InspectedAsset::Mesh { .. } => "mesh",
         }
     }
 
     pub(crate) fn to_serialized(&self, ctx: &SerializerCtx) -> SerializedValue {
         let mut serialized = match self {
-            InspectedAsset::Material(material) => material.serialize(ctx),
+            InspectedAsset::Material(asset) => asset.serialize(ctx),
+            InspectedAsset::Texture(asset) => asset.serialize(ctx),
+            InspectedAsset::AudioClip(asset) => asset.serialize(ctx),
+            InspectedAsset::Mesh(asset) => asset.serialize(ctx),
         };
 
         if let SerializedValue::Composite(serialized_composite) = &mut serialized.result {
             if let SerializedCompositeValues::Map(serialized_map) = &mut serialized_composite.values {
-                serialized_map.values.insert_before(0, String::from("asset_type"), SerializedValue::Primitive(SerializedPrimitive::String(String::from(self.to_asset_type()))));
+                let mut map = FfiIndexMap::new();
+
+                map.insert(FfiString::from("asset_type"), SerializedValue::Primitive(SerializedPrimitive::String(self.to_asset_type().into())));
+                for (k, v) in &serialized_map.values {
+                    map.insert(k.clone(), v.clone());
+                }
+
+                serialized_map.values = map;
             } else {
                 eprintln!("Strange InspectedAsset serialization, failed to enrich with asset_type");
             }
@@ -88,7 +104,10 @@ impl InspectedAsset {
         });
 
         match asset_type.as_str() {
-            "material" => StandardMaterial::deserialize(ctx, &serialized_asset).result.map(Self::Material),
+            "material" => SerializedMaterial::deserialize(ctx, &serialized_asset).result.map(Self::Material),
+            "texture" => SerializedTexture::deserialize(ctx, &serialized_asset).result.map(Self::Texture),
+            "audio_clip" => SerializedAudioClip::deserialize(ctx, &serialized_asset).result.map(Self::AudioClip),
+            "mesh" => SerializedMesh::deserialize(ctx, &serialized_asset).result.map(Self::Mesh),
             _ => None,
         }
     }
@@ -97,8 +116,13 @@ impl InspectedAsset {
 pub fn parse_selected_file_system(
     file_selected_evt: Evt<FileSelectedEvent>,
     selected_file: Res<SelectedFileResource>,
-    serializer: Res<SerializerResource>,
+    serializer: Res<SerializersResource>,
     mut inspected_asset: ResMut<InspectedAssetResource>,
+    render_api: Res<RenderApiResource>,
+    mut prefabs: ResMut<AssetStorageResource<Prefab>>,
+    mut textures: ResMut<AssetStorageResource<StandardTexture>>,
+    mut materials: ResMut<AssetStorageResource<StandardMaterial>>,
+    mut meshes: ResMut<AssetStorageResource<StandardMesh>>,
 ) {
     return_if!(file_selected_evt.is_empty());
 
@@ -112,46 +136,50 @@ pub fn parse_selected_file_system(
         };
 
         let serialized_value = SerializedValue::from_json(&json);
-        InspectedAsset::from_serialized(&serializer.0.to_ctx(None), &serialized_value)
+
+        deserialize_with_assets(
+            &*render_api,
+            &*serializer,
+            &mut *prefabs,
+            &mut *textures,
+            &mut *materials,
+            &mut *meshes,
+            |local_serializer, _| {
+                InspectedAsset::from_serialized(&serializer.to_ctx(Some(&local_serializer)), &serialized_value)
+            }
+        )
     };
 }
 
 //
 
-//
-
-fn material_to_json(material: &StandardMaterial) -> JsonObject {
-    // todo
-    JsonObject::new()
-        .with_field("asset_type", String::from("material")).ok().unwrap()
-        // .with_field("space", material.space)
-        // .with_field("color", material.color)
-        // .with_field("emission_color", material.emission_color)
-        .with_field("metallic", material.metallic).ok().unwrap()
-        .with_field("roughness", material.roughness).ok().unwrap()
-        // .with_field("alpha_threshold", material.alpha_threshold)
-        // .with_field("color_tex", material.color_tex)
-        .with_field("is_lit", material.is_lit).ok().unwrap()
+#[derive(Clone, Debug, PartialEq, PartialOrd, TransSerializable)]
+pub(crate) struct SerializedMaterial {
+    pub space: RenderSpace,
+    pub color: Vec4<f32>,
+    pub emission_color: Vec4<f32>,
+    pub metallic: f32,
+    pub roughness: f32,
+    pub alpha_threshold: FfiOption<f32>,
+    pub color_tex: FfiOption<FfiString>,
+    pub is_lit: bool,
 }
 
-fn material_from_json(json: &JsonObject) -> StandardMaterial {
-    // todo
-    let mut material = StandardMaterial::default();
+#[derive(Clone, Debug, PartialEq, PartialOrd, TransSerializable)]
+pub(crate) struct SerializedTexture {
+    raw_texture: FfiString,
+}
 
-        // .with_field("space", material.space)
-        // .with_field("color", material.color)
-        // .with_field("emission_color", material.emission_color)
-    if let Some(JsonValue::Number(metallic)) = json.get_value("metallic") {
-        material.metallic = metallic.to_f() as f32;
-    }
-    if let Some(JsonValue::Number(roughness)) = json.get_value("roughness") {
-        material.roughness = roughness.to_f() as f32;
-    }
-        // .with_field("alpha_threshold", material.alpha_threshold)
-        // .with_field("color_tex", material.color_tex)
-    if let Some(JsonValue::Bool(is_lit)) = json.get_value("is_lit") {
-        material.is_lit = *is_lit;
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd, TransSerializable)]
+pub(crate) struct SerializedAudioClip {
+    raw_audio: FfiString,
+}
 
-    material
+#[derive(Clone, Debug, PartialEq, PartialOrd, TransSerializable)]
+pub(crate) struct SerializedMesh {
+    raw_mesh: FfiString,
+    coordinate_space_type: CoordinateSpaceType,
+    has_clockwise_winding: bool,
+    has_inverted_u: bool,
+    has_inverted_v: bool,
 }

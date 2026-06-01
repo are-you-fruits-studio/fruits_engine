@@ -8,7 +8,7 @@ use crate::{Mat3, Number, Vec3, Vec4};
 
 #[derive(Copy, Clone, Debug, PartialEq, Hash, Serialize, Deserialize, TransSerializable)]
 #[repr(C)]
-pub struct Quat<N: Number> {
+pub struct Quat<N> {
     pub x: N,
     pub y: N,
     pub z: N,

@@ -342,6 +342,13 @@ impl<T: Clone> FfiVec<T> {
             self.push(value.clone());
         }
     }
+
+    pub fn extend_from_slice(&mut self, slice: &[T]) {
+        // todo: optimize
+        for i in slice {
+            self.push(i.clone());
+        }
+    }
 }
 
 impl<T> Default for FfiVec<T> {
@@ -511,6 +518,7 @@ impl<T> IntoIterator for FfiVec<T> {
     }
 }
 
+#[repr(C)]
 pub struct FfiVecIntoIter<T> {
     vec: FfiVec<T>,
     idx: u64,
@@ -555,17 +563,17 @@ impl<T> Drop for FfiVecIntoIter<T> {
     }
 }
 
-impl<T> Index<usize> for FfiVec<T> {
+impl<T> Index<u64> for FfiVec<T> {
     type Output = T;
 
-    fn index(&self, idx: usize) -> &Self::Output {
-        &self.as_slice()[idx]
+    fn index(&self, idx: u64) -> &Self::Output {
+        self.get(idx).expect("index out of range")
     }
 }
 
-impl<T> IndexMut<usize> for FfiVec<T> {
-    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        &mut self.as_slice_mut()[idx]
+impl<T> IndexMut<u64> for FfiVec<T> {
+    fn index_mut(&mut self, idx: u64) -> &mut Self::Output {
+        self.get_mut(idx).expect("index out of range")
     }
 }
 

@@ -5,10 +5,10 @@ use fruits_utils::index_version_collection::{VersionCollection, VersionIndex};
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Entity(VersionIndex);
+pub struct EntityId(VersionIndex);
 
-impl Entity {
-    pub const EMPTY: Entity = Entity(VersionIndex::EMPTY);
+impl EntityId {
+    pub const EMPTY: EntityId = EntityId(VersionIndex::EMPTY);
 
     pub fn version_index(&self) -> VersionIndex {
         self.0
@@ -19,15 +19,15 @@ impl Entity {
     }
 }
 
-impl Default for Entity {
+impl Default for EntityId {
     fn default() -> Self {
         Self::EMPTY
     }
 }
 
-impl Debug for Entity {
+impl Debug for EntityId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Entity")
+        f.debug_struct("EntityId")
             .field("i", &self.0.index)
             .field("v", &self.0.version)
             .finish()
@@ -49,23 +49,23 @@ impl EntitiesMetadataNative {
         Self(VersionCollection::new())
     }
 
-    pub fn insert(&mut self, location: EntityLocation) -> Entity {
-        Entity(self.0.insert(location))
+    pub fn insert(&mut self, location: EntityLocation) -> EntityId {
+        EntityId(self.0.insert(location))
     }
 
-    pub fn remove(&mut self, entity: Entity) -> Option<EntityLocation> {
+    pub fn remove(&mut self, entity: EntityId) -> Option<EntityLocation> {
         self.0.remove(entity.0)
     }
 
-    pub fn get(&self, entity: Entity) -> Option<&EntityLocation> {
+    pub fn get(&self, entity: EntityId) -> Option<&EntityLocation> {
         self.0.get(entity.0)
     }
 
-    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut EntityLocation> {
+    pub fn get_mut(&mut self, entity: EntityId) -> Option<&mut EntityLocation> {
         self.0.get_mut(entity.0)
     }
 
-    pub fn contains(&self, entity: Entity) -> bool {
+    pub fn contains(&self, entity: EntityId) -> bool {
         self.0.contains_index(entity.0)
     }
 
@@ -80,12 +80,13 @@ impl EntitiesMetadataNative {
 
 //
 
+#[repr(C)]
 struct EntitiesMetadataFfiVTable {
-    insert_fn: unsafe extern "C" fn(*mut c_void, location: EntityLocation) -> Entity,
-    remove_fn: unsafe extern "C" fn(*mut c_void, entity: Entity) -> FfiOption<EntityLocation>,
-    get_fn: unsafe extern "C" fn(*const c_void, entity: Entity) -> *const EntityLocation,
-    get_mut_fn: unsafe extern "C" fn(*mut c_void, entity: Entity) -> *mut EntityLocation,
-    contains_fn: unsafe extern "C" fn(*const c_void, entity: Entity) -> bool,
+    insert_fn: unsafe extern "C" fn(*mut c_void, location: EntityLocation) -> EntityId,
+    remove_fn: unsafe extern "C" fn(*mut c_void, entity: EntityId) -> FfiOption<EntityLocation>,
+    get_fn: unsafe extern "C" fn(*const c_void, entity: EntityId) -> *const EntityLocation,
+    get_mut_fn: unsafe extern "C" fn(*mut c_void, entity: EntityId) -> *mut EntityLocation,
+    contains_fn: unsafe extern "C" fn(*const c_void, entity: EntityId) -> bool,
     len_fn: unsafe extern "C" fn(*const c_void) -> u64,
     is_empty_fn: unsafe extern "C" fn(*const c_void) -> bool,
 }
@@ -98,14 +99,14 @@ pub struct EntitiesMetadataFfi {
 
 impl EntitiesMetadataFfi {
     pub fn new() -> Self {
-        unsafe extern "C" fn ffi_insert(this: *mut c_void, location: EntityLocation) -> Entity {
+        unsafe extern "C" fn ffi_insert(this: *mut c_void, location: EntityLocation) -> EntityId {
             unsafe {
                 let this = &mut *(this as *mut EntitiesMetadataNative);
 
                 this.insert(location)
             }
         }
-        unsafe extern "C" fn ffi_remove(this: *mut c_void, entity: Entity) -> FfiOption<EntityLocation> {
+        unsafe extern "C" fn ffi_remove(this: *mut c_void, entity: EntityId) -> FfiOption<EntityLocation> {
             unsafe {
                 let this = &mut *(this as *mut EntitiesMetadataNative);
 
@@ -114,7 +115,7 @@ impl EntitiesMetadataFfi {
                 FfiOption::from_option(result)
             }
         }
-        unsafe extern "C" fn ffi_get(this: *const c_void, entity: Entity) -> *const EntityLocation {
+        unsafe extern "C" fn ffi_get(this: *const c_void, entity: EntityId) -> *const EntityLocation {
             unsafe {
                 let this = &*(this as *const EntitiesMetadataNative);
 
@@ -123,7 +124,7 @@ impl EntitiesMetadataFfi {
                 fruits_ffi::ref_into_nullable_ptr(result)
             }
         }
-        unsafe extern "C" fn ffi_get_mut(this: *mut c_void, entity: Entity) -> *mut EntityLocation {
+        unsafe extern "C" fn ffi_get_mut(this: *mut c_void, entity: EntityId) -> *mut EntityLocation {
             unsafe {
                 let this = &mut *(this as *mut EntitiesMetadataNative);
 
@@ -132,7 +133,7 @@ impl EntitiesMetadataFfi {
                 fruits_ffi::mut_into_nullable_ptr(result)
             }
         }
-        unsafe extern "C" fn ffi_contains(this: *const c_void, entity: Entity) -> bool {
+        unsafe extern "C" fn ffi_contains(this: *const c_void, entity: EntityId) -> bool {
             unsafe {
                 let this = &*(this as *const EntitiesMetadataNative);
 
@@ -168,7 +169,7 @@ impl EntitiesMetadataFfi {
         }
     }
 
-    pub fn insert(&mut self, location: EntityLocation) -> Entity {
+    pub fn insert(&mut self, location: EntityLocation) -> EntityId {
         unsafe {
             let this = self.data.get();
 
@@ -176,7 +177,7 @@ impl EntitiesMetadataFfi {
         }
     }
 
-    pub fn remove(&mut self, entity: Entity) -> Option<EntityLocation> {
+    pub fn remove(&mut self, entity: EntityId) -> Option<EntityLocation> {
         unsafe {
             let this = self.data.get();
 
@@ -186,7 +187,7 @@ impl EntitiesMetadataFfi {
         }
     }
 
-    pub fn get(&self, entity: Entity) -> Option<&EntityLocation> {
+    pub fn get(&self, entity: EntityId) -> Option<&EntityLocation> {
         unsafe {
             let this = self.data.get();
 
@@ -196,7 +197,7 @@ impl EntitiesMetadataFfi {
         }
     }
 
-    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut EntityLocation> {
+    pub fn get_mut(&mut self, entity: EntityId) -> Option<&mut EntityLocation> {
         unsafe {
             let this = self.data.get();
 
@@ -206,7 +207,7 @@ impl EntitiesMetadataFfi {
         }
     }
 
-    pub fn contains(&self, entity: Entity) -> bool {
+    pub fn contains(&self, entity: EntityId) -> bool {
         unsafe {
             let this = self.data.get();
 

@@ -18,7 +18,7 @@ pub struct InspectorPrefabComponent {
 }
 
 impl InspectorPrefab {
-    pub fn instantiate(world: WorldDataMut) -> Entity {
+    pub fn instantiate(world: WorldDataMut) -> EntityId {
         todo!()
     }
 

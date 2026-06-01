@@ -1,5 +1,6 @@
-use indexmap::IndexMap;
+use fruits_ffi::{FfiIndexMap, FfiOption, FfiString, FfiVec};
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum SerializedValue {
     Null,
@@ -7,36 +8,41 @@ pub enum SerializedValue {
     Composite(SerializedComposite),
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum SerializedPrimitive {
     Bool(bool),
     Int(i128),
     Float(f64),
-    String(String),
+    String(FfiString),
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub struct SerializedComposite {
     pub values: SerializedCompositeValues,
     pub is_rigid: bool,
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub struct SerializedEnumMetadata {
-    pub variant: String,
-    pub variants: Vec<String>,
+    pub variant: FfiString,
+    pub variants: FfiVec<FfiString>,
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum SerializedCompositeValues {
     Map(SerializedMap),
-    List(Vec<SerializedValue>),
+    List(FfiVec<SerializedValue>),
 }
 
+#[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct SerializedMap {
-    pub values: IndexMap<String, SerializedValue>,
-    pub enum_metadata: Option<SerializedEnumMetadata>,
+    pub values: FfiIndexMap<FfiString, SerializedValue>,
+    pub enum_metadata: FfiOption<SerializedEnumMetadata>,
 }
 
 impl SerializedValue {
@@ -50,7 +56,7 @@ impl SerializedValue {
                     SerializedPrimitive::Bool(value) => serde_json::Value::Bool(*value),
                     SerializedPrimitive::Int(value) => serde_json::Number::from_i128((*value).clamp(i64::MIN as i128, u64::MAX as i128)).map(serde_json::Value::Number).unwrap_or_else(|| serde_json::Value::Null),
                     SerializedPrimitive::Float(value) => serde_json::Number::from_f64(*value).map(serde_json::Value::Number).unwrap_or_else(|| serde_json::Value::Null),
-                    SerializedPrimitive::String(value) => serde_json::Value::String(value.clone()),
+                    SerializedPrimitive::String(value) => serde_json::Value::String(value.to_string()),
                 }
             },
             Self::Composite(value) => {
@@ -61,8 +67,8 @@ impl SerializedValue {
                     SerializedCompositeValues::Map(serialized_map) => {
                         let mut map = serde_json::Map::new();
 
-                        if let Some(serialized_enum_metadata) = &serialized_map.enum_metadata {
-                            map.insert(String::from("$enum_variant"), serde_json::Value::String(serialized_enum_metadata.variant.clone()));
+                        if let Some(serialized_enum_metadata) = serialized_map.enum_metadata.as_ref() {
+                            map.insert(String::from("$enum_variant"), serde_json::Value::String(serialized_enum_metadata.variant.to_string()));
                         }
 
                         for (key, serialized_value) in &serialized_map.values {
@@ -71,7 +77,7 @@ impl SerializedValue {
                                 continue;
                             }
 
-                            map.insert(key.clone(), serialized_value.to_json());
+                            map.insert(key.to_string(), serialized_value.to_json());
                         }
 
                         serde_json::Value::Object(map)
@@ -96,7 +102,7 @@ impl SerializedValue {
                     }
                 )
             },
-            serde_json::Value::String(value) => Self::Primitive(SerializedPrimitive::String(value.clone())),
+            serde_json::Value::String(value) => Self::Primitive(SerializedPrimitive::String(value.to_string().into())),
             serde_json::Value::Array(value) => {
                 Self::Composite(SerializedComposite {
                     is_rigid: false,
@@ -105,7 +111,7 @@ impl SerializedValue {
             },
             serde_json::Value::Object(value) => {
                 let mut enum_variant = None;
-                let mut map = IndexMap::new();
+                let mut map = FfiIndexMap::new();
 
                 for (key, json_value) in value {
                     if key.as_str() == "$enum_variant" {
@@ -118,16 +124,16 @@ impl SerializedValue {
                         continue;
                     }
 
-                    map.insert(key.clone(), SerializedValue::from_json(json_value));
+                    map.insert(FfiString::from(key.to_string()), SerializedValue::from_json(json_value));
                 }
 
                 Self::Composite(SerializedComposite {
                     values: SerializedCompositeValues::Map(SerializedMap {
                         values: map,
                         enum_metadata: enum_variant.map(|v| SerializedEnumMetadata {
-                            variant: v,
-                            variants: Vec::new(),
-                        })
+                            variant: v.into(),
+                            variants: FfiVec::new(),
+                        }).into()
                     }),
                     is_rigid: false,
                 })

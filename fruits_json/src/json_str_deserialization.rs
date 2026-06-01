@@ -3,6 +3,8 @@ use crate::{
     json_repr::{JsonObject, JsonValue},
 };
 
+// todo: ffi for all?
+
 const NULL_CHARS: &[char] = &['n', 'u', 'l', 'l'];
 const TRUE_CHARS: &[char] = &['t', 'r', 'u', 'e'];
 const FALSE_CHARS: &[char] = &['f', 'a', 'l', 's', 'e'];

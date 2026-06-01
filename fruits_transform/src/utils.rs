@@ -1,22 +1,22 @@
 use std::collections::VecDeque;
 
-use fruits_ecs::{EntitiesHolderMut, Entity, QueryFilter, WorldQuery};
+use fruits_ecs::{EntitiesHolderMut, EntityId, QueryFilter, WorldQuery};
 
 use crate::{ChildComponent, ParentComponent};
 
 pub fn hierarchy_iter_breadth_first_parent_to_child(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
-    mut f: impl FnMut(Entity, Entity),
+    q: &WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    mut f: impl FnMut(EntityId, EntityId),
 ) {
     let mut ents_to_calc = q
         .iter()
         .filter_map(|(e, c, _p)| {
             let Some(child_component) = c else {
-                return Some((e, Entity::EMPTY));
+                return Some((e, EntityId::EMPTY));
             };
 
             if q.get(child_component.parent).is_none() {
-                return Some((e, Entity::EMPTY));
+                return Some((e, EntityId::EMPTY));
             }
 
             None
@@ -50,8 +50,8 @@ pub fn hierarchy_iter_breadth_first_parent_to_child(
 
 /// f(optional parent, children)
 pub fn hierarchy_iter_depth_first_parent_to_child<R, F: QueryFilter>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), F>,
-    mut f: impl FnMut(Entity, &[Entity]) -> R,
+    q: &WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), F>,
+    mut f: impl FnMut(EntityId, &[EntityId]) -> R,
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
         if is_moving_to_root {
@@ -61,7 +61,7 @@ pub fn hierarchy_iter_depth_first_parent_to_child<R, F: QueryFilter>(
 
         if q.get(src).is_none() {
             // src does not exist - dst is root. Dst as child
-            f(Entity::EMPTY, &[dst]);
+            f(EntityId::EMPTY, &[dst]);
         }
 
         let Some((_, _, p)) = q.get(dst) else {
@@ -78,8 +78,8 @@ pub fn hierarchy_iter_depth_first_parent_to_child<R, F: QueryFilter>(
 
 /// f(optional parent, children)
 pub fn hierarchy_iter_depth_first_child_to_parent<R, F: QueryFilter>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), F>,
-    mut f: impl FnMut(Entity, &[Entity]) -> R,
+    q: &WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), F>,
+    mut f: impl FnMut(EntityId, &[EntityId]) -> R,
 ) {
     hierarchy_iter_depth_first(q, move |src, dst, is_moving_to_root| {
         if !is_moving_to_root {
@@ -99,15 +99,15 @@ pub fn hierarchy_iter_depth_first_child_to_parent<R, F: QueryFilter>(
 
         if q.get(dst).is_none() {
             // dst does not exist - src is root. Src as child
-            f(Entity::EMPTY, &[src]);
+            f(EntityId::EMPTY, &[src]);
         }
     })
 }
 
 /// f(src, dst, is_moving_to_root)
 pub fn hierarchy_iter_depth_first<R, F: QueryFilter>(
-    q: &WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), F>,
-    mut f: impl FnMut(Entity, Entity, bool) -> R,
+    q: &WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), F>,
+    mut f: impl FnMut(EntityId, EntityId, bool) -> R,
 ) {
     let roots = q
         .iter()
@@ -124,17 +124,17 @@ pub fn hierarchy_iter_depth_first<R, F: QueryFilter>(
         })
         .collect::<Vec<_>>();
 
-    let get_children = |ent| -> &[Entity] {
+    let get_children = |ent| -> &[EntityId] {
         let Some(p) = q.get(ent).map(|t| t.2).flatten() else {
             return &[];
         };
         p.children.as_slice()
     };
 
-    let mut stack = VecDeque::<(Entity, usize)>::new();
+    let mut stack = VecDeque::<(EntityId, usize)>::new();
 
     for root in roots {
-        f(Entity::EMPTY, root, false);
+        f(EntityId::EMPTY, root, false);
 
         let mut entity = root;
         let mut child_idx_to_check = 0;
@@ -160,19 +160,19 @@ pub fn hierarchy_iter_depth_first<R, F: QueryFilter>(
                 continue;
             }
 
-            f(entity, Entity::EMPTY, true);
+            f(entity, EntityId::EMPTY, true);
             break;
         }
     }
 }
 
-pub fn destroy_entity_and_children(mut ec: EntitiesHolderMut, ent: Entity) {
+pub fn destroy_entity_and_children(mut ec: EntitiesHolderMut, ent: EntityId) {
     destroy_entity_children(ec.as_mut(), ent);
 
     ec.destroy_entity(ent);
 }
 
-pub fn destroy_entity_children(mut ec: EntitiesHolderMut, ent: Entity) {
+pub fn destroy_entity_children(mut ec: EntitiesHolderMut, ent: EntityId) {
     let mut check_buffer = Vec::new();
 
     if let Some(parent) = ec.get_component::<ParentComponent>(ent) {

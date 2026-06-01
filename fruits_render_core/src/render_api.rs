@@ -7,6 +7,8 @@ use winit::window::Window;
 
 use crate::{StandardMesh, StandardTexture, StandardVertex};
 
+// todo: ffi?
+
 pub struct RenderApi {
     device: Device,
     queue: Queue,
@@ -185,6 +187,7 @@ impl RenderState {
 
 //
 
+#[repr(C)]
 struct RenderApiVTable {
     resize_fn: unsafe extern "C" fn(*mut c_void, new_size: *const u32),
     size_fn: unsafe extern "C" fn(*const c_void, size_dst: *mut u32),

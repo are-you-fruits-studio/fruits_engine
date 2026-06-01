@@ -57,7 +57,7 @@ impl SystemsHolderNative {
                     let job = move || {
                         let data = data.into_inner();
                         let system = &systems[system_index];
-                        let system_data = &mut *system_datas[system_index].try_lock().ok().unwrap();
+                        let system_data = &mut *system_datas[system_index as usize].try_lock().ok().unwrap();
 
                         {
                             unsafe {

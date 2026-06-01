@@ -43,7 +43,7 @@ pub(crate) fn get_render_data<'a, 'b>(
         emission_color: material.emission_color.map(|x| x.powf(2.2)),
         metallic: material.metallic,
         roughness: material.roughness,
-        alpha_threshold: material.alpha_threshold.unwrap_or(0.0),
+        alpha_threshold: material.alpha_threshold.into_option().unwrap_or(0.0),
         camera_position_world: standard_render_res.camera_pos,
         world_to_clip,
         _padding: Default::default(),
@@ -55,7 +55,7 @@ pub(crate) fn get_render_data<'a, 'b>(
         fruits_utils::mem::as_bytes(&[uniform]),
     );
 
-    let bind_group_tex = match &material.color_tex {
+    let bind_group_tex = match material.color_tex.as_ref() {
         Some(color_tex) => unsafe { &textures.get(color_tex).unwrap().native().bind_group },
         None => {
             unsafe { &textures

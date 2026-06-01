@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+// todo: ffi?
+
 #[derive(Clone)]
 pub enum ReflRepr {
     Struct(ReflReprStruct),
