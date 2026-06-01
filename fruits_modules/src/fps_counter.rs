@@ -2,6 +2,8 @@ use std::{collections::VecDeque, time::Instant};
 
 use fruits_ecs::{ResMut, Resource, Schedule, WorldBuilderMut};
 
+// todo: ffi?
+
 pub fn add_module_to(mut world: WorldBuilderMut) {
     world.data_mut().resources_mut().insert(FpsResource::default()).ok().unwrap();
 

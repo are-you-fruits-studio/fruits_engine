@@ -1,4 +1,4 @@
-use fruits_ecs::{Component, Entity};
+use fruits_ecs::{Component, EntityId};
 use fruits_ffi::{FfiOption, FfiVec};
 use fruits_math::{Mat, Mat3, Quat, Vec2, Vec3};
 use fruits_serialization::*;
@@ -43,15 +43,15 @@ impl Default for LocalTransform {
 }
 
 #[repr(C)]
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Component, Clone, Debug, PartialEq, Default)]
 pub struct ParentComponent {
-    pub children: FfiVec<Entity>,
+    pub children: FfiVec<EntityId>,
 }
 
 #[repr(C)]
 #[derive(Component, Copy, Clone, Debug, PartialEq, TransSerializable)]
 pub struct ChildComponent {
-    pub parent: Entity,
+    pub parent: EntityId,
 }
 
 #[repr(C)]

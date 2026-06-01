@@ -11,13 +11,13 @@ pub fn update_scene_entries_system(
 
     let prefab = std::fs::read_to_string(&selected_file_res.path).ok().map(|t| InspectorPrefab::deserialize(&t)).flatten();
     
-    let contents = world.entities().query_filtered::<Entity, WithFilter<SceneWindowContentComponent>>().iter().collect::<Vec<_>>();
+    let contents = world.entities().query_filtered::<EntityId, WithFilter<SceneWindowContentComponent>>().iter().collect::<Vec<_>>();
 
     let assets = world.resources().get::<StandardAssetsResource>().unwrap().clone();
 
-    let standard_render_assets_res = world.resources().get::<StandardRenderAssetsResource>().unwrap();
+    let assets_res = world.resources().get::<StandardAssetsResource>().unwrap();
 
-    let font = standard_render_assets_res.font_px_8_8.clone();
+    let font = assets_res.font.clone();
 
     let mut ec = world.entities_mut();
 
@@ -46,7 +46,7 @@ fn spawn_scene_window_entry(
     material_text: &AssetHandle<StandardMaterial>,
     material_panel: &AssetHandle<StandardMaterial>,
     font: &AssetHandle<Font>,
-    parent: Entity,
+    parent: EntityId,
     src: &InspectorPrefabEntity,
  ) {
     let ent_entry = ec.create_entity();

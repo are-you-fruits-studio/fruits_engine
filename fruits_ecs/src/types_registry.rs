@@ -36,6 +36,7 @@ impl TypeData {
 
 //
 
+// todo: to vtable
 #[repr(C)]
 pub struct TypesRegistryAccessFfi {
     data: *mut c_void,

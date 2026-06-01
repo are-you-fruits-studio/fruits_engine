@@ -5,7 +5,7 @@ use std::{
     time::Instant,
 };
 
-use fruits_ecs::{Entity, ExclusiveWorldAccess, ResMut, Resource, Schedule, WorldBuilder};
+use fruits_ecs::{EntityId, ExclusiveWorldAccess, ResMut, Resource, Schedule, WorldBuilder};
 
 pub const SYSTEM_GROUP: &str = "fruits_debug";
 
@@ -98,7 +98,7 @@ pub fn generate_response_system(mut world: ExclusiveWorldAccess) {
 
     if msg.0 == msg_types::HIERARCHY {
         let mut response = Vec::new();
-        for ent in ec.query::<Entity>().iter() {
+        for ent in ec.query::<EntityId>().iter() {
             let vi = ent.version_index();
 
             response.extend_from_slice(&(vi.index as u32).to_le_bytes());

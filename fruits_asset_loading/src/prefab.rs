@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Mutex};
 
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
-use fruits_ffi::FfiString;
+use fruits_ffi::{FfiString, FfiVec};
 use fruits_modules::SerializersResource;
 use fruits_prefab::{Prefab, PrefabComponent, PrefabComponentsDeserializerResource};
 use fruits_render::StandardMaterial;
@@ -130,7 +130,7 @@ fn deserialize_prefab(
             continue;
         };
 
-        let mut components = Vec::new();
+        let mut components = FfiVec::new();
 
         for prefab_component in prefab_components {
             let serde_json::Value::Object(prefab_component) = prefab_component else {
@@ -146,7 +146,7 @@ fn deserialize_prefab(
             };
 
             components.push(PrefabComponent {
-                component_id: prefab_component_id.clone(),
+                component_id: prefab_component_id.clone().into(),
                 data: SerializedValue::from_json(prefab_component_data),
             });
         }
@@ -162,18 +162,48 @@ fn deserialize_prefab(
 #[derive(Default)]
 struct PrefabComponentSpawnCtx {
     root_entity_id: usize,
-    entities: HashMap<usize, Entity>,
+    entities: HashMap<usize, EntityId>,
 }
 
-fn load_prefab_dependencies(
-    prefab: &Prefab,
+pub fn deserialize_with_assets_from_world<R>(res: ResourcesHolderMut, f: impl FnOnce(SerializerRegistry, &SerializersResource) -> R) -> R {
+    let (
+        render_api,
+        serializers,
+        prefabs,
+        textures,
+        materials,
+        meshes,
+    ) = unsafe {
+        (
+            &*res.get_ptr::<RenderApiResource>().unwrap(),
+            &*res.get_ptr::<SerializersResource>().unwrap(),
+            &mut *res.get_ptr::<AssetStorageResource<Prefab>>().unwrap(),
+            &mut *res.get_ptr::<AssetStorageResource<StandardTexture>>().unwrap(),
+            &mut *res.get_ptr::<AssetStorageResource<StandardMaterial>>().unwrap(),
+            &mut *res.get_ptr::<AssetStorageResource<StandardMesh>>().unwrap(),
+        )
+    };
+
+    deserialize_with_assets::<R>(
+        render_api,
+        serializers,
+        prefabs,
+        textures,
+        materials,
+        meshes,
+        f
+    )
+}
+
+pub fn deserialize_with_assets<R>(
     render_api: &RenderApiResource,
     serializers: &SerializersResource,
     prefabs: &mut AssetStorageResource<Prefab>,
     textures: &mut AssetStorageResource<StandardTexture>,
     materials: &mut AssetStorageResource<StandardMaterial>,
     meshes: &mut AssetStorageResource<StandardMesh>,
-) {
+    f: impl FnOnce(SerializerRegistry, &SerializersResource) -> R,
+) -> R {
     let (
         prefabs,
         textures,
@@ -197,19 +227,41 @@ fn load_prefab_dependencies(
     serializer_local.register(MeshLoadTransSerializer(render_api, &meshes));
     serializer_local.register(PrefabLoadTransSerializer(render_api, serializers, &prefabs, &textures, &materials, &meshes));
 
-    let serializer_ctx = SerializerCtx::new(serializers.registry(), Some(&serializer_local));
-
-    for prefab_components in prefab.entities.values() {
-        for prefab_component in prefab_components {
-            let result = serializer_ctx.deserialize_any(&prefab_component.component_id, &prefab_component.data);
-            if let Some(err) = result.format_err() {
-                println!("failed to deserialize component: {}. {}", prefab_component.component_id, err);
-            }
-        }
-    }
+    f(serializer_local, serializers)
 }
 
-pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) -> Option<Entity> {
+fn load_prefab_dependencies(
+    prefab: &Prefab,
+    render_api: &RenderApiResource,
+    serializers: &SerializersResource,
+    prefabs: &mut AssetStorageResource<Prefab>,
+    textures: &mut AssetStorageResource<StandardTexture>,
+    materials: &mut AssetStorageResource<StandardMaterial>,
+    meshes: &mut AssetStorageResource<StandardMesh>,
+) {
+    deserialize_with_assets(
+        render_api,
+        serializers,
+        prefabs,
+        textures,
+        materials,
+        meshes,
+        |serializer_local, _| {
+            let serializer_ctx = SerializerCtx::new(serializers.registry(), Some(&serializer_local));
+        
+            for prefab_components in prefab.entities.values() {
+                for prefab_component in prefab_components {
+                    let result = serializer_ctx.deserialize_any(&prefab_component.component_id, &prefab_component.data);
+                    if let Some(err) = result.format_err() {
+                        println!("failed to deserialize component: {}. {}", prefab_component.component_id, err);
+                    }
+                }
+            }
+        }
+    )
+}
+
+pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) -> Option<EntityId> {
     let (res, mut ent, _evt) = world.as_tuple_mut();
 
     let res = res.as_ref();
@@ -270,14 +322,14 @@ pub fn instantiate_prefab(mut world: WorldDataMut, prefab: AssetHandle<Prefab>) 
 }
 
 pub struct EntityTransSerializer<'brw> {
-    entities_deserialized: &'brw HashMap<usize, Entity>,
-    entities_serialized: &'brw HashMap<Entity, usize>,
+    entities_deserialized: &'brw HashMap<usize, EntityId>,
+    entities_serialized: &'brw HashMap<EntityId, usize>,
 }
 
 impl<'brw> EntityTransSerializer<'brw> {
     pub fn new(
-        entities_deserialized: &'brw HashMap<usize, Entity>,
-        entities_serialized: &'brw HashMap<Entity, usize>,
+        entities_deserialized: &'brw HashMap<usize, EntityId>,
+        entities_serialized: &'brw HashMap<EntityId, usize>,
     ) -> Self {
         Self {
             entities_deserialized,
@@ -287,7 +339,7 @@ impl<'brw> EntityTransSerializer<'brw> {
 }
 
 impl<'brw> TransSerializer for EntityTransSerializer<'brw> {
-    type Deserialized = Entity;
+    type Deserialized = EntityId;
 
     fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
         SerializationResult {
@@ -295,20 +347,20 @@ impl<'brw> TransSerializer for EntityTransSerializer<'brw> {
                 Some(value) => SerializedValue::Primitive(SerializedPrimitive::Int(*value as i128)),
                 None => SerializedValue::Null,
             },
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 
     fn deserialize(&self, _ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         let result = match value {
-            SerializedValue::Null => Some(Entity::EMPTY),
+            SerializedValue::Null => Some(EntityId::EMPTY),
             SerializedValue::Primitive(SerializedPrimitive::Int(number)) => self.entities_deserialized.get(&(*number as usize)).copied(),
             _ => None,
         };
 
         SerializationResult {
-            result: Some(result.unwrap_or_else(|| Entity::EMPTY)),
-            err: if result.is_none() { vec![SerializationError::InvalidInput { message: String::from("failed to parse entity") }] } else { Vec::new() }
+            result: Some(result.unwrap_or_else(|| EntityId::EMPTY)),
+            err: if result.is_none() { vec![SerializationError::InvalidInput { message: String::from("failed to parse entity") }].into() } else { FfiVec::new() }
         }
     }
 }
@@ -327,47 +379,69 @@ impl<'brw, T> TransSerializer for AssetGetTransSerializer<'brw, T> {
     type Deserialized = AssetHandle<T>;
 
     fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
-        todo!()
+        let asset_storage = self.res;
+        let string = asset_storage.get_registration(value);
+        let mut err = FfiVec::new();
+
+        if string.is_none() {
+            err.push(SerializationError::InvalidInput { message: String::from("AssetHandle is not registered") });
+        }
+
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(string.unwrap_or("").into())),
+            err,
+        }
     }
 
     fn deserialize(&self, _ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         let SerializedValue::Primitive(SerializedPrimitive::String(value)) = value else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }],
+                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }].into(),
             };
         };
 
         let Some(asset_handle) = self.res.get_registered(value) else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }],
+                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }].into(),
             };
         };
 
         SerializationResult {
             result: Some(asset_handle.clone()),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 }
 
 pub struct TextureLoadTransSerializer<'m, 'brw: 'm>(
-    &'m RenderApiResource,
-    &'m Mutex<&'brw mut AssetStorageResource<StandardTexture>>,
+    pub &'m RenderApiResource,
+    pub &'m Mutex<&'brw mut AssetStorageResource<StandardTexture>>,
 );
 impl<'m, 'brw: 'm> TransSerializer for TextureLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<StandardTexture>;
 
     fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
-        todo!()
+        let asset_storage = self.1.lock().unwrap();
+        let string = asset_storage.get_registration(value);
+        let mut err = FfiVec::new();
+
+        if string.is_none() {
+            err.push(SerializationError::InvalidInput { message: String::from("AssetHandle is not registered") });
+        }
+
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(string.unwrap_or("").into())),
+            err,
+        }
     }
 
     fn deserialize(&self, _ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         let SerializedValue::Primitive(SerializedPrimitive::String(value)) = value else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }],
+                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }].into(),
             };
         };
 
@@ -378,13 +452,13 @@ impl<'m, 'brw: 'm> TransSerializer for TextureLoadTransSerializer<'m, 'brw> {
         ) else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }],
+                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }].into(),
             };
         };
 
         SerializationResult {
             result: Some(asset_handle.clone()),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 }
@@ -398,14 +472,25 @@ impl<'m, 'brw: 'm> TransSerializer for MaterialLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<StandardMaterial>;
 
     fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
-        todo!()
+        let asset_storage = self.1.lock().unwrap();
+        let string = asset_storage.get_registration(value);
+        let mut err = FfiVec::new();
+
+        if string.is_none() {
+            err.push(SerializationError::InvalidInput { message: String::from("AssetHandle is not registered") });
+        }
+
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(string.unwrap_or("").into())),
+            err,
+        }
     }
 
     fn deserialize(&self, _ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         let SerializedValue::Primitive(SerializedPrimitive::String(value)) = value else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }],
+                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }].into(),
             };
         };
 
@@ -417,13 +502,13 @@ impl<'m, 'brw: 'm> TransSerializer for MaterialLoadTransSerializer<'m, 'brw> {
         ) else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }],
+                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }.into()].into(),
             };
         };
 
         SerializationResult {
             result: Some(asset_handle.clone()),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 }
@@ -436,14 +521,25 @@ impl<'m, 'brw: 'm> TransSerializer for MeshLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<StandardMesh>;
 
     fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
-        todo!()
+        let asset_storage = self.1.lock().unwrap();
+        let string = asset_storage.get_registration(value);
+        let mut err = FfiVec::new();
+
+        if string.is_none() {
+            err.push(SerializationError::InvalidInput { message: String::from("AssetHandle is not registered") });
+        }
+
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(string.unwrap_or("").into())),
+            err,
+        }
     }
 
     fn deserialize(&self, _ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         let SerializedValue::Primitive(SerializedPrimitive::String(value)) = value else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }],
+                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }].into(),
             };
         };
 
@@ -454,13 +550,13 @@ impl<'m, 'brw: 'm> TransSerializer for MeshLoadTransSerializer<'m, 'brw> {
         ) else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }],
+                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }].into(),
             };
         };
 
         SerializationResult {
             result: Some(asset_handle.clone()),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 }
@@ -477,14 +573,25 @@ impl<'m, 'brw: 'm> TransSerializer for PrefabLoadTransSerializer<'m, 'brw> {
     type Deserialized = AssetHandle<Prefab>;
 
     fn serialize(&self, _ctx: &SerializerCtx, value: &Self::Deserialized) -> SerializationResult<SerializedValue> {
-        todo!()
+        let asset_storage = self.2.lock().unwrap();
+        let string = asset_storage.get_registration(value);
+        let mut err = FfiVec::new();
+
+        if string.is_none() {
+            err.push(SerializationError::InvalidInput { message: String::from("AssetHandle is not registered") });
+        }
+
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(string.unwrap_or("").into())),
+            err,
+        }
     }
 
     fn deserialize(&self, _ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self::Deserialized>> {
         let SerializedValue::Primitive(SerializedPrimitive::String(value)) = value else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }],
+                err: vec![SerializationError::InvalidInput { message: String::from("AssetHandle can only be deserialized from string") }].into(),
             };
         };
 
@@ -499,13 +606,13 @@ impl<'m, 'brw: 'm> TransSerializer for PrefabLoadTransSerializer<'m, 'brw> {
         ) else {
             return SerializationResult {
                 result: None,
-                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }],
+                err: vec![SerializationError::InvalidInput { message: format!("AssetHandle {value} cannot be loaded") }].into(),
             };
         };
 
         SerializationResult {
             result: Some(asset_handle.clone()),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 }

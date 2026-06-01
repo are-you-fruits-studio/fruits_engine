@@ -2,11 +2,11 @@ pub use crate::*;
 
 pub struct EntityComponentsBuilder<'ec> {
     pub(crate) ec: EntitiesHolderMut<'ec>,
-    pub(crate) ent: Entity,
+    pub(crate) ent: EntityId,
 }
 
 impl<'ec> EntityComponentsBuilder<'ec> {
-    pub fn new(ec: EntitiesHolderMut<'ec>, ent: Entity) -> Self {
+    pub fn new(ec: EntitiesHolderMut<'ec>, ent: EntityId) -> Self {
         Self { ec, ent }
     }
 

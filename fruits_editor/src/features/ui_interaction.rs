@@ -25,7 +25,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
 
 #[derive(Resource, Default)]
 pub struct UiRaycastResource {
-    pub bvh: Bvh<Entity>,
+    pub bvh: Bvh<EntityId>,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -33,14 +33,18 @@ pub struct ButtonComponent;
 
 #[derive(Event)]
 pub struct ButtonClickEvent {
-    pub entity: Entity,
+    pub entity: EntityId,
 }
 
 pub fn prepare_ui_raycast_system(
-    button_q: WorldQuery<(Entity, &GlobalRectComponent), WithFilter<ButtonComponent>>,
+    button_q: WorldQuery<(EntityId, &GlobalRectComponent, Option<&GlobalDisableableComponent>), WithFilter<ButtonComponent>>,
     mut raycast_res: ResMut<UiRaycastResource>,
 ) {
-    let iter = button_q.iter().filter_map(|(ent, rect)| {
+    let iter = button_q.iter().filter_map(|(ent, rect, disableable)| {
+        if disableable.copied().unwrap_or_default().is_disabled {
+            return None;
+        }
+
         if rect.scale.map(|v| v < 0.0).any() {
             return None;
         }

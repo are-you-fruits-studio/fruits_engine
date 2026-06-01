@@ -2,6 +2,7 @@ use std::fmt::{Display, Write};
 
 // todo: automatic escape symbols
 // todo: support exp and other numeric formats
+// todo: ffi for all
 
 use crate::*;
 

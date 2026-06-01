@@ -250,7 +250,7 @@ fn update_time(mut time: ResMut<TimeResource>) {
     time.time = start.elapsed().as_secs_f32();
 }
 
-fn move_cube_new(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut LocalTransform, &MovingCubeComponent)>) {
+fn move_cube_new(time: Res<TimeResource>, mut query: WorldQuery<(EntityId, &mut LocalTransform, &MovingCubeComponent)>) {
     let mut i = 0;
 
     for (_entity, transform, _) in query.iter_mut() {
@@ -266,7 +266,7 @@ fn move_cube_new(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut Lo
     }
 }
 
-fn rotate_cube(time: Res<TimeResource>, mut query: WorldQuery<(Entity, &mut LocalTransform, &RotatingCubeComponent)>) {
+fn rotate_cube(time: Res<TimeResource>, mut query: WorldQuery<(EntityId, &mut LocalTransform, &RotatingCubeComponent)>) {
     let mut i = 0;
 
     for (_entity, transform, _) in query.iter_mut() {

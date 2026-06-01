@@ -4,6 +4,8 @@ use fruits_ffi::FfiAny;
 
 use crate::{SerializationResult, SerializedValue, SerializerCtx, TransSerializable};
 
+// todo: to safe(+ type caching) - ffi - native
+
 pub trait TransSerializer {
     type Deserialized: 'static;
 

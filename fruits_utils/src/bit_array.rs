@@ -1,3 +1,5 @@
+
+// todo: ffi
 /// N is the amount of bytes
 pub struct BitArray<const N: usize> {
     data: [u8; N],

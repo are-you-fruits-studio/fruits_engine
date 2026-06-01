@@ -76,7 +76,7 @@ impl ArchetypeUnsafeFfi {
         self.alive_entities_count
     }
 
-    pub fn get_entity(&self, entity_index: u64) -> Option<Entity> {
+    pub fn get_entity(&self, entity_index: u64) -> Option<EntityId> {
         if entity_index >= self.alive_entities_count {
             return None;
         }
@@ -86,7 +86,7 @@ impl ArchetypeUnsafeFfi {
 
             let memory = self.archetype.get_memory(&physical_location);
 
-            (memory as *const Entity).read()
+            (memory as *const EntityId).read()
         })
     }
 
@@ -117,7 +117,7 @@ impl ArchetypeUnsafeFfi {
         entity_in_archetype_index
     }
 
-    pub fn create_entity(&mut self, entity: Entity) {
+    pub fn create_entity(&mut self, entity: EntityId) {
         let entity_in_archetype_index = self.create_place_for_entity();
 
         unsafe {
@@ -125,12 +125,12 @@ impl ArchetypeUnsafeFfi {
 
             let memory = self.archetype.get_memory(&entity_location);
 
-            (memory as *mut Entity).write(entity);
+            (memory as *mut EntityId).write(entity);
         }
     }
 
     /// Returns the last entity before the destroy.
-    pub fn destroy_entity(&mut self, entity_index: u64) -> Option<Entity> {
+    pub fn destroy_entity(&mut self, entity_index: u64) -> Option<EntityId> {
         if entity_index >= self.alive_entities_count {
             return None;
         }
@@ -154,7 +154,7 @@ impl ArchetypeUnsafeFfi {
         self.erase_entity(entity_index)
     }
 
-    fn erase_entity(&mut self, entity_index: u64) -> Option<Entity> {
+    fn erase_entity(&mut self, entity_index: u64) -> Option<EntityId> {
         // todo: Release the unneded chunks?
         if entity_index >= self.alive_entities_count {
             return None;
@@ -182,7 +182,7 @@ impl ArchetypeUnsafeFfi {
         let last_entity = unsafe {
             let last_enity_memory = self.archetype.get_memory(&last_entity_location);
 
-            (last_enity_memory as *const Entity).read()
+            (last_enity_memory as *const EntityId).read()
         };
 
         self.alive_entities_count -= 1;
@@ -201,7 +201,7 @@ impl ArchetypeUnsafeFfi {
         src_entity_index: u64,
         component_ptr: *mut u8,
         component_id: u64,
-    ) -> Option<Entity> {
+    ) -> Option<EntityId> {
         if !ArchetypeLayout::is_component_the_only_difference(&dst.layout, &src.layout, component_id) {
             return None;
         }
@@ -264,7 +264,7 @@ impl ArchetypeUnsafeFfi {
         src_entity_index: u64,
         component_ptr: *mut u8,
         component_id: u64,
-    ) -> Option<Entity> {
+    ) -> Option<EntityId> {
         if !ArchetypeLayout::is_component_the_only_difference(&src.layout, &dst.layout, component_id) {
             return None;
         }

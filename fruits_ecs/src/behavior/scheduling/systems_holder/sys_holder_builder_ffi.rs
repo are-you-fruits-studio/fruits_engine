@@ -4,6 +4,7 @@ use fruits_ffi::{FfiDroppable, FfiStaticRef, FfiString};
 
 use crate::*;
 
+#[repr(C)]
 struct SystemsHolderBuilderFfiVTable {
     insert_system_fn: unsafe extern "C" fn(*mut c_void, system: SystemFfi) -> bool,
     order_fn: unsafe extern "C" fn(*mut c_void, prev: OrderEntry, next: OrderEntry),

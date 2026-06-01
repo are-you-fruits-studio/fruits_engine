@@ -3,6 +3,7 @@ use std::{
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
+// todo: ffi?
 pub struct StackVec<T, const C: usize> {
     buf: [MaybeUninit<T>; C],
     len: usize,

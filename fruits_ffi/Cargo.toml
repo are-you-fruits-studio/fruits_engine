@@ -8,3 +8,4 @@ crate-type = ["lib"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+hashbrown = "0.17"

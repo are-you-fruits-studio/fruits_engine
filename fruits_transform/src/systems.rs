@@ -1,4 +1,4 @@
-use fruits_ecs::{Entity, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
+use fruits_ecs::{EntityId, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
 use fruits_ffi::FfiVec;
 use fruits_math::{Mat3, Vec2};
 use fruits_render_core::RenderApiResource;
@@ -20,7 +20,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
-            .query_filtered::<Entity, (WithFilter<LocalTransform>, WithoutFilter<GlobalTransform>)>()
+            .query_filtered::<EntityId, (WithFilter<LocalTransform>, WithoutFilter<GlobalTransform>)>()
             .iter(),
     );
     for e in buffer.drain(..) {
@@ -29,7 +29,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
-            .query_filtered::<Entity, (WithFilter<LocalRectComponent>, WithoutFilter<GlobalRectComponent>)>()
+            .query_filtered::<EntityId, (WithFilter<LocalRectComponent>, WithoutFilter<GlobalRectComponent>)>()
             .iter(),
     );
     for e in buffer.drain(..) {
@@ -41,7 +41,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
-            .query_filtered::<Entity, (
+            .query_filtered::<EntityId, (
                 WithFilter<LocalDisableableComponent>,
                 WithoutFilter<GlobalDisableableComponent>,
             )>()
@@ -69,7 +69,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
-            .query_filtered::<Entity, (
+            .query_filtered::<EntityId, (
                 OrFilter<(
                     WithFilter<GlobalTransform>,
                     WithFilter<GlobalRectComponent>,
@@ -109,7 +109,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 // - Update ParentComponents according to ChildComponents
 //     - Remove children from parent components
 pub fn update_parents_remove_invalid_children(
-    mut parents: WorldQuery<(Entity, &mut ParentComponent)>,
+    mut parents: WorldQuery<(EntityId, &mut ParentComponent)>,
     children: WorldQuery<&ChildComponent>,
 ) {
     let mut indices_to_remove = Vec::new();
@@ -140,7 +140,7 @@ pub fn update_parents_remove_invalid_children(
 // - Update ParentComponents according to ChildComponents
 //     - Add missing children to parent components
 pub fn update_parents_add_missing_children(
-    child_q: WorldQuery<(Entity, &ChildComponent)>,
+    child_q: WorldQuery<(EntityId, &ChildComponent)>,
     mut parent_q: WorldQuery<&mut ParentComponent>,
 ) {
     for (child_entity, child_c) in child_q.iter() {
@@ -156,7 +156,7 @@ pub fn update_parents_add_missing_children(
 
 // - Calculate GlobalTransform from LocalTransform and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_transform(
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalTransform>>,
+    hierarchy_q: WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalTransform>>,
     local_transform_q: WorldQuery<&LocalTransform>,
     mut global_transform_q: WorldQuery<&mut GlobalTransform>,
 ) {
@@ -206,7 +206,7 @@ pub fn calculate_global_rect_scale_hierarchy_independent(
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from all the child leaves to a root parent.
 pub fn calculate_global_rect_scale_children_based(
     render_state: Res<RenderApiResource>,
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
+    hierarchy_q: WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
     local_rect_q: WorldQuery<(&LocalRectComponent, Option<&RectChildAlignComponent>)>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
@@ -274,7 +274,7 @@ pub fn calculate_global_rect_scale_children_based(
 // - Calculate GlobalRectComponent from LocalRectComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_rect_scale_parent_based(
     render_state: Res<RenderApiResource>,
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
+    hierarchy_q: WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
 ) {
@@ -332,7 +332,7 @@ pub fn calculate_global_rect_scale_parent_based(
 
 pub fn calculate_global_rect_pos(
     render_state: Res<RenderApiResource>,
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
+    hierarchy_q: WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalRectComponent>>,
     local_rect_q: WorldQuery<&LocalRectComponent>,
     align_q: WorldQuery<&RectChildAlignComponent>,
     mut global_rect_q: WorldQuery<&mut GlobalRectComponent>,
@@ -485,7 +485,7 @@ pub fn calculate_global_rect_pos(
 
 // - Calculate GlobalDisableableComponent from LocalDisableableComponent and child-parent relation with tree-ordering from a root parent to all the child leaves.
 pub fn calculate_global_disableable(
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalDisableableComponent>>,
+    hierarchy_q: WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>), WithFilter<GlobalDisableableComponent>>,
     local_disableable_q: WorldQuery<&LocalDisableableComponent>,
     mut global_disableable_q: WorldQuery<&mut GlobalDisableableComponent>,
 ) {

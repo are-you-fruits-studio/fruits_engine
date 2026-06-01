@@ -663,8 +663,8 @@ pub fn update_text_batched_mesh(
     render_res: Res<RenderApiResource>,
     font_assets: Res<AssetStorageResource<Font>>,
 ) {
-    const VERTICES_PER_CHAR: usize = 4;
-    const INDICES_PER_CHAR: usize = 6;
+    const VERTICES_PER_CHAR: u64 = 4;
+    const INDICES_PER_CHAR: u64 = 6;
 
     let window_size = render_res.size();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
@@ -688,11 +688,11 @@ pub fn update_text_batched_mesh(
 
         let mut quad_scale = Vec2::new(font_size * font.character_ratio, font_size);
 
-        let chars_count = text_c.text.chars().count();
+        let chars_count = text_c.text.chars().count() as u64;
 
         let mut text_scale = quad_scale;
         text_scale.x *= chars_count as f32;
-        text_scale.x += (usize::max(chars_count, 1) - 1) as f32 * horizontal_spacing;
+        text_scale.x += (u64::max(chars_count, 1) - 1) as f32 * horizontal_spacing;
 
         let center = Vec2::new(
             match text_c.horizontal_align {
@@ -720,6 +720,7 @@ pub fn update_text_batched_mesh(
         mesh_c.indices.resize((chars_count * INDICES_PER_CHAR) as u64, 0);
 
         for (i, character) in text_c.text.chars().enumerate() {
+            let i = i as u64;
             let char_uvs = font.characters_uv.get(&character).unwrap_or(&font.missing_character_uv);
 
             let pos = [
@@ -857,10 +858,10 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
 
                 let fill_amt = image_c.fill_amt.clamp(0.0, 1.0);
 
-                let slices = 1 + ((fill_amt * 8.0).floor() as usize).clamp(0, 7);
+                let slices = 1 + ((fill_amt * 8.0).floor() as u64).clamp(0, 7);
 
-                mesh_c.vertices.resize(3 + slices as u64, StandardVertex::default());
-                mesh_c.indices.resize(slices as u64 * 3, 0);
+                mesh_c.vertices.resize(3 + slices, StandardVertex::default());
+                mesh_c.indices.resize(slices * 3, 0);
 
                 mesh_c.vertices[0] = StandardVertex {
                     color,
@@ -886,15 +887,15 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
                         mesh_c.vertices[i + 2] = StandardVertex {
                             color,
                             normal,
-                            uv: uvs[i + 2],
+                            uv: uvs[i as usize + 2],
                             position: [last_pos[0], last_pos[1], rect.z],
                         };
                     } else {
                         mesh_c.vertices[i + 2] = StandardVertex {
                             color,
                             normal,
-                            uv: uvs[i + 2],
-                            position: poss[i + 2],
+                            uv: uvs[i as usize + 2],
+                            position: poss[i as usize + 2],
                         };
                     }
 
@@ -908,11 +909,11 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
 }
 
 pub fn update_masked_batched_mesh(
-    hierarchy_q: WorldQuery<(Entity, Option<&ChildComponent>, Option<&ParentComponent>)>,
+    hierarchy_q: WorldQuery<(EntityId, Option<&ChildComponent>, Option<&ParentComponent>)>,
     mask_q: WorldQuery<&GlobalRectComponent, WithFilter<ChildrenRectMaskComponent>>,
     mut mesh_q: WorldQuery<&mut BatchedMeshComponent>,
 ) {
-    let mut masked = HashMap::<Entity, GlobalRectComponent>::new();
+    let mut masked = HashMap::<EntityId, GlobalRectComponent>::new();
 
     fruits_transform::hierarchy_iter_depth_first_parent_to_child(&hierarchy_q, |e, c| {
         let parent_mask = masked.remove(&e);
@@ -1238,7 +1239,7 @@ pub fn render_opaque_batched(
 
         for (mat, batched_mesh) in matrices_and_meshes {
             for &i in &batched_mesh.indices {
-                let mut vertex = batched_mesh.vertices[i as usize];
+                let mut vertex = batched_mesh.vertices[i as u64];
 
                 vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
                 vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();
@@ -1550,7 +1551,7 @@ pub fn render_transparent_batched(
 
         for (mat, batched_mesh) in matrices_and_meshes {
             for &i in &batched_mesh.indices {
-                let mut vertex = batched_mesh.vertices[i as usize];
+                let mut vertex = batched_mesh.vertices[i as u64];
 
                 vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
                 vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();

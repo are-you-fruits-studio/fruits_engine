@@ -1,4 +1,4 @@
-use fruits_ecs::{Entity, Resource};
+use fruits_ecs::{EntityId, Resource};
 
 use crate::*;
 
@@ -7,11 +7,11 @@ use crate::*;
 pub struct CollisionWorldResource {
     // todo: support full CollisionShape.
     //collision_shapes: Vec<(CollisionAabb, Entity)>,
-    collision_shapes: Bvh<Entity>,
+    collision_shapes: Bvh<EntityId>,
 }
 
 impl CollisionWorldResource {
-    pub fn new(values: impl Iterator<Item = (CollisionShape, Entity)>) -> Self {
+    pub fn new(values: impl Iterator<Item = (CollisionShape, EntityId)>) -> Self {
         Self {
             //collision_shapes: values,
             collision_shapes: Bvh::new(values),
@@ -28,7 +28,7 @@ impl CollisionWorldResource {
     //     &mut self.collision_shapes
     // }
 
-    pub fn overlaps(&self, query: CollisionShape, results: &mut Vec<Entity>) {
+    pub fn overlaps(&self, query: CollisionShape, results: &mut Vec<EntityId>) {
         // for &(shape, entity) in &self.collision_shapes {
         //     if overlaps(shape.into(), query) {
         //         results.push(entity);

@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, collections::VecDeque};
 
+// todo: ffi
 pub struct VersionCollection<T> {
     items: Vec<DataWithVersion<T>>,
     free_places: VecDeque<u64>,

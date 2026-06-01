@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use crate::{json_map::*, json_repr::JsonValue};
 
 // todo: overflow check
+// todo: ffi for all?
 
 #[derive(Copy, Clone, Default)]
 pub struct StringSerializer;

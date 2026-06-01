@@ -1,5 +1,6 @@
 use crate::*;
 
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Schedule {
     Start = 0,
@@ -40,6 +41,7 @@ impl WorldBehaviorBuilderFfi {
 
 //
 
+#[repr(C)]
 pub struct WorldBehaviorFfi {
     schedules: [SystemsHolderFfi; Schedule::COUNT],
 }

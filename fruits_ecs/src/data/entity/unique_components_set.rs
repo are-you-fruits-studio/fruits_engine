@@ -28,7 +28,7 @@ impl PartialEq for UniqueComponentsSet {
             return false;
         }
 
-        for i in 0..(self.components.len() as usize) {
+        for i in 0..(self.components.len()) {
             if self.components[i] != other.components[i] {
                 return false;
             }

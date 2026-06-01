@@ -37,11 +37,11 @@ impl ArchetypeRaw {
     }
 
     pub fn get_chunk(&self, chunk_index: u64) -> *mut u8 {
-        self.chunks[chunk_index as usize]
+        self.chunks[chunk_index]
     }
 
     pub fn get_memory(&self, location: &ArchetypeItemPhysicalLocation) -> *mut u8 {
-        let chunk = &self.chunks[location.chunk_index as usize];
+        let chunk = &self.chunks[location.chunk_index];
 
         // Safety. Safe, because of the overflow check and all the offsets are precalculated.
         unsafe {

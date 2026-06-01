@@ -72,9 +72,9 @@ fn init(mut world: ExclusiveWorldAccess) {
         .insert(StandardMaterial {
             is_lit: false,
             space: RenderSpace::Window,
-            color_tex: Some(texture_white.clone()),
+            color_tex: Some(texture_white.clone()).into(),
             color: Vec4::splat(1.0),
-            alpha_threshold: Some(0.5),
+            alpha_threshold: Some(0.5).into(),
             ..Default::default()
         });
 
@@ -85,9 +85,9 @@ fn init(mut world: ExclusiveWorldAccess) {
         .insert(StandardMaterial {
             is_lit: false,
             space: RenderSpace::Window,
-            color_tex: Some(texture_text.clone()),
+            color_tex: Some(texture_text.clone()).into(),
             color: Vec4::splat(1.0),
-            alpha_threshold: Some(0.5),
+            alpha_threshold: Some(0.5).into(),
             ..Default::default()
         });
 

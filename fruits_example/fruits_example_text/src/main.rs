@@ -76,7 +76,7 @@ fn init(mut world: ExclusiveWorldAccess) {
     let material = StandardMaterial {
         is_lit: false,
         space: RenderSpace::World,
-        color_tex: Some(texture_text.clone()),
+        color_tex: Some(texture_text.clone()).into(),
         ..Default::default()
     };
 

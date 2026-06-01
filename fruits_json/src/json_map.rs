@@ -7,6 +7,8 @@ use std::{
 
 use crate::*;
 
+// todo: ffi for all?
+
 pub trait Serializer {
     type Deserialized: 'static;
 

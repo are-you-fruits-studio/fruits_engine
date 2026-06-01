@@ -1,3 +1,6 @@
+
+// todo: ffi?
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ObjVertex {
     pub v: usize,

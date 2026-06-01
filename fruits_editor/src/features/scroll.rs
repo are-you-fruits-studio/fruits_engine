@@ -7,7 +7,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .data_mut()
         .resources_mut()
         .insert(ScrollResource {
-            active_scroll: Entity::EMPTY,
+            active_scroll: EntityId::EMPTY,
         })
         .ok()
         .unwrap();
@@ -26,13 +26,13 @@ pub fn register_feature(mut world: WorldBuilderMut) {
 
 #[derive(Component)]
 pub struct ScrollHandleAreaComponent {
-    pub content: Entity,
-    pub handle: Entity,
+    pub content: EntityId,
+    pub handle: EntityId,
 }
 
 #[derive(Resource)]
 pub struct ScrollResource {
-    pub active_scroll: Entity,
+    pub active_scroll: EntityId,
 }
 
 fn start_end_scrolling_system(
@@ -41,7 +41,7 @@ fn start_end_scrolling_system(
     raycast_res: Res<UiRaycastResource>,
 ) {
     if input.mouse.is_just_released(MouseButton::Left) {
-        scroll_res.active_scroll = Entity::EMPTY;
+        scroll_res.active_scroll = EntityId::EMPTY;
     } else if input.mouse.is_just_pressed(MouseButton::Left) {
         let pos = Vec2::from_array(input.mouse.position.map(|v| v as f32));
 
@@ -66,7 +66,7 @@ fn start_end_scrolling_system(
 fn move_scroll_handle_system(
     input: Res<InputResource>,
     scroll_res: Res<ScrollResource>,
-    mut handle_q: WorldQuery<(&ScrollHandleAreaComponent, Entity)>,
+    mut handle_q: WorldQuery<(&ScrollHandleAreaComponent, EntityId)>,
     global_rect_q: WorldQuery<&GlobalRectComponent>,
     mut local_rect_q: WorldQuery<&mut LocalRectComponent>,
 ) {

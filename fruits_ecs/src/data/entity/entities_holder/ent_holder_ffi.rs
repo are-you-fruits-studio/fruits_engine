@@ -1,5 +1,7 @@
 use crate::*;
 
+
+#[repr(C)]
 pub struct EntitiesHolderUnsafeFfi {
     archetypes: ArchetypesHolderFfi,
     entities_meta: EntitiesMetadataFfi,
@@ -30,11 +32,11 @@ impl EntitiesHolderUnsafeFfi {
         self.entities_meta.len()
     }
 
-    pub fn contains_entity(&self, entity: Entity) -> bool {
+    pub fn contains_entity(&self, entity: EntityId) -> bool {
         self.entities_meta.contains(entity)
     }
 
-    pub fn create_entity(&mut self) -> Entity {
+    pub fn create_entity(&mut self) -> EntityId {
         let archetype_id = self.archetypes.id_by_components_or_create(UniqueComponentsSet::default());
 
         let archetype = self.archetypes.by_id_mut(archetype_id).unwrap();
@@ -51,7 +53,7 @@ impl EntitiesHolderUnsafeFfi {
         entity
     }
 
-    pub fn destroy_entity(&mut self, entity: Entity) -> bool {
+    pub fn destroy_entity(&mut self, entity: EntityId) -> bool {
         let Some(entity_location) = self.entities_meta.remove(entity) else {
             return false;
         };
@@ -67,7 +69,7 @@ impl EntitiesHolderUnsafeFfi {
         true
     }
 
-    pub unsafe fn add_component(&mut self, entity: Entity, component_ptr: *mut u8, component_id: u64) -> bool {
+    pub unsafe fn add_component(&mut self, entity: EntityId, component_ptr: *mut u8, component_id: u64) -> bool {
         let Some(entity_location) = self.entities_meta.get(entity) else {
             return false;
         };
@@ -114,7 +116,7 @@ impl EntitiesHolderUnsafeFfi {
         true
     }
 
-    pub unsafe fn remove_component(&mut self, entity: Entity, component_ptr: *mut u8, component_id: u64) -> bool {
+    pub unsafe fn remove_component(&mut self, entity: EntityId, component_ptr: *mut u8, component_id: u64) -> bool {
         let Some(entity_location) = self.entities_meta.get(entity) else {
             return false;
         };
@@ -161,7 +163,7 @@ impl EntitiesHolderUnsafeFfi {
         true
     }
 
-    pub fn get_component_ptr(&self, entity: Entity, component_id: u64) -> Option<*mut u8> {
+    pub fn get_component_ptr(&self, entity: EntityId, component_id: u64) -> Option<*mut u8> {
         let entity_location = self.entities_meta.get(entity)?;
 
         self.archetypes

@@ -82,6 +82,7 @@ fn run_editor_app() {
     features::project_window_selection::register_feature(world.as_mut());
     features::inspector_window::register_feature(world.as_mut());
     features::input_field::register_feature(world.as_mut());
+    features::dropdown::register_feature(world.as_mut());
     features::project_window_parsing::register_feature(world.as_mut());
     features::project_window_saving::register_feature(world.as_mut());
     features::serialization::register_feature(world.as_mut());
@@ -94,7 +95,7 @@ fn init_system(mut world: ExclusiveWorldAccess) {
 
     let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
 
-    let font = standard_render_assets_res.font_px_8_8.clone();
+    let font = standard_render_assets_res.font_px_8_12.clone();
     let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
 
     let materials_res = res.get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
@@ -103,8 +104,8 @@ fn init_system(mut world: ExclusiveWorldAccess) {
         is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
-        color_tex: None,
-        alpha_threshold: Some(0.5),
+        color_tex: None.into(),
+        alpha_threshold: Some(0.5).into(),
         ..Default::default()
     });
 
@@ -112,8 +113,8 @@ fn init_system(mut world: ExclusiveWorldAccess) {
         is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
-        color_tex: Some(texture_text),
-        alpha_threshold: Some(0.5),
+        color_tex: Some(texture_text).into(),
+        alpha_threshold: Some(0.5).into(),
         ..Default::default()
     });
 
@@ -122,6 +123,7 @@ fn init_system(mut world: ExclusiveWorldAccess) {
     res.insert(StandardAssetsResource {
         material_panel: material_panel.clone(),
         material_text: material_text.clone(),
+        font,
     })
     .ok()
     .unwrap();

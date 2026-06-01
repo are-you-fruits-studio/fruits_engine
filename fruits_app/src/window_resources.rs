@@ -1,6 +1,7 @@
 use fruits_ecs::Resource;
 use winit::window::{Fullscreen, Window};
 
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FullscreenState {
     Windowed,
@@ -8,6 +9,7 @@ pub enum FullscreenState {
     Exclusive,
 }
 
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct WindowState {
     pub fullscreen: FullscreenState,
@@ -37,6 +39,7 @@ impl WindowState {
     }
 }
 
+#[repr(C)]
 #[derive(Resource)]
 pub struct WindowResource {
     last_state: WindowState,

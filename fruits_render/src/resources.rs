@@ -5,6 +5,7 @@ use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
 use fruits_render_core::{StandardTexture, StandardVertex};
 use fruits_serialization::*;
+use fruits_ffi::*;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
 use crate::Font;
@@ -17,27 +18,27 @@ pub struct SurfaceTextureResource {
     pub texture: Option<SurfaceTexture>,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Resource)]
 pub struct GizmosResource {
-    lines: HashMap<RenderSpace, Vec<GizmoLine>>,
+    lines: FfiIndexMap<RenderSpace, FfiVec<GizmoLine>>,
 }
 impl GizmosResource {
-    pub fn space(&mut self, space: RenderSpace) -> &mut Vec<GizmoLine> {
+    pub fn space(&mut self, space: RenderSpace) -> &mut FfiVec<GizmoLine> {
         self.lines.get_mut(&space).unwrap()
     }
 
-    pub fn spaces(&mut self) -> IterMut<'_, RenderSpace, Vec<GizmoLine>> {
+    pub fn spaces(&mut self) -> FfiIndexMapPairsMutIter<'_, RenderSpace, FfiVec<GizmoLine>> {
         self.lines.iter_mut()
     }
 }
 impl Default for GizmosResource {
     fn default() -> Self {
-        let mut lines = HashMap::new();
+        let mut lines = FfiIndexMap::new();
 
-        lines.insert(RenderSpace::Clip, Vec::new());
-        lines.insert(RenderSpace::Window, Vec::new());
-        lines.insert(RenderSpace::World, Vec::new());
+        lines.insert(RenderSpace::Clip, FfiVec::new());
+        lines.insert(RenderSpace::Window, FfiVec::new());
+        lines.insert(RenderSpace::World, FfiVec::new());
 
         Self { lines }
     }
@@ -95,7 +96,7 @@ pub struct StandardRenderResource {
 #[derive(Resource)]
 pub struct BatchedVertexCpuBufferResource(pub Box<[StandardVertex]>);
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Resource)]
 pub struct StandardRenderAssetsResource {
     pub texture_white: AssetHandle<StandardTexture>,
@@ -111,7 +112,7 @@ pub struct MaterialStandardRenderResourceData {
     pub render_pipeline: RenderPipeline,
 }
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Resource)]
 pub struct ScreenSpaceResource {
     pub near: f32,
@@ -127,6 +128,7 @@ impl Default for ScreenSpaceResource {
     }
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, TransSerializable)]
 pub enum RenderSpace {
     Clip,

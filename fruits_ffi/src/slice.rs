@@ -1,3 +1,4 @@
+// todo: lifetimes for all slices?
 #[repr(C)]
 pub struct FfiSliceMut<T> {
     ptr: *mut T,

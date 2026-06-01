@@ -1,0 +1,10 @@
+{
+  "asset_type": "mesh",
+  "raw_mesh": "",
+  "coordinate_space_type": {
+    "$enum_variant": "RightHandZUp"
+  },
+  "has_clockwise_winding": false,
+  "has_inverted_u": true,
+  "has_inverted_v": false
+}

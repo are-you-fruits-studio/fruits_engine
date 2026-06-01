@@ -3,6 +3,8 @@ use std::{
     fmt::{Debug, Display},
 };
 
+// todo: ffi for all?
+
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub enum JsonNumber {
     I(i128),

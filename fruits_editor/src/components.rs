@@ -16,27 +16,31 @@ pub struct ProjectWindowEntryComponent {
 #[derive(Component)]
 pub struct SceneWindowContentComponent;
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub enum SerializedValueComponent {
-    Container { container: Entity, ty: SerializedValueContainerType, enum_metadata: Entity },
-    Primitive { text: Entity, ty: SerializedValuePrimitiveType },
+    Container { ty: SerializedValueContainerType, container_enum_metadata: EntityId, container_fields: EntityId, container_buttons: EntityId },
+    Primitive { text: EntityId, ty: SerializedValuePrimitiveType },
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct SerializedFieldComponent {
-    pub key_text: Entity,
-    pub value_container: Entity
+    pub key_text: EntityId,
+    pub value_container: EntityId
 }
 
+#[derive(Component, Clone)]
 pub struct SerializedEnumMetadataComponent {
-    pub value_text: Entity,
-    pub variants: Vec<String>,
+    pub value_text: EntityId,
+    pub variants: FfiVec<FfiString>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SerializedValueContainerType {
     List,
     Map,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SerializedValuePrimitiveType {
     Null,
     Bool,

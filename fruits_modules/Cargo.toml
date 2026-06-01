@@ -11,8 +11,11 @@ crate-type = ["lib"]
 [dependencies]
 fruits_ecs = { path = "../fruits_ecs" }
 fruits_render = { path = "../fruits_render" }
+fruits_render_core = { path = "../fruits_render_core" }
 fruits_transform = { path = "../fruits_transform" }
 fruits_collision = { path = "../fruits_collision" }
 fruits_prefab = { path = "../fruits_prefab" }
 fruits_asset_storage = { path = "../fruits_asset_storage" }
 fruits_serialization = { path = "../fruits_serialization" }
+fruits_math = { path = "../fruits_math" }
+fruits_ffi = { path = "../fruits_ffi" }

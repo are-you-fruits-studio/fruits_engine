@@ -1,12 +1,11 @@
 use crate::*;
 
-pub fn scene_window(mut world: WorldDataMut) -> Entity {
+pub fn scene_window(mut world: WorldDataMut) -> EntityId {
     let (res, mut ec, evt) = world.as_tuple_mut();
 
-    let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
+    let assets_res = res.get::<StandardAssetsResource>().unwrap();
 
-    let font = standard_render_assets_res.font_px_8_8.clone();
-    let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
+    let font = assets_res.font.clone();
 
     let standard_assets_res = res.get::<StandardAssetsResource>().unwrap();
 

@@ -115,6 +115,7 @@ impl AudioStateResource {
     }
 }
 
+#[repr(C)]
 pub struct WrappedAudioStateHandle {
     state: FfiDroppable,
 }
@@ -133,6 +134,7 @@ impl WrappedAudioStateHandle {
     }
 }
 
+#[repr(C)]
 struct AudioActivePlayback {
     clip: AudioClip,
     sample_index: usize,
@@ -141,7 +143,7 @@ struct AudioActivePlayback {
 }
 
 struct AudioState {
-    active_playbacks: HashMap<Entity, AudioActivePlayback>,
+    active_playbacks: HashMap<EntityId, AudioActivePlayback>,
     last_played_samples: Vec<f32>,
 }
 
@@ -156,7 +158,7 @@ impl AudioState {
 
 fn audio_system(
     mut state: ResMut<AudioStateResource>,
-    mut source_q: WorldQuery<(Entity, &mut AudioSource)>,
+    mut source_q: WorldQuery<(EntityId, &mut AudioSource)>,
     clips: Res<AssetStorageResource<AudioClip>>,
 ) {
     let mut last_samples = std::mem::replace(&mut state.last_samples, FfiVec::new());
@@ -231,8 +233,6 @@ fn start_playback(state: Arc<Mutex<AudioState>>) -> cpal::Stream {
 
     // let input_device = host.default_input_device().unwrap();
     let output_device = host.default_output_device().unwrap();
-
-    dbg!(output_device.description().unwrap().name());
 
     let output_config = StreamConfig {
         buffer_size: cpal::BufferSize::Default,

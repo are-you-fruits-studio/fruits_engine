@@ -15,6 +15,10 @@ pub struct FfiString {
 }
 
 impl FfiString {
+    pub fn new() -> Self {
+        String::new().into()
+    }
+
     pub fn from_string(v: String) -> Self {
         Self {
             data: v.into_bytes().into(),

@@ -1,4 +1,6 @@
-use crate::{SerializationError, SerializationResult, SerializedComposite, SerializedCompositeValues, SerializedPrimitive, SerializedValue, SerializerCtx, TransSerializable};
+use fruits_ffi::{FfiOption, FfiString, FfiVec};
+
+use crate::{GlobalSerializer, SerializationError, SerializationResult, SerializedComposite, SerializedCompositeValues, SerializedPrimitive, SerializedValue, SerializerCtx, StandardTransSerializer, TransSerializable};
 
 // todo: other types
 
@@ -6,14 +8,14 @@ impl TransSerializable for SerializedValue {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
             result: self.clone(),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 
     fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
         SerializationResult {
             result: Some(value.clone()),
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 }
@@ -21,13 +23,13 @@ impl TransSerializable for SerializedValue {
 impl TransSerializable for String {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: SerializedValue::Primitive(SerializedPrimitive::String(self.clone())),
-            err: Vec::new(),
+            result: SerializedValue::Primitive(SerializedPrimitive::String(self.clone().into())),
+            err: FfiVec::new(),
         }
     }
 
     fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        let mut err = Vec::new();
+        let mut err = FfiVec::new();
 
         SerializationResult {
             result: Some(match value {
@@ -44,7 +46,7 @@ impl TransSerializable for String {
                         err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from float") });
                         value.to_string()
                     },
-                    SerializedPrimitive::String(value) => value.clone(),
+                    SerializedPrimitive::String(value) => value.to_string(),
                 },
                 SerializedValue::Null => {
                     err.push(SerializationError::InvalidInput { message: String::from("Deserializing string from null, using empty string") });
@@ -60,25 +62,38 @@ impl TransSerializable for String {
     }
 }
 
+impl TransSerializable for FfiString {
+    fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        SerializationResult {
+            result: SerializedValue::Primitive(SerializedPrimitive::String(self.clone())),
+            err: FfiVec::new(),
+        }
+    }
+
+    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        <String as TransSerializable>::deserialize(ctx, value).map(|o| o.map(FfiString::from))
+    }
+}
+
 impl TransSerializable for &'static str {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: SerializedValue::Primitive(SerializedPrimitive::String(self.to_string())),
-            err: Vec::new(),
+            result: SerializedValue::Primitive(SerializedPrimitive::String((*self).into())),
+            err: FfiVec::new(),
         }
     }
 
     fn deserialize(_ctx: &SerializerCtx, _value: &SerializedValue) -> SerializationResult<Option<Self>> {
         SerializationResult {
             result: Some(Default::default()),
-            err: vec![SerializationError::InvalidInput { message: String::from("&str cannot be desrialized, using empty string") }],
+            err: vec![SerializationError::InvalidInput { message: String::from("&str cannot be desrialized, using empty string") }].into(),
         }
     }
 }
 
 impl TransSerializable for u128 {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
-        let mut err = Vec::new();
+        let mut err = FfiVec::new();
 
         let value = if *self > i128::MAX as u128 {
             err.push(SerializationError::InvalidInput { message: String::from("Int value is too high and is clamped.") });
@@ -127,20 +142,20 @@ macro_rules! trans_serializable_float_impl {
 
 fn serialize_int(value: i128) -> SerializationResult<SerializedValue> {
     SerializationResult {
-        err: Vec::new(),
+        err: FfiVec::new(),
         result: SerializedValue::Primitive(SerializedPrimitive::Int(value))
     }
 }
 
 fn serialize_float(value: f64) -> SerializationResult<SerializedValue> {
     SerializationResult {
-        err: Vec::new(),
+        err: FfiVec::new(),
         result: SerializedValue::Primitive(SerializedPrimitive::Float(value))
     }
 }
 
 fn deserialize_int(value: &SerializedValue, min: i128, max: i128) -> SerializationResult<i128> {
-    let mut err = Vec::new();
+    let mut err = FfiVec::new();
 
     SerializationResult {
         result: match value {
@@ -181,7 +196,7 @@ fn deserialize_int(value: &SerializedValue, min: i128, max: i128) -> Serializati
 }
 
 fn deserialize_float(value: &SerializedValue) -> SerializationResult<f64> {
-    let mut err = Vec::new();
+    let mut err = FfiVec::new();
 
     SerializationResult {
         result: match value {
@@ -232,13 +247,13 @@ trans_serializable_float_impl!(f64);
 impl TransSerializable for bool {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            err: Vec::new(),
+            err: FfiVec::new(),
             result: SerializedValue::Primitive(SerializedPrimitive::Bool(*self))
         }
     }
 
     fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        let mut err = Vec::new();
+        let mut err = FfiVec::new();
 
         SerializationResult {
             result: Some(match value {
@@ -281,13 +296,13 @@ impl TransSerializable for bool {
 impl TransSerializable for char {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
-            result: SerializedValue::Primitive(SerializedPrimitive::String(String::from(*self))),
-            err: Vec::new(),
+            result: SerializedValue::Primitive(SerializedPrimitive::String(String::from(*self).into())),
+            err: FfiVec::new(),
         }
     }
 
     fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        let mut err = Vec::new();
+        let mut err = FfiVec::new();
 
         SerializationResult {
             result: Some(match value {
@@ -330,29 +345,33 @@ impl TransSerializable for char {
     }
 }
 
+fn serialize_slice<T: 'static>(slice: &[T], ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+    let mut err = FfiVec::new();
+    let mut vec = FfiVec::new();
+
+    for element in slice {
+        let result = ctx.serialize(element);
+
+        err.extend_from_slice(&result.err);
+        vec.push(result.result);
+    }
+    
+    SerializationResult {
+        result: SerializedValue::Composite(SerializedComposite {
+            is_rigid: false,
+            values: SerializedCompositeValues::List(vec),
+        }),
+        err,
+    }
+}
+
 impl<T: 'static> TransSerializable for Vec<T> {
     fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
-        let mut err = Vec::new();
-        let mut vec = Vec::new();
-
-        for element in self {
-            let result = ctx.serialize(element);
-
-            err.extend_from_slice(&result.err);
-            vec.push(result.result);
-        }
-        
-        SerializationResult {
-            result: SerializedValue::Composite(SerializedComposite {
-                is_rigid: false,
-                values: SerializedCompositeValues::List(vec),
-            }),
-            err,
-        }
+        serialize_slice(self.as_slice(), ctx)
     }
 
     fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        let mut err = Vec::new();
+        let mut err = FfiVec::new();
 
         let values = match value {
             SerializedValue::Null => {
@@ -399,17 +418,31 @@ impl<T: 'static> TransSerializable for Vec<T> {
     }
 }
 
+impl<T: 'static> TransSerializable for FfiVec<T> {
+    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        serialize_slice(self.as_slice(), ctx)
+    }
+    
+    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        <Vec<T> as TransSerializable>::deserialize(ctx, value).map(|o| o.map(FfiVec::from))
+    }
+}
+
+fn serialize_option<T: 'static>(option: Option<&T>, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+    let variants = ["None", "Some"].into_iter().map(FfiString::from).collect();
+
+    match option {    
+        None => ctx.serialize_map()
+            .finish_as_enum(true, "None", variants),
+        Some(value) => ctx.serialize_map()
+            .with_field("0", value)
+            .finish_as_enum(true, "Some", variants),
+    }
+}
+
 impl<T: 'static> TransSerializable for Option<T> {
     fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
-        let variants = ["None", "Some"].into_iter().map(String::from).collect();
-
-        match self {    
-            None => ctx.serialize_map()
-                .finish_as_enum(true, "None", variants),
-            Some(value) => ctx.serialize_map()
-                .with_field("0", value)
-                .finish_as_enum(true, "Some", variants),
-        }
+        serialize_option(self.as_ref(), ctx)
     }
 
     fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
@@ -428,16 +461,26 @@ impl<T: 'static> TransSerializable for Option<T> {
     }
 }
 
+impl<T: 'static> TransSerializable for FfiOption<T> {
+    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
+        serialize_option(self.as_ref(), ctx)
+    }
+
+    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
+        <Option<T> as TransSerializable>::deserialize(ctx, value).map(|o| o.map(FfiOption::from))
+    }
+}
+
 impl TransSerializable for () {
     fn serialize(&self, _ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
         SerializationResult {
             result: SerializedValue::Null,
-            err: Vec::new(),
+            err: FfiVec::new(),
         }
     }
 
     fn deserialize(_ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        let mut err = Vec::new();
+        let mut err = FfiVec::new();
 
         SerializationResult {
             result: Some(match value {

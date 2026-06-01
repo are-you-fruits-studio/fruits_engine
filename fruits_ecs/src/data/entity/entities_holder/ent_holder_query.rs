@@ -23,7 +23,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
 
         let mut components = usage.build().into_elements().unwrap();
 
-        let entity_type_id = types.get_or_register::<Entity>();
+        let entity_type_id = types.get_or_register::<EntityId>();
         if let Some(entity_id_idx) = components.iter().position(|x| x.type_id == entity_type_id) {
             components.remove(entity_id_idx as u64);
         }
@@ -142,7 +142,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         unsafe { !self.archetypes_iter().any(|a| a.entities_count() > 0) }
     }
 
-    pub fn get<'r>(&'r self, entity: Entity) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
+    pub fn get<'r>(&'r self, entity: EntityId) -> Option<<A::ReadOnlyItem<'static> as ArchetypeIteratorItem>::Item<'r>>
     where
         'd: 'r,
     {
@@ -176,7 +176,7 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
         }
     }
 
-    pub fn get_mut<'r>(&'r mut self, entity: Entity) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
+    pub fn get_mut<'r>(&'r mut self, entity: EntityId) -> Option<<A::Item<'static> as ArchetypeIteratorItem>::Item<'r>>
     where
         'd: 'r,
     {

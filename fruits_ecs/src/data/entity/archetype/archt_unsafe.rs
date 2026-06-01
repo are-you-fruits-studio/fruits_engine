@@ -137,9 +137,9 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
     }
 }
 
-unsafe impl ArchetypeIteratorItem for Entity {
-    type Item<'w> = Entity;
-    type ReadOnlyItem<'w> = Entity;
+unsafe impl ArchetypeIteratorItem for EntityId {
+    type Item<'w> = EntityId;
+    type ReadOnlyItem<'w> = EntityId;
     type IterState = ();
     type TypeCache = ();
 
@@ -149,14 +149,14 @@ unsafe impl ArchetypeIteratorItem for Entity {
         unsafe {
             (item
                 .chunk_ptr
-                .add(item.chunk_entity_idx as usize * std::mem::size_of::<Entity>()) as *mut Entity)
+                .add(item.chunk_entity_idx as usize * std::mem::size_of::<EntityId>()) as *mut EntityId)
                 .read()
         }
     }
 
     fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
         usage.add_world(DataUsageEntry {
-            type_id: types.get_or_register::<Entity>(),
+            type_id: types.get_or_register::<EntityId>(),
             details: DataUsageDetails {
                 is_mutable: false,
                 is_required: true,
@@ -295,7 +295,7 @@ impl<'a> ArchetypeUnsafeRef<'a> {
         unsafe { (&*self.archetype).entities_count() }
     }
 
-    pub unsafe fn get_entity(&self, entity_index: u64) -> Option<Entity> {
+    pub unsafe fn get_entity(&self, entity_index: u64) -> Option<EntityId> {
         unsafe { (&*self.archetype).get_entity(entity_index) }
     }
 
@@ -307,12 +307,12 @@ impl<'a> ArchetypeUnsafeRef<'a> {
         }
     }
 
-    pub unsafe fn create_entity(&mut self, entity: Entity) {
+    pub unsafe fn create_entity(&mut self, entity: EntityId) {
         unsafe { (&mut *self.archetype).create_entity(entity) }
     }
 
     /// Returns the last entity before the destroy.
-    pub unsafe fn destroy_entity(&mut self, entity_index: u64) -> Option<Entity> {
+    pub unsafe fn destroy_entity(&mut self, entity_index: u64) -> Option<EntityId> {
         unsafe { (&mut *self.archetype).destroy_entity(entity_index) }
     }
 
@@ -322,7 +322,7 @@ impl<'a> ArchetypeUnsafeRef<'a> {
         dst: &mut Self,
         src_entity_index: u64,
         component: C,
-    ) -> Result<Entity, C> {
+    ) -> Result<EntityId, C> {
         unsafe {
             let mut component = MaybeUninit::new(component);
 
@@ -341,7 +341,7 @@ impl<'a> ArchetypeUnsafeRef<'a> {
     }
 
     /// Returns the last entity from src archetype before the movement.
-    pub unsafe fn remove_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: u64) -> Option<(Entity, C)> {
+    pub unsafe fn remove_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: u64) -> Option<(EntityId, C)> {
         unsafe {
             let mut component = MaybeUninit::<C>::uninit();
 
