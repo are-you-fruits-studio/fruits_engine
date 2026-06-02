@@ -1,10 +1,8 @@
 use std::ops::{BitAnd, BitOr};
 
 // todo: rewrite Debug impl
-/// Which ends of a [`CollisionLine`](crate::CollisionLine) are bounded.
-///
-/// An unbounded end runs to infinity, so the flags pick between an infinite line, a ray, and a
-/// finite [`SEGMENT`](Self::SEGMENT). Combine flags with `|` and test them with `&`.
+/// Boundedness of a [`CollisionLine`](crate::CollisionLine)'s endpoints — an infinite line, a
+/// ray, or a segment.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct LineBoundType(u8);

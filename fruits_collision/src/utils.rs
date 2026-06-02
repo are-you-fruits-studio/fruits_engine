@@ -42,8 +42,9 @@ impl<T: Clone> Bvh<T> {
 }
 
 impl<T: Clone> Bvh<T> {
-    /// Appends the payload of every indexed shape overlapping `query` to `hits` (existing
-    /// entries are kept).
+    /// Collects the payloads of all indexed shapes overlapping `query` into `hits`.
+    ///
+    /// NOTE: appends to `hits`; existing entries are kept.
     pub fn query(&self, query: CollisionShape, hits: &mut Vec<T>) {
         let Some(root) = self.root.as_ref() else {
             return;

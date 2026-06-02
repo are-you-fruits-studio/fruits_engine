@@ -2,7 +2,7 @@ use fruits_ecs::{EntityId, Resource};
 
 use crate::*;
 
-/// Spatial index of every collider in the world, used to answer overlap queries.
+/// Spatial index of the world's colliders for overlap queries.
 #[repr(transparent)]
 #[derive(Resource, Default)]
 pub struct CollisionWorldResource {

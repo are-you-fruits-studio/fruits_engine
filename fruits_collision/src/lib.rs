@@ -94,15 +94,13 @@ pub use utils::*;
 
 use fruits_ecs::{Schedule, WorldBuilderMut};
 
-/// System-group name for the collision systems; order your own systems against it via the
-/// scheduler.
+/// System-group name for the collision systems.
 pub const SYSTEM_GROUP_COLLISION: &'static str = "fruits_collision";
 
-/// Registers the collision subsystem into `world`: inserts a [`CollisionWorldResource`] and
-/// schedules [`update_collision_world`] in [`Schedule::Update`].
+/// Registers the collision subsystem into `world`.
 ///
-/// Most users do not call this directly — it is pulled in by the engine's default-module
-/// registration.
+/// NOTE: usually pulled in by the engine's default-module registration rather than called
+/// directly.
 ///
 /// # Panics
 ///

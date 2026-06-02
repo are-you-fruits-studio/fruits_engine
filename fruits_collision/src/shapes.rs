@@ -4,8 +4,7 @@ use fruits_math::{Mat4, Quat, Vec3};
 
 use crate::LineBoundType;
 
-/// A geometric primitive for collision tests: point, line, AABB, oriented box, sphere, or
-/// triangle. Test two of them with [`overlaps`](crate::overlaps).
+/// A geometric primitive for collision tests.
 #[repr(C, u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CollisionShape {
@@ -120,9 +119,8 @@ impl CollisionShape {
 
     /// Returns this shape transformed by `mat`.
     ///
-    /// The transform is *lossy*: non-uniform scale and shear are approximated. A sphere's
-    /// radius is scaled by the average of the matrix's lossy scale, and an [`Aabb`](CollisionShape::Aabb)
-    /// keeps its extents (only its center is moved) rather than being re-fitted.
+    /// NOTE: the transform is lossy — a sphere's radius scales by the average lossy scale, and
+    /// an [`Aabb`](CollisionShape::Aabb) keeps its extents (only its center moves).
     pub fn apply_matrix_lossy(&self, mat: Mat4<f32>) -> Self {
         // todo: check
         match self {
@@ -162,7 +160,9 @@ impl CollisionShape {
     }
 }
 
-/// An oriented box. `extents` are half-sizes (center to face), in local space before `rotation`.
+/// An oriented box.
+///
+/// NOTE: `extents` are half-sizes (center to face), in local space before `rotation`.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionBox {
@@ -171,7 +171,9 @@ pub struct CollisionBox {
     pub rotation: Quat<f32>,
 }
 
-/// An axis-aligned box. `extents` are half-sizes (center to each face).
+/// An axis-aligned box.
+///
+/// NOTE: `extents` are half-sizes (center to each face).
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionAabb {
@@ -194,7 +196,9 @@ impl CollisionAabb {
         self.center + self.extents
     }
 
-    /// Smallest AABB enclosing all `points`; a zero-sized box at the origin if `points` is empty.
+    /// Returns the smallest AABB enclosing all `points`.
+    ///
+    /// NOTE: returns a zero-sized box at the origin if `points` is empty.
     pub fn from_points(mut points: impl Iterator<Item = Vec3<f32>>) -> Self {
         let Some(first) = points.next() else {
             return Self {
@@ -222,8 +226,7 @@ impl CollisionAabb {
     }
 }
 
-/// Two points plus a [`LineBoundType`] that decides whether they describe an infinite line, a
-/// ray, or a segment.
+/// A line, ray, or segment between two points, selected by its [`LineBoundType`].
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionLine {

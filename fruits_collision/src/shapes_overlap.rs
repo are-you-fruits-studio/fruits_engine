@@ -2,8 +2,9 @@ use fruits_math::{Mat3, QuadraticEquationResult, Vec3, eq_quadratic};
 
 use crate::*;
 
-/// Tests two shapes for intersection. The relation is symmetric:
-/// `overlaps(a, b) == overlaps(b, a)`.
+/// Tests two shapes for intersection.
+///
+/// NOTE: symmetric — `overlaps(a, b) == overlaps(b, a)`.
 ///
 /// # Examples
 ///

@@ -95,6 +95,34 @@ Apply this test to **every** candidate comment before writing it:
 > Would a competent Rust developer, reading the item's name, signature, and types, already
 > know this? If yes — **write nothing.**
 
+### When you do write, format the description to fit the item kind
+
+Keep the description **short** (about one sentence) and match its grammar to what the item *is*:
+
+- **Functions / methods** → a **verb phrase** describing the action: *"Registers the collision
+  subsystem…"*, *"Returns the smallest enclosing box…"*.
+- **Structs / enums / traits / type aliases** → a **noun phrase** naming the concept or object,
+  not an action: *"An endpoint of a range of keys."*, *"The resulting type after applying `&`."*.
+- **Constants** → a short **noun phrase** for what the value is — nothing more (no usage advice,
+  no pointers to other parts of the module).
+
+Describe **what the item is / what task it solves**, never how it is implemented. Keep
+implementation details and prose about *other* items out of the description.
+
+If there is a characteristic worth remembering that is *not* part of the item's definition (a
+gotcha, a convention, a side effect like "appends instead of replacing", a coordinate space),
+put it on its own `NOTE:` line after the description instead of stuffing it into the sentence:
+
+```rust
+/// A collision shape attached to an entity.
+///
+/// NOTE: the shape is interpreted in the entity's local space.
+pub struct ColliderComponent { /* … */ }
+```
+
+`# Safety` / `# Panics` / `# Errors` / `# Examples` keep their standard rustdoc headings (a
+`NOTE:` line is for everything else). Order them after the description and any `NOTE:`.
+
 **Write a `///` only when it adds non-obvious information**, such as:
 - `# Safety` — **required** on every public `unsafe fn` (invariants the caller must uphold).
 - `# Panics` — when and why it panics.
