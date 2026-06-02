@@ -1,128 +1,167 @@
 ---
 name: fruits-docs-generation
 description: >-
-  Generates rustdoc documentation (crate/module //! overviews and /// comments on all
-  items, including private) for a single target crate, module, folder, or file in the
-  fruits_engine workspace. Invoke as /fruits-docs-generation <target>.
+  Writes high-value rustdoc for a single target crate/module in the fruits_engine workspace:
+  a rich crate-level overview split into "How to use" and "How to maintain", plus sparse
+  item docs that only add non-obvious information. Invoke as /fruits-docs-generation <target>.
 disable-model-invocation: true
 ---
 
 # fruits-docs-generation
 
-Add rustdoc documentation to a **single, explicitly chosen** part of the `fruits_engine`
-workspace. This skill is run incrementally — one crate/module/folder/file per invocation —
-so the engine can be documented in reviewable chunks as it grows. Never document the whole
-workspace in one run.
+Write rustdoc for **one explicitly chosen** part of the `fruits_engine` workspace. Run
+incrementally — one crate/module/folder/file per invocation — so docs grow in reviewable
+chunks. Never document the whole workspace in one run.
 
-The argument after the command is the **target**: a crate name, a module path, a folder, or
-a single file.
+The argument after the command is the **target**: a crate name, a module path, a folder, or a
+single file.
+
+## Guiding principle (read this first)
+
+**Documentation is a liability, not an asset.** Every line written must be maintained. The
+goal is *not* coverage — it is to add what the code cannot already say for itself. A reviewer
+rejected an earlier "document everything" pass with *"isn't it obvious?"* on almost every
+comment. Do not repeat that.
+
+The value lives in two places, in this priority order:
+
+1. **The crate overview page** — the main deliverable. A human-written guide split into
+   *How to use* and *How to maintain*, with real examples.
+2. **A few item-level `///` comments** — only where an item has non-obvious behavior
+   (panics, safety, units, invariants, edge cases) that a competent Rust dev would *not*
+   infer from the signature and name.
+
+Everything else gets **no comment**. Rustdoc already renders signatures, types, the module
+tree, and navigation; do not restate them.
 
 ## 1. Resolve the target
 
-Parse the target argument and determine the scope of `.rs` files:
+Determine the scope of `.rs` files:
 
-- **Crate name** (e.g. `fruits_collision`) → every `.rs` file under `<crate>/src/`.
-- **Folder / module path** (e.g. `fruits_ecs/src/behavior`) → every `.rs` file in that folder, recursively.
+- **Crate name** (e.g. `fruits_collision`) → the whole crate under `<crate>/src/`.
+- **Folder / module path** (e.g. `fruits_ecs/src/behavior`) → that folder, recursively.
 - **Single file** (e.g. `fruits_ecs/src/world.rs`) → just that file.
 
-Then find the **owning crate**: walk up from the target to the nearest parent `Cargo.toml`
-that is a package (not the workspace root). You need its package name for the verification step
-(`cargo doc -p <name>`).
+Find the **owning crate** (nearest parent package `Cargo.toml`) for the verification step.
 
-**If no target was provided, stop and ask the user for one.** Do not fall back to documenting
-the entire workspace.
+If no target was provided, **stop and ask**. Do not document the whole workspace.
 
-Announce the resolved scope (list of files + owning crate) before editing.
+Announce the resolved scope (files + owning crate) before editing.
 
 ## 2. Read the project rules
 
-Read [AGENTS.md](../../../AGENTS.md) and follow its sections: *Rust Doc Comment Rules*,
-*Style*, *Examples*, *What to Avoid*, *Sources of Truth*.
+Read [AGENTS.md](../../../AGENTS.md): *Sources of Truth*, *Style*, *Examples*, *What to Avoid*.
+Key constraints: code is the source of truth (never invent behavior); clear technical English;
+concrete verbs ("owns", "borrows", "registers", "schedules"); no filler.
 
-Key constraints:
-- **Source of truth is the code itself** (then tests, then existing docs). Never invent behavior,
-  guarantees, or subsystems that the code does not support.
-- Write in **clear technical English**. Use concrete verbs the codebase uses ("owns", "borrows",
-  "registers", "schedules", "dispatches", "uploads"). No filler like "handles stuff" / "manages everything".
-- Be concise. Avoid repetitive wording.
+## 3. The crate overview is the main deliverable
 
-## 3. Document every item in scope
+Write (or extend) a `//!` block at the top of the crate root (`lib.rs`). Do **not** open it
+with a bullet list of the crate's types — rustdoc generates that navigation already. Instead,
+split the page into two top-level sections:
 
-For each file in scope, add documentation for **all** items — **including private ones**.
+```rust
+//! # fruits_<name>
+//!
+//! One or two sentences on what problem this crate solves.
+//!
+//! # How to use
+//!
+//! For someone *using* the engine. Cover only the public API they touch directly — never
+//! internals. Lead with examples of the most common use-cases (Unity-docs style: show real
+//! code, not prose about code). Use the idiomatic entry points the engine actually expects.
+//!
+//! # How to maintain
+//!
+//! For someone *developing/maintaining* this crate. Explain how it works inside: the
+//! architecture, the data flow, non-obvious implementation choices, invariants, and caveats
+//! a maintainer must know before changing it. This is where understanding of the private
+//! code belongs — written as prose here, not as `///` on private items.
+```
 
-> Note: this is a deliberate, user-requested deviation from AGENTS.md's "public over private"
-> guidance. This skill documents private items too, by design.
+Notes:
+- **Examples first, and make them realistic.** Prefer the entry points a real user would call.
+  (For example, in the collision crate a user normally pulls the module in via the engine's
+  *default modules* registration rather than calling the crate's internal `add_*_module_to`
+  directly — check the codebase for the idiomatic path before writing the example.)
+- Large sub-modules of a major subsystem may get their own `//!` with the same two-section
+  split, but only when the module is substantial enough to deserve its own page. Don't add
+  empty section headers to tiny modules.
 
-**Module/crate overviews (`//!`):**
-- At the top of a crate root (`lib.rs`) add a `//!` overview, starting with a `# <crate_name>`
-  heading, summarizing what the crate provides and its main entry points.
-- At the top of a module root (`mod.rs`, or aggregator files like `mod x; pub use x::*;`) add a
-  `//!` overview of the module's responsibility.
+## 4. Item-level `///` docs — only when they earn their place
 
-**Item docs (`///`):** add a `///` comment to every:
-- `fn` (free functions, methods in `impl` blocks, trait methods)
-- `struct` and each of its **fields**
-- `enum` and each of its **variants**
-- `trait` and its associated items
-- `mod` declarations (or use `//!` inside the module file instead)
-- `const`, `static`, `type` aliases
+Apply this test to **every** candidate comment before writing it:
 
-Content order: **purpose first**, then important invariants/constraints, then parameters and
-return behavior when useful. Keep it short.
+> Would a competent Rust developer, reading the item's name, signature, and types, already
+> know this? If yes — **write nothing.**
 
-**Do not touch items that already have a doc comment** (keep churn minimal), unless the existing
-comment is clearly incomplete or wrong.
+**Write a `///` only when it adds non-obvious information**, such as:
+- `# Safety` — **required** on every public `unsafe fn` (invariants the caller must uphold).
+- `# Panics` — when and why it panics.
+- `# Errors` — what an `Err` actually means (beyond "it failed").
+- **Units, coordinate space, or sign conventions** not visible in the type
+  (e.g. "radians", "local space", "half-extents").
+- **Invariants / constraints** the type cannot express.
+- **Surprising behavior or edge cases**, or the *why* behind a choice.
 
-**Never delete developer comments.** Any existing comment text written by a developer (doc
-comments `///`/`//!`, line comments `//`, block comments, `// todo:` notes, etc.) must be
-preserved. You may:
-- reformat a non-Rust comment style (e.g. C#/XML `/// <summary>...</summary>`,
-  `/// <returns>...</returns>`) into idiomatic Rust doc comments, **but keep the original wording**;
-- merge a developer note into your new doc comment.
+**Do not write** docs that merely restate the code. Concrete things the reviewer rejected as
+"obvious" — avoid all of these:
+- naming a variant after its type (`/// A sphere.` on `Sphere(CollisionSphere)`);
+- `From`/`Into`/wrapper one-liners (`/// Wraps a point as Point.`);
+- trivial getters / `is_empty` / `new`-from-fields (`/// Returns true if empty.`);
+- field docs that echo the field name (`/// Center of the box.` on `center`);
+- restating the signature (`/// Builds the resource from an iterator of shapes and entities.`).
 
-When you carry over preserved developer text, mark it so the source is clear — prefix it with
-`Developer note:` (e.g. `/// Developer note: will be used later; ~50% slower but gives contact points.`).
-Do not silently drop, paraphrase away, or replace the developer's original meaning.
+**Scope each item's doc to that item's own responsibility.** Describe what *this* element is or
+does — never the things that use, schedule, or call it:
+- a **component** doc describes the data it carries, *not* the system that reads it;
+- a **resource** doc describes the data and its invariants, *not* the system that fills it;
+- a **system** doc describes the effect it has on the world, *not* who schedules it.
 
-## 4. Markdown sections
+**Never document private or nested items.** Private items, private fields, and nested `fn`s do
+not render in rustdoc — `///` on them is pure maintenance burden. Knowledge about internals
+belongs in the crate's *How to maintain* section as prose.
 
-rustdoc recognizes these by their heading. Add them where they apply:
+**Intra-doc links:** when you do mention another item, link it with `` [`Type`] `` /
+`[text](Self::method)` / `` [`crate::Item`] `` so the reference is clickable.
 
-- **`# Safety`** — required on **every `unsafe fn`**. Describe the invariants the caller must uphold.
-  This crate has substantial `unsafe` (FFI, archetypes); treat these as high priority.
-- **`# Errors`** — for functions returning `Result`: explain what an `Err` means and when it occurs.
-- **`# Panics`** — for functions that can panic: state when and under what conditions.
-- **`# Examples`** — **only on public items**, with compiling code. Examples become doc-tests
-  (`cargo test --doc`) and can only reference the **public** API. For private items, either omit
-  examples or use ` ```text ` / ` ```ignore ` fenced blocks so doc-tests don't break. Keep examples
-  minimal, realistic, and aligned with the actual API (per AGENTS.md *Examples*).
+## 5. Examples
 
-**Intra-doc links** (clickable cross-references): use `` [`Type`] ``, `[text](Self::method)`,
-`` [`module::Item`] `` to link between rustdoc pages. Prefer linking to types/functions you mention.
+Examples are the highest-value content — favor adding more of them over describing obvious code.
 
-## 5. Verify
+- Show **common, realistic use-cases**, not toy snippets that mirror a signature.
+- Prefer **runnable** doctests (they compile and run via `cargo test --doc`) so they can't rot.
+- If a realistic example needs a running app or can't compile cheaply standalone, use
+  ` ```no_run ` (still type-checked) or, only as a last resort, ` ```ignore ` / ` ```text `.
+- Examples live on the crate page and on public items; doctests can only reference the public API.
 
-After editing, confirm the docs compile and intra-doc links resolve. From the repo root, in
-PowerShell:
+## 6. Preserve developer comments
+
+**Never delete a developer's comment.** Existing `//`, `///`, `//!`, block, and `// todo:`
+text must survive. You may reformat a non-Rust style (e.g. C#/XML `/// <summary>...</summary>`)
+into idiomatic Rust, or fold a note into a doc comment — **but keep the original wording** and
+mark carried-over text with a `Developer note:` prefix. Never paraphrase away or drop the
+developer's original meaning.
+
+## 7. Verify
+
+From the repo root, in PowerShell:
 
 ```powershell
 $env:RUSTDOCFLAGS = "-D rustdoc::broken-intra-doc-links"
 cargo +nightly doc -p <owning_crate> --no-deps
 ```
 
-- If there are errors or broken-link warnings, fix them and re-run until clean.
-- If you added `# Examples` with runnable code, also run:
-  ```powershell
-  cargo +nightly test --doc -p <owning_crate>
-  ```
-- Reset `$env:RUSTDOCFLAGS` afterwards if needed.
+- Fix any errors or broken-link warnings and re-run until clean.
+- If you added runnable examples, also run `cargo +nightly test --doc -p <owning_crate>`.
 
-## 6. Report
+## 8. Report
 
-Summarize for the user:
-- which files were modified,
-- roughly how many items were documented,
-- anything in the target still left undocumented and why,
+Summarize:
+- the crate/module overview you wrote (the two sections),
+- which items received a `///` and the non-obvious reason each one earned it,
+- **what you deliberately left undocumented** — under this skill that is the expected, correct
+  outcome for most items, not a gap,
 - the verification result (doc build / doc-test status).
 
-Do **not** commit — only commit when the user explicitly asks.
+Do **not** commit — only when the user explicitly asks.

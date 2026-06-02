@@ -2,10 +2,8 @@ use fruits_math::{Mat3, QuadraticEquationResult, Vec3, eq_quadratic};
 
 use crate::*;
 
-/// Returns `true` if the two shapes intersect.
-///
-/// Dispatches on the [`CollisionShape`] variant pair to the matching primitive test. The
-/// relation is symmetric: `overlaps(a, b) == overlaps(b, a)`.
+/// Tests two shapes for intersection. The relation is symmetric:
+/// `overlaps(a, b) == overlaps(b, a)`.
 ///
 /// # Examples
 ///
@@ -64,12 +62,10 @@ pub fn overlaps(lhs: CollisionShape, rhs: CollisionShape) -> bool {
     }
 }
 
-/// Point–point overlap: exact equality of the two points.
 fn overlaps_pt_pt(lhs: Vec3<f32>, rhs: Vec3<f32>) -> bool {
     lhs == rhs
 }
 
-/// Point–line overlap, honoring the line's [`LineBoundType`] bounds.
 fn overlaps_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> bool {
     if lhs == rhs.start {
         return true;
@@ -108,7 +104,6 @@ fn overlaps_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> bool {
     lhs == projected_point
 }
 
-/// Line–line overlap: tests whether the two (possibly bounded) lines share a point.
 fn overlaps_ln_ln(s1: CollisionLine, s2: CollisionLine) -> bool {
     let p1 = s1.start;
     let p2 = s1.end;
@@ -149,14 +144,12 @@ fn overlaps_ln_ln(s1: CollisionLine, s2: CollisionLine) -> bool {
     closest1 == closest2
 }
 
-/// Point–sphere overlap: point within the sphere's radius.
 fn overlaps_pt_sp(s1: Vec3<f32>, s2: CollisionSphere) -> bool {
     let distance_vector = s1 - s2.center;
 
     distance_vector.length_sq() <= s2.radius * s2.radius
 }
 
-/// Point–triangle overlap via barycentric coordinates plus a plane-distance check.
 fn overlaps_pt_tr(s1: Vec3<f32>, s2: [Vec3<f32>; 3]) -> bool {
     let [a, b, c] = s2;
 
@@ -185,7 +178,6 @@ fn overlaps_pt_tr(s1: Vec3<f32>, s2: [Vec3<f32>; 3]) -> bool {
     // Check if point is in triangle
     return u >= 0.0 && v >= 0.0 && (u + v) <= 1.0 && is_point_on_triangle_plane(a, b, c, s1);
 
-    /// Returns `true` if `point` lies on the plane of triangle `a`, `b`, `c` within tolerance.
     fn is_point_on_triangle_plane(a: Vec3<f32>, b: Vec3<f32>, c: Vec3<f32>, point: Vec3<f32>) -> bool {
         let normal = (b - a).cross(c - a).normalized();
         let distance = (point - a).dot(normal);
@@ -193,7 +185,6 @@ fn overlaps_pt_tr(s1: Vec3<f32>, s2: [Vec3<f32>; 3]) -> bool {
     }
 }
 
-/// Line–sphere overlap: closest point on the (clamped) line within the sphere's radius.
 fn overlaps_ln_sp(s1: CollisionLine, s2: CollisionSphere) -> bool {
     let d = s1.end - s1.start;
     let v = s2.center - s1.start;
@@ -212,7 +203,6 @@ fn overlaps_ln_sp(s1: CollisionLine, s2: CollisionSphere) -> bool {
     (closest_point - s2.center).length_sq() <= s2.radius * s2.radius
 }
 
-/// Box–box overlap: reduces to an AABB-vs-OBB test in `s1`'s local frame.
 fn overlaps_bx_bx(s1: CollisionBox, s2: CollisionBox) -> bool {
     let rot_inv = s1.rotation.to_matrix().inverse().unwrap();
 
@@ -224,7 +214,6 @@ fn overlaps_bx_bx(s1: CollisionBox, s2: CollisionBox) -> bool {
     )
 }
 
-/// Box–sphere overlap: transforms the sphere into the box's local frame, then tests AABB–sphere.
 fn overlaps_bx_sp(s1: CollisionBox, s2: CollisionSphere) -> bool {
     let rot_inv = s1.rotation.to_matrix().inverse().unwrap();
 
@@ -236,7 +225,6 @@ fn overlaps_bx_sp(s1: CollisionBox, s2: CollisionSphere) -> bool {
     overlaps_centered_aa_sp(s1.extents, s2)
 }
 
-/// Box–triangle overlap: transforms the triangle into the box's local frame, then tests AABB–triangle.
 fn overlaps_bx_tr(s1: CollisionBox, s2: [Vec3<f32>; 3]) -> bool {
     let rot_inv = s1.rotation.to_matrix().inverse().unwrap();
 
@@ -245,19 +233,16 @@ fn overlaps_bx_tr(s1: CollisionBox, s2: [Vec3<f32>; 3]) -> bool {
     overlaps_centered_aa_tr(s1.extents, s2)
 }
 
-/// Sphere–sphere overlap: center distance within the sum of radii.
 fn overlaps_sp_sp(s1: CollisionSphere, s2: CollisionSphere) -> bool {
     let r_sum = s1.radius + s2.radius;
 
     (s1.center - s2.center).length_sq() <= r_sum * r_sum
 }
 
-/// Point–AABB overlap: point within the box's extents.
 fn overlaps_pt_aa(s1: Vec3<f32>, s2: CollisionAabb) -> bool {
     overlaps_centered_aa_pt(s2.extents, s1 - s2.center)
 }
 
-/// Point–box overlap: tests the point against the box's extents in its local frame.
 fn overlaps_pt_bx(s1: Vec3<f32>, s2: CollisionBox) -> bool {
     let s1 = s2.rotation.to_matrix().inverse().unwrap() * (s1 - s2.center);
 
@@ -272,7 +257,6 @@ fn overlaps_pt_bx(s1: Vec3<f32>, s2: CollisionBox) -> bool {
     result
 }
 
-/// Line–AABB overlap: recenters the line on the box, then runs a slab test.
 fn overlaps_ln_aa(mut s1: CollisionLine, s2: CollisionAabb) -> bool {
     s1.start -= s2.center;
     s1.end -= s2.center;
@@ -280,7 +264,6 @@ fn overlaps_ln_aa(mut s1: CollisionLine, s2: CollisionAabb) -> bool {
     overlaps_centered_aa_ln(s2.extents, s1)
 }
 
-/// Line–box overlap: a slab test performed in the box's local frame.
 fn overlaps_ln_bx(s1: CollisionLine, s2: CollisionBox) -> bool {
     let s1 = CollisionLine {
         start: s2.rotation.to_matrix().inverse().unwrap() * (s1.start - s2.center),
@@ -325,7 +308,6 @@ fn overlaps_ln_bx(s1: CollisionLine, s2: CollisionBox) -> bool {
     t_min <= t_max
 }
 
-/// Line–triangle overlap via the Möller–Trumbore intersection test.
 fn overlaps_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
     let o = s1.start;
     let d = s1.end - s1.start;
@@ -350,7 +332,6 @@ fn overlaps_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
     (det.abs() >= 1e-6) && (t >= 0.0) && (t <= 1.0) && (u >= 0.0) && (v >= 0.0) && ((u + v) <= 1.0)
 }
 
-/// AABB–AABB overlap: per-axis interval overlap.
 fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
     let min = s1.min().zip_copied(s2.min(), f32::max);
     let max = s1.max().zip_copied(s2.max(), f32::min);
@@ -358,26 +339,20 @@ fn overlaps_aa_aa(s1: CollisionAabb, s2: CollisionAabb) -> bool {
     min.zip(max, |a, b| a <= b).all()
 }
 
-/// AABB–box overlap: a separating-axis test with the AABB treated as centered.
 fn overlaps_aa_bx(s1: CollisionAabb, s2: CollisionBox) -> bool {
     overlaps_centered_aa_bx(s1.extents, s2.center - s1.center, s2.extents, s2.rotation.to_matrix())
 }
 
-/// AABB–sphere overlap: recenters the sphere on the box, then tests AABB–sphere.
 fn overlaps_aa_sp(s1: CollisionAabb, mut s2: CollisionSphere) -> bool {
     s2.center -= s1.center;
     overlaps_centered_aa_sp(s1.extents, s2)
 }
 
-/// AABB–triangle overlap: a separating-axis test with the AABB treated as centered.
 fn overlaps_aa_tr(s1: CollisionAabb, s2: [Vec3<f32>; 3]) -> bool {
     overlaps_centered_aa_tr(s1.extents, s2.map(|v| v - s1.center))
 }
 
-/// Alternative line–sphere overlap based on a quadratic-equation solve.
-///
-/// Developer note: Will be used later. Has 50% worse performance than the non-alt version.
-/// But can provide contact points.
+// Will be used later. Has 50% worse performance than the non-alt version. But can provide contact points.
 fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
     if overlaps_pt_sp(s1.start, s2) || overlaps_pt_sp(s1.end, s2) {
         return true;
@@ -399,18 +374,15 @@ fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
         _ => false,
     };
 
-    /// Returns the `[a, b, c]` quadratic coefficients contributed by one axis.
     fn get_axis_equation_params(x0: f32, x1: f32, xc: f32) -> [f32; 3] {
         [(x1 - x0) * (x1 - x0), 2.0 * (x0 - xc) * (x1 - x0), (x0 - xc) * (x0 - xc)]
     }
 }
 
-/// Overlap of a point against an AABB centered at the origin with the given half-extents.
 fn overlaps_centered_aa_pt(ext: Vec3<f32>, pt: Vec3<f32>) -> bool {
     pt.zip_copied(ext, |p, e| p.abs() <= e).all()
 }
 
-/// Slab test of a line against an origin-centered AABB, honoring the line's bounds.
 fn overlaps_centered_aa_ln(ext: Vec3<f32>, ln: CollisionLine) -> bool {
     let mut t_min = 0.0;
     let mut t_max = 1.0;
@@ -447,7 +419,6 @@ fn overlaps_centered_aa_ln(ext: Vec3<f32>, ln: CollisionLine) -> bool {
     t_min <= t_max
 }
 
-/// Separating-axis test between an origin-centered AABB and an oriented box.
 fn overlaps_centered_aa_bx(ext: Vec3<f32>, bx_center: Vec3<f32>, bx_ext: Vec3<f32>, bx_rot: Mat3<f32>) -> bool {
     let s2_axes = [bx_rot * Vec3::X, bx_rot * Vec3::Y, bx_rot * Vec3::Z]; // OBB axes
 
@@ -481,14 +452,12 @@ fn overlaps_centered_aa_bx(ext: Vec3<f32>, bx_center: Vec3<f32>, bx_ext: Vec3<f3
     true
 }
 
-/// Overlap of a sphere against an origin-centered AABB via the box's closest point.
 fn overlaps_centered_aa_sp(ext: Vec3<f32>, sp: CollisionSphere) -> bool {
     let closest = sp.center.zip_copied(-ext, f32::max).zip_copied(ext, f32::min);
 
     (closest - sp.center).length_sq() <= sp.radius * sp.radius
 }
 
-/// Separating-axis test between an origin-centered AABB and a triangle.
 fn overlaps_centered_aa_tr(ext: Vec3<f32>, sp: [Vec3<f32>; 3]) -> bool {
     let [v0, v1, v2] = sp;
 
@@ -526,7 +495,6 @@ fn overlaps_centered_aa_tr(ext: Vec3<f32>, sp: [Vec3<f32>; 3]) -> bool {
 
 //
 
-/// Projects `points` onto `axis`, returning the `(min, max)` of the projected interval.
 fn project_points_on_axis(axis: Vec3<f32>, points: &[Vec3<f32>]) -> (f32, f32) {
     let mut min = axis.dot(points[0]);
     let mut max = min;
@@ -541,14 +509,12 @@ fn project_points_on_axis(axis: Vec3<f32>, points: &[Vec3<f32>]) -> (f32, f32) {
     (min, max)
 }
 
-/// Projects an origin-centered AABB onto `axis`, returning its symmetric `(-r, r)` interval.
 fn project_centered_aabb_on_axis(axis: Vec3<f32>, half_extents: Vec3<f32>) -> (f32, f32) {
     let r = half_extents.zip(axis, |e, a| e * a.abs()).sum();
 
     (-r, r)
 }
 
-/// Projects an oriented box onto `axis`, returning its `(min, max)` interval.
 fn project_box_on_axis(axis: Vec3<f32>, center: Vec3<f32>, half_extents: Vec3<f32>, axes: [Vec3<f32>; 3]) -> (f32, f32) {
     let c = center.dot(axis);
     let r = half_extents.x * axis.dot(axes[0]).abs()
@@ -559,10 +525,6 @@ fn project_box_on_axis(axis: Vec3<f32>, center: Vec3<f32>, half_extents: Vec3<f3
 
 //
 
-/// Overlap test for two triangles already known to be coplanar with normal `n`.
-///
-/// Projects both triangles onto the axis-aligned plane where `n` is largest and runs 2D
-/// edge–edge and point-in-triangle checks.
 fn coplanar_tri_tri(n: Vec3<f32>, tri1: [Vec3<f32>; 3], tri2: [Vec3<f32>; 3]) -> bool {
     // Project the triangles onto the axis-aligned plane where n has the greatest magnitude
     let [a1, b1, c1] = tri1;
@@ -578,11 +540,8 @@ fn coplanar_tri_tri(n: Vec3<f32>, tri1: [Vec3<f32>; 3], tri2: [Vec3<f32>; 3]) ->
         [0, 1] // project to XY
     };
 
-    /// Tests the 2D edge `p1`–`q1` against all three edges of triangle `a`, `b`, `c`.
-    ///
-    /// Developer note: 2D triangle overlap check (brute-force edge-edge).
+    // 2D triangle overlap check (brute-force edge-edge)
     fn edge_against_tri_edges(p1: Vec3<f32>, q1: Vec3<f32>, a: Vec3<f32>, b: Vec3<f32>, c: Vec3<f32>, i1: usize, i2: usize) -> bool {
-        /// Tests whether the 2D segments `v0`–`v1` and `u0`–`u1` cross (axes `i1`, `i2`).
         fn edge_edge_test(v0: Vec3<f32>, v1: Vec3<f32>, u0: Vec3<f32>, u1: Vec3<f32>, i1: usize, i2: usize) -> bool {
             let ax = v1[i1] - v0[i1];
             let ay = v1[i2] - v0[i2];
@@ -607,7 +566,6 @@ fn coplanar_tri_tri(n: Vec3<f32>, tri1: [Vec3<f32>; 3], tri2: [Vec3<f32>; 3]) ->
         edge_edge_test(p1, q1, a, b, i1, i2) || edge_edge_test(p1, q1, b, c, i1, i2) || edge_edge_test(p1, q1, c, a, i1, i2)
     }
 
-    /// Returns `true` if 2D point `p` lies inside triangle `a`, `b`, `c` (axes `i1`, `i2`).
     fn point_in_tri(p: Vec3<f32>, a: Vec3<f32>, b: Vec3<f32>, c: Vec3<f32>, i1: usize, i2: usize) -> bool {
         let px = p[i1];
         let py = p[i2];
@@ -663,10 +621,6 @@ fn coplanar_tri_tri(n: Vec3<f32>, tri1: [Vec3<f32>; 3], tri2: [Vec3<f32>; 3]) ->
     point_in_tri(a1, a2, b2, c2, i1, i2) || point_in_tri(a2, a1, b1, c1, i1, i2)
 }
 
-/// Triangle–triangle overlap using the Möller interval-overlap method.
-///
-/// Rejects early via signed plane distances, and falls back to [`coplanar_tri_tri`] when the
-/// triangles share a plane.
 fn overlaps_tr_tr(s1: [Vec3<f32>; 3], s2: [Vec3<f32>; 3]) -> bool {
     let [v0, v1, v2] = s1;
     let [u0, u1, u2] = s2;
@@ -719,7 +673,6 @@ fn overlaps_tr_tr(s1: [Vec3<f32>; 3], s2: [Vec3<f32>; 3]) -> bool {
     true
 }
 
-/// Sphere–triangle overlap: tests the sphere center's projection, then the nearest edge point.
 fn overlaps_sp_tr(s1: CollisionSphere, s2: [Vec3<f32>; 3]) -> bool {
     let [a, b, c] = s2;
 

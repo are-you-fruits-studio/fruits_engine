@@ -4,97 +4,66 @@ use fruits_math::{Mat4, Quat, Vec3};
 
 use crate::LineBoundType;
 
-/// A geometric primitive used for collision tests.
-///
-/// Every variant carries its concrete shape data. Use [`overlaps`](crate::overlaps) to test two shapes for
-/// intersection, [`to_aabb`](Self::to_aabb) to obtain an enclosing box, and
-/// [`apply_matrix_lossy`](Self::apply_matrix_lossy) to transform a shape into another space.
-///
-/// # Examples
-///
-/// ```
-/// use fruits_collision::{CollisionShape, CollisionSphere, overlaps};
-/// use fruits_math::Vec3;
-///
-/// let sphere = CollisionSphere { center: Vec3::splat(0.0), radius: 1.0 };
-/// let point: CollisionShape = Vec3::new(0.5, 0.0, 0.0).into();
-///
-/// assert!(overlaps(point, sphere.into_shape()));
-/// ```
+/// A geometric primitive for collision tests: point, line, AABB, oriented box, sphere, or
+/// triangle. Test two of them with [`overlaps`](crate::overlaps).
 #[repr(C, u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CollisionShape {
-    /// A single point in space.
     Point(Vec3<f32>),
-    /// A line, ray, or segment, depending on its [`LineBoundType`].
     Line(CollisionLine),
-    /// An axis-aligned bounding box.
     Aabb(CollisionAabb),
-    /// An oriented (rotatable) box.
     Box(CollisionBox),
-    /// A sphere.
     Sphere(CollisionSphere),
-    /// A triangle given by its three corner points.
     Triangle([Vec3<f32>; 3]),
 }
 
 impl From<Vec3<f32>> for CollisionShape {
-    /// Wraps a point as [`CollisionShape::Point`].
     fn from(value: Vec3<f32>) -> Self {
         Self::Point(value)
     }
 }
 impl From<CollisionLine> for CollisionShape {
-    /// Wraps a line as [`CollisionShape::Line`].
     fn from(value: CollisionLine) -> Self {
         Self::Line(value)
     }
 }
 impl From<CollisionAabb> for CollisionShape {
-    /// Wraps an AABB as [`CollisionShape::Aabb`].
     fn from(value: CollisionAabb) -> Self {
         Self::Aabb(value)
     }
 }
 impl From<CollisionBox> for CollisionShape {
-    /// Wraps an oriented box as [`CollisionShape::Box`].
     fn from(value: CollisionBox) -> Self {
         Self::Box(value)
     }
 }
 impl From<CollisionSphere> for CollisionShape {
-    /// Wraps a sphere as [`CollisionShape::Sphere`].
     fn from(value: CollisionSphere) -> Self {
         Self::Sphere(value)
     }
 }
 impl From<[Vec3<f32>; 3]> for CollisionShape {
-    /// Wraps three corner points as [`CollisionShape::Triangle`].
     fn from(value: [Vec3<f32>; 3]) -> Self {
         Self::Triangle(value)
     }
 }
 
 impl CollisionLine {
-    /// Wraps this line as a [`CollisionShape::Line`] in a `const` context.
     pub const fn into_shape(self) -> CollisionShape {
         CollisionShape::Line(self)
     }
 }
 impl CollisionAabb {
-    /// Wraps this AABB as a [`CollisionShape::Aabb`] in a `const` context.
     pub const fn into_shape(self) -> CollisionShape {
         CollisionShape::Aabb(self)
     }
 }
 impl CollisionBox {
-    /// Wraps this box as a [`CollisionShape::Box`] in a `const` context.
     pub const fn into_shape(self) -> CollisionShape {
         CollisionShape::Box(self)
     }
 }
 impl CollisionSphere {
-    /// Wraps this sphere as a [`CollisionShape::Sphere`] in a `const` context.
     pub const fn into_shape(self) -> CollisionShape {
         CollisionShape::Sphere(self)
     }
@@ -193,29 +162,23 @@ impl CollisionShape {
     }
 }
 
-/// An oriented box defined by a center, half-extents, and a rotation.
+/// An oriented box. `extents` are half-sizes (center to face), in local space before `rotation`.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionBox {
-    /// Center of the box in the current space.
     pub center: Vec3<f32>,
-    /// Half-sizes along the box's own local axes before rotation.
     pub extents: Vec3<f32>,
-    /// Orientation applied to the local axes.
     pub rotation: Quat<f32>,
 }
 
-/// An axis-aligned bounding box stored as a center and half-extents.
+/// An axis-aligned box. `extents` are half-sizes (center to each face).
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionAabb {
-    /// Center of the box.
     pub center: Vec3<f32>,
-    /// Half-sizes along the X, Y, and Z axes.
     pub extents: Vec3<f32>,
 }
 impl CollisionAabb {
-    /// Builds an AABB spanning the inclusive range `[min, max]`.
     pub fn from_min_max(min: Vec3<f32>, max: Vec3<f32>) -> Self {
         Self {
             center: (min + max) * 0.5,
@@ -223,19 +186,15 @@ impl CollisionAabb {
         }
     }
 
-    /// Returns the minimum corner (`center - extents`).
     pub fn min(&self) -> Vec3<f32> {
         self.center - self.extents
     }
 
-    /// Returns the maximum corner (`center + extents`).
     pub fn max(&self) -> Vec3<f32> {
         self.center + self.extents
     }
 
-    /// Returns the smallest AABB enclosing all `points`.
-    ///
-    /// Returns a zero-sized box centered at the origin when the iterator is empty.
+    /// Smallest AABB enclosing all `points`; a zero-sized box at the origin if `points` is empty.
     pub fn from_points(mut points: impl Iterator<Item = Vec3<f32>>) -> Self {
         let Some(first) = points.next() else {
             return Self {
@@ -255,7 +214,6 @@ impl CollisionAabb {
         Self::from_min_max(min, max)
     }
 
-    /// Returns the smallest AABB enclosing both `self` and `other`.
     pub fn merge(self, other: Self) -> Self {
         let min = self.min().zip_copied(other.min(), f32::min);
         let max = self.max().zip_copied(other.max(), f32::max);
@@ -264,27 +222,19 @@ impl CollisionAabb {
     }
 }
 
-/// A line through two points whose finiteness is controlled by [`LineBoundType`].
-///
-/// Depending on `bounds`, the same `start`/`end` pair represents an infinite line, a ray,
-/// or a finite segment.
+/// Two points plus a [`LineBoundType`] that decides whether they describe an infinite line, a
+/// ray, or a segment.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionLine {
-    /// First defining point.
     pub start: Vec3<f32>,
-    /// Second defining point.
     pub end: Vec3<f32>,
-    /// Which ends of the line are bounded.
     pub bounds: LineBoundType,
 }
 
-/// A sphere defined by a center and radius.
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionSphere {
-    /// Center of the sphere.
     pub center: Vec3<f32>,
-    /// Radius of the sphere.
     pub radius: f32,
 }
