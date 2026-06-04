@@ -8,9 +8,7 @@
 //! #### Enabling audio in a world
 //!
 //! Audio is registered on its own — it is *not* part of the engine's default modules. Call
-//! [`add_audio_module_to`] with the world builder. This opens the default output device, starts
-//! the playback stream, and inserts the [`AudioStateResource`] and the [`AudioClip`] asset
-//! storage:
+//! [`add_audio_module_to`] with the world builder to enable audio playback in the world:
 //!
 //! ```ignore
 //! use fruits_engine::*;
@@ -21,9 +19,8 @@
 //!
 //! #### Playing a sound
 //!
-//! Load an [`AudioClip`] and attach an [`AudioSource`] to an entity. Clips are loaded through the
-//! asset layer (`fruits_asset_loading`), which reads a WAV, converts it to stereo 48&nbsp;kHz, and
-//! registers it under a key:
+//! Load an [`AudioClip`] and attach an [`AudioSource`] to an entity. Clips are loaded by their
+//! asset key through the asset layer (`fruits_asset_loading`):
 //!
 //! ```ignore
 //! use fruits_engine::*;
@@ -52,8 +49,8 @@
 //!
 //! #### Reading the played samples
 //!
-//! [`AudioStateResource::last_samples`] exposes a copy of the interleaved stereo buffer the output
-//! callback mixed most recently — useful for waveform visualizations:
+//! [`AudioStateResource::last_samples`] returns the most recently played samples as an interleaved
+//! stereo buffer (`L, R, L, R, ...` at 48&nbsp;kHz) — useful for waveform visualizations:
 //!
 //! ```ignore
 //! fn visualize(audio: Res<AudioStateResource>) {
@@ -65,9 +62,8 @@
 //! #### Resampling raw audio to the engine rate
 //!
 //! A clip recorded at some other sample rate has to be brought to the engine's 48&nbsp;kHz before it
-//! can be played. [`resample_audio`] does that conversion on interleaved samples with cubic
-//! interpolation — the asset loader calls it for non-48&nbsp;kHz WAVs, and it is public so callers
-//! preparing their own clips can reuse it:
+//! can be played. [`resample_audio`] converts an interleaved buffer from one sample rate to
+//! another, so callers preparing their own clips can bring them to the engine's rate:
 //!
 //! ```
 //! use fruits_audio::{resample_audio, AUDIO_CHANNELS_COUNT, AUDIO_SAMPLE_RATE};

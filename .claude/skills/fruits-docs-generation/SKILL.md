@@ -75,52 +75,44 @@ three parts: a one- or two-sentence summary, then two top-level sections.
 
 **The opening summary is a pure overview, nothing more.** It states *what problem the crate
 solves* and *what it is for* — the role it plays in the engine. It must **not** describe technical
-implementation (threads, data structures, FFI, control flow), nor *how to apply* the crate (entry
-points, registration calls, API steps). "How it works inside" belongs in *How to maintain*; "how
-to apply it" belongs in *How to use*. Keep it to one or two plain sentences that a reader skims to
-decide whether this crate is relevant at all — do not name specific functions or types there.
+implementation (threads, data structures, FFI, control flow) or *how to apply* the crate (entry
+points, registration, API steps) — those belong in *How to maintain* and *How to use* respectively.
+Keep it to one or two plain sentences a reader skims to decide whether the crate is relevant; do
+not name specific functions or types.
 
-### Both sections must be structured, not a wall of text
+### Structure: small sub-sections, not a wall of text
 
-Break each section into small sub-sections, one per topic or use-case. Use a **deep heading
-level** for them (`####`, i.e. h4) so they read as quiet sub-headings — rustdoc renders `#`/`##`
-large and underlined, which would compete with the `How to use` / `How to maintain` section
-titles; `####` is smaller, dimmer, and rule-less.
-
-**Every *How to use* sub-section is a worked example and must carry code.** Each one is a
-self-contained unit with three clearly separated parts:
-
-1. a `####` **heading** naming the use-case ("Making an entity collidable"),
-2. **prose** stating the task this example solves (the problem the user has),
-3. a **code block** showing how it is solved.
-
-A *How to use* sub-section that is only prose with no code block is not allowed — either give it a
-real code example, or fold its content into the prose of a neighbouring example. Do not create a
-sub-section just to describe an API in words; if there is nothing to show in code, there is no
-sub-section. Never run two unrelated examples together without a heading between them. Order *How
-to use* by how common the use-case is — most common first (Unity-docs style: show real code, lead
-with it).
-
-*How to maintain* is explanatory prose about the internals (architecture, data flow, invariants,
-caveats). Its sub-sections describe how the code works and do not need code blocks; the
-code-per-sub-section rule above applies to *How to use*, not here.
+Break each section into small sub-sections, one per topic or use-case, under a `####` (h4)
+heading — `#`/`##` render large and underlined and would compete with the `How to use` /
+`How to maintain` titles. Never run two unrelated examples together without a heading between them.
 
 ### How to use
 
-- Cover only the **public API a user touches directly**. Use the idiomatic entry points the
-  engine actually expects — check the codebase for the real path (e.g. a subsystem is usually
-  pulled in via the engine's *default modules* registration, not by calling a crate's internal
-  `add_*_module_to` directly).
-- Lead with examples. Prefer **runnable** doctests (compiled by `cargo test --doc`) so they
-  cannot rot. If a realistic example needs a running app or can't compile cheaply standalone, use
-  ` ```no_run ` (still type-checked) or, as a last resort, ` ```ignore ` / ` ```text `. Doctests
-  can only reference the crate's public API.
+Show *what functionality the crate offers* and *how a user invokes it*: the **public API a user
+touches directly**, through the idiomatic entry points the engine actually expects (check the
+codebase for the real path — a subsystem is usually pulled in via the engine's *default modules*
+registration, not by calling a crate's internal `add_*_module_to` directly). Order sub-sections by
+how common the use-case is — most common first (Unity-docs style: lead with real code).
+
+Every sub-section is a worked example with three parts: a `####` heading naming the use-case, a
+sentence stating the task it solves, and a code block solving it. A sub-section with no code block
+is not allowed — give it a real example or fold it into a neighbour; if there is nothing to show in
+code, there is no sub-section. Prefer **runnable** doctests (`cargo test --doc`) so they cannot rot;
+if a realistic example needs a running app or can't compile cheaply standalone, use ` ```no_run `
+(still type-checked) or, last resort, ` ```ignore ` / ` ```text `. Doctests see only the public API.
+
+**Keep implementation out:** do not explain which internal types are created, what device/subsystem
+is opened, the internal data flow, or the algorithms used (sampling, interpolation, threading, FFI,
+buffering, ...). Describe the result the user cares about, not the machinery — e.g. *"this enables
+audio playback in the world"*, not *"this opens the default output device and inserts the
+`AudioStateResource`"*; *"`resample_audio` converts a buffer to a different sample rate"*, not
+*"...with cubic interpolation"*. Such "how it works inside" detail goes in *How to maintain*.
 
 ### How to maintain
 
-- Explain the architecture, data flow, the non-obvious implementation choices, invariants, and
-  the caveats a maintainer must know before changing the code. This is where understanding of the
-  **private** code belongs — as prose here, never as `///` on private items.
+Explanatory prose (no code blocks required) on the architecture, data flow, non-obvious
+implementation choices, invariants, and caveats a maintainer must know before changing the code.
+This is where understanding of the **private** code lives — as prose here, never as `///` items.
 
 ### Accuracy: every word must match the code
 
