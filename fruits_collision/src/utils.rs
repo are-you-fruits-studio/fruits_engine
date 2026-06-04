@@ -4,7 +4,6 @@ use crate::{CollisionAabb, CollisionShape, overlaps};
 
 // todo: recursion to iteration
 
-/// A bounding-volume hierarchy (BVH) mapping [`CollisionShape`]s to payloads of type `T`.
 #[repr(C)]
 #[derive(Default, Debug)]
 pub struct Bvh<T: Clone> {
@@ -42,9 +41,6 @@ impl<T: Clone> Bvh<T> {
 }
 
 impl<T: Clone> Bvh<T> {
-    /// Collects the payloads of all indexed shapes overlapping `query` into `hits`.
-    ///
-    /// NOTE: appends to `hits`; existing entries are kept.
     pub fn query(&self, query: CollisionShape, hits: &mut Vec<T>) {
         let Some(root) = self.root.as_ref() else {
             return;

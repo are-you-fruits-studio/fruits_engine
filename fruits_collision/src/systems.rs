@@ -6,10 +6,6 @@ use crate::{
     ColliderComponent, CollisionWorldResource,
 };
 
-/// Rebuilds the [`CollisionWorldResource`] from the world's [`ColliderComponent`]s.
-///
-/// NOTE: each shape is moved into world space via the entity's [`GlobalTransform`] (when
-/// present); the index is rebuilt from scratch every call.
 pub fn update_collision_world(
     mut collision_world: ResMut<CollisionWorldResource>,
     q: WorldQuery<(EntityId, &ColliderComponent, Option<&GlobalTransform>)>,

@@ -2,21 +2,6 @@ use fruits_math::{Mat3, QuadraticEquationResult, Vec3, eq_quadratic};
 
 use crate::*;
 
-/// Tests two shapes for intersection.
-///
-/// NOTE: symmetric — `overlaps(a, b) == overlaps(b, a)`.
-///
-/// # Examples
-///
-/// ```
-/// use fruits_collision::{CollisionAabb, CollisionShape, overlaps};
-/// use fruits_math::Vec3;
-///
-/// let a = CollisionAabb { center: Vec3::splat(0.0), extents: Vec3::splat(1.0) };
-/// let b = CollisionAabb { center: Vec3::new(1.5, 0.0, 0.0), extents: Vec3::splat(1.0) };
-///
-/// assert!(overlaps(a.into_shape(), b.into_shape()));
-/// ```
 pub fn overlaps(lhs: CollisionShape, rhs: CollisionShape) -> bool {
     match (lhs, rhs) {
         (CollisionShape::Point(lhs), CollisionShape::Point(rhs)) => overlaps_pt_pt(lhs, rhs),

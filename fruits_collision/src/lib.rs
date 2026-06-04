@@ -4,8 +4,10 @@
 //!
 //! # How to use
 //!
-//! The collision subsystem is normally pulled into a world through the engine's default
-//! modules, not by registering this crate by hand:
+//! ## Enabling collision in a world
+//!
+//! The collision subsystem is registered through the engine's default modules, not by
+//! registering this crate by hand:
 //!
 //! ```ignore
 //! use fruits_engine::*;
@@ -14,9 +16,9 @@
 //! add_defult_modules_to(app.ecs_mut().as_mut());
 //! ```
 //!
-//! Make an entity collidable by attaching a [`ColliderComponent`]. The shape is given in the
-//! entity's local space; each frame it is transformed by the entity's `GlobalTransform` and
-//! re-indexed:
+//! ## Making an entity collidable
+//!
+//! Attach a [`ColliderComponent`] carrying the [`CollisionShape`]:
 //!
 //! ```ignore
 //! ec.add_component(entity, ColliderComponent {
@@ -24,20 +26,30 @@
 //! }).ok().unwrap();
 //! ```
 //!
-//! Query the world from a system by reading [`CollisionWorldResource`] and probing it with a
-//! shape (here a mouse ray). [`overlaps`](CollisionWorldResource::overlaps) collects the
-//! entities whose colliders the probe touches:
+//! Each update, [`update_collision_world`] reads every [`ColliderComponent`] and, when the
+//! entity also has a [`GlobalTransform`](fruits_transform::GlobalTransform), transforms the
+//! shape by it via [`CollisionShape::apply_matrix_lossy`] before adding it to the world; an
+//! entity with no transform contributes its shape as written.
+//!
+//! ## Querying the world
+//!
+//! Read [`CollisionWorldResource`] in a system and probe it with a shape (here a ray).
+//! [`overlaps`](CollisionWorldResource::overlaps) appends every entity whose collider the probe
+//! touches to the passed `Vec`:
 //!
 //! ```ignore
 //! fn pick(world: Res<CollisionWorldResource>) {
 //!     let ray = CollisionLine { start, end, bounds: LineBoundType::UNRESTRICTED };
 //!     let mut hits = Vec::new();
 //!     world.overlaps(ray.into(), &mut hits);
-//!     // `hits` now lists every entity under the ray
+//!     // `hits` now lists every entity the ray touches
 //! }
 //! ```
 //!
-//! For a one-off geometric test without the ECS, call [`overlaps`] on two shapes directly:
+//! ## Testing two shapes directly
+//!
+//! For a one-off geometric test without the ECS, call the free [`overlaps`] function on two
+//! shapes:
 //!
 //! ```
 //! use fruits_collision::{CollisionAabb, CollisionShape, overlaps};
@@ -50,22 +62,25 @@
 //!
 //! # How to maintain
 //!
-//! The crate has two layers.
+//! ## Geometry layer
 //!
-//! **Geometry** — [`overlaps`] and the [`CollisionShape`] variants. `overlaps` matches on the
-//! ordered variant pair and forwards to a private primitive routine. Each *unordered* pair has
-//! a single implementation that the swapped pair reuses by exchanging its arguments (e.g.
-//! AABB-vs-box and box-vs-AABB call the same function). Oriented-box, triangle, and several
-//! other tests are first moved into an origin-centered AABB's local frame, so one
-//! separating-axis routine can back multiple shape pairs.
+//! [`overlaps`] and the [`CollisionShape`] variants. `overlaps` matches on the ordered variant
+//! pair and forwards to a private primitive routine. Each *unordered* pair has a single
+//! implementation that the swapped pair reuses by exchanging its arguments (e.g. AABB-vs-box and
+//! box-vs-AABB call the same function). Oriented-box, triangle, and several other tests first
+//! move the geometry into an origin-centered AABB's local frame, so one separating-axis routine
+//! can back multiple shape pairs.
 //!
-//! **Broad phase** — [`CollisionWorldResource`], backed by [`Bvh`]. The BVH is a binary tree,
-//! median-split on a cycling X/Y/Z axis chosen by node depth, and is **rebuilt from scratch
-//! every frame** by the [`update_collision_world`] system (there is no incremental update — if
-//! rebuild cost ever matters, that is the place to change). A query prunes by node AABB before
-//! testing the exact leaf shapes.
+//! ## Broad-phase layer
 //!
-//! Caveats before changing anything:
+//! [`CollisionWorldResource`], backed by [`Bvh`]. The BVH is a binary tree, median-split on a
+//! cycling X/Y/Z axis chosen by node depth. The [`update_collision_world`] system **rebuilds the
+//! whole resource from scratch every update** (`*world = CollisionWorldResource::new(..)`) —
+//! there is no incremental update, so if rebuild cost ever matters, that is the place to change.
+//! A query prunes by node AABB before testing the exact leaf shapes.
+//!
+//! ## Caveats before changing anything
+//!
 //! - [`CollisionShape::to_aabb`] **panics** for a non-segment [`CollisionLine`]: an unbounded
 //!   line has no finite box, so nothing that feeds the BVH may contain infinite lines.
 //! - [`CollisionShape::apply_matrix_lossy`] is deliberately lossy — an AABB keeps its extents
@@ -94,17 +109,8 @@ pub use utils::*;
 
 use fruits_ecs::{Schedule, WorldBuilderMut};
 
-/// System-group name for the collision systems.
 pub const SYSTEM_GROUP_COLLISION: &'static str = "fruits_collision";
 
-/// Registers the collision subsystem into `world`.
-///
-/// NOTE: usually pulled in by the engine's default-module registration rather than called
-/// directly.
-///
-/// # Panics
-///
-/// Panics if a [`CollisionWorldResource`] was already inserted into `world`.
 pub fn add_collision_module_to(mut world: WorldBuilderMut) {
     world
         .data_mut()

@@ -1,8 +1,6 @@
 use std::ops::{BitAnd, BitOr};
 
 // todo: rewrite Debug impl
-/// Boundedness of a [`CollisionLine`](crate::CollisionLine)'s endpoints — an infinite line, a
-/// ray, or a segment.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct LineBoundType(u8);
