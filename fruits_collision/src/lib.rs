@@ -4,7 +4,7 @@
 //!
 //! # How to use
 //!
-//! ## Enabling collision in a world
+//! #### Enabling collision in a world
 //!
 //! The collision subsystem is registered through the engine's default modules, not by
 //! registering this crate by hand:
@@ -16,7 +16,7 @@
 //! add_defult_modules_to(app.ecs_mut().as_mut());
 //! ```
 //!
-//! ## Making an entity collidable
+//! #### Making an entity collidable
 //!
 //! Attach a [`ColliderComponent`] carrying the [`CollisionShape`]:
 //!
@@ -31,7 +31,7 @@
 //! shape by it via [`CollisionShape::apply_matrix_lossy`] before adding it to the world; an
 //! entity with no transform contributes its shape as written.
 //!
-//! ## Querying the world
+//! #### Querying the world
 //!
 //! Read [`CollisionWorldResource`] in a system and probe it with a shape (here a ray).
 //! [`overlaps`](CollisionWorldResource::overlaps) appends every entity whose collider the probe
@@ -46,7 +46,7 @@
 //! }
 //! ```
 //!
-//! ## Testing two shapes directly
+//! #### Testing two shapes directly
 //!
 //! For a one-off geometric test without the ECS, call the free [`overlaps`] function on two
 //! shapes:
@@ -62,7 +62,7 @@
 //!
 //! # How to maintain
 //!
-//! ## Geometry layer
+//! #### Geometry layer
 //!
 //! [`overlaps`] and the [`CollisionShape`] variants. `overlaps` matches on the ordered variant
 //! pair and forwards to a private primitive routine. Each *unordered* pair has a single
@@ -71,7 +71,7 @@
 //! move the geometry into an origin-centered AABB's local frame, so one separating-axis routine
 //! can back multiple shape pairs.
 //!
-//! ## Broad-phase layer
+//! #### Broad-phase layer
 //!
 //! [`CollisionWorldResource`], backed by [`Bvh`]. The BVH is a binary tree, median-split on a
 //! cycling X/Y/Z axis chosen by node depth. The [`update_collision_world`] system **rebuilds the
@@ -79,7 +79,7 @@
 //! there is no incremental update, so if rebuild cost ever matters, that is the place to change.
 //! A query prunes by node AABB before testing the exact leaf shapes.
 //!
-//! ## Caveats before changing anything
+//! #### Caveats before changing anything
 //!
 //! - [`CollisionShape::to_aabb`] **panics** for a non-segment [`CollisionLine`]: an unbounded
 //!   line has no finite box, so nothing that feeds the BVH may contain infinite lines.

@@ -75,10 +75,13 @@ three parts: a one- or two-sentence summary, then two top-level sections.
 
 ### Both sections must be structured, not a wall of text
 
-Break each section into small `##` sub-sections, one per topic or use-case. Every worked example
-is a self-contained unit with three clearly separated parts:
+Break each section into small sub-sections, one per topic or use-case. Use a **deep heading
+level** for them (`####`, i.e. h4) so they read as quiet sub-headings — rustdoc renders `#`/`##`
+large and underlined, which would compete with the `How to use` / `How to maintain` section
+titles; `####` is smaller, dimmer, and rule-less. Every worked example is a self-contained unit
+with three clearly separated parts:
 
-1. a `##` **heading** naming the use-case ("Making an entity collidable"),
+1. a `####` **heading** naming the use-case ("Making an entity collidable"),
 2. a **code block** (the example),
 3. **prose** above or below it explaining what the code does.
 
