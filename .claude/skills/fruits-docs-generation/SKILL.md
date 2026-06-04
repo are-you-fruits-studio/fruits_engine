@@ -3,7 +3,8 @@ name: fruits-docs-generation
 description: >-
   Writes high-value rustdoc for a single target crate/module in the fruits_engine workspace.
   All documentation lives on the crate main page (a //! overview split into "How to use" and
-  "How to maintain"); item-level /// comments are not used. Invoke as /fruits-docs-generation <target>.
+  "How to maintain"); item-level /// comments are not used. Edits only the main page — no other
+  source file is modified. Invoke as /fruits-docs-generation <target>.
 disable-model-invocation: true
 ---
 
@@ -25,11 +26,12 @@ reviewer rejected a "document everything" pass with *"isn't it obvious?"* on alm
 So this skill produces **exactly one kind of documentation**: the crate-level `//!` overview on
 the main page. That is the whole deliverable.
 
+- **Only the main page is edited.** This skill writes (or extends) the `//!` overview on the
+  crate main page and modifies **no other file**. Do not remove existing `///` item docs from
+  other files, do not edit or reformat their developer comments, do not make any incidental change
+  there — every other source file stays exactly as it is. The whole change is confined to one file.
 - **Do not write item-level `///` comments** on functions, structs, enums, traits, constants,
   type aliases, fields, variants, or methods — public or private.
-- **Remove existing `///` item docs** in the target scope (the knowledge they carried, if it is
-  genuinely non-obvious, moves into the *How to maintain* section as prose). This does **not**
-  apply to plain developer comments — see §4.
 - Let names, types, and signatures carry the per-item meaning. If an item is so unclear that it
   *needs* a sentence, that is a signal to rename it, not to comment it.
 
@@ -132,16 +134,20 @@ invent mechanisms, names, or behavior.**
 `` [`crate::Item`] `` so the reference is clickable. This is the *only* place links are written
 (there are no item docs to link from).
 
-## 4. Preserve developer comments
+## 4. Touch only the main page
 
-**Never delete a developer's comment.** Plain code comments — `//`, `// todo:`, block comments —
-stay exactly where they are; they are notes to maintainers, not rustdoc, and this skill leaves
-them untouched. (Removing `///` *item docs* per §3 is different and expected.)
+This skill edits exactly one file: the main page that carries the `//!` overview. Every other
+source file in the target scope is **read-only** — you read it to understand the code, but you
+never modify it. Concretely:
 
-If you meet a non-Rust doc style (e.g. C#/XML `/// <summary>...</summary>`) on an item whose
-`///` you are removing, do not silently drop its wording: move the original text into the *How to
-maintain* section (or keep it as a plain `//` comment) and mark carried-over text with a
-`Developer note:` prefix. Never paraphrase away the developer's original meaning.
+- Do not remove or rewrite existing `///` item docs in other files.
+- Do not delete, move, or reformat developer comments (`//`, `// todo:`, block comments) anywhere.
+- Do not make any other incidental edit (imports, formatting, renames) outside the overview.
+
+If another file holds knowledge worth surfacing — a non-obvious invariant in a `///` doc, a
+`// todo:`, or a non-Rust doc style such as C#/XML `/// <summary>...</summary>` — capture that
+knowledge as prose in the *How to maintain* section of the overview. Leave the original comment
+exactly where it is; never paraphrase it away in its own file.
 
 ## 5. Verify
 
@@ -159,8 +165,9 @@ cargo +nightly doc -p <owning_crate> --no-deps
 
 Summarize:
 - the crate/module overview you wrote (its sub-sections and examples),
-- which item-level `///` docs you removed,
-- any developer comments you preserved or carried over,
+- any non-obvious knowledge you carried from other files into *How to maintain* (their source
+  comments stay in place),
+- confirmation that no file other than the main page was modified,
 - the verification result (doc build / doc-test status).
 
 Do **not** commit — only when the user explicitly asks.

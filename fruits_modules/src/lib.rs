@@ -1,3 +1,73 @@
+//! # fruits_modules
+//!
+//! Bundles the engine's built-in subsystems into a single registration step, so an
+//! app starts from a world that already has collision, transforms, rendering, and
+//! prefab support wired together.
+//!
+//! # How to use
+//!
+//! #### Building a default world
+//!
+//! Register every default subsystem at once on a freshly created `App`
+//! before populating the world. This is the call almost every app makes first:
+//!
+//! ```ignore
+//! use fruits_engine::*;
+//!
+//! let mut app = App::new();
+//! add_defult_modules_to(app.ecs_mut().as_mut());
+//! // ... register your own systems and entities ...
+//! app.run();
+//! ```
+//!
+//! #### Printing the frame rate
+//!
+//! The FPS counter is opt-in — it is *not* part of the default modules. Add it to
+//! print the averaged frame rate and frame time to stdout once per second:
+//!
+//! ```ignore
+//! use fruits_engine::*;
+//!
+//! let mut app = App::new();
+//! add_defult_modules_to(app.ecs_mut().as_mut());
+//! fps_counter::add_module_to(app.ecs_mut().as_mut());
+//! app.run();
+//! ```
+//!
+//! # How to maintain
+//!
+//! #### Default module set and ordering
+//!
+//! [`add_defult_modules_to`] is the assembly point. It registers the collision,
+//! transform, and render subsystems through their own `add_*_module_to` helpers,
+//! inserts the resources the prefab pipeline depends on
+//! ([`AssetStorageResource<Prefab>`](fruits_asset_storage::AssetStorageResource),
+//! [`PrefabComponentsDeserializerResource`], and [`SerializersResource`]), then constrains the [`Update`](fruits_ecs::Schedule::Update)
+//! schedule so the [`SYSTEM_GROUP_COLLISION`](fruits_collision::SYSTEM_GROUP_COLLISION)
+//! group runs before [`SYSTEM_GROUP_TRANSFORM`](fruits_transform::SYSTEM_GROUP_TRANSFORM),
+//! which runs before [`SYSTEM_GROUP_RENDER`](fruits_render::SYSTEM_GROUP_RENDER): colliders
+//! settle, transforms propagate, the frame renders. The name carries an upstream
+//! misspelling (`defult`); callers must match it exactly.
+//!
+//! #### Shared serializer registry
+//!
+//! [`SerializersResource`] is a newtype over [`GlobalSerializer`]
+//! that derefs through to it, so a system holding the resource can call the serializer's
+//! own methods directly. It is inserted here, with the world, rather than in
+//! `fruits_serialization`, because it is the world-level home for the engine's component
+//! serializers. The prefab loading path in `fruits_asset_loading` reads it and combines
+//! its [`registry`](fruits_serialization::GlobalSerializer::registry) with per-load
+//! transient serializers to deserialize prefab components.
+//!
+//! #### FPS counter
+//!
+//! `fps_counter` keeps an `FpsResource` holding a sliding window of up to 100 recent
+//! frame durations. Its system records the time between successive runs, pushes each
+//! duration into the window (dropping the oldest past 100), and once per second
+//! averages the window to derive frame time and FPS, which it prints. The resource's
+//! value accessors are currently commented out (`todo`), so the measured numbers are
+//! only printed, not exposed to other systems.
+
 use std::ops::{Deref, DerefMut};
 
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
