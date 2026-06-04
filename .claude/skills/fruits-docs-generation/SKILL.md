@@ -73,20 +73,37 @@ three parts: a one- or two-sentence summary, then two top-level sections.
 //! For someone *developing/maintaining* this crate: how it works inside.
 ```
 
+**The opening summary is a pure overview, nothing more.** It states *what problem the crate
+solves* and *what it is for* — the role it plays in the engine. It must **not** describe technical
+implementation (threads, data structures, FFI, control flow), nor *how to apply* the crate (entry
+points, registration calls, API steps). "How it works inside" belongs in *How to maintain*; "how
+to apply it" belongs in *How to use*. Keep it to one or two plain sentences that a reader skims to
+decide whether this crate is relevant at all — do not name specific functions or types there.
+
 ### Both sections must be structured, not a wall of text
 
 Break each section into small sub-sections, one per topic or use-case. Use a **deep heading
 level** for them (`####`, i.e. h4) so they read as quiet sub-headings — rustdoc renders `#`/`##`
 large and underlined, which would compete with the `How to use` / `How to maintain` section
-titles; `####` is smaller, dimmer, and rule-less. Every worked example is a self-contained unit
-with three clearly separated parts:
+titles; `####` is smaller, dimmer, and rule-less.
+
+**Every *How to use* sub-section is a worked example and must carry code.** Each one is a
+self-contained unit with three clearly separated parts:
 
 1. a `####` **heading** naming the use-case ("Making an entity collidable"),
-2. a **code block** (the example),
-3. **prose** above or below it explaining what the code does.
+2. **prose** stating the task this example solves (the problem the user has),
+3. a **code block** showing how it is solved.
 
-Never run two unrelated examples together without a heading between them. Order *How to use* by
-how common the use-case is — most common first (Unity-docs style: show real code, lead with it).
+A *How to use* sub-section that is only prose with no code block is not allowed — either give it a
+real code example, or fold its content into the prose of a neighbouring example. Do not create a
+sub-section just to describe an API in words; if there is nothing to show in code, there is no
+sub-section. Never run two unrelated examples together without a heading between them. Order *How
+to use* by how common the use-case is — most common first (Unity-docs style: show real code, lead
+with it).
+
+*How to maintain* is explanatory prose about the internals (architecture, data flow, invariants,
+caveats). Its sub-sections describe how the code works and do not need code blocks; the
+code-per-sub-section rule above applies to *How to use*, not here.
 
 ### How to use
 

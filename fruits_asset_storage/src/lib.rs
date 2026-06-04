@@ -1,3 +1,115 @@
+//! # fruits_asset_storage
+//!
+//! In-memory storage for engine assets (meshes, textures, materials, audio clips,
+//! prefabs, fonts), addressed by lightweight handles instead of by ownership or
+//! pointers.
+//!
+//! # How to use
+//!
+//! #### Storing an asset and keeping a handle to it
+//!
+//! Insert a value into an [`AssetStorageResource<T>`] to take ownership of it and
+//! receive an [`AssetHandle<T>`]. The handle is small, [`Copy`]-cheap to clone, and
+//! safe to store in components; the storage keeps the asset itself.
+//!
+//! ```
+//! use fruits_asset_storage::AssetStorageResource;
+//!
+//! let mut clips: AssetStorageResource<String> = AssetStorageResource::new();
+//!
+//! let handle = clips.insert("explosion.wav".to_string());
+//! assert_eq!(clips.get(&handle).map(String::as_str), Some("explosion.wav"));
+//!
+//! // Removing returns the asset and invalidates the handle.
+//! assert_eq!(clips.remove(&handle).as_deref(), Some("explosion.wav"));
+//! assert!(clips.get(&handle).is_none());
+//! ```
+//!
+//! #### Looking an asset up by a string key
+//!
+//! Register a handle under a string key (typically the asset's source path) so the
+//! same asset can be found again without re-inserting it. Asset loaders use this to
+//! deduplicate: check [`get_registered`](AssetStorageResource::get_registered)
+//! first, and only insert when the key is absent.
+//!
+//! ```
+//! use fruits_asset_storage::AssetStorageResource;
+//! use fruits_ffi::FfiString;
+//!
+//! let mut clips: AssetStorageResource<String> = AssetStorageResource::new();
+//!
+//! let handle = clips.insert("explosion.wav".to_string());
+//! clips.register(FfiString::from_string("sfx/explosion".to_string()), handle.clone());
+//!
+//! assert_eq!(clips.get_registered("sfx/explosion"), Some(&handle));
+//! assert_eq!(clips.get_registered("sfx/missing"), None);
+//! ```
+//!
+//! #### Reading assets from inside a system
+//!
+//! Each asset type lives as its own ECS resource, so a system pulls the storage in
+//! with [`Res`](fruits_ecs::Res) / [`ResMut`](fruits_ecs::ResMut) and resolves the
+//! handles held by its components.
+//!
+//! ```no_run
+//! use fruits_asset_storage::{AssetHandle, AssetStorageResource};
+//! use fruits_ecs::Res;
+//!
+//! struct AudioClip;
+//!
+//! fn play_system(clips: Res<AssetStorageResource<AudioClip>>, handle: AssetHandle<AudioClip>) {
+//!     if let Some(_clip) = clips.get(&handle) {
+//!         // use the resolved asset
+//!     }
+//! }
+//! ```
+//!
+//! # How to maintain
+//!
+//! #### Handles and stale-handle safety
+//!
+//! An [`AssetHandle<T>`] is `#[repr(transparent)]` over a
+//! [`VersionIndex`]: a slot
+//! index plus a version counter. Assets are stored in a
+//! [`VersionCollection<T>`](fruits_utils::index_version_collection::VersionCollection),
+//! which reuses freed slots and bumps the slot's version on
+//! [`remove`](AssetStorageResource::remove). A handle to a slot that was removed
+//! (and possibly re-filled) carries the old version, so
+//! [`get`](AssetStorageResource::get) sees the version mismatch and returns `None`
+//! rather than a different asset. This is what makes handles safe to keep around
+//! after the asset they pointed to is gone.
+//!
+//! The `PhantomData<Arc<T>>` field carries no runtime cost and performs no reference
+//! counting; it only marks the handle as logically referring to a `T`. All of
+//! `AssetHandle`'s trait impls ([`Hash`], [`Eq`], [`Ord`], [`Clone`], [`Debug`]) are
+//! written by hand against the inner `VersionIndex` so they hold for every `T`,
+//! regardless of which traits `T` itself implements.
+//!
+//! #### Per-type storage layout
+//!
+//! [`AssetStorageResource<T>`] holds two structures: the `VersionCollection<T>` of
+//! the assets themselves, and an
+//! [`FfiHashMap`]`<FfiString, AssetHandle<T>>` mapping string
+//! keys to handles. The key map is independent of the asset store — unregistering a
+//! key does not remove the asset, and removing an asset does not unregister its key
+//! (a later [`get_registered`](AssetStorageResource::get_registered) then yields a
+//! handle that no longer resolves). Both `#[repr(C)]` types and `FfiHashMap` exist
+//! because storages cross the engine's FFI boundary. The `Send`/`Sync` impls for
+//! `AssetStorageResource<T>` are written manually and conditioned on `T`, since
+//! `FfiHashMap` does not derive them automatically.
+//!
+//! #### The type-erased container
+//!
+//! [`AssetsStorageResource`] is a container that holds one
+//! `AssetStorageResource<T>` per asset type, keyed by [`TypeId`] inside a
+//! `Box<dyn Any + Send + Sync>`, with [`get`](AssetsStorageResource::get) /
+//! [`get_mut`](AssetsStorageResource::get_mut) /
+//! [`get_or_create`](AssetsStorageResource::get_or_create) downcasting back to the
+//! concrete type. In the current engine, subsystems instead insert each
+//! `AssetStorageResource<T>` directly as its own ECS resource (see `fruits_render`
+//! and `fruits_audio`), so the container is the alternative aggregate entry point
+//! rather than the path the engine wires up by default.
+
 use std::{
     any::{Any, TypeId}, collections::HashMap, fmt::Debug, hash::{Hash, Hasher}, marker::PhantomData, sync::Arc
 };

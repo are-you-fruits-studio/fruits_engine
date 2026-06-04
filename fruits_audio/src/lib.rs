@@ -1,3 +1,137 @@
+//! # fruits_audio
+//!
+//! Audio playback for the Fruits engine: it turns sound clips attached to world entities into
+//! mixed output on the machine's speakers.
+//!
+//! # How to use
+//!
+//! #### Enabling audio in a world
+//!
+//! Audio is registered on its own — it is *not* part of the engine's default modules. Call
+//! [`add_audio_module_to`] with the world builder. This opens the default output device, starts
+//! the playback stream, and inserts the [`AudioStateResource`] and the [`AudioClip`] asset
+//! storage:
+//!
+//! ```ignore
+//! use fruits_engine::*;
+//!
+//! let mut app = App::new();
+//! add_audio_module_to(app.ecs_mut().as_mut());
+//! ```
+//!
+//! #### Playing a sound
+//!
+//! Load an [`AudioClip`] and attach an [`AudioSource`] to an entity. Clips are loaded through the
+//! asset layer (`fruits_asset_loading`), which reads a WAV, converts it to stereo 48&nbsp;kHz, and
+//! registers it under a key:
+//!
+//! ```ignore
+//! use fruits_engine::*;
+//!
+//! let clip = get_or_load_audio_clip_from_world(
+//!     ecs.data_mut().resources_mut().as_mut(),
+//!     "Through space.asset",
+//! ).unwrap();
+//!
+//! let mut data = ecs.data_mut();
+//! let mut ent = data.entities_mut();
+//! let entity = ent.create_entity();
+//! ent.add_component(entity, AudioSource {
+//!     clip: clip.clone(),
+//!     playback_time: 0.0,
+//!     should_force_playback_time: true,
+//!     is_playing: true,
+//!     is_looped: true,
+//! }).ok().unwrap();
+//! ```
+//!
+//! The [`AudioSource`] fields drive playback every [`Schedule::Update`]: flip `is_playing` to
+//! start or pause, set `is_looped` to repeat, and write `playback_time` (in seconds) together
+//! with `should_force_playback_time = true` to seek. Once a non-looped clip reaches its end the
+//! system clears `is_playing`.
+//!
+//! #### Reading the played samples
+//!
+//! [`AudioStateResource::last_samples`] exposes a copy of the interleaved stereo buffer the output
+//! callback mixed most recently — useful for waveform visualizations:
+//!
+//! ```ignore
+//! fn visualize(audio: Res<AudioStateResource>) {
+//!     let samples = audio.last_samples(); // interleaved L, R, L, R, ... at 48 kHz
+//!     // ...
+//! }
+//! ```
+//!
+//! #### Resampling raw audio to the engine rate
+//!
+//! A clip recorded at some other sample rate has to be brought to the engine's 48&nbsp;kHz before it
+//! can be played. [`resample_audio`] does that conversion on interleaved samples with cubic
+//! interpolation — the asset loader calls it for non-48&nbsp;kHz WAVs, and it is public so callers
+//! preparing their own clips can reuse it:
+//!
+//! ```
+//! use fruits_audio::{resample_audio, AUDIO_CHANNELS_COUNT, AUDIO_SAMPLE_RATE};
+//!
+//! // one second of silent stereo audio captured at 44.1 kHz
+//! let at_44100 = vec![0.0f32; 44_100 * AUDIO_CHANNELS_COUNT];
+//!
+//! let at_48000 = resample_audio(&at_44100, AUDIO_CHANNELS_COUNT, 44_100, AUDIO_SAMPLE_RATE);
+//! assert_eq!(at_48000.len(), AUDIO_SAMPLE_RATE * AUDIO_CHANNELS_COUNT);
+//! ```
+//!
+//! # How to maintain
+//!
+//! #### Constants and formats
+//!
+//! Everything is fixed to interleaved stereo float samples at 48&nbsp;kHz: [`AUDIO_SAMPLE_RATE`] and
+//! [`AUDIO_CHANNELS_COUNT`] encode those assumptions, and an [`AudioClip`] stores its samples in
+//! exactly that layout inside an [`FfiVec`]. [`AudioClip::new`] rejects buffers whose length is not
+//! a multiple of [`AUDIO_CHANNELS_COUNT`] and stamps each clip with a unique `id` drawn from the
+//! [`AudioStateResource`]'s `next_audio_clip_id` counter; the `id` is how the update system detects
+//! that a source's clip changed and needs re-copying.
+//!
+//! #### Shared state across two threads
+//!
+//! The mixing happens on [`cpal`]'s audio callback thread, while gameplay touches audio from the
+//! ECS thread. Both reach the same `AudioState` — the set of `AudioActivePlayback`s and the
+//! last mixed buffer — through an `Arc<Mutex<AudioState>>`. That handle is wrapped twice for FFI:
+//! [`WrappedAudioStateHandle`] holds it inside an [`FfiDroppable`], and the live [`cpal::Stream`]
+//! is likewise stored in [`AudioStateResource`]'s `_stream` field so dropping the resource stops
+//! the stream. Because the raw pointers in those wrappers are not auto-`Send`/`Sync`,
+//! [`AudioStateResource`] implements both traits by hand; the contract that keeps that sound is the
+//! `Mutex`, which serializes every access to `AudioState`.
+//!
+//! #### Opening the stream
+//!
+//! `start_playback` takes the default host's default output device and builds an output stream
+//! with a hard-coded [`StreamConfig`] of 2 channels at 48&nbsp;kHz and the default buffer size. The
+//! mixing closure runs per callback: it zeroes the output buffer, then for every playing
+//! `AudioActivePlayback` walks `sample_index` forward one multisample at a time. When the index
+//! runs past the clip it wraps (looping) or stops the playback; a mono device averages the stereo
+//! pair into one channel, a stereo device copies the channels through. After mixing it stores the
+//! buffer into `last_played_samples`. The closure currently clones each clip's samples into its
+//! playback (see the `// todo:` about reusing the asset buffer via an FFI-capable `Arc`).
+//!
+//! #### The update system
+//!
+//! [`add_audio_module_to`] schedules `audio_system` into the [`SYSTEM_GROUP_AUDIO`] group on
+//! [`Schedule::Update`]. Each tick it locks the `AudioState` and: copies `last_played_samples`
+//! out into the resource's `last_samples` (the public mirror), drops playbacks whose entity no
+//! longer matches a queried [`AudioSource`], then creates or syncs a playback for each live source —
+//! pushing `is_playing`/`is_looped` down, replacing the playback's clip when the `id` differs, and
+//! either forcing `sample_index` from `playback_time` (on `should_force_playback_time`) or writing
+//! `playback_time` back from `sample_index`. The position read back into `playback_time` is clamped
+//! to `0.0..=1.0` seconds, so a source playing a clip longer than one second reports a saturated
+//! time — a known limitation to be aware of before relying on `playback_time` for long clips.
+//!
+//! #### Resampling internals
+//!
+//! [`resample_audio`] resamples per channel by sampling the source at the new rate's fractional
+//! positions and feeding the four surrounding samples through `interpolate_cubic`, a Catmull-Rom
+//! style cubic. `interpolate_cubic` carries a `// todo:` marking it for a future move into a shared
+//! math crate. The longer-term scope of the crate — more input formats, native sample rates and bit
+//! depths, and 3D spatialization — is tracked in the `// todo:` list at the top of the file.
+
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use cpal::{OutputCallbackInfo, StreamConfig, traits::{DeviceTrait, HostTrait, StreamTrait}};

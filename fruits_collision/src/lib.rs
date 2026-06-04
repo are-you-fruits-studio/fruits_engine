@@ -1,6 +1,7 @@
 //! # fruits_collision
 //!
-//! Collision shapes and broad-phase overlap queries for the Fruits engine.
+//! Decides which entities in a world touch or intersect, and answers one-off
+//! geometric overlap tests between shapes.
 //!
 //! # How to use
 //!
@@ -26,20 +27,23 @@
 //! }).ok().unwrap();
 //! ```
 //!
-//! Each update, [`update_collision_world`] reads every [`ColliderComponent`] and, when the
-//! entity also has a [`GlobalTransform`](fruits_transform::GlobalTransform), transforms the
-//! shape by it via [`CollisionShape::apply_matrix_lossy`] before adding it to the world; an
-//! entity with no transform contributes its shape as written.
-//!
 //! #### Querying the world
 //!
 //! Read [`CollisionWorldResource`] in a system and probe it with a shape (here a ray).
 //! [`overlaps`](CollisionWorldResource::overlaps) appends every entity whose collider the probe
 //! touches to the passed `Vec`:
 //!
-//! ```ignore
+//! ```no_run
+//! use fruits_collision::{CollisionLine, CollisionWorldResource, LineBoundType};
+//! use fruits_ecs::Res;
+//! use fruits_math::Vec3;
+//!
 //! fn pick(world: Res<CollisionWorldResource>) {
-//!     let ray = CollisionLine { start, end, bounds: LineBoundType::UNRESTRICTED };
+//!     let ray = CollisionLine {
+//!         start: Vec3::splat(0.0),
+//!         end: Vec3::new(0.0, 0.0, 10.0),
+//!         bounds: LineBoundType::UNRESTRICTED,
+//!     };
 //!     let mut hits = Vec::new();
 //!     world.overlaps(ray.into(), &mut hits);
 //!     // `hits` now lists every entity the ray touches
@@ -74,10 +78,14 @@
 //! #### Broad-phase layer
 //!
 //! [`CollisionWorldResource`], backed by [`Bvh`]. The BVH is a binary tree, median-split on a
-//! cycling X/Y/Z axis chosen by node depth. The [`update_collision_world`] system **rebuilds the
-//! whole resource from scratch every update** (`*world = CollisionWorldResource::new(..)`) —
-//! there is no incremental update, so if rebuild cost ever matters, that is the place to change.
-//! A query prunes by node AABB before testing the exact leaf shapes.
+//! cycling X/Y/Z axis chosen by node depth. Each update, [`update_collision_world`] reads every
+//! [`ColliderComponent`] and, when the entity also has a
+//! [`GlobalTransform`](fruits_transform::GlobalTransform), transforms the shape by it via
+//! [`CollisionShape::apply_matrix_lossy`] before feeding it in (an entity with no transform
+//! contributes its shape as written). The system then **rebuilds the whole resource from scratch
+//! every update** (`*world = CollisionWorldResource::new(..)`) — there is no incremental update,
+//! so if rebuild cost ever matters, that is the place to change. A query prunes by node AABB
+//! before testing the exact leaf shapes.
 //!
 //! #### Caveats before changing anything
 //!
