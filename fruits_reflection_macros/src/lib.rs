@@ -1,3 +1,65 @@
+//! # fruits_reflection_macros
+//!
+//! Derive macro that gives a type a compile-time description of its own shape,
+//! so the engine's reflection system can inspect fields and variants without
+//! hand-written boilerplate.
+//!
+//! # How to use
+//!
+//! This crate is not used directly — it is re-exported by `fruits_reflection`,
+//! which also supplies the [`ReflectTy`] trait and the `ReflTy`, `ReflTyStruct`,
+//! `ReflTyId`, and `ReflTyEnum` types the generated code refers to. Use it
+//! through that crate.
+//!
+//! #### Describing a struct
+//!
+//! Derive [`ReflectTy`] on a struct with named fields to obtain a `refl_ty()`
+//! that returns the struct's fields as `(name, type id)` pairs.
+//!
+//! ```ignore
+//! use fruits_reflection::{ReflectTy, ReflTy, ReflTyStruct};
+//!
+//! #[derive(ReflectTy)]
+//! struct Player {
+//!     health: u8,
+//!     name: String,
+//! }
+//!
+//! // The derive implements `ReflectTy`, so the shape is available at runtime.
+//! let ReflTy::Struct(ReflTyStruct::Named(fields)) = Player::refl_ty() else {
+//!     unreachable!()
+//! };
+//! assert_eq!(fields[0].0, "health");
+//! assert_eq!(fields[1].0, "name");
+//! ```
+//!
+//! # How to maintain
+//!
+//! The single entry point is [`derive_reflect_ty`], the `ReflectTy` derive. It
+//! does **not** use `quote!` to assemble its output: it writes the `impl` body
+//! into a `String` with `write!` and then `parse()`s that string back into a
+//! `TokenStream`. Every emitted fragment is therefore plain Rust source text,
+//! which is why the generated code names the `fruits_reflection` types by bare
+//! identifier and relies on them being in scope at the use site (this crate has
+//! no dependency on `fruits_reflection`, so those names cannot be intra-doc
+//! linked from here).
+//!
+//! Generics are reproduced verbatim: the full generic clause becomes the
+//! `impl<..>` header, while type and const parameter idents are collected into
+//! the `Type<..>` reference. A non-generic type produces an empty `Type<>`,
+//! which is valid Rust. Lifetime parameters are rejected with a panic
+//! (`"Non-static types are not supported"`), matching the `'static` bound on the
+//! [`ReflectTy`] trait. Unions panic as well.
+//!
+//! The struct branch always emits a `ReflTyStruct::Named` list, pairing each
+//! field's identifier with `ReflTyId::of::<FieldType>()`. It does not branch on
+//! the field kind, so only structs with named fields are fully supported; tuple
+//! and unit structs are not handled. The enum branch reproduces each variant
+//! name and maps unit variants to `ReflTyStruct::Unit`; the named- and
+//! tuple-variant arms are still incomplete and should be revisited before
+//! relying on enums with fields. `ReflTyId::of` itself currently derives its id
+//! from `std::any::type_name`, so type identity is only as stable as that name.
+
 use proc_macro::TokenStream;
 use quote::ToTokens;
 use std::fmt::Write;
