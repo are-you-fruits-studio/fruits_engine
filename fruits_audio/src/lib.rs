@@ -92,6 +92,7 @@ impl AudioClip {
 pub struct AudioSource {
     pub clip: AssetHandle<AudioClip>,
     pub playback_time: f64,
+    pub volume: f32,
     pub should_force_playback_time: bool,
     pub is_playing: bool,
     pub is_looped: bool,
@@ -140,6 +141,7 @@ struct AudioActivePlayback {
     sample_index: usize,
     is_playing: bool,
     is_looped: bool,
+    volume: f32,
 }
 
 struct AudioState {
@@ -196,6 +198,7 @@ fn audio_system(
                     sample_index: 0,
                     is_playing: false,
                     is_looped: false,
+                    volume: 1.0,
                 });
 
             let Some(clip) = clip else {
@@ -211,6 +214,7 @@ fn audio_system(
 
             playback.is_playing = source.is_playing;
             playback.is_looped = source.is_looped;
+            playback.volume = source.volume;
 
             if source.should_force_playback_time {
                 playback.sample_index = ((source.playback_time * AUDIO_SAMPLE_RATE as f64) as usize).clamp(0, playback.clip.samples.len() as usize - 1);
@@ -282,10 +286,10 @@ fn start_playback(state: Arc<Mutex<AudioState>>) -> cpal::Stream {
 
                         let playback_multisample = &(&*playback.clip.samples)[((playback.sample_index) * AUDIO_CHANNELS_COUNT)..((playback.sample_index + 1) * AUDIO_CHANNELS_COUNT)];
                         if channels_count == 1 {
-                            output_samples[s] += playback_multisample.iter().sum::<f32>() / playback_multisample.len() as f32;
+                            output_samples[s] += playback_multisample.iter().sum::<f32>() * playback.volume / playback_multisample.len() as f32;
                         } else {
                             for c in 0..channels_count.min(AUDIO_CHANNELS_COUNT) {
-                                output_samples[s * channels_count + c] += playback_multisample[c];
+                                output_samples[s * channels_count + c] += playback_multisample[c] * playback.volume;
                             }
                         }
 
@@ -312,7 +316,7 @@ fn start_playback(state: Arc<Mutex<AudioState>>) -> cpal::Stream {
 
 pub fn resample_audio(samples: &[f32], channels: usize, old_sample_rate: usize, new_sample_rate: usize) -> Vec<f32> {
     let original_multisamples_count = samples.len() / channels;
-    let new_multisamples_count = original_multisamples_count / old_sample_rate * new_sample_rate;
+    let new_multisamples_count = original_multisamples_count * new_sample_rate / old_sample_rate;
     let mut resampled_samples = Vec::with_capacity(new_sample_rate);
 
     for i in 0..new_multisamples_count {
