@@ -15,6 +15,7 @@ pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
     fruits_collision::add_collision_module_to(world.as_mut());
     fruits_transform::add_transform_module_to(world.as_mut());
     fruits_render::add_render_module_to(world.as_mut());
+    fruits_audio::add_audio_module_to(world.as_mut());
 
     world.data_mut().resources_mut().insert(AssetStorageResource::<Prefab>::new()).ok().unwrap();
     world.data_mut().resources_mut().insert(PrefabComponentsDeserializerResource::default()).ok().unwrap();
