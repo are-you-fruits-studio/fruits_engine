@@ -12,19 +12,25 @@ pub fn build_app(project_path: &str) {
     build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
     build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
+    let (scripts_lib_name, launcher_exe_name, build_exe_name) = if cfg!(windows) {
+        ("app_lib.dll", "launcher.exe", format!("{project_name}.exe"))
+    } else {
+        ("libapp_lib.so", "launcher", project_name.to_string())
+    };
+
     copy_file(
-        [project_path, "scripts", "target", "release", "app_lib.dll"]
+        [project_path, "scripts", "target", "release", scripts_lib_name]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", "app_lib.dll"].iter().collect::<PathBuf>(),
+        [project_path, "builds", scripts_lib_name].iter().collect::<PathBuf>(),
     )
     .unwrap();
 
     copy_file(
-        [project_path, "launcher", "target", "release", "launcher.exe"]
+        [project_path, "launcher", "target", "release", launcher_exe_name]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", format!("{project_name}.exe").as_str()]
+        [project_path, "builds", build_exe_name.as_str()]
             .iter()
             .collect::<PathBuf>(),
     )
