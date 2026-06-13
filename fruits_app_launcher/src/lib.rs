@@ -12,9 +12,9 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
-    // library_filename: Windows → "app_lib.dll", Linux → "libapp_lib.so"
+    // library_filename: Windows → "app.dll", Linux → "libapp.so"
     // On Linux the dynamic linker doesn't search the exe dir, so we resolve explicitly.
-    let lib_filename = libloading::library_filename("app_lib");
+    let lib_filename = libloading::library_filename("app");
     let lib_path = if cfg!(windows) {
         std::path::PathBuf::from(lib_filename)
     } else {

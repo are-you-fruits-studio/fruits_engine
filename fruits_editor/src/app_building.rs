@@ -16,7 +16,7 @@ pub fn build_app(project_path: &str) {
     // Linux cdylib output: lib{name}.so (DLL_PREFIX="lib", DLL_SUFFIX=".so")
     // Windows cdylib output: {name}.dll  (DLL_PREFIX="",    DLL_SUFFIX=".dll")
     use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
-    let scripts_lib_name = format!("{DLL_PREFIX}app_lib{DLL_SUFFIX}");
+    let scripts_lib_name = format!("{DLL_PREFIX}app{DLL_SUFFIX}");
     let launcher_exe_name = format!("launcher{EXE_SUFFIX}");
     let build_exe_name = format!("{project_name}{EXE_SUFFIX}");
     let scripts_lib_name = scripts_lib_name.as_str();
