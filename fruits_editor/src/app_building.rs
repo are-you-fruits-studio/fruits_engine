@@ -12,11 +12,15 @@ pub fn build_app(project_path: &str) {
     build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
     build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
-    let (scripts_lib_name, launcher_exe_name, build_exe_name) = if cfg!(windows) {
-        ("app_lib.dll", "launcher.exe", format!("{project_name}.exe"))
-    } else {
-        ("libapp_lib.so", "launcher", project_name.to_string())
-    };
+    // Naming is dictated by OS conventions, not us:
+    // Linux cdylib output: lib{name}.so (DLL_PREFIX="lib", DLL_SUFFIX=".so")
+    // Windows cdylib output: {name}.dll  (DLL_PREFIX="",    DLL_SUFFIX=".dll")
+    use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
+    let scripts_lib_name = format!("{DLL_PREFIX}app_lib{DLL_SUFFIX}");
+    let launcher_exe_name = format!("launcher{EXE_SUFFIX}");
+    let build_exe_name = format!("{project_name}{EXE_SUFFIX}");
+    let scripts_lib_name = scripts_lib_name.as_str();
+    let launcher_exe_name = launcher_exe_name.as_str();
 
     copy_file(
         [project_path, "scripts", "target", "release", scripts_lib_name]
