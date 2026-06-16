@@ -9,40 +9,31 @@ pub fn build_app(project_path: &str) {
 
     try_create_launcher_project(project_path).unwrap();
 
-    build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
-    build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
+    let project = Path::new(project_path);
+
+    build_cargo_project(project.join("launcher")).unwrap();
+    build_cargo_project(project.join("scripts")).unwrap();
 
     use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
-    let scripts_lib_name = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
-    let launcher_exe_name = format!("launcher{EXE_SUFFIX}");
-    let build_exe_name = format!("{project_name}{EXE_SUFFIX}");
-    let scripts_lib_name = scripts_lib_name.as_str();
-    let launcher_exe_name = launcher_exe_name.as_str();
-    let build_exe_name = build_exe_name.as_str();
+    let scripts_lib = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
 
     copy_file(
-        [project_path, "scripts", "target", "release", scripts_lib_name]
-            .iter()
-            .collect::<PathBuf>(),
-        [project_path, "builds", scripts_lib_name].iter().collect::<PathBuf>(),
+        project.join("scripts/target/release").join(&scripts_lib),
+        project.join("builds").join(&scripts_lib),
     )
     .unwrap();
 
     copy_file(
-        [project_path, "launcher", "target", "release", launcher_exe_name]
-            .iter()
-            .collect::<PathBuf>(),
-        [project_path, "builds", build_exe_name]
-            .iter()
-            .collect::<PathBuf>(),
+        project.join("launcher/target/release").join(format!("launcher{EXE_SUFFIX}")),
+        project.join("builds").join(format!("{project_name}{EXE_SUFFIX}")),
     )
     .unwrap();
 
-    let assets_src = [project_path, "assets"].iter().collect::<PathBuf>();
-    let assets_dst = [project_path, "builds", "assets"].iter().collect::<PathBuf>();
+    let assets_src = project.join("assets");
+    let assets_dst = project.join("builds/assets");
 
-    if std::fs::exists(assets_src).unwrap_or(true) {
-        copy_dir_all([project_path, "assets"].iter().collect::<PathBuf>(), assets_dst).unwrap();
+    if std::fs::exists(&assets_src).unwrap_or(true) {
+        copy_dir_all(assets_src, assets_dst).unwrap();
     }
 }
 
