@@ -38,6 +38,7 @@ fn run_samples_visualization_app() {
         is_playing: true,
         should_force_playback_time: true,
         is_looped: true,
+        volume: 1.0,
     }).ok().unwrap();
 
     let mut beh = ecs.behavior_mut();
