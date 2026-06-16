@@ -12,18 +12,13 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
-    // library_filename: Windows → "app_lib.dll", Linux → "libapp_lib.so"
-    // On Linux the dynamic linker doesn't search the exe dir, so we resolve explicitly.
-    let lib_filename = libloading::library_filename("app_lib");
-    let lib_path = if cfg!(windows) {
-        std::path::PathBuf::from(lib_filename)
-    } else {
-        let exe_dir = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-            .unwrap_or_else(|| std::path::PathBuf::from("."));
-        exe_dir.join(lib_filename)
-    };
+    // The deployed lib is always named lib_app{DLL_SUFFIX} next to the exe.
+    // We resolve the path explicitly so the dynamic linker finds it on all platforms.
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let lib_path = exe_dir.join(format!("lib_app{}", std::env::consts::DLL_SUFFIX));
     let lib = unsafe { libloading::Library::new(&lib_path).unwrap() };
 
     {
