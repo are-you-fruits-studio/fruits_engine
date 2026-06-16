@@ -14,17 +14,24 @@ pub fn build_app(project_path: &str) {
 
     use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
     let scripts_lib = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
-    let project = Path::new(project_path);
+    let launcher_exe = format!("launcher{EXE_SUFFIX}");
+    let build_exe = format!("{project_name}{EXE_SUFFIX}");
 
     copy_file(
-        project.join("scripts/target/release").join(&scripts_lib),
-        project.join("builds").join(&scripts_lib),
+        [project_path, "scripts", "target", "release", scripts_lib.as_str()]
+            .iter()
+            .collect::<PathBuf>(),
+        [project_path, "builds", scripts_lib.as_str()].iter().collect::<PathBuf>(),
     )
     .unwrap();
 
     copy_file(
-        project.join("launcher/target/release").join(format!("launcher{EXE_SUFFIX}")),
-        project.join("builds").join(format!("{project_name}{EXE_SUFFIX}")),
+        [project_path, "launcher", "target", "release", launcher_exe.as_str()]
+            .iter()
+            .collect::<PathBuf>(),
+        [project_path, "builds", build_exe.as_str()]
+            .iter()
+            .collect::<PathBuf>(),
     )
     .unwrap();
 
