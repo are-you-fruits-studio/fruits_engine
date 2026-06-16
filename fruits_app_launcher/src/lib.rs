@@ -12,12 +12,7 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
-    // Explicit path prevents the OS from picking up a lib_app from system dirs.
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let lib_path = exe_dir.join(libloading::library_filename("lib_app"));
+    let lib_path = std::env::current_exe().unwrap().with_file_name(libloading::library_filename("lib_app"));
     let lib = unsafe { libloading::Library::new(&lib_path).unwrap() };
 
     {
