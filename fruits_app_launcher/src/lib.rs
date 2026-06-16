@@ -12,13 +12,12 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
-    // The deployed lib is always named lib_app{DLL_SUFFIX} next to the exe.
-    // We resolve the path explicitly so the dynamic linker finds it on all platforms.
+    // Explicit path prevents the OS from picking up a lib_app from system dirs.
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let lib_path = exe_dir.join(format!("lib_app{}", std::env::consts::DLL_SUFFIX));
+    let lib_path = exe_dir.join(libloading::library_filename("lib_app"));
     let lib = unsafe { libloading::Library::new(&lib_path).unwrap() };
 
     {

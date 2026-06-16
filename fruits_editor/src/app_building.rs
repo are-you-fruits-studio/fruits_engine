@@ -12,23 +12,19 @@ pub fn build_app(project_path: &str) {
     build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
     build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
-    // Cargo output name is OS-specific (Linux: lib{name}.so, Windows: {name}.dll).
-    // We deploy a consistent name: lib_app{DLL_SUFFIX} on all platforms.
     use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
-    let scripts_lib_cargo_name = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
-    let scripts_lib_deploy_name = format!("lib_app{DLL_SUFFIX}");
+    let scripts_lib_name = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
     let launcher_exe_name = format!("launcher{EXE_SUFFIX}");
     let build_exe_name = format!("{project_name}{EXE_SUFFIX}");
-    let scripts_lib_cargo_name = scripts_lib_cargo_name.as_str();
-    let scripts_lib_deploy_name = scripts_lib_deploy_name.as_str();
+    let scripts_lib_name = scripts_lib_name.as_str();
     let launcher_exe_name = launcher_exe_name.as_str();
     let build_exe_name = build_exe_name.as_str();
 
     copy_file(
-        [project_path, "scripts", "target", "release", scripts_lib_cargo_name]
+        [project_path, "scripts", "target", "release", scripts_lib_name]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", scripts_lib_deploy_name].iter().collect::<PathBuf>(),
+        [project_path, "builds", scripts_lib_name].iter().collect::<PathBuf>(),
     )
     .unwrap();
 
