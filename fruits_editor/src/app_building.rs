@@ -9,13 +9,12 @@ pub fn build_app(project_path: &str) {
 
     try_create_launcher_project(project_path).unwrap();
 
-    let project = Path::new(project_path);
-
-    build_cargo_project(project.join("launcher")).unwrap();
-    build_cargo_project(project.join("scripts")).unwrap();
+    build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
+    build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
     use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
     let scripts_lib = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
+    let project = Path::new(project_path);
 
     copy_file(
         project.join("scripts/target/release").join(&scripts_lib),
@@ -29,11 +28,11 @@ pub fn build_app(project_path: &str) {
     )
     .unwrap();
 
-    let assets_src = project.join("assets");
-    let assets_dst = project.join("builds/assets");
+    let assets_src = [project_path, "assets"].iter().collect::<PathBuf>();
+    let assets_dst = [project_path, "builds", "assets"].iter().collect::<PathBuf>();
 
-    if std::fs::exists(&assets_src).unwrap_or(true) {
-        copy_dir_all(assets_src, assets_dst).unwrap();
+    if std::fs::exists(assets_src).unwrap_or(true) {
+        copy_dir_all([project_path, "assets"].iter().collect::<PathBuf>(), assets_dst).unwrap();
     }
 }
 
