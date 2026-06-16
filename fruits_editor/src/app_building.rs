@@ -12,16 +12,16 @@ pub fn build_app(project_path: &str) {
     build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
     build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
-    use std::env::consts::{DLL_PREFIX, DLL_SUFFIX, EXE_SUFFIX};
-    let scripts_lib = format!("{DLL_PREFIX}lib_app{DLL_SUFFIX}");
-    let launcher_exe = format!("launcher{EXE_SUFFIX}");
-    let build_exe = format!("{project_name}{EXE_SUFFIX}");
+    #[cfg(windows)] let scripts_lib = "lib_app.dll";
+    #[cfg(not(windows))] let scripts_lib = "liblib_app.so";
+    let launcher_exe = format!("launcher{}", std::env::consts::EXE_SUFFIX);
+    let build_exe = format!("{project_name}{}", std::env::consts::EXE_SUFFIX);
 
     copy_file(
-        [project_path, "scripts", "target", "release", scripts_lib.as_str()]
+        [project_path, "scripts", "target", "release", scripts_lib]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", scripts_lib.as_str()].iter().collect::<PathBuf>(),
+        [project_path, "builds", scripts_lib].iter().collect::<PathBuf>(),
     )
     .unwrap();
 
