@@ -1,3 +1,73 @@
+//! # fruits_math_macros
+//!
+//! Compile-time hex color literals: turn a `"#rrggbb"` / `"#rrggbbaa"` string
+//! into a fixed-size color array so a wrong color is a build error, not a
+//! runtime surprise.
+//!
+//! # How to use
+//!
+//! Each macro takes a single string literal and expands, at compile time, to a
+//! plain array literal — so the result is a `const`-usable value with no runtime
+//! parsing cost. Pick the macro that matches the channel count (RGB vs RGBA) and
+//! component type (`u8` 0–255 or `f32` 0.0–1.0) the call site needs. The hash
+//! prefix is optional; a malformed literal aborts compilation with a clear
+//! message.
+//!
+//! #### Build an 8-bit RGBA color
+//!
+//! Parse a `"#rrggbbaa"` literal into `[u8; 4]` for an API that expects four
+//! byte channels.
+//!
+//! ```
+//! let color = fruits_math_macros::rgba_u8_array!("#ff8800ff");
+//! assert_eq!(color, [255, 136, 0, 255]);
+//! ```
+//!
+//! #### Build a normalized RGB color
+//!
+//! Parse a `"#rrggbb"` literal into `[f32; 3]`, each channel scaled to the
+//! `0.0..=1.0` range a shader or GPU clear color expects.
+//!
+//! ```
+//! let color = fruits_math_macros::rgb_f32_array!("#ff0000");
+//! assert_eq!(color, [1.0, 0.0, 0.0]);
+//! ```
+//!
+//! #### The other channel layouts
+//!
+//! [`rgb_u8_array!`](crate::rgb_u8_array) yields `[u8; 3]` and
+//! [`rgba_f32_array!`](crate::rgba_f32_array) yields `[f32; 4]`; both follow the
+//! same literal format as the examples above.
+//!
+//! ```
+//! assert_eq!(fruits_math_macros::rgb_u8_array!("#ff8800"), [255, 136, 0]);
+//! assert_eq!(fruits_math_macros::rgba_f32_array!("#ff0000ff"), [1.0, 0.0, 0.0, 1.0]);
+//! ```
+//!
+//! # How to maintain
+//!
+//! The crate is a thin proc-macro front end over [`fruits_math`]'s `const`
+//! color parsers: each macro extracts the inner text of the input string literal
+//! and forwards it to the matching `fruits_math::parse_color_*` function, then
+//! prints the returned array back out as Rust source that re-parses into a
+//! `TokenStream`. All real parsing — hex decoding, channel ordering, and the
+//! `u8 / 255.0` normalization for the `f32` variants — lives in `fruits_math`;
+//! this crate only moves tokens.
+//!
+//! Two helpers do the token bridging. `to_string_literal` takes the first
+//! `TokenTree`, requires it to be a `Literal`, and `to_exact_string_literal`
+//! strips the surrounding quotes by hand — it checks the first and last
+//! characters are `"` and copies the rest verbatim. It does **not** interpret
+//! escape sequences, so the macros assume a simple `"#..."` literal; raw or
+//! escaped string literals are not supported. `to_token_stream` renders the
+//! parsed array with `{:?}` and re-parses the text, which is why the input must
+//! be a single literal token and not, say, a `const` expression.
+//!
+//! Every failure path — a missing token, a non-literal token, a value
+//! `fruits_math` rejects, or a re-parse error — funnels through
+//! `panic_invalid_format`, so any misuse surfaces as the same compile-time
+//! panic naming the two accepted formats.
+
 use std::fmt::Debug;
 
 use proc_macro::{Literal, TokenStream, TokenTree};

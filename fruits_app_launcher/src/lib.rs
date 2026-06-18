@@ -1,3 +1,86 @@
+//! # fruits_app_launcher
+//!
+//! Entry points that start a `fruits_engine` application, either with the game
+//! code compiled into the same binary or loaded from a separate dynamic library.
+//!
+//! # How to use
+//!
+//! These functions are re-exported from the `fruits_engine` facade crate, so an
+//! application normally reaches them as `fruits_engine::launch_app_statically`
+//! and `fruits_engine::launch_app_dynamically`. The examples below use the crate's
+//! own paths so they type-check on their own.
+//!
+//! #### Launch a self-contained game
+//!
+//! Use this when the game's components, systems, and resources are compiled into
+//! the same executable. Pass a closure that populates the world; everything else
+//! (default engine modules, the window, the main loop) is set up for you.
+//!
+//! ```no_run
+//! use fruits_app_launcher::launch_app_statically;
+//! use fruits_ecs::WorldBuilderMut;
+//!
+//! fn main() {
+//!     launch_app_statically(|world: WorldBuilderMut| {
+//!         // Register your components, systems, and resources on `world`.
+//!         let _ = world;
+//!     });
+//! }
+//! ```
+//!
+//! #### Launch a game from a dynamic library
+//!
+//! Use this when the game is built as a separate shared library (for example, a
+//! thin launcher driven by the editor). The launcher binary only starts the host;
+//! the game library supplies its setup through the `fruits_entry_point!` macro.
+//!
+//! The launcher executable:
+//!
+//! ```ignore
+//! fn main() {
+//!     fruits_engine::launch_app_dynamically();
+//! }
+//! ```
+//!
+//! The game library exposes its world-building function to the launcher:
+//!
+//! ```ignore
+//! use fruits_engine::WorldBuilderMut;
+//!
+//! fn setup(world: WorldBuilderMut) {
+//!     // Register your components, systems, and resources on `world`.
+//! }
+//!
+//! fruits_engine::fruits_entry_point!(setup);
+//! ```
+//!
+//! # How to maintain
+//!
+//! Both entry points follow the same three steps: build an [`App`], register the
+//! engine's default modules with [`fruits_modules::add_defult_modules_to`], let the
+//! game populate the world, then hand control to [`App::run`]. They differ only in
+//! *how* the game populates the world.
+//!
+//! [`launch_app_statically`] is the simple path: the caller's closure is invoked
+//! directly with a [`WorldBuilderMut`] borrowed from the in-process [`App`].
+//!
+//! [`launch_app_dynamically`] crosses an FFI boundary. It loads a shared library
+//! named `app_lib` from the process working directory via `libloading`, resolves the
+//! `fruits_entry_point` C symbol (an `unsafe extern "C" fn(AppInitCtxFfi)` that the
+//! game library exports through the `fruits_entry_point!` macro), and exposes the
+//! freshly built world to it. `App::ecs_mut().into_raw_parts()` yields a raw world
+//! pointer plus the type registry; both are packed as raw pointers into an
+//! [`AppInitCtxFfi`] and passed to the symbol, which reconstructs a safe
+//! `WorldBuilderMut` on the other side and runs the game's setup. The library is
+//! closed only after [`App::run`] returns, because the world holds types and
+//! function pointers that live inside it for the whole run.
+//!
+//! Caveats for maintainers: every fallible step (loading `app_lib`, resolving the
+//! symbol, closing the library) currently uses `unwrap`, so a missing or mismatched
+//! library aborts the process rather than reporting an error. The default-module
+//! helper name `add_defult_modules_to` carries an upstream spelling and must match
+//! `fruits_modules`.
+
 use fruits_app::App;
 use fruits_ecs::{AppInitCtxFfi, WorldBuilderMut};
 
