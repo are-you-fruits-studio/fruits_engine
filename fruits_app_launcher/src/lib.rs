@@ -12,7 +12,8 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
-    let lib = unsafe { libloading::Library::new("app_lib").unwrap() };
+    let lib_path = std::env::current_exe().unwrap().with_file_name(format!("lib_app{}", std::env::consts::DLL_SUFFIX));
+    let lib = unsafe { libloading::Library::new(&lib_path).unwrap() };
 
     {
         let init_app_symbol = unsafe { lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point").unwrap() };
