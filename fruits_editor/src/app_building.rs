@@ -12,19 +12,27 @@ pub fn build_app(project_path: &str) {
     build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
     build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
+    let (scripts_lib_src, scripts_lib_dst) = if cfg!(windows) {
+        ("lib_app.dll", "lib_app.dll")
+    } else {
+        ("liblib_app.so", "lib_app.so")
+    };
+    let launcher_exe = format!("launcher{}", std::env::consts::EXE_SUFFIX);
+    let build_exe = format!("{project_name}{}", std::env::consts::EXE_SUFFIX);
+
     copy_file(
-        [project_path, "scripts", "target", "release", "app_lib.dll"]
+        [project_path, "scripts", "target", "release", scripts_lib_src]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", "app_lib.dll"].iter().collect::<PathBuf>(),
+        [project_path, "builds", scripts_lib_dst].iter().collect::<PathBuf>(),
     )
     .unwrap();
 
     copy_file(
-        [project_path, "launcher", "target", "release", "launcher.exe"]
+        [project_path, "launcher", "target", "release", launcher_exe.as_str()]
             .iter()
             .collect::<PathBuf>(),
-        [project_path, "builds", format!("{project_name}.exe").as_str()]
+        [project_path, "builds", build_exe.as_str()]
             .iter()
             .collect::<PathBuf>(),
     )
