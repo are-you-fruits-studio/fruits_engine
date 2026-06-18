@@ -1,3 +1,115 @@
+//! # fruits_debug
+//!
+//! Exposes a running world to an external debugging tool over a local TCP socket, so the tool can
+//! request live information about the engine's state.
+//!
+//! # How to use
+//!
+//! #### Hosting the debug server
+//!
+//! Register the server module on the world builder. It binds a local socket and answers requests
+//! from a connected debugging tool:
+//!
+//! ```no_run
+//! use fruits_app::App;
+//! use fruits_debug::add_module_to;
+//!
+//! let mut app = App::new();
+//! add_module_to(app.ecs_mut());
+//! app.run();
+//! ```
+//!
+//! #### Sending a message to the connected peer
+//!
+//! A system can enqueue a message for the connected peer by pushing a `(type, payload)` pair onto
+//! [`DebugConnectionResource::send_msg_queue`]. Message type `0` is reserved for the keep-alive
+//! ping; [`msg_types::HIERARCHY`] requests the entity hierarchy:
+//!
+//! ```
+//! use fruits_debug::{msg_types, DebugConnectionResource};
+//! use fruits_ecs::ResMut;
+//!
+//! fn request_hierarchy(mut connection: ResMut<DebugConnectionResource>) {
+//!     connection.send_msg_queue.push_back((msg_types::HIERARCHY, Vec::new()));
+//! }
+//! ```
+//!
+//! #### Reading received messages
+//!
+//! Messages received from the peer arrive on [`DebugConnectionResource::recv_msg_queue`] as
+//! `(type, payload)` pairs. Drain it from a system and dispatch on the message type:
+//!
+//! ```
+//! use fruits_debug::DebugConnectionResource;
+//! use fruits_ecs::ResMut;
+//!
+//! fn drain_messages(mut connection: ResMut<DebugConnectionResource>) {
+//!     while let Some((msg_type, payload)) = connection.recv_msg_queue.pop_back() {
+//!         // dispatch on msg_type ...
+//!         let _ = (msg_type, payload);
+//!     }
+//! }
+//! ```
+//!
+//! #### Running as a connecting client
+//!
+//! [`add_module_as_client_to`] registers only the connection pump (receive, send, keep-alive),
+//! without hosting a listener or generating responses. It is meant for a world that talks to a
+//! debug server rather than hosting one:
+//!
+//! ```no_run
+//! use fruits_app::App;
+//! use fruits_debug::add_module_as_client_to;
+//!
+//! let mut app = App::new();
+//! add_module_as_client_to(app.ecs_mut());
+//! app.run();
+//! ```
+//!
+//! # How to maintain
+//!
+//! #### Wire protocol
+//!
+//! Each message is a fixed 8-byte header followed by a payload. The header is two little-endian
+//! `u32`s: the payload length, then the payload type. [`DebugMessageMetaData`] holds the parsed
+//! header. [`debug_connection_send_system`] writes length, type, then payload bytes;
+//! [`debug_connection_recv_system`] reads the header into `recv_active_msg_metadata`, then waits
+//! until `recv_buffer` holds the whole payload before emitting a completed message onto
+//! [`DebugConnectionResource::recv_msg_queue`]. Type `0` is the keep-alive ping;
+//! [`msg_types::HIERARCHY`] is the only defined request.
+//!
+//! #### Connection lifecycle
+//!
+//! Only one connection is tracked at a time. In server mode [`host_debug_server`] lazily binds a
+//! [`std::net::TcpListener`] on `127.0.0.1:55643`, sets it non-blocking, and accepts a single
+//! stream into [`DebugConnectionResource::active_stream`]. All socket IO is non-blocking:
+//! `WouldBlock` and `TimedOut` are ignored, while any other error calls
+//! [`DebugConnectionResource::reset`] to drop the stream and clear the buffers and queues.
+//! [`debug_connection_ping_system`] enqueues an empty type-`0` message whenever more than one
+//! second has passed since the last message, so an idle connection still produces traffic.
+//!
+//! #### Responses
+//!
+//! [`generate_response_system`] consumes [`DebugConnectionResource::recv_msg_queue`]. For a
+//! [`msg_types::HIERARCHY`] request it queries every [`fruits_ecs::Entity`] and replies with one
+//! pair of little-endian `u32`s per entity — the entity's version-index `index` then `version`.
+//!
+//! #### System ordering
+//!
+//! All systems run in [`fruits_ecs::Schedule::Update`] under the [`SYSTEM_GROUP`] group. The
+//! server orders them so a connection is established before it is used and a response is produced
+//! before it is sent: [`host_debug_server`] runs before receive, send, and ping;
+//! [`debug_connection_recv_system`] runs before [`generate_response_system`], which runs before
+//! [`debug_connection_send_system`]. The client variant registers only receive, send, and ping
+//! and relies on `active_stream` being supplied elsewhere.
+//!
+//! #### Caveats
+//!
+//! The resources are not yet exposed across the FFI boundary (see the `// todo: support ffi`
+//! notes), and binding, accepting, and flushing use `unwrap`, so socket failures panic rather than
+//! surface as errors. The crate's `fruits_debug` binary target (`src/main.rs`) is a manual harness
+//! that hosts the server over a world seeded with 100 entities.
+
 use std::{
     collections::VecDeque,
     io::{Read, Write},

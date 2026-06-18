@@ -1,3 +1,112 @@
+//! # fruits_json_macros
+//!
+//! Backs `fruits_json` with the `#[derive(JsonSerializable)]` macro, so engine
+//! types can be turned into JSON and back without hand-writing the conversion.
+//!
+//! # How to use
+//!
+//! The derive is re-exported from `fruits_json` and is reached from there, not
+//! from this crate directly — users write `#[derive(JsonSerializable)]` and the
+//! macro generates the `to_json`, `from_json`, and `fill_partially_from_json`
+//! methods of the `JsonSerializable` trait. The examples below need `JsonValue`,
+//! `JsonObject`, and the `JsonSerializable` trait in scope (all from
+//! `fruits_json`), so they are shown as `ignore`; see the runnable versions on
+//! the `fruits_json` crate page.
+//!
+//! #### Derive conversion for a struct
+//!
+//! Apply the derive to a struct of named or tuple fields to encode it as a JSON
+//! object keyed by field name.
+//!
+//! ```ignore
+//! use fruits_json::{JsonSerializable, JsonValue};
+//!
+//! #[derive(JsonSerializable)]
+//! struct Player {
+//!     name: String,
+//!     score: u32,
+//! }
+//!
+//! let player = Player { name: String::from("Mei"), score: 42 };
+//! let json = player.to_json();
+//! let restored = Player::from_json(&json).unwrap();
+//! ```
+//!
+//! #### Derive conversion for a fieldless enum
+//!
+//! Apply the derive to an enum whose variants carry no data to encode each value
+//! as the variant's name string.
+//!
+//! ```ignore
+//! use fruits_json::JsonSerializable;
+//!
+//! #[derive(JsonSerializable)]
+//! enum Facing {
+//!     North,
+//!     South,
+//! }
+//!
+//! // `Facing::North` round-trips through the JSON string "North".
+//! let json = Facing::North.to_json();
+//! let restored = Facing::from_json(&json).unwrap();
+//! ```
+//!
+//! #### Merge incoming JSON into an existing value
+//!
+//! `fill_partially_from_json` overlays only the fields present in the JSON onto a
+//! value already in hand, leaving the rest untouched — useful for applying a
+//! partial config or patch.
+//!
+//! ```ignore
+//! use fruits_json::{JsonSerializable, JsonValue};
+//!
+//! #[derive(JsonSerializable)]
+//! struct Settings {
+//!     volume: u32,
+//!     brightness: u32,
+//! }
+//!
+//! let mut settings = Settings { volume: 50, brightness: 50 };
+//! let patch = JsonValue::parse(&mut r#"{"volume":80}"#.chars()).unwrap();
+//! settings.fill_partially_from_json(&patch); // volume becomes 80, brightness stays 50
+//! ```
+//!
+//! # How to maintain
+//!
+//! The derive does not build output with `quote!`. It writes the implementation
+//! as Rust *source text* into [`String`] buffers with `write!`, then calls
+//! `.parse()` to turn that text back into the returned `TokenStream`. The input
+//! is parsed once into a [`syn::DeriveInput`]; everything after that is string
+//! assembly. When changing the generated code, read the format strings as the
+//! literal Rust they emit (the `{{`/`}}` are escaped braces in the final source).
+//!
+//! Generics are reproduced textually: the full `impl<...>` clause comes from
+//! `input.generics`, and a separate `type_generics` list rebuilds the
+//! `Type<...>` arguments from the type and const parameters. A `<{type_generics}>`
+//! suffix is always emitted after the type name even when the list is empty,
+//! which renders as a harmless empty `<>` for non-generic types. Lifetime
+//! parameters are rejected with a panic — the trait requires `Self: Sized` and
+//! the macro assumes `'static` types, so non-static types are unsupported.
+//!
+//! Structs are encoded as a `JsonObject`: `to_json` pushes one field per
+//! struct field under its name (tuple fields use their numeric index as the
+//! name), `from_json` requires a `JsonValue::Object` and rebuilds every field by
+//! name (a missing or unconvertible field makes the whole conversion return
+//! `None`), and `fill_partially_from_json` recurses into each field only when the
+//! object actually carries it.
+//!
+//! Fieldless enums are encoded as the variant name string: `to_json` produces a
+//! `JsonValue::String`, `from_json` matches that string back to a variant and
+//! returns `None` for anything unknown, and `fill_partially_from_json` simply
+//! reparses and overwrites the whole value when parsing succeeds. Enums whose
+//! variants carry fields are not yet supported and panic; the commented-out block
+//! in the variant loop sketches the intended field handling (see the `// todo`s).
+//! Unions also panic.
+//!
+//! All three methods are generated for every accepted shape, so the trait is
+//! always implemented in full and the partial-merge path is consistent with the
+//! full conversion.
+
 use proc_macro::TokenStream;
 use quote::ToTokens;
 use std::fmt::Write;

@@ -338,10 +338,7 @@ fn overlaps_aa_tr(s1: CollisionAabb, s2: [Vec3<f32>; 3]) -> bool {
     overlaps_centered_aa_tr(s1.extents, s2.map(|v| v - s1.center))
 }
 
-/// <summary>
-/// Will be used later. Has 50% worse performance than the non-alt version. But can provide contact points.
-/// </summary>
-/// <returns></returns>
+// Will be used later. Has 50% worse performance than the non-alt version. But can provide contact points.
 fn _overlaps_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
     if overlaps_pt_sp(s1.start, s2) || overlaps_pt_sp(s1.end, s2) {
         return true;
