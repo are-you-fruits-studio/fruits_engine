@@ -12,8 +12,11 @@ pub fn build_app(project_path: &str) {
     build_cargo_project([project_path, "launcher"].iter().collect::<PathBuf>()).unwrap();
     build_cargo_project([project_path, "scripts"].iter().collect::<PathBuf>()).unwrap();
 
-    #[cfg(windows)] let (scripts_lib_src, scripts_lib_dst) = ("lib_app.dll", "lib_app.dll");
-    #[cfg(not(windows))] let (scripts_lib_src, scripts_lib_dst) = ("liblib_app.so", "lib_app.so");
+    let (scripts_lib_src, scripts_lib_dst) = if cfg!(windows) {
+        ("lib_app.dll", "lib_app.dll")
+    } else {
+        ("liblib_app.so", "lib_app.so")
+    };
     let launcher_exe = format!("launcher{}", std::env::consts::EXE_SUFFIX);
     let build_exe = format!("{project_name}{}", std::env::consts::EXE_SUFFIX);
 
