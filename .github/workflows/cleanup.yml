@@ -1,0 +1,91 @@
+name: Cleanup old artifacts and releases
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Sundays at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      max_artifact_age_days:
+        description: 'Delete artifacts older than N days'
+        default: '7'
+        required: false
+        type: string
+      max_release_age_days:
+        description: 'Delete pre-releases and releases older than N days'
+        default: '180'
+        required: false
+        type: string
+
+jobs:
+  cleanup:
+    name: Remove stale artifacts and releases
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+    steps:
+      - name: Delete old artifacts
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const maxAgeDays = parseInt('${{ inputs.max_artifact_age_days || '7' }}', 10);
+            const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+
+            const { data: { artifacts } } = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            let deleted = 0;
+            for (const artifact of artifacts) {
+              if (new Date(artifact.created_at) < cutoff) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`Deleted artifact: ${artifact.name} (created ${artifact.created_at})`);
+                deleted++;
+              }
+            }
+            console.log(`Artifacts done. Deleted ${deleted}.`);
+
+      - name: Delete old releases
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const maxAgeDays = parseInt('${{ inputs.max_release_age_days || '180' }}', 10);
+            const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            let deleted = 0;
+            for (const release of releases) {
+              if (new Date(release.created_at) < cutoff) {
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: release.id,
+                });
+                console.log(`Deleted release: ${release.tag_name} (${release.prerelease ? 'pre-release' : 'release'}, created ${release.created_at})`);
+                if (release.tag_name) {
+                  try {
+                    await github.rest.git.deleteRef({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      ref: `tags/${release.tag_name}`,
+                    });
+                    console.log(`Deleted tag: ${release.tag_name}`);
+                  } catch (e) {
+                    console.log(`Could not delete tag ${release.tag_name}: ${e.message}`);
+                  }
+                }
+                deleted++;
+              }
+            }
+            console.log(`Releases done. Deleted ${deleted}.`);
