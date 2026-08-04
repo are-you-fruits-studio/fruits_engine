@@ -37,6 +37,8 @@ impl ProjectWindowDataEntry {
             }
         }
 
+        result.sort_by(|l,r| l.name.as_str().cmp(r.name.as_str()));
+
         result
     }
 }

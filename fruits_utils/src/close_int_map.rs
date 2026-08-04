@@ -1,20 +1,22 @@
-// todo: ffi?
+use fruits_ffi::{FfiBox, FfiOption, FfiVec};
+
+#[repr(C)]
 pub struct CloseIntMap<T> {
-    inner: Vec<Option<Box<T>>>,
-    offset: usize,
+    inner: FfiVec<FfiOption<FfiBox<T>>>,
+    offset: u64,
 }
 
 impl<T> CloseIntMap<T> {
     pub const fn new() -> Self {
         Self {
-            inner: Vec::new(),
+            inner: FfiVec::new(),
             offset: 0,
         }
     }
 
-    pub fn insert(&mut self, k: usize, v: T) {
+    pub fn insert(&mut self, k: u64, v: T) {
         if self.inner.len() == 0 {
-            self.inner.push(Some(Box::new(v)));
+            self.inner.push(Some(FfiBox::new(v)).into());
             self.offset = k;
             return;
         }
@@ -24,14 +26,14 @@ impl<T> CloseIntMap<T> {
 
             if let Some(stored) = self.inner.get_mut(idx) {
                 // todo: optimize
-                *stored = Some(Box::new(v));
+                *stored = Some(FfiBox::new(v)).into();
                 return;
             } else {
                 // todo: optimize
                 while idx > self.inner.len() {
-                    self.inner.push(None);
+                    self.inner.push(None.into());
                 }
-                self.inner.push(Some(Box::new(v)));
+                self.inner.push(Some(FfiBox::new(v)).into());
                 return;
             }
         }
@@ -41,11 +43,13 @@ impl<T> CloseIntMap<T> {
         self.offset = k;
 
         // todo: optimize
-        let old_inner = std::mem::replace(&mut self.inner, Vec::new());
-        self.inner = std::iter::once(Some(Box::new(v))).chain(std::iter::repeat_with(|| None).take(temp_offset - 1)).chain(old_inner.into_iter()).collect();
+        let old_inner = std::mem::replace(&mut self.inner, FfiVec::new());
+        self.inner = std::iter::once(FfiOption::Some(FfiBox::new(v)))
+            .chain(std::iter::repeat_with(|| FfiOption::None).take((temp_offset - 1) as usize))
+            .chain(old_inner.into_iter()).collect();
     }
 
-    pub fn get(&self, k: usize) -> Option<&T> {
+    pub fn get(&self, k: u64) -> Option<&T> {
         if k < self.offset {
             return None;
         }
@@ -55,11 +59,11 @@ impl<T> CloseIntMap<T> {
         let Some(stored) = self.inner.get(idx) else {
             return None;
         };
-        
+       
         stored.as_ref().map(|b| &**b)
     }
 
-    pub fn get_mut(&mut self, k: usize) -> Option<&mut T> {
+    pub fn get_mut(&mut self, k: u64) -> Option<&mut T> {
         if k < self.offset {
             return None;
         }
@@ -69,7 +73,7 @@ impl<T> CloseIntMap<T> {
         let Some(stored) = self.inner.get_mut(idx) else {
             return None;
         };
-        
+       
         stored.as_mut().map(|b| &mut **b)
     }
 }

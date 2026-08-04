@@ -117,7 +117,7 @@ use std::{
     time::Instant,
 };
 
-use fruits_ecs::{EntityId, ExclusiveWorldAccess, ResMut, Resource, Schedule, WorldBuilder};
+use fruits_ecs::{EntityId, ResMut, Resource, Schedule, WorldBuilder, WorldDataMut};
 
 pub const SYSTEM_GROUP: &str = "fruits_debug";
 
@@ -125,15 +125,11 @@ pub fn add_module_to(world: &mut WorldBuilder) {
     world
         .data_mut()
         .resources_mut()
-        .insert(DebugServerResource::default())
-        .ok()
-        .unwrap();
+        .insert(DebugServerResource::default());
     world
         .data_mut()
         .resources_mut()
-        .insert(DebugConnectionResource::default())
-        .ok()
-        .unwrap();
+        .insert(DebugConnectionResource::default());
 
     world
         .behavior_mut()
@@ -176,15 +172,11 @@ pub fn add_module_as_client_to(world: &mut WorldBuilder) {
     world
         .data_mut()
         .resources_mut()
-        .insert(DebugServerResource::default())
-        .ok()
-        .unwrap();
+        .insert(DebugServerResource::default());
     world
         .data_mut()
         .resources_mut()
-        .insert(DebugConnectionResource::default())
-        .ok()
-        .unwrap();
+        .insert(DebugConnectionResource::default());
 
     world
         .behavior_mut()
@@ -199,8 +191,8 @@ pub mod msg_types {
     pub const HIERARCHY: u32 = 1;
 }
 
-pub fn generate_response_system(mut world: ExclusiveWorldAccess) {
-    let (mut res, ec, _evt) = world.as_tuple_mut();
+pub fn generate_response_system(world: WorldDataMut) {
+    let (res, ec, _evt) = world.as_tuple_mut();
 
     let connection_res = res.get_mut::<DebugConnectionResource>().unwrap();
 

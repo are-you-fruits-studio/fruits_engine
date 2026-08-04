@@ -45,6 +45,40 @@ impl<T> FfiOption<T> {
     pub const fn is_none(&self) -> bool {
         matches!(self, Self::None)
     }
+
+    pub fn take(&mut self) -> Option<T> {
+        std::mem::replace(self, FfiOption::None).into()
+    }
+}
+
+impl<'a, T> FfiOption<&'a T> {
+    pub const fn as_option<'r>(&'r self) -> Option<&'a T>
+        where 'r: 'a
+    {
+        match self {
+            FfiOption::None => None,
+            FfiOption::Some(v) => Some(v),
+        }
+    }
+}
+
+impl<'a, T> FfiOption<&'a mut T> {
+    pub const fn as_option<'r>(&'r self) -> Option<&'a T>
+        where 'r: 'a
+    {
+        match self {
+            FfiOption::None => None,
+            FfiOption::Some(v) => Some(v),
+        }
+    }
+    pub const fn as_option_mut<'r>(&'r mut self) -> Option<&'a mut T>
+        where 'r: 'a
+    {
+        match self {
+            FfiOption::None => None,
+            FfiOption::Some(v) => Some(v),
+        }
+    }
 }
 
 impl<T: Debug> Debug for FfiOption<T> {

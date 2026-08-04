@@ -4,6 +4,7 @@ use fruits_ffi::FfiString;
 
 use crate::*;
 
+// todo: ffi
 pub struct SystemsHolderBuilderNative {
     systems: HashMap<FfiString, SystemFfi>,
     systems_ordering: HashSet<(OrderEntry, OrderEntry)>,

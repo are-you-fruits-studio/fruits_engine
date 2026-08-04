@@ -30,13 +30,13 @@ impl SystemResourcesHolderNative {
             };
         }
 
-        let Some(type_data) = self.types.get(id) else {
+        let Some(type_info) = self.types.get(id) else {
             panic!("Type data missing");
         };
 
         // todo
         let mem = unsafe {
-            let Some(layout) = std::alloc::Layout::from_size_align(type_data.size as usize, type_data.align as usize).ok() else {
+            let Some(layout) = std::alloc::Layout::from_size_align(type_info.short().size() as usize, type_info.short().align() as usize).ok() else {
                 panic!("Invalid type layout");
             };
 
@@ -54,15 +54,13 @@ impl Drop for SystemResourcesHolderNative {
         let resources = self.resources.lock().unwrap();
 
         for (&id, &mem) in resources.iter() {
-            let type_data = self.types.get(id).unwrap();
+            let type_info = self.types.get(id).unwrap();
 
             // todo
             unsafe {
-                if let Some(drop_fn) = type_data.drop_fn {
-                    drop_fn(mem as *mut c_void);
-                }
+                type_info.drop(mem as *mut c_void);
 
-                let layout = std::alloc::Layout::from_size_align(type_data.size as usize, type_data.align as usize)
+                let layout = std::alloc::Layout::from_size_align(type_info.short().size() as usize, type_info.short().align() as usize)
                     .ok()
                     .unwrap();
 

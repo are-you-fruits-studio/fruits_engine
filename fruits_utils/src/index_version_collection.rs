@@ -1,9 +1,18 @@
-use std::{cmp::Ordering, collections::VecDeque};
+use std::cmp::Ordering;
 
-// todo: ffi
+use fruits_ffi::{FfiOption, FfiVec, FfiVecDeque};
+
+// todo?: Option to bitvec + MaybeUninit data
+#[repr(C)]
+struct DataWithVersion<T> {
+    pub version: u64,
+    pub data: FfiOption<T>,
+}
+
+#[repr(C)]
 pub struct VersionCollection<T> {
-    items: Vec<DataWithVersion<T>>,
-    free_places: VecDeque<u64>,
+    items: FfiVec<DataWithVersion<T>>,
+    free_places: FfiVecDeque<u64>,
     // reserved_places: VecDeque<usize>,
     count: u64,
 }
@@ -45,25 +54,20 @@ impl PartialOrd for VersionIndex {
     }
 }
 
-struct DataWithVersion<T> {
-    pub version: u64,
-    pub data: Option<T>,
-}
-
 impl<T> VersionCollection<T> {
     pub fn new() -> Self {
         Self {
-            items: Vec::new(),
-            free_places: VecDeque::new(),
+            items: FfiVec::new(),
+            free_places: FfiVecDeque::new(),
             count: 0,
         }
     }
 
     pub fn insert(&mut self, data: T) -> VersionIndex {
         if let Some(index) = self.free_places.pop_front() {
-            let item = &mut self.items[index as usize];
+            let item = &mut self.items[index];
 
-            item.data = Some(data);
+            item.data = Some(data).into();
 
             self.count = self
                 .count
@@ -85,7 +89,7 @@ impl<T> VersionCollection<T> {
         let version = 1;
 
         self.items.push(DataWithVersion::<T> {
-            data: Some(data),
+            data: Some(data).into(),
             version,
         });
 
@@ -117,7 +121,7 @@ impl<T> VersionCollection<T> {
     }
 
     pub fn get(&self, index: VersionIndex) -> Option<&T> {
-        let data_with_version = self.items.get(index.index as usize)?;
+        let data_with_version = self.items.get(index.index)?;
 
         if index.version != data_with_version.version {
             return None;
@@ -131,7 +135,7 @@ impl<T> VersionCollection<T> {
     }
 
     fn get_data_with_version_mut(&mut self, index: VersionIndex) -> Option<&mut DataWithVersion<T>> {
-        let data_with_version = self.items.get_mut(index.index as usize)?;
+        let data_with_version = self.items.get_mut(index.index)?;
 
         if index.version != data_with_version.version {
             return None;
@@ -141,7 +145,7 @@ impl<T> VersionCollection<T> {
     }
 
     pub fn contains_index(&self, index: VersionIndex) -> bool {
-        let Some(data_with_version) = self.items.get(index.index as usize) else {
+        let Some(data_with_version) = self.items.get(index.index) else {
             return false;
         };
 
@@ -155,4 +159,44 @@ impl<T> VersionCollection<T> {
     pub fn is_empty(&self) -> bool {
         self.count == 0
     }
+
+    pub fn iter<'a>(&'a self) -> VersionCollectionIter<'a, T> {
+        VersionCollectionIter {
+            collection: self,
+            next_index: 0,
+        }
+    }
 }
+
+impl<'a, T> IntoIterator for &'a VersionCollection<T> {
+    type Item = &'a T;
+
+    type IntoIter = VersionCollectionIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+#[repr(C)]
+pub struct VersionCollectionIter<'a, T> {
+    collection: &'a VersionCollection<T>,
+    next_index: u64,
+}
+
+impl<'a, T> Iterator for VersionCollectionIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(item) = self.collection.items.get(self.next_index) {
+            self.next_index += 1;
+
+            if let FfiOption::Some(item) = &item.data {
+                return Some(item);
+            }
+        }
+
+        return None;
+    }
+}
+// todo: other iterators?

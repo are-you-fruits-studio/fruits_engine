@@ -1,10 +1,6 @@
 use crate::*;
 
-pub trait SystemResource: 'static + Default { }
-
-//
-
-fn resources_holder_typed_get_or_insert<'a, T: 'static + Default>(
+fn system_resources_holder_typed_get_or_insert<'a, T: 'static + Default>(
     res: &'a SystemResourcesHolderUnsafeFfi,
     types: &TypesRegistryCache,
 ) -> *mut T {
@@ -40,7 +36,7 @@ impl SystemResourcesHolder {
     }
 
     pub fn get_or_insert<T: 'static + Default>(&self) -> *mut T {
-        resources_holder_typed_get_or_insert(&self.res, &self.types)
+        system_resources_holder_typed_get_or_insert(&self.res, &self.types)
     }
 
     pub unsafe fn ffi(&mut self) -> *mut SystemResourcesHolderUnsafeFfi {
@@ -75,7 +71,7 @@ impl<'r> SystemResourcesHolderMut<'r> {
     }
 
     pub fn get_or_insert<T: 'static + Default>(&self) -> *mut T {
-        resources_holder_typed_get_or_insert(self.res, &self.types)
+        system_resources_holder_typed_get_or_insert(self.res, &self.types)
     }
 
     pub fn as_mut(&'r mut self) -> SystemResourcesHolderMut<'r> {
@@ -107,6 +103,6 @@ impl<'r> SystemResourcesHolderRef<'r> {
     }
 
     pub fn get_or_insert<T: 'static + Default>(self) -> *mut T {
-        resources_holder_typed_get_or_insert(self.res, &self.types)
+        system_resources_holder_typed_get_or_insert(self.res, &self.types)
     }
 }

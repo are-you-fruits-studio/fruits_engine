@@ -11,5 +11,4 @@ crate-type = ["lib"]
 [dependencies]
 fruits_swizzling = { path = "../fruits_swizzling" }
 fruits_utils = { path = "../fruits_utils" }
-fruits_serialization = { path = "../fruits_serialization" }
 serde = { version = "1", features = ["derive"] }

@@ -63,28 +63,28 @@ impl Timer {
             let init_instant = INIT_INSTANT.get().unwrap();
 
             json.push(String::from(" { "));
-            
+           
             json.push(String::from(" \"startTime\" : "));
             json.push((timer_info.start_time - *init_instant).as_nanos().to_string());
             json.push(String::from(" , "));
-            
+           
             json.push(String::from(" \"startOrder\" : "));
             json.push(timer_info.start_order.to_string());
             json.push(String::from(","));
-            
+           
             json.push(String::from(" \"endTime\" : "));
             json.push((timer_info.end_time - *init_instant).as_nanos().to_string());
             json.push(String::from(","));
-            
+           
             json.push(String::from(" \"endOrder\" : "));
             json.push(timer_info.end_order.to_string());
             json.push(String::from(","));
-            
+           
             json.push(String::from(" \"name\" : "));
             json.push(String::from(" \""));
             json.push(format!("#{} {}", timer_info.same_name_order, timer_info.name));
             json.push(String::from("\", "));
-            
+           
             json.push(String::from(" \"durationNs\" : "));
             json.push(timer_info.duration.as_nanos().to_string());
 

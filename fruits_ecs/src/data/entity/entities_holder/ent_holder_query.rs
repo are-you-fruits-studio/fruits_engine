@@ -17,11 +17,13 @@ impl<'d, A: ArchetypeIteratorItem, F: QueryFilter> EntitiesHolderQuery<'d, A, F>
     ///
     /// No access sync - needs to be managed by caller.
     pub(crate) unsafe fn new(entities: &'d EntitiesHolderUnsafeFfi, types: &'d TypesRegistryCache) -> Self {
-        let mut usage = DataUsageBuilder::new();
+        let mut usage = ByTypeWorldPartDataUsageBuilder::new();
 
         A::fill_usage(&mut usage, types);
 
-        let mut components = usage.build().into_elements().unwrap();
+        let Some(mut components) = usage.build() else {
+            panic!("fruits: Invalid entities query DataUsage: {}", std::any::type_name::<A>());
+        };
 
         let entity_type_id = types.get_or_register::<EntityId>();
         if let Some(entity_id_idx) = components.iter().position(|x| x.type_id == entity_type_id) {

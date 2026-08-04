@@ -198,45 +198,31 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
     world
         .data_mut()
         .resources_mut()
-        .insert(SurfaceTextureResource { texture: None })
-        .ok()
-        .unwrap();
+        .insert(SurfaceTextureResource { texture: None });
     world
         .data_mut()
         .resources_mut()
-        .insert(AssetStorageResource::<StandardMaterial>::new())
-        .ok()
-        .unwrap();
+        .insert(AssetStorageResource::<StandardMaterial>::new());
     world
         .data_mut()
         .resources_mut()
-        .insert(AssetStorageResource::<StandardMesh>::new())
-        .ok()
-        .unwrap();
+        .insert(AssetStorageResource::<StandardMesh>::new());
     world
         .data_mut()
         .resources_mut()
-        .insert(AssetStorageResource::<StandardTexture>::new())
-        .ok()
-        .unwrap();
+        .insert(AssetStorageResource::<StandardTexture>::new());
     world
         .data_mut()
         .resources_mut()
-        .insert(AssetStorageResource::<Font>::new())
-        .ok()
-        .unwrap();
+        .insert(AssetStorageResource::<Font>::new());
     world
         .data_mut()
         .resources_mut()
-        .insert(GizmosResource::default())
-        .ok()
-        .unwrap();
+        .insert(GizmosResource::default());
     world
         .data_mut()
         .resources_mut()
-        .insert(ScreenSpaceResource::default())
-        .ok()
-        .unwrap();
+        .insert(ScreenSpaceResource::default());
 
     let mut world_behavior = world.behavior_mut();
 

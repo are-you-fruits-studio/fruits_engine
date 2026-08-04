@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, ffi::c_void, fmt::Debug, hash::{BuildHasher, Hash, Hasher}, marker::PhantomData};
+use std::{borrow::Borrow, ffi::c_void, fmt::Debug, hash::{BuildHasher, Hash, Hasher}};
 
 use crate::{FfiDroppable, FfiFnRef, FfiOption, FfiSliceRef, FfiVec};
 
@@ -93,6 +93,7 @@ struct FfiHashTableVtable {
     ffi_remove: unsafe extern "C" fn(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64>,
     ffi_get: unsafe extern "C" fn(this: *const c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64>,
     ffi_set: unsafe extern "C" fn(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>, value: u64),
+    ffi_clear: unsafe extern "C" fn(this: *mut c_void),
 }
 
 #[repr(C)]
@@ -113,11 +114,11 @@ impl FfiHashTable {
         unsafe extern "C" fn ffi_remove(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64> {
             unsafe {
                 let this = &mut *(this as *mut hashbrown::hash_table::HashTable<u64>);
-                
+               
                 let Ok(entry) = this.find_entry(hash, |i| key_eq.execute(*i)) else {
                     return None.into();
                 };
-            
+           
                 Some(entry.remove().0).into()
             }
 
@@ -125,7 +126,7 @@ impl FfiHashTable {
         unsafe extern "C" fn ffi_get(this: *const c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64> {
             unsafe {
                 let this = &*(this as *const hashbrown::hash_table::HashTable<u64>);
-                
+               
                 this.find(hash, |i| key_eq.execute(*i)).copied().into()
             }
         }
@@ -137,7 +138,13 @@ impl FfiHashTable {
                     *entry.get_mut() = value;
                 }
             }
+        }
+        unsafe extern "C" fn ffi_clear(this: *mut c_void) {
+            unsafe {
+                let this = &mut *(this as *mut hashbrown::hash_table::HashTable<u64>);
 
+                this.clear();
+            }
         }
 
         Self {
@@ -147,10 +154,11 @@ impl FfiHashTable {
                 ffi_insert_unique: ffi_insert_unique,
                 ffi_remove: ffi_remove,
                 ffi_set: ffi_set,
+                ffi_clear: ffi_clear,
             }
         }
     }
-    
+   
     pub fn insert_unique<K, V>(&mut self, hash: u64, value: u64, values: &FfiVec<FfiIndexMapEntry<K, V>>) {
         unsafe {
             let hasher = |x: u64| values[x].hash;
@@ -158,7 +166,7 @@ impl FfiHashTable {
             (self.vtable.ffi_insert_unique)(self.table.get(), hash, value, hasher)
         }
     }
-    
+   
     pub fn remove<K: Borrow<Q>, V, Q: ?Sized + Eq>(&mut self, hash: u64, key: &Q, values: &FfiVec<FfiIndexMapEntry<K, V>>) -> Option<u64> {
         unsafe {
             let key_eq = |i: u64| key == values[i].key.borrow();
@@ -166,7 +174,7 @@ impl FfiHashTable {
             (self.vtable.ffi_remove)(self.table.get(), hash, key_eq).into_option()
         }
     }
-    
+   
     pub fn get<K: Borrow<Q>, V, Q: ?Sized + Eq>(&self, hash: u64, key: &Q, values: &FfiVec<FfiIndexMapEntry<K, V>>) -> Option<u64> {
         unsafe {
             let key_eq = |i: u64| key == values[i].key.borrow();
@@ -174,12 +182,18 @@ impl FfiHashTable {
             (self.vtable.ffi_get)(self.table.get(), hash, key_eq).into_option()
         }
     }
-    
+   
     pub fn set<K: Borrow<Q>, V, Q: ?Sized + Eq>(&mut self, hash: u64, key: &Q, value: u64, values: &FfiVec<FfiIndexMapEntry<K, V>>) {
         unsafe {
             let key_eq = |i: u64| key == values[i].key.borrow();
             let key_eq = FfiFnRef::new(&key_eq);
             (self.vtable.ffi_set)(self.table.get(), hash, key_eq, value)
+        }
+    }
+   
+    pub fn clear(&mut self) {
+        unsafe {
+            (self.vtable.ffi_clear)(self.table.get())
         }
     }
 }
@@ -284,11 +298,11 @@ impl<K: Hash + Eq, V> FfiIndexMap<K, V> {
         }
 
         let moved_element = &self.values[self.values.len() - 1];
-        
+       
         self.indices.set(moved_element.hash, moved_element.key.borrow(), idx, &self.values);
 
         let removed_element = self.values.swap_remove(idx).unwrap();
-        
+       
         Some(removed_element.value)
     }
     pub fn len(&self) -> u64 {
@@ -301,6 +315,10 @@ impl<K: Hash + Eq, V> FfiIndexMap<K, V> {
         where K: Borrow<Q>
     {
         self.index_of_prehashed(key, self.state.hash(key))
+    }
+    pub fn clear(&mut self) {
+        self.indices.clear();
+        self.values.clear();
     }
     fn index_of_prehashed<Q: ?Sized + Eq>(&self, key: &Q, hash: u64) -> Option<u64>
         where K: Borrow<Q>

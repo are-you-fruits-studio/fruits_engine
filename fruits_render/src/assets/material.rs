@@ -47,7 +47,7 @@ pub struct StandardMaterial {
     pub metallic: f32,
     pub roughness: f32,
     pub alpha_threshold: FfiOption<f32>,
-    pub color_tex: FfiOption<AssetHandle<StandardTexture>>,
+    pub color_tex: AssetHandle<StandardTexture>,
     pub is_lit: bool,
 }
 
@@ -60,7 +60,7 @@ impl Default for StandardMaterial {
             metallic: 0.0,
             roughness: 0.5,
             alpha_threshold: Some(0.5).into(),
-            color_tex: None.into(),
+            color_tex: AssetHandle::EMPTY,
             is_lit: false,
         }
     }

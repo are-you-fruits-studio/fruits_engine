@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-libloading = "0.8.8"
+libloading = "0.9"
 fruits_ecs = { path = "../fruits_ecs" }
 fruits_modules = { path = "../fruits_modules" }
 fruits_app = { path = "../fruits_app" }

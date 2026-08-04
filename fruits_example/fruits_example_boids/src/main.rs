@@ -14,9 +14,7 @@ fn main() {
         .insert(BoidSettings {
             attraction_threshold: 1.0,
             damping_factor: 0.2,
-        })
-        .ok()
-        .unwrap();
+        });
 
     let mut systems = ecs.behavior_mut();
 
@@ -75,8 +73,8 @@ struct BoidSettings {
     pub damping_factor: f32,
 }
 
-fn init(mut world: ExclusiveWorldAccess) {
-    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+fn init(mut world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
     let material = StandardMaterial {
         is_lit: true,
@@ -112,20 +110,20 @@ fn init(mut world: ExclusiveWorldAccess) {
 
     let indices = [0, 2, 1];
 
-    let mesh = render_api.create_mesh(&vertices, &indices);
+    let mesh = render_api.create_mesh(&vertices, &indices, None);
 
-    let material = world
+    let material = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
         .insert(material);
-    let mesh = world
+    let mesh = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMesh>>()
         .unwrap()
         .insert(mesh);
 
-    let ec = &mut world.entities_mut();
+    let ec = &mut world.as_mut().entities_mut();
 
     for _ in 0..100 {
         let entity = ec.create_entity();

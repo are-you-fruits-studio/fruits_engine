@@ -1,5 +1,28 @@
 {
   "asset_type": "material",
-  "metallic": 0.456,
-  "roughness": 0.99
+  "space": {
+    "$enum_variant": "Clip"
+  },
+  "color": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+  },
+  "emission_color": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+  },
+  "metallic": 0.4560000002384186,
+  "roughness": 0.9900000095367432,
+  "alpha_threshold": {
+    "$enum_variant": "None"
+  },
+  "color_tex": {
+    "$enum_variant": "Some",
+    "0": ""
+  },
+  "is_lit": false
 }

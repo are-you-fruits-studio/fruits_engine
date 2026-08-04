@@ -1,5 +1,7 @@
 use std::ffi::c_void;
 
+use fruits_ffi::FfiExtendedTypeInfo;
+
 use crate::*;
 
 #[repr(C)]
@@ -136,10 +138,6 @@ impl ArchetypeUnsafeFfi {
         }
 
         for item_layout in self.layout.components() {
-            let Some(drop_fn) = item_layout.type_data.data.drop_fn else {
-                continue;
-            };
-
             let item_layout = item_layout.into_item_layout();
 
             unsafe {
@@ -147,7 +145,7 @@ impl ArchetypeUnsafeFfi {
 
                 let memory = self.archetype.get_memory(&location);
 
-                drop_fn(memory as *mut c_void);
+                item_layout.type_info.drop(memory as *mut c_void);
             }
         }
 
@@ -227,7 +225,7 @@ impl ArchetypeUnsafeFfi {
         unsafe {
             let added_mem = dst.archetype.get_memory(&added_component_location);
 
-            std::ptr::copy_nonoverlapping(component_ptr, added_mem, item_layout.type_data.size as usize);
+            std::ptr::copy_nonoverlapping(component_ptr, added_mem, item_layout.type_info.short().size() as usize);
         }
 
         Some(src.erase_entity(src_entity_index).unwrap())
@@ -242,17 +240,17 @@ impl ArchetypeUnsafeFfi {
             .components()
             .iter()
             .map(move |t| {
-                let item_layout = memory_layout.get_component(t.type_data.id).unwrap();
+                let item_layout = memory_layout.get_component(t.type_info.id).unwrap();
                 (
                     memory_layout.memory_physical_location(entity_in_archetype_index, item_layout),
-                    item_layout.type_data.size as usize,
+                    item_layout.type_info.short().size() as usize,
                 )
             })
             .chain(std::iter::once({
                 let item_layout = memory_layout.entity_item_layout();
                 (
                     memory_layout.entity_memory_physical_location(entity_in_archetype_index),
-                    item_layout.type_data.size as usize,
+                    item_layout.type_info.short().size() as usize,
                 )
             }))
     }
@@ -262,7 +260,7 @@ impl ArchetypeUnsafeFfi {
         src: &mut Self,
         dst: &mut Self,
         src_entity_index: u64,
-        component_ptr: *mut u8,
+        component_mover: impl FnOnce(*mut u8, &'static FfiExtendedTypeInfo),
         component_id: u64,
     ) -> Option<EntityId> {
         if !ArchetypeLayout::is_component_the_only_difference(&src.layout, &dst.layout, component_id) {
@@ -290,7 +288,7 @@ impl ArchetypeUnsafeFfi {
             let removed_component_location = src.layout.memory_physical_location(dst_entity_index, item_layout);
             let removed_ptr = src.archetype.get_memory(&removed_component_location);
 
-            std::ptr::copy_nonoverlapping(removed_ptr, component_ptr, item_layout.type_data.size as usize);
+            component_mover(removed_ptr, item_layout.type_info);
         };
 
         Some(src.erase_entity(src_entity_index).unwrap())

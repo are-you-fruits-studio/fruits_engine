@@ -18,10 +18,10 @@ unsafe impl<'e> SystemParam for EntitiesInfo<'e> {
     type Item<'b> = EntitiesInfo<'b>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+        usage.world().entities().add_type(DataUsageEntry {
             type_id: types.get_or_register::<EntityId>(),
             details: DataUsageDetails {
-                is_mutable: false,
+                is_mut: false,
                 is_required: true,
             },
         });

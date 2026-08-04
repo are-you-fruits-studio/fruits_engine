@@ -30,9 +30,7 @@ fn main() {
         .order_group(SYSTEM_GROUP_RENDER)
         .before_system(init_mesh_material);
 
-    let mut world_data = world.data_mut();
-
-    let mut ec = world_data.entities_mut();
+    let mut ec = world.data_mut().entities_mut();
 
     let entity = ec.create_entity();
 
@@ -84,28 +82,24 @@ struct FpsResource {
     pub count: usize,
 }
 
-fn init_resources(mut world: ExclusiveWorldAccess) {
-    world.resources_mut().insert(SampleResource {}).ok().unwrap();
-    world
+fn init_resources(mut world: WorldDataMut) {
+    world.as_mut().resources_mut().insert(SampleResource {});
+    world.as_mut()
         .resources_mut()
         .insert(FpsResource {
             last_measure_seconds: 0,
             count: 0,
-        })
-        .ok()
-        .unwrap();
-    world
+        });
+    world.as_mut()
         .resources_mut()
         .insert(TimeResource {
             time: 0.0_f32,
             start: None,
-        })
-        .ok()
-        .unwrap();
+        });
 }
 
-fn init_mesh_material(mut world: ExclusiveWorldAccess) {
-    let Some(render_api) = world.resources().get::<RenderApiResource>() else {
+fn init_mesh_material(mut world: WorldDataMut) {
+    let Some(render_api) = world.as_ref().resources().get::<RenderApiResource>() else {
         return;
     };
 
@@ -194,14 +188,14 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
     let indices = vertices.iter().enumerate().map(|(i, _)| i as u16).collect::<Vec<_>>();
 
-    let mesh = render_api.create_mesh(&vertices, &indices);
+    let mesh = render_api.create_mesh(&vertices, &indices, None);
 
-    let material = world
+    let material = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
         .insert(material);
-    let mesh = world
+    let mesh = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMesh>>()
         .unwrap()
@@ -212,7 +206,7 @@ fn init_mesh_material(mut world: ExclusiveWorldAccess) {
 
         parent_transform.scale.x *= 0.7;
 
-        let mut ec = world.entities_mut();
+        let mut ec = world.as_mut().entities_mut();
 
         let parent = ec.create_entity();
         ec.add_component(parent, parent_transform).ok().unwrap();

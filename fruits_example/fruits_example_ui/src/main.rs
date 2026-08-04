@@ -15,7 +15,7 @@ fn main() {
         .get_mut(Schedule::Start)
         .order_group(SYSTEM_GROUP_RENDER)
         .before_system(init);
-    
+   
     world
         .behavior_mut()
         .get_mut(Schedule::Update)
@@ -57,35 +57,35 @@ pub struct CursorComponent {
     vel: Vec2<f32>,
 }
 
-fn init(mut world: ExclusiveWorldAccess) {
-    let standard_render_assets = world.resources().get::<StandardRenderAssetsResource>().unwrap();
+fn init(mut world: WorldDataMut) {
+    let standard_render_assets = world.as_ref().resources().get::<StandardRenderAssetsResource>().unwrap();
 
     let texture_text = standard_render_assets.texture_text_px_8_12.clone();
     let font = standard_render_assets.font_px_8_12.clone();
 
     let texture_white = standard_render_assets.texture_white.clone();
 
-    let material_white = world
+    let material_white = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
         .insert(StandardMaterial {
             is_lit: false,
             space: RenderSpace::Window,
-            color_tex: Some(texture_white.clone()).into(),
+            color_tex: texture_white.clone(),
             color: Vec4::splat(1.0),
             alpha_threshold: Some(0.5).into(),
             ..Default::default()
         });
 
-    let material_text = world
+    let material_text = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
         .insert(StandardMaterial {
             is_lit: false,
             space: RenderSpace::Window,
-            color_tex: Some(texture_text.clone()).into(),
+            color_tex: texture_text.clone(),
             color: Vec4::splat(1.0),
             alpha_threshold: Some(0.5).into(),
             ..Default::default()

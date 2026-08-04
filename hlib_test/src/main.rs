@@ -1,38 +1,40 @@
-use fruits_engine::{EntityId, FfiIndexMap, FfiString};
-use fruits_serialization::*;
+use fruits_engine::{index_version_collection::VersionIndex, *};
+
+mod futures;
+mod serialization_macro_check;
 
 fn main() {
-    check_index_map();
+    check_all_assets_deserialization();
 }
 
-fn check_index_map() {
-    let mut map = FfiIndexMap::new();
+fn check_all_assets_deserialization() {
+    fn load_all_assets_system(mut world: WorldDataMut) {
+        load_all_assets(world.resources_mut(), "D:/Projects/Hobby/how_many_slices/assets");
+    }
 
-    map.insert(String::from("two"), 2);
-    map.insert(String::from("one"), 1);
-    map.insert(String::from("two"), 3);
+    fn init_app(mut world: WorldBuilderMut) {
+        world.behavior_mut().get_mut(Schedule::Start).insert_system(load_all_assets_system);
+    }
 
-    *map.get_mut("two").unwrap() = 22;
-
-    map.insert(String::from("zero"), 0);
-
-    map.remove_swap("two");
-    map.remove_swap("zero");
-    map.remove_swap("one");
-    map.remove_swap("minus1");
-
-    dbg!(map);
+    launch_app_statically(init_app);
 }
 
-fn check_serialization() {
+//
+
+fn check_prefab_serialization() {
     let mut global_serializer = GlobalSerializer::new();
 
     global_serializer.register(StandardTransSerializer::<String>::default());
     global_serializer.register(StandardTransSerializer::<u32>::default());
+    global_serializer.register(StandardTransSerializer::<u8>::default());
     global_serializer.register(StandardTransSerializer::<bool>::default());
+    global_serializer.register(StandardTransSerializer::<i32>::default());
+    global_serializer.register(StandardTransSerializer::<IntComponent>::default());
     global_serializer.register(StandardTransSerializer::<Vec<ExampleUser>>::default());
     global_serializer.register(StandardTransSerializer::<ExampleStruct>::default());
     global_serializer.register(StandardTransSerializer::<ExampleUser>::default());
+    global_serializer.register(StandardTransSerializer::<UserInfo>::default());
+    global_serializer.register(StandardTransSerializer::<SomeComponent>::default());
 
     //
 
@@ -51,139 +53,102 @@ fn check_serialization() {
         ],
     };
 
+    // let component = SomeComponent {
+    //     entity: Entity::from_version_index(VersionIndex { index: 1, version: 5 }),
+    //     user_info: UserInfo {
+    //         name: String::from("winner1337"),
+    //         age: 10,
+    //     },
+    // };
+
     //
 
-    let serialized_component = global_serializer.serialize(&component, None).unwrap();
+    let entities_deserialized = [
+        (25, EntityId::from_version_index(VersionIndex { index: 1, version: 5 })),
+    ].into_iter().collect();
+    let entities_serialized = [
+        (EntityId::from_version_index(VersionIndex { index: 1, version: 5 }), 25),
+    ].into_iter().collect();
+   
+    let mut local_serializer = SerializerRegistry::new();
 
-    dbg!(&serialized_component);
-    println!("{}", serde_json::to_string_pretty(&serialized_component.to_json()).unwrap());
+    local_serializer.register(EntityTransSerializer::new(
+        &entities_deserialized,
+        &entities_serialized,
+    ));
 
-    let deserialized_component = global_serializer.deserialize::<ExampleStruct>(&serialized_component, None).unwrap();
+    //
 
-    dbg!(&deserialized_component);
-    dbg!(deserialized_component == Some(component));
-}
+    let mut world = {
+        let mut world = WorldBuilder::new();
+        let mut world_data = world.data_mut();
+        let mut ent = world_data.entities_mut();
 
-// fn check_macros() {
-//     let mut global_serializer = GlobalSerializer::new();
+        let entity = ent.create_entity();
 
-//     global_serializer.register(StandardTransSerializer::<UserInfo>::default());
-//     global_serializer.register(StandardTransSerializer::<String>::default());
-//     // global_serializer.register(StandardTransSerializer::<u32>::default());
-//     global_serializer.register(StandardTransSerializer::<SomeComponent>::default());
+        ent.add_component(entity, component).ok().unwrap();
+        ent.add_component(entity, IntComponent(975)).ok().unwrap();
 
-//     //
+        world.build()
+    };
 
-//     let component = SomeComponent {
-//         entity: Entity::from_version_index(VersionIndex { index: 1, version: 5 }),
-//         user_info: UserInfo {
-//             name: String::from("winner1337"),
-//             age: 10,
-//         },
-//     };
+    //
 
-//     //
+    let entity = world.data().entities().query::<EntityId>().iter().next().unwrap();
 
-//     let entities_deserialized = [
-//         (25, Entity::from_version_index(VersionIndex { index: 1, version: 5 })),
-//     ].into_iter().collect();
-//     let entities_serialized = [
-//         (Entity::from_version_index(VersionIndex { index: 1, version: 5 }), 25),
-//     ].into_iter().collect();
-    
-//     let mut local_serializer = SerializerRegistry::new();
+    let mut err_handler = |err| println!("{err}");
 
-//     local_serializer.register(EntityTransSerializer::new(
-//         &entities_deserialized,
-//         &entities_serialized,
-//     ));
+    let prefab = serialize_prefab_single_entity(
+        entity,
+        global_serializer.to_ctx(Some(&local_serializer), &mut err_handler),
+        world.data().entities(),
+    );
 
-//     let serialized_component = global_serializer.serialize(&component, Some(&local_serializer)).unwrap();
+    world.data_mut().entities_mut().destroy_entity(entity);
+    let entity = world.data_mut().entities_mut().create_entity();
+   
+    // deserialize_prefab_single_entity(
+    //     &prefab,
+    //     entity,
+    //     global_serializer.to_ctx(Some(&local_serializer), &mut err_handler),
+    //     world.data_mut().entities_mut(),
+    // );
 
-//     println!("{}", serde_json::to_string_pretty(&serialized_component).unwrap());
+    // world.data().entities().get_all_components(entity, |c| {
+    //     println!("component {}", c.type_info().short().name());
+    // });
+   
+    // let prefab = serialize_prefab_single_entity(
+    //     entity,
+    //     global_serializer.to_ctx(Some(&local_serializer), &mut err_handler),
+    //     world.data().entities(),
+    // );
 
-//     let deserialized_component = global_serializer.deserialize::<SomeComponent>(&serialized_component, Some(&local_serializer)).unwrap();
+    // dbg!(&prefab);
 
-//     dbg!(deserialized_component);
-// }
+    // //
 
-#[derive(Debug, PartialEq)]
-pub struct ExampleStruct {
-    user: ExampleUser,
-    friends: Vec<ExampleUser>,
-    is_verified: bool,
-}
+    // let serialized_component = global_serializer.serialize(&component, Some(&local_serializer)).unwrap();
 
-#[derive(Debug, PartialEq)]
-pub enum ExampleUser {
-    Default { name: String, age: u32 },
-    Token(String),
+    // dbg!(&serialized_component);
+    // println!("{}", serde_json::to_string_pretty(&serialized_component.to_json()).unwrap());
+
+    // let deserialized_component = global_serializer.deserialize::<ExampleStruct>(&serialized_component, Some(&local_serializer)).unwrap();
+
+    // dbg!(&deserialized_component);
+    // // dbg!(deserialized_component == Some(component));
 }
 
 //
 
-impl TransSerializable for ExampleStruct {
-    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
-        ctx.serialize_map()
-            .with_field("user", &self.user)
-            .with_field("friends", &self.friends)
-            .with_field("is_verified", &self.is_verified)
-            .finish_as_map(true)
-    }
-
-    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        ctx.deserialize_map(value, |ctx| { Some(Self {
-            user: ctx.get_field("user")?,
-            friends: ctx.get_field("friends")?,
-            is_verified: ctx.get_field("is_verified")?,
-        })})
-    }
-}
-
-impl TransSerializable for ExampleUser {
-    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue> {
-        let variants = ["Default", "Token"].into_iter().map(FfiString::from).collect();
-
-        match self {
-            Self::Default { name, age } => ctx.serialize_map()
-                .with_field("name", name)
-                .with_field("age", age)
-                .finish_as_enum(true, "Default", variants),
-            Self::Token(arg0) => ctx.serialize_map()
-                .with_field("0", arg0)
-                .finish_as_enum(true, "Token", variants),
-        }
-    }
-
-    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>> {
-        ctx.deserialize_enum()
-            .variant("Default", |ctx, value| {
-                ctx.deserialize_map(value, |ctx| {
-                    Some(Self::Default {
-                        name: ctx.get_field("name")?,
-                        age: ctx.get_field("age")?,
-                    })
-                })
-            })
-            .variant("Token", |ctx, value| {
-                ctx.deserialize_map(value, |ctx| {
-                    Some(Self::Token(
-                        ctx.get_field("0")?,
-                    ))
-                })
-            })
-            .finish(value)
-    }
-}
-
-
-#[derive(TransSerializable, Debug)]
+#[derive(TransSerializable, Debug, Component)]
 pub struct SomeComponent {
     pub entity: EntityId,
     pub user_info: UserInfo,
 }
 
-//
+#[derive(TransSerializable, Debug, Component)]
+pub struct IntComponent(i32);
 
 #[derive(TransSerializable, Debug)]
 pub struct UserInfo {
@@ -191,27 +156,17 @@ pub struct UserInfo {
     pub age: u32,
 }
 
-#[derive(TransSerializable)]
-pub struct SomeStruct<'a, 'b, T>
-    where T : Copy
-{
-    name: &'b String,
-    age: &'a u32,
-    data: T,
-    unit: SomeUnit,
+//
+
+#[derive(TransSerializable, Debug, Component)]
+pub struct ExampleStruct {
+    is_verified: bool,
+    user: ExampleUser,
+    friends: Vec<ExampleUser>,
 }
 
-#[derive(TransSerializable)]
-pub struct SomeTuple(String, u32);
-
-#[derive(TransSerializable)]
-pub struct SomeUnit;
-
-#[derive(TransSerializable)]
-pub enum SomeEnum {
-    A,
-    B(u32),
-    C { name: String },
-    D(String, String, u32, Option<u32>),
-    E { name1: String, password: String, age: Option<u8> }
+#[derive(TransSerializable, Debug)]
+pub enum ExampleUser {
+    Default { name: String, age: u8 },
+    Token(String),
 }

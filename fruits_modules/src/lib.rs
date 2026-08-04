@@ -68,16 +68,14 @@
 //! value accessors are currently commented out (`todo`), so the measured numbers are
 //! only printed, not exposed to other systems.
 
-use std::ops::{Deref, DerefMut};
-
-use fruits_asset_storage::{AssetHandle, AssetStorageResource};
-use fruits_ecs::{Resource, Schedule, WorldBuilderMut};
-use fruits_ffi::{FfiOption, FfiString, FfiVec};
+use fruits_asset_storage::AssetHandle;
+use fruits_ecs::{Component, Schedule, WorldBuilderMut};
+use fruits_ffi::{FfiOption, FfiSmallString, FfiString, FfiVec};
 use fruits_math::{Mat, Quat, Vec4};
-use fruits_prefab::{Prefab, PrefabComponentsDeserializerResource};
+use fruits_prefab::Prefab;
 use fruits_render::{Font, RenderSpace, StandardMaterial};
 use fruits_render_core::{StandardMesh, StandardTexture};
-use fruits_serialization::{GlobalSerializer, StandardTransSerializer, TransSerializable};
+use fruits_serialization::*;
 
 pub mod fps_counter;
 
@@ -86,14 +84,13 @@ pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
     fruits_transform::add_transform_module_to(world.as_mut());
     fruits_render::add_render_module_to(world.as_mut());
     fruits_audio::add_audio_module_to(world.as_mut());
+    fruits_asset_loading::add_asset_module_to(world.as_mut());
 
-    world.data_mut().resources_mut().insert(AssetStorageResource::<Prefab>::new()).ok().unwrap();
-    world.data_mut().resources_mut().insert(PrefabComponentsDeserializerResource::default()).ok().unwrap();
     world.data_mut().resources_mut().insert({
         let mut serializers = SerializersResource::default();
-        register_common_transserializers(&mut serializers.0);
+        register_common_transserializers(&mut *serializers);
         serializers
-    }).ok().unwrap();
+    });
 
     world
         .behavior_mut()
@@ -152,22 +149,6 @@ pub fn register_related_common_transserializers<T: 'static>(serializer: &mut Glo
     serializer.register(StandardTransSerializer::<FfiOption<T>>::default());
 }
 
-// todo: ffi?
-#[derive(Default)]
-pub struct SerializersResource(GlobalSerializer);
-
-impl Resource for SerializersResource { }
-
-impl Deref for SerializersResource {
-    type Target = GlobalSerializer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for SerializersResource {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+#[repr(transparent)]
+#[derive(Component, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default, Serializable, TransSerializable)]
+pub struct DebugNameComponent(pub FfiSmallString);

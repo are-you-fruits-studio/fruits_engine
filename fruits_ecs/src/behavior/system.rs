@@ -1,4 +1,4 @@
-use std::{ffi::c_void, marker::PhantomData};
+use std::{ffi::c_void, fmt::Debug, marker::PhantomData};
 
 use fruits_ffi::{FfiDroppable, FfiString};
 
@@ -133,9 +133,13 @@ impl SystemFfi {
         let mut data_usage = DataUsageBuilder::new();
 
         system.fill_data_usage(&mut data_usage, &types);
+        
+        let Some(data_usage) = data_usage.build() else {
+            panic!("fruits: Invalid system DataUsage: {}. {data_usage:?}", std::any::type_name::<S>());
+        };
 
         Self {
-            data_usage: data_usage.build(),
+            data_usage,
             execute_fn: ffi_execute::<S, M>,
             system_native_data: FfiDroppable::new(SystemNativeData::<S, M> {
                 system,
@@ -164,6 +168,15 @@ impl SystemFfi {
 
     pub fn system_name(&self) -> &FfiString {
         &self.system_name
+    }
+}
+
+impl Debug for SystemFfi {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SystemFfi")
+            .field("system_name", &self.system_name)
+            .field("data_usage", &self.data_usage)
+            .finish()
     }
 }
 

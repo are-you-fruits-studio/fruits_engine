@@ -18,10 +18,10 @@ unsafe impl<'e, E: Event> SystemParam for Evt<'e, E> {
     type Item<'b> = Evt<'b, E>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+        usage.world().events().add_type(DataUsageEntry {
             type_id: types.get_or_register::<E>(),
             details: DataUsageDetails {
-                is_mutable: false,
+                is_mut: false,
                 is_required: true,
             },
         });

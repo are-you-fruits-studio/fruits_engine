@@ -2,11 +2,11 @@ use std::ops::{Deref, DerefMut};
 
 use crate::*;
 
-pub struct Local<'e, S: SystemResource> {
+pub struct Local<'e, S: 'static + Default> {
     data: &'e mut S,
 }
 
-impl<'e, S: SystemResource> Deref for Local<'e, S> {
+impl<'e, S: 'static + Default> Deref for Local<'e, S> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
@@ -14,13 +14,13 @@ impl<'e, S: SystemResource> Deref for Local<'e, S> {
     }
 }
 
-impl<'e, S: SystemResource> DerefMut for Local<'e, S> {
+impl<'e, S: 'static + Default> DerefMut for Local<'e, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
 }
 
-unsafe impl<'e, S: SystemResource> SystemParam for Local<'e, S> {
+unsafe impl<'e, S: 'static + Default> SystemParam for Local<'e, S> {
     type Item<'b> = Local<'b, S>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {

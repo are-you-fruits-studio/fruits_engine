@@ -6,9 +6,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
     world
         .data_mut()
         .resources_mut()
-        .insert(UiRaycastResource::default())
-        .ok()
-        .unwrap();
+        .insert(UiRaycastResource::default());
 
     let mut behavior = world.behavior_mut();
     let mut update = behavior.get_mut(Schedule::Update);

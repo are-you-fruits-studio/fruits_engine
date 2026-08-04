@@ -1,13 +1,15 @@
 use fruits_ecs::Resource;
+use fruits_ffi::FfiIndexMap;
+use fruits_ffi::FfiIndexSet;
 use gilrs::Axis;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub use gilrs::Axis as GamepadAxis;
 pub use gilrs::Button as GamepadButton;
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
-// todo: support ffi
+#[repr(C)]
 #[derive(Resource)]
 pub struct InputResource {
     pub keyboard: KeyboardInputStorage,
@@ -33,18 +35,19 @@ impl InputResource {
 
 //
 
+#[repr(C)]
 pub struct KeyboardInputStorage {
-    pressed: HashSet<KeyCode>,
-    frame_pressed: HashSet<KeyCode>,
-    frame_released: HashSet<KeyCode>,
+    pressed: FfiIndexSet<KeyCode>,
+    frame_pressed: FfiIndexSet<KeyCode>,
+    frame_released: FfiIndexSet<KeyCode>,
 }
 
 impl KeyboardInputStorage {
     pub fn new() -> Self {
         Self {
-            pressed: HashSet::new(),
-            frame_pressed: HashSet::new(),
-            frame_released: HashSet::new(),
+            pressed: Default::default(),
+            frame_pressed: Default::default(),
+            frame_released: Default::default(),
         }
     }
 
@@ -66,7 +69,7 @@ impl KeyboardInputStorage {
     }
 
     pub fn release(&mut self, k: KeyCode) {
-        self.pressed.remove(&k);
+        self.pressed.remove_swap(&k);
         self.frame_released.insert(k);
     }
 
@@ -84,19 +87,20 @@ impl KeyboardInputStorage {
 
 //
 
+#[repr(C)]
 pub struct MouseInputStorage {
-    pressed: HashSet<MouseButton>,
-    frame_pressed: HashSet<MouseButton>,
-    frame_released: HashSet<MouseButton>,
+    pressed: FfiIndexSet<MouseButton>,
+    frame_pressed: FfiIndexSet<MouseButton>,
+    frame_released: FfiIndexSet<MouseButton>,
     pub position: [f64; 2],
 }
 
 impl MouseInputStorage {
     pub fn new() -> Self {
         Self {
-            pressed: HashSet::new(),
-            frame_pressed: HashSet::new(),
-            frame_released: HashSet::new(),
+            pressed: Default::default(),
+            frame_pressed: Default::default(),
+            frame_released: Default::default(),
             position: [0.0; 2],
         }
     }
@@ -119,7 +123,7 @@ impl MouseInputStorage {
     }
 
     pub fn release(&mut self, k: MouseButton) {
-        self.pressed.remove(&k);
+        self.pressed.remove_swap(&k);
         self.frame_released.insert(k);
     }
 
@@ -137,20 +141,21 @@ impl MouseInputStorage {
 
 //
 
+#[repr(C)]
 pub struct GamepadInputStorage {
-    pressed: HashSet<GamepadButton>,
-    frame_pressed: HashSet<GamepadButton>,
-    frame_released: HashSet<GamepadButton>,
-    axes: HashMap<Axis, f32>,
+    pressed: FfiIndexSet<GamepadButton>,
+    frame_pressed: FfiIndexSet<GamepadButton>,
+    frame_released: FfiIndexSet<GamepadButton>,
+    axes: FfiIndexMap<Axis, f32>,
 }
 
 impl GamepadInputStorage {
     pub fn new() -> Self {
         Self {
-            pressed: HashSet::new(),
-            frame_pressed: HashSet::new(),
-            frame_released: HashSet::new(),
-            axes: HashMap::new(),
+            pressed: Default::default(),
+            frame_pressed: Default::default(),
+            frame_released: Default::default(),
+            axes: Default::default(),
         }
     }
 
@@ -180,7 +185,7 @@ impl GamepadInputStorage {
     }
 
     pub fn release(&mut self, k: GamepadButton) {
-        self.pressed.remove(&k);
+        self.pressed.remove_swap(&k);
         self.frame_released.insert(k);
     }
 

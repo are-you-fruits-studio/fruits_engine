@@ -7,12 +7,11 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-fruits_modules = { path = "../fruits_modules" }
 fruits_utils = { path = "../fruits_utils" }
 fruits_ecs = { path = "../fruits_ecs" }
-fruits_json = { path = "../fruits_json" }
 fruits_math = { path = "../fruits_math" }
 fruits_ffi = { path = "../fruits_ffi" }
+fruits_transform = { path = "../fruits_transform" }
 fruits_wavefront = { path = "../fruits_wavefront" }
 fruits_render_core = { path = "../fruits_render_core" }
 fruits_render = { path = "../fruits_render" }

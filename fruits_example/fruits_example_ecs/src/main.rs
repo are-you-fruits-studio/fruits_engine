@@ -36,7 +36,7 @@ fn main() {
     app.run();
 }
 
-fn create_and_destroy_entity(mut w: ExclusiveWorldAccess) {
+fn create_and_destroy_entity(mut w: WorldDataMut) {
     let mut ec = w.entities_mut();
 
     let e = ec.create_entity();

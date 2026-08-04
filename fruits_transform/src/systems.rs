@@ -1,4 +1,4 @@
-use fruits_ecs::{EntityId, ExclusiveWorldAccess, OrFilter, Res, WithFilter, WithoutFilter, WorldQuery};
+use fruits_ecs::{EntityId, OrFilter, Res, WithFilter, WithoutFilter, WorldDataMut, WorldQuery};
 use fruits_ffi::FfiVec;
 use fruits_math::{Mat3, Vec2};
 use fruits_render_core::RenderApiResource;
@@ -10,7 +10,7 @@ use crate::{
 
 use super::{ChildComponent, GlobalTransform, LocalTransform, ParentComponent};
 
-pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
+pub fn adjust_component_sets(world: WorldDataMut) {
     // todo: do the same with rects?
     let mut buffer = Vec::new();
 
@@ -20,6 +20,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
+            .as_ref()
             .query_filtered::<EntityId, (WithFilter<LocalTransform>, WithoutFilter<GlobalTransform>)>()
             .iter(),
     );
@@ -29,6 +30,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
+            .as_ref()
             .query_filtered::<EntityId, (WithFilter<LocalRectComponent>, WithoutFilter<GlobalRectComponent>)>()
             .iter(),
     );
@@ -41,6 +43,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
+            .as_ref()
             .query_filtered::<EntityId, (
                 WithFilter<LocalDisableableComponent>,
                 WithoutFilter<GlobalDisableableComponent>,
@@ -69,6 +72,7 @@ pub fn adjust_component_sets(mut world: ExclusiveWorldAccess) {
 
     buffer.extend(
         entities_components
+            .as_ref()
             .query_filtered::<EntityId, (
                 OrFilter<(
                     WithFilter<GlobalTransform>,

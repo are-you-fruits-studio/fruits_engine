@@ -57,9 +57,9 @@ impl ApplicationHandler for EventLoopHandler {
 
         let window_state = WindowState::from_window(&window);
 
-        world.data_mut().resources_mut().insert(state).ok().unwrap();
-        world.data_mut().resources_mut().insert(InputResource::new()).ok().unwrap();
-        world.data_mut().resources_mut().insert(WindowResource::new(window_state)).ok().unwrap();
+        world.data_mut().resources_mut().insert(state);
+        world.data_mut().resources_mut().insert(InputResource::new());
+        world.data_mut().resources_mut().insert(WindowResource::new(window_state));
         let mut world = world.build();
         world.execute_iteration(Schedule::Start);
 
@@ -106,7 +106,7 @@ impl ApplicationHandler for EventLoopHandler {
         let mut world_data = world.data_mut();
         let (mut res, _ent, mut evt) = world_data.as_tuple_mut();
 
-        let render_state = res.get_mut::<RenderApiResource>().unwrap();
+        let render_state = res.as_mut().get_mut::<RenderApiResource>().unwrap();
 
         if window_id != window.id() {
             return;
@@ -115,12 +115,12 @@ impl ApplicationHandler for EventLoopHandler {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::CursorMoved { position, .. } => {
-                let input = res.get_mut::<InputResource>().unwrap();
+                let input = res.as_mut().get_mut::<InputResource>().unwrap();
 
                 input.mouse.position = [position.x, position.y];
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                let input = res.get_mut::<InputResource>().unwrap();
+                let input = res.as_mut().get_mut::<InputResource>().unwrap();
 
                 match state {
                     ElementState::Pressed => input.mouse.press(button),
@@ -133,14 +133,14 @@ impl ApplicationHandler for EventLoopHandler {
                 }
 
                 if let Some(text) = event.text {
-                    evt.get_mut().push(TextInputEvent(text));
+                    evt.get_mut().push(TextInputEvent(text.as_str().into()));
                 }
 
                 let PhysicalKey::Code(key_code) = event.physical_key else {
                     return;
                 };
 
-                let input = res.get_mut::<InputResource>().unwrap();
+                let input = res.as_mut().get_mut::<InputResource>().unwrap();
 
                 match event.state {
                     ElementState::Pressed => input.keyboard.press(key_code),
@@ -157,14 +157,14 @@ impl ApplicationHandler for EventLoopHandler {
                     fn get_or_create_gamepad(input: &mut InputResource, gamepad_id: usize) -> &mut GamepadInputStorage {
                         input.gamepads.entry(gamepad_id).or_insert_with(|| GamepadInputStorage::new())
                     }
-                        
+                    
                     for (gamepad_id, _) in gamepad_host.gamepads() {
                         get_or_create_gamepad(input, gamepad_id.into());
                     }
 
                     while let Some(gamepad_evt) = gamepad_host.next_event() {
                         let gamepad_id: usize = gamepad_evt.id.into();
-                        
+                       
                         match gamepad_evt.event {
                             gilrs::EventType::Connected => _ = get_or_create_gamepad(input, gamepad_id),
                             gilrs::EventType::Disconnected => _ = input.gamepads.remove(&gamepad_id),
@@ -185,10 +185,10 @@ impl ApplicationHandler for EventLoopHandler {
                 let mut world_data = world.data_mut();
                 let mut res = world_data.resources_mut();
 
-                let input = res.get_mut::<InputResource>().unwrap();
+                let input = res.as_mut().get_mut::<InputResource>().unwrap();
                 input.clear_frame();
 
-                let window_res = res.get_mut::<WindowResource>().unwrap();
+                let window_res = res.as_mut().get_mut::<WindowResource>().unwrap();
 
                 let window_state_next = window_res.next_state().clone();
                 let window_state_prev = std::mem::replace(window_res.prev_state_mut(), window_state_next.clone());

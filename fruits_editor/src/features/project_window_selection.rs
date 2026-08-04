@@ -6,9 +6,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
     world
         .data_mut()
         .resources_mut()
-        .insert(SelectedFileResource::default())
-        .ok()
-        .unwrap();
+        .insert(SelectedFileResource::default());
 
     let mut behavior = world.behavior_mut();
     let mut update = behavior.get_mut(Schedule::Update);
@@ -26,7 +24,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
 #[derive(Resource, Clone, Default)]
 pub struct SelectedFileResource {
     pub path: OsString,
-    pub file_data: Vec<u8>,
+    pub potential_asset_key: String,
 }
 
 #[derive(Event, Copy, Clone, Default)]
@@ -35,6 +33,7 @@ pub struct FileSelectedEvent;
 pub fn select_file_system(
     button_click_evt: Evt<ButtonClickEvent>,
     entry_q: WorldQuery<&ProjectWindowEntryComponent>,
+    open_project: Res<OpenProjectResource>,
     mut selected_file_res: ResMut<SelectedFileResource>,
     mut select_evt: EvtMut<FileSelectedEvent>,
 ) {
@@ -46,8 +45,17 @@ pub fn select_file_system(
         return;
     };
 
+    let mut potential_key = entry_c.path.to_str().unwrap_or("").to_string();
+
+    let assets_dir_path = open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH;
+
+    if potential_key.starts_with(&assets_dir_path) {
+        potential_key = potential_key.chars().skip(assets_dir_path.chars().count()).collect::<String>();
+        potential_key = potential_key.replace("\\", "/")
+    }
+
     selected_file_res.path = entry_c.path.clone();
-    selected_file_res.file_data = std::fs::read(&selected_file_res.path).unwrap_or_else(|_| Vec::new());
+    selected_file_res.potential_asset_key = potential_key;
     select_evt.push(FileSelectedEvent);
 }
 

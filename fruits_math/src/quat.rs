@@ -1,12 +1,11 @@
 use std::ops::Mul;
 
-use fruits_serialization::*;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use serde::{Deserialize, Serialize};
 
 use crate::{Mat3, Number, Vec3, Vec4};
 
-#[derive(Copy, Clone, Debug, PartialEq, Hash, Serialize, Deserialize, TransSerializable)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Quat<N> {
     pub x: N,

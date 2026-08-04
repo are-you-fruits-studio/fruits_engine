@@ -81,8 +81,11 @@
 //! helper name `add_defult_modules_to` carries an upstream spelling and must match
 //! `fruits_modules`.
 
+use std::path::Path;
+
 use fruits_app::App;
 use fruits_ecs::{AppInitCtxFfi, WorldBuilderMut};
+use libloading::Library;
 
 pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
     let mut app = App::new();
@@ -95,33 +98,34 @@ pub fn launch_app_statically(f: impl FnOnce(WorldBuilderMut)) {
 }
 
 pub fn launch_app_dynamically() {
+    let mut app = App::new();
+
+    fruits_modules::add_defult_modules_to(app.ecs_mut().as_mut());
+
     let lib_path = std::env::current_exe().unwrap().with_file_name(format!("lib_app{}", std::env::consts::DLL_SUFFIX));
-    let lib = unsafe { libloading::Library::new(&lib_path).unwrap() };
+    let lib = unsafe { init_app_dynamically(app.ecs_mut().as_mut(), lib_path).unwrap() };
 
-    {
-        let init_app_symbol = unsafe { lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point").unwrap() };
-
-        let mut app = App::new();
-
-        {
-            fruits_modules::add_defult_modules_to(app.ecs_mut().as_mut());
-        }
-
-        unsafe {
-            let (world_builder_ffi, types) = app.ecs_mut().into_raw_parts();
-
-            let types = types.registry();
-
-            let ctx = AppInitCtxFfi {
-                world_mut: &raw mut *world_builder_ffi,
-                types_ref: &raw const *types,
-            };
-
-            init_app_symbol(ctx);
-        }
-
-        app.run();
-    }
+    app.run();
 
     lib.close().unwrap();
+}
+
+pub unsafe fn init_app_dynamically(mut world: WorldBuilderMut, lib_path: impl AsRef<Path>) -> Result<Library, libloading::Error> {
+    let lib = unsafe { libloading::Library::new(lib_path.as_ref())? };
+    let init_app_symbol = unsafe { lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point")? };
+
+    unsafe {
+        let (world_builder_ffi, types) = world.into_raw_parts();
+
+        let types = types.registry();
+
+        let ctx = AppInitCtxFfi {
+            world_mut: &raw mut *world_builder_ffi,
+            types_ref: &raw const *types,
+        };
+
+        init_app_symbol(ctx);
+    }
+
+    Ok(lib)
 }

@@ -123,9 +123,7 @@ pub fn add_collision_module_to(mut world: WorldBuilderMut) {
     world
         .data_mut()
         .resources_mut()
-        .insert(CollisionWorldResource::default())
-        .ok()
-        .unwrap();
+        .insert(CollisionWorldResource::default());
 
     world
         .behavior_mut()

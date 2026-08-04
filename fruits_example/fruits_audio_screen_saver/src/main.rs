@@ -1,4 +1,4 @@
-use std::{panic::catch_unwind, thread, time::{Duration, Instant}};
+use std::{panic::catch_unwind, path::PathBuf, thread, time::{Duration, Instant}};
 
 use fruits_engine::*;
 
@@ -23,12 +23,12 @@ fn run_samples_visualization_app() {
     let ecs = app.ecs_mut();
 
     add_render_module_to(ecs.as_mut());
-    add_audio_module_to(ecs.as_mut());
+    add_asset_module_to(ecs.as_mut());
 
-    ecs.data_mut().resources_mut().insert(SamplesResource(Vec::new())).ok().unwrap();
+    ecs.data_mut().resources_mut().insert(SamplesResource(Vec::new()));
 
-    let clip = get_or_load_audio_clip_from_world(ecs.data_mut().resources_mut().as_mut(), "Through space.asset").unwrap();
-    
+    let clip = ecs.data_mut().resources_mut().get::<AssetStorageResource<AudioClip>>().unwrap().get_registered("Through space.asset").unwrap().clone();
+   
     let mut data = ecs.data_mut();
     let mut ent = data.entities_mut();
     let audio_ent = ent.create_entity();
@@ -52,30 +52,27 @@ fn run_samples_visualization_app() {
 }
 
 fn try_restart_audio_sources(
-    mut last_restart: Local<LastAudioRestartResource>,
+    mut last_restart: Local<Option<Instant>>,
     mut sources_q: WorldQuery<&mut AudioSource>,
 ) {
-    if last_restart.0.is_none() {
-        last_restart.0 = Some(Instant::now());
+    if last_restart.is_none() {
+        *last_restart = Some(Instant::now());
         return;
     }
 
-    let last_restart_instant = last_restart.0.unwrap();
+    let last_restart_instant = last_restart.unwrap();
 
     if last_restart_instant.elapsed() < Duration::from_secs_f32(0.1) {
         return;
     }
 
-    last_restart.0 = Some(Instant::now());
+    *last_restart = Some(Instant::now());
     for source in sources_q.iter_mut() {
         // source.is_playing ^= true;
         // source.playback_time = 1.0;
         // source.should_force_playback_time = true;
     }
 }
-
-#[derive(SystemResource, Default)]
-struct LastAudioRestartResource(Option<Instant>);
 
 #[derive(Resource)]
 struct SamplesResource(Vec<(Vec<f32>, Vec4<f32>)>);

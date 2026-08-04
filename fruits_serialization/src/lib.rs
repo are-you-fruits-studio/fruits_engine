@@ -181,15 +181,21 @@
 //! and full variant list. Unions are rejected with a panic.
 
 mod serialization_transitive;
+mod serialization_pure;
 mod serialization_registry;
-mod serialization_impls;
+mod serialization_trans_impls;
+mod serialization_pure_impls;
 mod serialization_model;
+mod serialization_ecs;
 
 pub use fruits_serialization_macros::*;
 pub use serialization_transitive::*;
+pub use serialization_pure::*;
 pub use serialization_registry::*;
-pub use serialization_impls::*;
+pub use serialization_trans_impls::*;
+pub use serialization_pure_impls::*;
 pub use serialization_model::*;
+pub use serialization_ecs::*;
 
 // todo:
 // + impls for standard types

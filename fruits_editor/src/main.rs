@@ -7,14 +7,8 @@ mod resources;
 mod systems;
 mod utils;
 
-use std::path::PathBuf;
-
 use crate::{
-    components::*,
-    features::{project_window_selection::select_file_system, ui_interaction::*},
-    resources::*,
-    systems::*,
-    utils::*,
+    components::*, features::{inspector_window::data::OpenProjectResource, ui_interaction::*}, resources::*, utils::*,
 };
 
 use fruits_engine::*;
@@ -22,6 +16,41 @@ use fruits_engine::*;
 mod app_building;
 
 const SYSTEM_GROUP: &'static str = "fruits_editor";
+
+// todo:
+// + show entity names or ids if name component is missing
+// + show entities in hierarchy
+// + highlight selected entity
+// + show selected entity components
+// + show entities parent-child-relation in hierarchy
+// + inspect prefab's entity's components (load/save component details)
+// + basic hierarchy window interaction (create/delete entity)
+// + basic inspector window interaction (add/remove component)
+// + save prefabs (apply inspector changes to world, then to asset, then to file)
+// + use dynamic INSPECTED_ASSETS_PATH - from command line args
+//
+// --- DONE ---
+//
+// - (re-)compile and (re-)load scripts on change
+//     - on editor start, try read (log result) the compiled dynamic lib, copy it into temp folder, remove old lib, rename new lib to unique name, run it and collect serializers data.
+// - use custom components in prefabs
+//
+// --- START EDITING EDITOR ASSETS ---
+//
+// - preview (scene) window
+// - editor-time simulated systems
+//
+// --- ABILITY TO MAKE ADEQUATE EDITOR UI ---
+//
+// - advanced hierarchy window interaction (move/copy/paste entity)
+// - advanced inspector window interaction (copy/paste component)
+//
+// --- ABILITY TO MAKE NICE EDITOR UI ---
+//
+// - create GUI for selecting INSPECTED_ASSETS_PATH (for opening a project)
+
+// todo: to dynamic (user-selected)
+const PROJECT_ASSETS_SUBPATH: &'static str = "/assets/";
 
 fn main() {
     let args = std::env::args()
@@ -44,12 +73,11 @@ fn main() {
     }
 
     if args[1].as_str() == "edit" {
-        // todo: pass project path
-        run_editor_app();
+        run_editor_app(&args[2]);
     }
 }
 
-fn run_editor_app() {
+fn run_editor_app(project_path: &str) {
     let mut app = App::new();
 
     let world = app.ecs_mut();
@@ -67,15 +95,11 @@ fn run_editor_app() {
     {
         let mut update = world_behavior.get_mut(Schedule::Update);
 
-        update.group(SYSTEM_GROUP).insert_child_system(update_scene_entries_system);
-
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_RENDER);
         update.order_group(SYSTEM_GROUP).before_group(SYSTEM_GROUP_TRANSFORM);
-        update
-            .order_system(select_file_system)
-            .before_system(update_scene_entries_system);
     }
 
+    features::world_preload::register_feature(world.as_mut());
     features::scroll::register_feature(world.as_mut());
     features::ui_interaction::register_feature(world.as_mut());
     features::project_window_entries::register_feature(world.as_mut());
@@ -83,28 +107,28 @@ fn run_editor_app() {
     features::inspector_window::register_feature(world.as_mut());
     features::input_field::register_feature(world.as_mut());
     features::dropdown::register_feature(world.as_mut());
-    features::project_window_parsing::register_feature(world.as_mut());
-    features::project_window_saving::register_feature(world.as_mut());
     features::serialization::register_feature(world.as_mut());
+
+    world.as_mut().data_mut().resources_mut().insert(OpenProjectResource { dir_path: project_path.to_string() });
 
     app.run();
 }
 
-fn init_system(mut world: ExclusiveWorldAccess) {
-    let (mut res, ec, evt) = world.as_tuple_mut();
+fn init_system(mut world: WorldDataMut) {
+    let (mut res, ec, evt) = world.as_mut().as_tuple_mut();
 
-    let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
+    let standard_render_assets_res = res.as_mut().get::<StandardRenderAssetsResource>().unwrap();
 
     let font = standard_render_assets_res.font_px_8_12.clone();
     let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
 
-    let materials_res = res.get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
+    let materials_res = res.as_mut().get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
 
     let material_panel = materials_res.insert(StandardMaterial {
         is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
-        color_tex: None.into(),
+        color_tex: AssetHandle::EMPTY,
         alpha_threshold: Some(0.5).into(),
         ..Default::default()
     });
@@ -113,23 +137,21 @@ fn init_system(mut world: ExclusiveWorldAccess) {
         is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
-        color_tex: Some(texture_text).into(),
+        color_tex: texture_text,
         alpha_threshold: Some(0.5).into(),
         ..Default::default()
     });
 
-    res.insert(UiInteractionResource::default()).ok().unwrap();
+    res.insert(UiInteractionResource::default());
 
     res.insert(StandardAssetsResource {
         material_panel: material_panel.clone(),
         material_text: material_text.clone(),
         font,
-    })
-    .ok()
-    .unwrap();
+    });
 
     prefabs::project_window(world.as_mut());
-    prefabs::scene_window(world.as_mut());
+    prefabs::hierarhy_window(world.as_mut());
     prefabs::inspector_window(world.as_mut());
 }
 //

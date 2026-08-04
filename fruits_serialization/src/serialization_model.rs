@@ -8,6 +8,37 @@ pub enum SerializedValue {
     Composite(SerializedComposite),
 }
 
+impl SerializedValue {
+    pub fn similar(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Null, Self::Null) => true,
+            (Self::Primitive(lhs), Self::Primitive(rhs)) => lhs.similar(rhs),
+            (Self::Composite(lhs), Self::Composite(rhs)) => lhs.similar(rhs),
+            _ => false,
+        }
+    }
+
+    pub fn similar_option(lhs: Option<&Self>, rhs: Option<&Self>) -> bool {
+        match (lhs, rhs) {
+            (None, None) => true,
+            (Some(lhs), Some(rhs)) => lhs.similar(rhs),
+            _ => false,
+        }
+    }
+}
+
+impl From<SerializedPrimitive> for SerializedValue {
+    fn from(value: SerializedPrimitive) -> Self {
+        Self::Primitive(value)
+    }
+}
+
+impl From<SerializedComposite> for SerializedValue {
+    fn from(value: SerializedComposite) -> Self {
+        Self::Composite(value)
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Debug)]
 pub enum SerializedPrimitive {
@@ -16,12 +47,28 @@ pub enum SerializedPrimitive {
     Float(f64),
     String(FfiString),
 }
+impl SerializedPrimitive {
+    pub fn similar(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Bool(lhs), Self::Bool(rhs)) => lhs == rhs,
+            (Self::Int(lhs), Self::Int(rhs)) => lhs == rhs,
+            (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
+            (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
+            _ => false
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Debug)]
 pub struct SerializedComposite {
     pub values: SerializedCompositeValues,
     pub is_rigid: bool,
+}
+impl SerializedComposite {
+    pub fn similar(&self, other: &Self) -> bool {
+        self.values.similar(&other.values)
+    }
 }
 
 #[repr(C)]
@@ -37,12 +84,54 @@ pub enum SerializedCompositeValues {
     Map(SerializedMap),
     List(FfiVec<SerializedValue>),
 }
+impl SerializedCompositeValues {
+    pub fn similar(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Map(lhs), Self::Map(rhs)) => lhs.similar(rhs),
+            (Self::List(lhs), Self::List(rhs)) => Self::similar_lists(lhs, rhs),
+            _ => false
+        }
+    }
+
+    fn similar_lists(lhs: &[SerializedValue], rhs: &[SerializedValue]) -> bool {
+        if lhs.len() != rhs.len() {
+            return false;
+        }
+
+        for i in 0..lhs.len() {
+            if !lhs[i].similar(&rhs[i]) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct SerializedMap {
     pub values: FfiIndexMap<FfiString, SerializedValue>,
     pub enum_metadata: FfiOption<SerializedEnumMetadata>,
+}
+impl SerializedMap {
+    pub fn similar(&self, other: &Self) -> bool {
+        if self.enum_metadata.as_ref().map(|m| &m.variant) != other.enum_metadata.as_ref().map(|m| &m.variant) {
+            return false;
+        }
+
+        if self.values.len() != other.values.len() {
+            return false;
+        }
+
+        for (key, val) in &other.values {
+            if !SerializedValue::similar_option(self.values.get(key.as_str()), Some(val)) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl SerializedValue {

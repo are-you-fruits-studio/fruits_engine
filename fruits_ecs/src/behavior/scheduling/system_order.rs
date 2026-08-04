@@ -26,12 +26,6 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
         .map(|(i, s)| (s.system_name().clone(), i))
         .collect::<HashMap<_, _>>();
 
-    let mut system_by_data_readonly = HashMap::<u64, HashSet<usize>>::new();
-    let mut system_by_data_mutable = HashMap::<u64, HashSet<usize>>::new();
-    let mut systems_global_mutable = HashSet::<usize>::new();
-
-    let mut analyzed_systems = HashSet::<usize>::new();
-
     let mut directions = vec![HashSet::<usize>::new(); ordered_systems.len()];
 
     for (previous_id, next_id) in explicit_ordering.iter() {
@@ -46,46 +40,92 @@ pub fn create_ordering_graph(ordered_systems: &[SystemFfi], explicit_ordering: &
         directions[previous_index].insert(next_index);
     }
 
-    for (system_index, system) in ordered_systems.iter().enumerate() {
-        match system.data_usage().as_elements() {
-            Some(per_type_usage) => {
-                for DataUsageEntry {
-                    type_id,
-                    details: DataUsageDetails { is_mutable, .. },
-                } in per_type_usage
-                {
-                    if *is_mutable {
-                        for &other_readonly_system_index in system_by_data_readonly.get(type_id).iter().flat_map(|m| m.iter()) {
-                            directions[other_readonly_system_index].insert(system_index);
-                        }
+    let mut system_by_data_readonly = HashMap::<u64, HashSet<usize>>::new();
+    let mut system_by_data_mutable = HashMap::<u64, HashSet<usize>>::new();
+    let mut systems_global_readonly = HashSet::<usize>::new();
+    let mut systems_global_mutable = HashSet::<usize>::new();
+    let mut systems_all = HashSet::<usize>::new();
+    let mut systems_any_mutable = HashSet::<usize>::new();
+
+    let data_usage_extractors: [fn(&WorldDataUsage) -> &WorldPartDataUsage; _] = [
+        (|u| u.resources()),
+        (|u| u.entities()),
+        (|u| u.events()),
+    ];
+
+    for data_usage_extractor in data_usage_extractors {
+        system_by_data_readonly.clear();
+        system_by_data_mutable.clear();
+        systems_global_readonly.clear();
+        systems_global_mutable.clear();
+        systems_all.clear();
+        systems_any_mutable.clear();
+
+        for (system_index, system) in ordered_systems.iter().enumerate() {
+            let data_usage = system.data_usage().world();
+            let data_usage = data_usage_extractor(data_usage);
+
+            match data_usage {
+                WorldPartDataUsage::ByType(data_usage) => {
+                    for data_usage in data_usage {
+                        let DataUsageEntry {
+                            type_id,
+                            details: DataUsageDetails { is_mut, .. },
+                        } = data_usage;
+
                         for &other_mutable_system_index in system_by_data_mutable.get(type_id).iter().flat_map(|m| m.iter()) {
                             directions[other_mutable_system_index].insert(system_index);
                         }
 
-                        system_by_data_mutable.entry(*type_id).or_default().insert(system_index);
-                    } else {
-                        for &other_mutable_system_index in system_by_data_mutable.get(type_id).iter().flat_map(|m| m.iter()) {
-                            directions[other_mutable_system_index].insert(system_index);
+                        if *is_mut {
+                            for &other_readonly_system_index in system_by_data_readonly.get(type_id).iter().flat_map(|m| m.iter()) {
+                                directions[other_readonly_system_index].insert(system_index);
+                            }
+
+                            system_by_data_mutable.entry(*type_id).or_default().insert(system_index);
+                        } else {
+                            system_by_data_readonly.entry(*type_id).or_default().insert(system_index);
                         }
 
-                        system_by_data_readonly.entry(*type_id).or_default().insert(system_index);
+                        for &other_global_mutable_system_index in &systems_global_mutable {
+                            directions[other_global_mutable_system_index].insert(system_index);
+                        }
+                        if *is_mut {
+                            for &other_global_readonly_system_index in &systems_global_readonly {
+                                directions[other_global_readonly_system_index].insert(system_index);
+                            }
+                        }
+
+                        if *is_mut {
+                            systems_any_mutable.insert(system_index);
+                        }
                     }
                 }
+                WorldPartDataUsage::Global { is_mut } => {
+                    if *is_mut {
+                        for &other_system_index in systems_all.iter() {
+                            directions[other_system_index].insert(system_index);
+                        }
+                    } else {
+                        for &other_system_index in systems_any_mutable.iter() {
+                            directions[other_system_index].insert(system_index);
+                        }
+                    }
 
-                for &other_global_mutable_system_index in systems_global_mutable.iter() {
-                    directions[other_global_mutable_system_index].insert(system_index);
+                    if *is_mut {
+                        systems_global_mutable.insert(system_index);
+                    } else {
+                        systems_global_readonly.insert(system_index);
+                    }
+
+                    if *is_mut {
+                        systems_any_mutable.insert(system_index);
+                    }
                 }
             }
-            None => {
-                for &other_system_index in analyzed_systems.iter() {
-                    directions[other_system_index].insert(system_index);
-                }
 
-                systems_global_mutable.insert(system_index);
-            }
-        };
-
-        analyzed_systems.insert(system_index);
+            systems_all.insert(system_index);
+        }
     }
 
     let directions = directions

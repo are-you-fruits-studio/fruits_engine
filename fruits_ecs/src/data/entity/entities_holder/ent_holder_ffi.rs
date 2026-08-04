@@ -1,17 +1,21 @@
+use std::ffi::c_void;
+
+use fruits_ffi::{FfiAny, FfiAnyRef, FfiExtendedTypeInfo, FfiFnMutMut, FfiOpaqueRef, FfiVec};
+
 use crate::*;
 
 
 #[repr(C)]
 pub struct EntitiesHolderUnsafeFfi {
     archetypes: ArchetypesHolderFfi,
-    entities_meta: EntitiesMetadataFfi,
+    entities_meta: EntitiesMetadata,
 }
 
 impl EntitiesHolderUnsafeFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
             archetypes: ArchetypesHolderFfi::new(types),
-            entities_meta: EntitiesMetadataFfi::new(),
+            entities_meta: EntitiesMetadata::new(),
         }
     }
 
@@ -19,7 +23,7 @@ impl EntitiesHolderUnsafeFfi {
         &self.archetypes
     }
 
-    pub fn entities_meta(&self) -> &EntitiesMetadataFfi {
+    pub fn entities_meta(&self) -> &EntitiesMetadata {
         &self.entities_meta
     }
 
@@ -116,7 +120,12 @@ impl EntitiesHolderUnsafeFfi {
         true
     }
 
-    pub unsafe fn remove_component(&mut self, entity: EntityId, component_ptr: *mut u8, component_id: u64) -> bool {
+    pub unsafe fn remove_component(
+        &mut self,
+        entity: EntityId,
+        component_mover: impl FnOnce(*mut u8, &'static FfiExtendedTypeInfo),
+        component_id: u64,
+    ) -> bool {
         let Some(entity_location) = self.entities_meta.get(entity) else {
             return false;
         };
@@ -148,7 +157,7 @@ impl EntitiesHolderUnsafeFfi {
                 src_archetype,
                 dst_archetype,
                 entity_location.entity_archetype_index,
-                component_ptr,
+                component_mover,
                 component_id,
             )
             .unwrap()
@@ -170,5 +179,21 @@ impl EntitiesHolderUnsafeFfi {
             .by_id_ref(entity_location.archetype_id)
             .unwrap()
             .get_component_ptr(entity_location.entity_archetype_index, component_id)
+    }
+
+    pub fn get_all_components_ptrs(&self, entity: EntityId, mut handler: FfiFnMutMut<(*mut u8, &'static FfiExtendedTypeInfo), ()>) {
+        let Some(entity_location) = self.entities_meta.get(entity) else {
+            return;
+        };
+
+        let arch = self.archetypes
+            .by_id_ref(entity_location.archetype_id)
+            .unwrap();
+
+        arch.layout().components().iter().map(|c| {
+            let ptr = arch.get_component_ptr(entity_location.entity_archetype_index, c.type_info.id).unwrap();
+
+            handler.execute((ptr, c.type_info.data))
+        }).collect()
     }
 }
