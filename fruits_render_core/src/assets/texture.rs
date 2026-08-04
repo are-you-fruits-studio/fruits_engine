@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
-use fruits_ffi::FfiDroppable;
+use fruits_ffi::{FfiDroppable, FfiOption, FfiString};
+use fruits_serialization::*;
 use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Extent3d, SamplerDescriptor, Texture,
     TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
@@ -18,13 +19,26 @@ pub struct StandardTextureNative {
     pub bind_group: BindGroup,
 }
 
-#[repr(transparent)]
+#[repr(C)]
+#[derive(TransSerializable, Clone)]
+pub struct StandardTextureAssetMetadata {
+    pub raw_texture: FfiString,
+}
+
+#[repr(C)]
 pub struct StandardTexture {
     native: FfiDroppable,
+    meta: FfiOption<StandardTextureAssetMetadata>,
 }
 
 impl StandardTexture {
-    pub(crate) fn new(render_state: &RenderState, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8]) -> Self {
+    pub(crate) fn new(
+        render_state: &RenderState,
+        filter_mode: FilterMode,
+        dimensions: [u32; 2],
+        data: &[u8],
+        meta: Option<StandardTextureAssetMetadata>,
+    ) -> Self {
         let px_count = (dimensions[0] * dimensions[1]) as usize;
 
         let bytes_per_pixel = data.len() / px_count;
@@ -98,11 +112,16 @@ impl StandardTexture {
 
         Self {
             native: FfiDroppable::new(StandardTextureNative { texture, bind_group }),
+            meta: meta.into(),
         }
     }
 
     pub unsafe fn native(&self) -> &StandardTextureNative {
         unsafe { &*(self.native.get() as *const StandardTextureNative) }
+    }
+
+    pub fn meta(&self) -> Option<&StandardTextureAssetMetadata> {
+        self.meta.as_ref()
     }
 }
 

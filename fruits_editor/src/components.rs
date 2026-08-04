@@ -6,15 +6,18 @@ use fruits_engine::*;
 pub struct ProjectWindowContentComponent;
 
 #[derive(Component, Debug, Clone)]
-pub struct DebugNameComponent(pub String);
-
-#[derive(Component, Debug, Clone)]
 pub struct ProjectWindowEntryComponent {
     pub path: OsString,
 }
 
 #[derive(Component)]
-pub struct SceneWindowContentComponent;
+pub struct HierarchyWindowContentComponent;
+
+#[derive(Component)]
+pub struct HierarchyButtonAddComponent;
+
+#[derive(Component)]
+pub struct HierarchyButtonRemoveComponent;
 
 #[derive(Component, Copy, Clone)]
 pub enum SerializedValueComponent {

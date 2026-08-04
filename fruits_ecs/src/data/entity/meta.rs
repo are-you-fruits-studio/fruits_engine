@@ -8,7 +8,7 @@ use fruits_utils::index_version_collection::{VersionCollection, VersionIndex};
 pub struct EntityId(VersionIndex);
 
 impl EntityId {
-    pub const EMPTY: EntityId = EntityId(VersionIndex::EMPTY);
+    pub const EMPTY: Self = Self(VersionIndex::EMPTY);
 
     pub fn version_index(&self) -> VersionIndex {
         self.0
@@ -41,10 +41,11 @@ pub struct EntityLocation {
     pub entity_archetype_index: u64,
 }
 
+#[repr(transparent)]
 #[derive(Default)]
-pub struct EntitiesMetadataNative(VersionCollection<EntityLocation>);
+pub struct EntitiesMetadata(VersionCollection<EntityLocation>);
 
-impl EntitiesMetadataNative {
+impl EntitiesMetadata {
     pub fn new() -> Self {
         Self(VersionCollection::new())
     }
@@ -75,165 +76,5 @@ impl EntitiesMetadataNative {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-//
-
-#[repr(C)]
-struct EntitiesMetadataFfiVTable {
-    insert_fn: unsafe extern "C" fn(*mut c_void, location: EntityLocation) -> EntityId,
-    remove_fn: unsafe extern "C" fn(*mut c_void, entity: EntityId) -> FfiOption<EntityLocation>,
-    get_fn: unsafe extern "C" fn(*const c_void, entity: EntityId) -> *const EntityLocation,
-    get_mut_fn: unsafe extern "C" fn(*mut c_void, entity: EntityId) -> *mut EntityLocation,
-    contains_fn: unsafe extern "C" fn(*const c_void, entity: EntityId) -> bool,
-    len_fn: unsafe extern "C" fn(*const c_void) -> u64,
-    is_empty_fn: unsafe extern "C" fn(*const c_void) -> bool,
-}
-
-#[repr(C)]
-pub struct EntitiesMetadataFfi {
-    data: FfiDroppable,
-    vtable: FfiStaticRef<EntitiesMetadataFfiVTable>,
-}
-
-impl EntitiesMetadataFfi {
-    pub fn new() -> Self {
-        unsafe extern "C" fn ffi_insert(this: *mut c_void, location: EntityLocation) -> EntityId {
-            unsafe {
-                let this = &mut *(this as *mut EntitiesMetadataNative);
-
-                this.insert(location)
-            }
-        }
-        unsafe extern "C" fn ffi_remove(this: *mut c_void, entity: EntityId) -> FfiOption<EntityLocation> {
-            unsafe {
-                let this = &mut *(this as *mut EntitiesMetadataNative);
-
-                let result = this.remove(entity);
-
-                FfiOption::from_option(result)
-            }
-        }
-        unsafe extern "C" fn ffi_get(this: *const c_void, entity: EntityId) -> *const EntityLocation {
-            unsafe {
-                let this = &*(this as *const EntitiesMetadataNative);
-
-                let result = this.get(entity);
-
-                fruits_ffi::ref_into_nullable_ptr(result)
-            }
-        }
-        unsafe extern "C" fn ffi_get_mut(this: *mut c_void, entity: EntityId) -> *mut EntityLocation {
-            unsafe {
-                let this = &mut *(this as *mut EntitiesMetadataNative);
-
-                let result = this.get_mut(entity);
-
-                fruits_ffi::mut_into_nullable_ptr(result)
-            }
-        }
-        unsafe extern "C" fn ffi_contains(this: *const c_void, entity: EntityId) -> bool {
-            unsafe {
-                let this = &*(this as *const EntitiesMetadataNative);
-
-                this.contains(entity)
-            }
-        }
-        unsafe extern "C" fn ffi_len(this: *const c_void) -> u64 {
-            unsafe {
-                let this = &*(this as *const EntitiesMetadataNative);
-
-                this.len()
-            }
-        }
-        unsafe extern "C" fn ffi_is_empty(this: *const c_void) -> bool {
-            unsafe {
-                let this = &*(this as *const EntitiesMetadataNative);
-
-                this.is_empty()
-            }
-        }
-
-        Self {
-            data: FfiDroppable::new(EntitiesMetadataNative::new()),
-            vtable: FfiStaticRef::new(&EntitiesMetadataFfiVTable {
-                insert_fn: ffi_insert,
-                remove_fn: ffi_remove,
-                get_fn: ffi_get,
-                get_mut_fn: ffi_get_mut,
-                contains_fn: ffi_contains,
-                len_fn: ffi_len,
-                is_empty_fn: ffi_is_empty,
-            }),
-        }
-    }
-
-    pub fn insert(&mut self, location: EntityLocation) -> EntityId {
-        unsafe {
-            let this = self.data.get();
-
-            (self.vtable.insert_fn)(this, location)
-        }
-    }
-
-    pub fn remove(&mut self, entity: EntityId) -> Option<EntityLocation> {
-        unsafe {
-            let this = self.data.get();
-
-            let result = (self.vtable.remove_fn)(this, entity);
-
-            result.into_option()
-        }
-    }
-
-    pub fn get(&self, entity: EntityId) -> Option<&EntityLocation> {
-        unsafe {
-            let this = self.data.get();
-
-            let result = (self.vtable.get_fn)(this, entity);
-
-            fruits_ffi::ref_from_nullable_ptr(result)
-        }
-    }
-
-    pub fn get_mut(&mut self, entity: EntityId) -> Option<&mut EntityLocation> {
-        unsafe {
-            let this = self.data.get();
-
-            let result = (self.vtable.get_mut_fn)(this, entity);
-
-            fruits_ffi::mut_from_nullable_ptr(result)
-        }
-    }
-
-    pub fn contains(&self, entity: EntityId) -> bool {
-        unsafe {
-            let this = self.data.get();
-
-            (self.vtable.contains_fn)(this, entity)
-        }
-    }
-
-    pub fn len(&self) -> u64 {
-        unsafe {
-            let this = self.data.get();
-
-            (self.vtable.len_fn)(this)
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        unsafe {
-            let this = self.data.get();
-
-            (self.vtable.is_empty_fn)(this)
-        }
-    }
-}
-
-impl Default for EntitiesMetadataFfi {
-    fn default() -> Self {
-        Self::new()
     }
 }

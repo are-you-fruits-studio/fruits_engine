@@ -32,3 +32,6 @@ impl SystemsHolderFfi {
         unsafe { (self.execute_iteration_fn)(self.data.get(), data) }
     }
 }
+
+unsafe impl Send for SystemsHolderFfi where SystemsHolderNative: Send {}
+unsafe impl Sync for SystemsHolderFfi where SystemsHolderNative: Sync {}

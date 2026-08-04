@@ -20,35 +20,35 @@ pub fn collide(lhs: CollisionShape, rhs: CollisionShape) -> Option<CollisionResu
         (CollisionShape::Point(lhs), CollisionShape::Box(rhs)) => collide_pt_bx(lhs, rhs),
         (CollisionShape::Point(lhs), CollisionShape::Sphere(rhs)) => collide_pt_sp(lhs, rhs),
         (CollisionShape::Point(lhs), CollisionShape::Triangle(rhs)) => collide_pt_tr(lhs, rhs),
-        
+       
         (CollisionShape::Line(lhs), CollisionShape::Point(rhs)) => collide_pt_ln(rhs, lhs),
         (CollisionShape::Line(lhs), CollisionShape::Line(rhs)) => collide_ln_ln(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Aabb(rhs)) => collide_ln_aa(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Box(rhs)) => collide_ln_bx(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Sphere(rhs)) => collide_ln_sp(lhs, rhs),
         (CollisionShape::Line(lhs), CollisionShape::Triangle(rhs)) => collide_ln_tr(lhs, rhs),
-        
+       
         (CollisionShape::Aabb(lhs), CollisionShape::Point(rhs)) => collide_pt_aa(rhs, lhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Line(rhs)) => collide_ln_aa(rhs, lhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Aabb(rhs)) => collide_aa_aa(lhs, rhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Box(rhs)) => collide_aa_bx(lhs, rhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Sphere(rhs)) => collide_aa_sp(lhs, rhs),
         (CollisionShape::Aabb(lhs), CollisionShape::Triangle(rhs)) => collide_aa_tr(lhs, rhs),
-        
+       
         (CollisionShape::Box(lhs), CollisionShape::Point(rhs)) => collide_pt_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Line(rhs)) => collide_ln_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Aabb(rhs)) => collide_aa_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Box(rhs)) => collide_bx_bx(rhs, lhs),
         (CollisionShape::Box(lhs), CollisionShape::Sphere(rhs)) => collide_bx_sp(lhs, rhs),
         (CollisionShape::Box(lhs), CollisionShape::Triangle(rhs)) => collide_bx_tr(lhs, rhs),
-        
+       
         (CollisionShape::Sphere(lhs), CollisionShape::Point(rhs)) => collide_pt_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Line(rhs)) => collide_ln_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Aabb(rhs)) => collide_aa_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Box(rhs)) => collide_bx_sp(rhs, lhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Sphere(rhs)) => collide_sp_sp(lhs, rhs),
         (CollisionShape::Sphere(lhs), CollisionShape::Triangle(rhs)) => collide_sp_tr(lhs, rhs),
-        
+       
         (CollisionShape::Triangle(lhs), CollisionShape::Point(rhs)) => collide_pt_tr(rhs, lhs),
         (CollisionShape::Triangle(lhs), CollisionShape::Line(rhs)) => collide_ln_tr(rhs, lhs),
         (CollisionShape::Triangle(lhs), CollisionShape::Aabb(rhs)) => collide_aa_tr(rhs, lhs),
@@ -70,11 +70,11 @@ fn collide_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> Option<CollisionResult> 
     if lhs == rhs.start {
         return Some(collision_result_point(lhs));
     }
-    
+   
     if lhs == rhs.end {
         return Some(collision_result_point(lhs));
     }
-    
+   
     if rhs.start == rhs.end {
         return None;
     }
@@ -100,7 +100,7 @@ fn collide_pt_ln(lhs: Vec3<f32>, rhs: CollisionLine) -> Option<CollisionResult> 
     }
 
     let projected_point = Vec3::lerp(rhs.start, rhs.end, progress);
-    
+   
     if lhs != projected_point {
         return None;
     }
@@ -123,7 +123,7 @@ fn collide_ln_ln(s1: CollisionLine, s2: CollisionLine) -> Option<CollisionResult
 
     let progress1 =
         (
-            (p1 - p3).dot(p4 - p3) * (p4 - p3).dot(p2 - p1) 
+            (p1 - p3).dot(p4 - p3) * (p4 - p3).dot(p2 - p1)
             - (p1 - p3).dot(p2 - p1) * (p4 - p3).dot(p4 - p3)
         )
         / (
@@ -141,7 +141,7 @@ fn collide_ln_ln(s1: CollisionLine, s2: CollisionLine) -> Option<CollisionResult
     }
 
     let progress2 = ((p1 - p3).dot(p4 - p3) + progress1 * (p4 - p3).dot(p2 - p1)) / (p4 - p3).dot(p4 - p3);
-    
+   
 
     if s2.bounds.is_start_restricted() && progress2 < 0.0 {
         return None;
@@ -150,14 +150,14 @@ fn collide_ln_ln(s1: CollisionLine, s2: CollisionLine) -> Option<CollisionResult
     if s2.bounds.is_end_restricted() && progress2 > 1.0 {
         return None;
     }
-    
+   
     let closest1 = Vec3::lerp(s1.start, s1.end, progress1);
     let closest2 = Vec3::lerp(s2.start, s2.end, progress2);
 
     if closest1 != closest2 {
         return None;
     }
-    
+   
     Some(collision_result_point(closest1))
 }
 
@@ -279,7 +279,7 @@ fn collide_bx_tr(s1: CollisionBox, s2: [Vec3<f32>; 3]) -> bool {
 
 fn collide_sp_sp(s1: CollisionSphere, s2: CollisionSphere) -> bool {
     let r_sum = s1.radius + s2.radius;
-    
+   
     (s1.center - s2.center).length_sq() <= r_sum * r_sum
 }
 
@@ -336,11 +336,11 @@ fn collide_ln_bx(s1: CollisionLine, s2: CollisionBox) -> bool {
         let x2 = s1.end[i];
         let x_min = -extents[i];
         let x_max = extents[i];
-        
+       
         if x2 != x1 {
             let mut t1 = (x_min - x1) / (x2 - x1);
             let mut t2 = (x_max - x1) / (x2 - x1);
-            
+           
             if t1 > t2 {
                 (t1, t2) = (t2, t1);
             }
@@ -366,7 +366,7 @@ fn collide_ln_tr(s1: CollisionLine, s2: [Vec3<f32>; 3]) -> bool {
 
     let e1 = b - a;
     let e2 = c - a;
-    
+   
     let n = e1.cross(e2);
     let det = -d.dot(n);
     let inv_det = 1.0 / det;
@@ -417,7 +417,7 @@ fn _collide_ls_alt(s1: CollisionLine, s2: CollisionSphere) -> bool {
     let [ax, bx, cx] = get_axis_equation_params(s1.start.x, s1.end.x, s2.center.x);
     let [ay, by, cy] = get_axis_equation_params(s1.start.y, s1.end.y, s2.center.y);
     let [az, bz, cz] = get_axis_equation_params(s1.start.z, s1.end.z, s2.center.z);
-    
+   
     let a = ax + ay + az;
     let b = bx + by + bz;
     let c = cx + cy + cz - s2.radius * s2.radius;
@@ -460,11 +460,11 @@ fn collide_centered_aa_ln(ext: Vec3<f32>, ln: CollisionLine) -> bool {
         let x2 = ln.end[i];
         let x_min = -ext[i];
         let x_max = ext[i];
-        
+       
         if x2 != x1 {
             let mut t1 = (x_min - x1) / (x2 - x1);
             let mut t2 = (x_max - x1) / (x2 - x1);
-            
+           
             if t1 > t2 {
                 (t1, t2) = (t2, t1);
             }

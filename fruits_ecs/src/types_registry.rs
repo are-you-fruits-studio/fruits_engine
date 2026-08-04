@@ -2,52 +2,31 @@ use std::{
     any::TypeId, collections::HashMap, ffi::c_void, marker::PhantomData, sync::{Arc, RwLock}
 };
 
-use fruits_ffi::FfiOption;
+use fruits_ffi::{FfiExtendedTypeInfo, FfiOption, FfiStrSliceRef};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct StoredTypeData {
+pub struct StoredTypeInfo {
     pub id: u64,
-    pub data: TypeData,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct TypeData {
-    // todo: name & ffi
-    pub size: u64,
-    pub align: u64,
-    pub drop_fn: Option<unsafe extern "C" fn(*mut c_void)>,
-}
-
-impl TypeData {
-    pub fn of<T: 'static>() -> Self {
-        unsafe extern "C" fn example_struct_drop_fn<D: 'static>(p: *mut c_void) {
-            unsafe { std::ptr::drop_in_place(p as *mut D) }
-        }
-
-        Self {
-            size: std::mem::size_of::<T>() as u64,
-            align: std::mem::align_of::<T>() as u64,
-            drop_fn: Some(example_struct_drop_fn::<T>),
-        }
-    }
+    pub data: &'static FfiExtendedTypeInfo,
 }
 
 //
 
-// todo: to vtable
+#[repr(C)]
+struct TypesRegistryAccessVtable {
+    pub clone_fn: unsafe extern "C" fn(*const c_void) -> *mut c_void,
+    pub len_fn: unsafe extern "C" fn(*const c_void) -> u64,
+    pub get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<&'static FfiExtendedTypeInfo>,
+    pub get_by_name_fn: unsafe extern "C" fn(*const c_void, name: FfiStrSliceRef) -> FfiOption<StoredTypeInfo>,
+    pub try_register_fn: unsafe extern "C" fn(*const c_void, data: &'static FfiExtendedTypeInfo) -> FfiOption<u64>,
+    pub drop_fn: unsafe extern "C" fn(*mut c_void),
+}
+
 #[repr(C)]
 pub struct TypesRegistryAccessFfi {
     data: *mut c_void,
-    clone_fn: unsafe extern "C" fn(*const c_void) -> *mut c_void,
-    len_fn: unsafe extern "C" fn(*const c_void) -> u64,
-    get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<TypeData>,
-    get_by_name_fn:
-        unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64) -> FfiOption<StoredTypeData>,
-    try_register_fn:
-        unsafe extern "C" fn(*const c_void, name_utf8_ref: *const c_void, name_utf8_len: u64, data: TypeData) -> FfiOption<u64>,
-    drop_fn: unsafe extern "C" fn(*mut c_void),
+    vtable: &'static TypesRegistryAccessVtable,
 }
 
 //
@@ -58,51 +37,58 @@ impl TypesRegistryAccessFfi {
 
         Self {
             data: Box::into_raw(Box::new(types)) as *mut c_void,
-            clone_fn: Self::ffi_clone,
-            len_fn: Self::ffi_len,
-            get_fn: Self::ffi_get,
-            get_by_name_fn: Self::ffi_get_by_name,
-            try_register_fn: Self::ffi_try_register,
-            drop_fn: Self::ffi_drop,
+            vtable: &TypesRegistryAccessVtable {
+                clone_fn: Self::ffi_clone,
+                len_fn: Self::ffi_len,
+                get_fn: Self::ffi_get,
+                get_by_name_fn: Self::ffi_get_by_name,
+                try_register_fn: Self::ffi_try_register,
+                drop_fn: Self::ffi_drop,
+            },
         }
     }
 
     pub fn len(&self) -> u64 {
-        unsafe { (self.len_fn)((&raw const *self) as *const c_void) }
+        unsafe { (self.vtable.len_fn)((&raw const *self) as *const c_void) }
     }
 
-    pub fn get(&self, id: u64) -> Option<TypeData> {
+    pub fn get(&self, id: u64) -> Option<&'static FfiExtendedTypeInfo> {
         unsafe {
             let this = self.data;
 
-            let data = (self.get_fn)(this, id);
+            let data = (self.vtable.get_fn)(this, id);
 
             data.into_option()
         }
     }
 
-    pub fn get_by_name(&self, name: &str) -> Option<StoredTypeData> {
+    pub fn get_by_name(&self, name: &str) -> Option<StoredTypeInfo> {
         unsafe {
             let this = self.data;
-            let name_utf8_len = name.len() as u64;
-            let name_utf8_ref = name.as_ptr() as *const c_void;
+            let name = FfiStrSliceRef::from_slice(name);
 
-            let data = (self.get_by_name_fn)(this, name_utf8_ref, name_utf8_len);
+            let data = (self.vtable.get_by_name_fn)(this, name);
 
             data.into_option()
         }
     }
 
-    pub fn try_register(&self, name: &str, data: TypeData) -> Option<u64> {
+    pub fn try_register(&self, data: &'static FfiExtendedTypeInfo) -> Option<u64> {
         unsafe {
             let this = self.data;
-            let name_utf8_len = name.len() as u64;
-            let name_utf8_ref = name.as_ptr() as *const c_void;
 
-            let data = (self.try_register_fn)(this, name_utf8_ref, name_utf8_len, data);
+            let data = (self.vtable.try_register_fn)(this, data);
 
             data.into_option()
         }
+    }
+
+    pub fn get_or_register(&self, data: &'static FfiExtendedTypeInfo) -> u64 {
+        if let Some(id) = self.get_by_name(data.short().name()) {
+            return id.id;
+        }
+
+        self.try_register(data).unwrap()
     }
 
     unsafe extern "C" fn ffi_clone(this: *const c_void) -> *mut c_void {
@@ -123,7 +109,7 @@ impl TypesRegistryAccessFfi {
             result as u64
         }
     }
-    unsafe extern "C" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<TypeData> {
+    unsafe extern "C" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<&'static FfiExtendedTypeInfo> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
 
@@ -132,37 +118,21 @@ impl TypesRegistryAccessFfi {
             FfiOption::from_option(result)
         }
     }
-    unsafe extern "C" fn ffi_get_by_name(
-        this: *const c_void,
-        name_utf8_ref: *const c_void,
-        name_utf8_len: u64,
-    ) -> FfiOption<StoredTypeData> {
+    unsafe extern "C" fn ffi_get_by_name(this: *const c_void, name: FfiStrSliceRef) -> FfiOption<StoredTypeInfo> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
-            let name_utf8 = std::slice::from_raw_parts(name_utf8_ref as *const u8, name_utf8_len as usize);
-            let Ok(name) = str::from_utf8(name_utf8) else {
-                return FfiOption::from_option(None);
-            };
+            let name = name.into_slice();
 
             let result = this.get_by_name(name);
 
             FfiOption::from_option(result)
         }
     }
-    unsafe extern "C" fn ffi_try_register(
-        this: *const c_void,
-        name_utf8_ref: *const c_void,
-        name_utf8_len: u64,
-        data: TypeData,
-    ) -> FfiOption<u64> {
+    unsafe extern "C" fn ffi_try_register(this: *const c_void, data: &'static FfiExtendedTypeInfo) -> FfiOption<u64> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
-            let name_utf8 = std::slice::from_raw_parts(name_utf8_ref as *const u8, name_utf8_len as usize);
-            let Ok(name) = str::from_utf8(name_utf8) else {
-                return None.into();
-            };
 
-            let result = this.try_register(name, data);
+            let result = this.try_register(data);
 
             result.into()
         }
@@ -180,7 +150,7 @@ impl Drop for TypesRegistryAccessFfi {
     fn drop(&mut self) {
         // todo
         unsafe {
-            (self.drop_fn)(self.data);
+            (self.vtable.drop_fn)(self.data);
         }
     }
 }
@@ -188,16 +158,11 @@ impl Drop for TypesRegistryAccessFfi {
 impl Clone for TypesRegistryAccessFfi {
     fn clone(&self) -> Self {
         unsafe {
-            let data = (self.clone_fn)(self.data);
+            let data = (self.vtable.clone_fn)(self.data);
 
             Self {
                 data,
-                clone_fn: self.clone_fn,
-                len_fn: self.len_fn,
-                get_fn: self.get_fn,
-                get_by_name_fn: self.get_by_name_fn,
-                try_register_fn: self.try_register_fn,
-                drop_fn: self.drop_fn,
+                vtable: self.vtable,
             }
         }
     }
@@ -210,7 +175,7 @@ unsafe impl Sync for TypesRegistryAccessFfi {}
 
 struct TypesRegistryData {
     types_by_string: HashMap<String, u64>,
-    types: Vec<StoredTypeData>,
+    types: Vec<StoredTypeInfo>,
 }
 
 struct TypesRegistryAccessNative {
@@ -252,7 +217,7 @@ impl TypesRegistryAccessNative {
         result
     }
 
-    pub fn get(&self, id: u64) -> Option<TypeData> {
+    pub fn get(&self, id: u64) -> Option<&'static FfiExtendedTypeInfo> {
         let self_data = self.data.read().unwrap();
 
         let result = self_data.types.get(id as usize).copied();
@@ -260,7 +225,7 @@ impl TypesRegistryAccessNative {
         result.map(|t| t.data)
     }
 
-    pub fn get_by_name(&self, name: &str) -> Option<StoredTypeData> {
+    pub fn get_by_name(&self, name: &str) -> Option<StoredTypeInfo> {
         let self_data = self.data.read().unwrap();
 
         let result = self_data.types.get(*self_data.types_by_string.get(name)? as usize).copied();
@@ -268,8 +233,9 @@ impl TypesRegistryAccessNative {
         result
     }
 
-    pub fn try_register(&self, name: &str, data: TypeData) -> Option<u64> {
+    pub fn try_register(&self, data: &'static FfiExtendedTypeInfo) -> Option<u64> {
         let mut self_data = self.data.write().unwrap();
+        let name = data.short().name();
 
         if self_data.types_by_string.get(name).is_some() {
             return None;
@@ -277,7 +243,7 @@ impl TypesRegistryAccessNative {
 
         let id = self_data.types.len() as u64;
         self_data.types_by_string.insert(name.to_string(), id);
-        self_data.types.push(StoredTypeData { id, data });
+        self_data.types.push(StoredTypeInfo { id, data });
 
         Some(id)
     }
@@ -406,7 +372,7 @@ impl TypesRegistryCache {
             return None;
         }
 
-        let id = self.registry.try_register(std::any::type_name::<T>(), TypeData::of::<T>());
+        let id = self.registry.try_register(&const { FfiExtendedTypeInfo::of::<T>() });
 
         if let Some(id) = id {
             cache.insert(TypeId::of::<T>(), id);

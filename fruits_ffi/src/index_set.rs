@@ -46,6 +46,9 @@ impl<T: Hash + Eq> FfiIndexSet<T> {
     {
         self.values.index_of(key)
     }
+    pub fn clear(&mut self) {
+        self.values.clear()
+    }
 }
 impl<T> Default for FfiIndexSet<T> {
     fn default() -> Self {

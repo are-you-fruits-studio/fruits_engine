@@ -30,17 +30,21 @@ fn events_holder_get_mut<'e, E: Event>(evt: &'e mut EventsHolderUnsafeFfi, types
     unsafe { &mut *events_holder_get_ptr(evt, types) }
 }
 
+fn events_holder_clear<'e>(evt: &'e mut EventsHolderUnsafeFfi) {
+    evt.clear();
+}
+
 //
 
 // todo
 
 pub struct EventsHolderMut<'e> {
-    evt: &'e mut EventsHolderUnsafeFfi,
+    evt: *mut EventsHolderUnsafeFfi,
     types: &'e TypesRegistryCache,
 }
 
 impl<'e> EventsHolderMut<'e> {
-    pub fn new(evt: &'e mut EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
+    pub unsafe fn new(evt: *mut EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
         Self { evt, types }
     }
 
@@ -48,25 +52,25 @@ impl<'e> EventsHolderMut<'e> {
     where
         'e: 'r,
     {
-        events_holder_get(self.evt, self.types)
+        unsafe { events_holder_get(&*self.evt, self.types) }
     }
 
     pub fn get_ptr<'r, E: Event>(&'r self) -> *mut FfiVec<E>
     where
         'e: 'r,
     {
-        events_holder_get_ptr(self.evt, self.types)
+        unsafe { events_holder_get_ptr(&*self.evt, self.types) }
     }
 
     pub fn get_mut<'r, E: Event>(&'r mut self) -> &'r mut FfiVec<E>
     where
         'e: 'r,
     {
-        events_holder_get_mut(self.evt, self.types)
+        unsafe { events_holder_get_mut(&mut *self.evt, self.types) }
     }
 
     pub fn clear(&mut self) {
-        self.evt.clear();
+        unsafe { events_holder_clear(&mut *self.evt) }
     }
 }
 
@@ -74,20 +78,20 @@ impl<'e> EventsHolderMut<'e> {
 
 #[derive(Copy, Clone)]
 pub struct EventsHolderRef<'e> {
-    evt: &'e EventsHolderUnsafeFfi,
+    evt: *const EventsHolderUnsafeFfi,
     types: &'e TypesRegistryCache,
 }
 
 impl<'e> EventsHolderRef<'e> {
-    pub fn new(evt: &'e EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
+    pub unsafe fn new(evt: *const EventsHolderUnsafeFfi, types: &'e TypesRegistryCache) -> Self {
         Self { evt, types }
     }
 
     pub fn get<E: Event>(self) -> &'e [E] {
-        events_holder_get(self.evt, self.types)
+        unsafe { events_holder_get(&*self.evt, self.types) }
     }
 
     pub fn get_ptr<E: Event>(self) -> *mut FfiVec<E> {
-        events_holder_get_ptr(self.evt, self.types)
+        unsafe { events_holder_get_ptr(&*self.evt, self.types) }
     }
 }

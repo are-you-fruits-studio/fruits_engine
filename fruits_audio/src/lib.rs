@@ -133,7 +133,8 @@ use std::{collections::HashMap, sync::{Arc, Mutex}};
 use cpal::{OutputCallbackInfo, StreamConfig, traits::{DeviceTrait, HostTrait, StreamTrait}};
 use fruits_asset_storage::*;
 use fruits_ecs::*;
-use fruits_ffi::{FfiDroppable, FfiVec};
+use fruits_ffi::{FfiDroppable, FfiOption, FfiString, FfiVec};
+use fruits_serialization::*;
 
 // todo:
 // + read different bits_per_sample (and sample type - f32, i32, i16, i8) -> convert to f32
@@ -160,26 +161,24 @@ pub fn add_audio_module_to(mut world: WorldBuilderMut) {
     world
         .data_mut()
         .resources_mut()
-        .insert(AudioStateResource {
-            state: WrappedAudioStateHandle::new(Arc::clone(&audio_state)),
-            _stream: FfiDroppable::new(stream),
-            last_samples: FfiVec::new(),
-            next_audio_clip_id: 1,
-        })
-        .ok()
-        .unwrap();
+        .insert(AudioStateResource::new(FfiDroppable::new(stream), WrappedAudioStateHandle::new(Arc::clone(&audio_state))));
 
     world
         .data_mut()
         .resources_mut()
-        .insert(AssetStorageResource::<AudioClip>::new())
-        .ok()
-        .unwrap();
+        .insert(AssetStorageResource::<AudioClip>::new());
 
     world.behavior_mut()
         .get_mut(Schedule::Update)
         .group(SYSTEM_GROUP_AUDIO)
         .insert_child_system(audio_system);
+}
+
+
+#[repr(C)]
+#[derive(TransSerializable, Clone)]
+pub struct AudioClipAssetMetadata {
+    pub raw_audio: FfiString,
 }
 
 #[repr(C)]
@@ -188,10 +187,11 @@ pub struct AudioClip {
     // interleaved stereo float [-1.0; 1.0] 48kHz samples
     samples: FfiVec<f32>,
     id: u64,
+    meta: FfiOption<AudioClipAssetMetadata>,
 }
 
 impl AudioClip {
-    pub fn new(samples: FfiVec<f32>, audio_state: &mut AudioStateResource) -> Option<Self> {
+    pub fn new(samples: FfiVec<f32>, audio_state: &mut AudioStateResource, meta: Option<AudioClipAssetMetadata>) -> Option<Self> {
         if samples.len() % AUDIO_CHANNELS_COUNT as u64 != 0 {
             return None;
         }
@@ -205,6 +205,7 @@ impl AudioClip {
         Some(Self {
             samples,
             id,
+            meta: meta.into(),
         })
     }
 
@@ -214,6 +215,10 @@ impl AudioClip {
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    pub fn meta(&self) -> Option<&AudioClipAssetMetadata> {
+        self.meta.as_ref()
     }
 }
 
@@ -237,6 +242,17 @@ pub struct AudioStateResource {
     next_audio_clip_id: u64,
 }
 
+impl AudioStateResource {
+    pub fn new(stream: FfiDroppable, state: WrappedAudioStateHandle) -> Self {
+        Self {
+            _stream: stream,
+            state,
+            last_samples: FfiVec::new(),
+            next_audio_clip_id: 1,
+        }
+    }
+}
+
 unsafe impl Send for AudioStateResource {}
 unsafe impl Sync for AudioStateResource {}
 
@@ -252,7 +268,7 @@ pub struct WrappedAudioStateHandle {
 }
 
 impl WrappedAudioStateHandle {
-    fn new(state: Arc<Mutex<AudioState>>) -> Self {
+    pub fn new(state: Arc<Mutex<AudioState>>) -> Self {
         Self {
             state: FfiDroppable::new(state),
         }
@@ -274,13 +290,13 @@ struct AudioActivePlayback {
     volume: f32,
 }
 
-struct AudioState {
+pub struct AudioState {
     active_playbacks: HashMap<EntityId, AudioActivePlayback>,
     last_played_samples: Vec<f32>,
 }
 
 impl AudioState {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             active_playbacks: HashMap::new(),
             last_played_samples: Vec::new(),
@@ -298,7 +314,7 @@ fn audio_system(
     {
         let state = unsafe { state.state.as_raw() };
         let audio_state = &mut *state.lock().unwrap();
-        
+       
         last_samples.resize(audio_state.last_played_samples.len() as u64, 0.0);
         last_samples.copy_from_slice(&audio_state.last_played_samples);
 
@@ -324,6 +340,7 @@ fn audio_system(
                     clip: AudioClip {
                         samples: FfiVec::new(),
                         id: 0,
+                        meta: None.into(),
                     },
                     sample_index: 0,
                     is_playing: false,

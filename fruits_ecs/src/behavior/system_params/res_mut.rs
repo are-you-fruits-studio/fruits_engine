@@ -24,10 +24,10 @@ unsafe impl<'e, R: Resource> SystemParam for ResMut<'e, R> {
     type Item<'b> = ResMut<'b, R>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+        usage.world().resources().add_type(DataUsageEntry {
             type_id: types.get_or_register::<R>(),
             details: DataUsageDetails {
-                is_mutable: true,
+                is_mut: true,
                 is_required: true,
             },
         });
@@ -45,10 +45,10 @@ unsafe impl<'e, R: Resource> SystemParam for Option<ResMut<'e, R>> {
     type Item<'b> = Option<ResMut<'b, R>>;
 
     fn fill_data_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+        usage.world().resources().add_type(DataUsageEntry {
             type_id: types.get_or_register::<R>(),
             details: DataUsageDetails {
-                is_mutable: true,
+                is_mut: true,
                 is_required: false,
             },
         });

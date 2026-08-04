@@ -160,4 +160,8 @@ impl<'w> WorldBuilderMut<'w> {
             types: self.types,
         }
     }
+
+    pub unsafe fn into_raw_parts(&mut self) -> (&mut WorldBuilderUnsafeFfi, &TypesRegistryCache) {
+        (&mut self.world, &self.types)
+    }
 }

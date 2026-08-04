@@ -1,50 +1,50 @@
-// todo: lifetimes for all slices?
+use std::marker::PhantomData;
+
 #[repr(C)]
-pub struct FfiSliceMut<T> {
+pub struct FfiSliceMut<'a, T> {
     ptr: *mut T,
     len: u64,
+    _phantom: PhantomData<&'a mut T>,
 }
 
-impl<T> FfiSliceMut<T> {
-    // todo
-    pub unsafe fn into_slice_mut<'a>(self) -> &'a mut [T] {
+impl<'a, T> FfiSliceMut<'a, T> {
+    pub fn into_slice_mut(self) -> &'a mut [T] {
         // todo
         unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len as usize) }
     }
 
-    // todo
-    pub unsafe fn into_slice<'a>(self) -> &'a [T] {
+    pub fn into_slice(self) -> &'a [T] {
         // todo
         unsafe { std::slice::from_raw_parts(self.ptr, self.len as usize) }
     }
 
-    // todo
-    pub unsafe fn from_slice(slice: &mut [T]) -> Self {
+    pub fn from_slice(slice: &'a mut [T]) -> Self {
         Self {
             len: slice.len() as u64,
             ptr: (&raw mut *slice) as *mut T,
+            _phantom: PhantomData,
         }
     }
 }
 
 #[repr(C)]
-pub struct FfiSliceRef<T> {
+pub struct FfiSliceRef<'a, T> {
     ptr: *const T,
     len: u64,
+    _phantom: PhantomData<&'a T>,
 }
 
-impl<T> FfiSliceRef<T> {
-    // todo
-    pub unsafe fn into_slice<'a>(self) -> &'a [T] {
+impl<'a, T> FfiSliceRef<'a, T> {
+    pub fn into_slice(self) -> &'a [T] {
         // todo
         unsafe { std::slice::from_raw_parts(self.ptr, self.len as usize) }
     }
 
-    // todo
-    pub unsafe fn from_slice(slice: &[T]) -> Self {
+    pub fn from_slice(slice: &'a [T]) -> Self {
         Self {
             len: slice.len() as u64,
             ptr: (&raw const *slice) as *const T,
+            _phantom: PhantomData,
         }
     }
 }
@@ -52,25 +52,22 @@ impl<T> FfiSliceRef<T> {
 //
 
 #[repr(C)]
-pub struct FfiStrSliceMut {
-    bytes: FfiSliceMut<u8>,
+pub struct FfiStrSliceMut<'a> {
+    bytes: FfiSliceMut<'a, u8>,
 }
 
-impl FfiStrSliceMut {
-    // todo
-    pub unsafe fn into_slice_mut<'a>(self) -> &'a mut str {
+impl<'a> FfiStrSliceMut<'a> {
+    pub fn into_slice_mut(self) -> &'a mut str {
         // todo
         unsafe { std::str::from_utf8_unchecked_mut(self.bytes.into_slice_mut()) }
     }
 
-    // todo
-    pub unsafe fn into_slice<'a>(self) -> &'a str {
+    pub fn into_slice(self) -> &'a str {
         // todo
         unsafe { std::str::from_utf8_unchecked(self.bytes.into_slice()) }
     }
 
-    // todo
-    pub unsafe fn from_slice(slice: &mut str) -> Self {
+    pub fn from_slice(slice: &'a mut str) -> Self {
         unsafe {
             Self {
                 bytes: FfiSliceMut::from_slice(slice.as_bytes_mut()),
@@ -80,23 +77,21 @@ impl FfiStrSliceMut {
 }
 
 #[repr(C)]
-pub struct FfiStrSliceRef {
-    bytes: FfiSliceRef<u8>,
+pub struct FfiStrSliceRef<'a> {
+    bytes: FfiSliceRef<'a, u8>,
 }
 
-impl FfiStrSliceRef {
-    // todo
-    pub unsafe fn into_slice<'a>(self) -> &'a str {
+impl<'a> FfiStrSliceRef<'a> {
+    pub fn into_slice(self) -> &'a str {
         // todo
         unsafe { std::str::from_utf8_unchecked(self.bytes.into_slice()) }
     }
 
-    // todo
-    pub unsafe fn from_slice(slice: &str) -> Self {
-        unsafe {
-            Self {
-                bytes: FfiSliceRef::from_slice(slice.as_bytes()),
-            }
+    pub fn from_slice(slice: &'a str) -> Self {
+        Self {
+            bytes: FfiSliceRef::from_slice(slice.as_bytes()),
         }
     }
 }
+
+// todo: From, Send, Sync

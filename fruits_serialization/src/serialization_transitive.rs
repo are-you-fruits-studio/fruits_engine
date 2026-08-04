@@ -1,108 +1,32 @@
 use std::{
-    borrow::Cow,
     error::Error,
-    fmt::{Debug, Display, Write},
+    fmt::{Debug, Display},
 };
 
-use fruits_ffi::{FfiAny, FfiIndexMap, FfiOption, FfiString, FfiVec};
+use fruits_ffi::{FfiAny, FfiAnyRef, FfiFnMutMut, FfiIndexMap, FfiOption, FfiString, FfiVec};
 
-use crate::{SerializedComposite, SerializedCompositeValues, SerializedEnumMetadata, SerializedMap, SerializedValue, SerializerRegistry};
+use crate::{PureSerializerCtx, SerializedComposite, SerializedCompositeValues, SerializedEnumMetadata, SerializedMap, SerializedValue, SerializerRegistry};
 
 // todo: ffi
-
-pub struct SerializationResult<T> {
-    pub result: T,
-    pub err: FfiVec<SerializationError>,
-}
-
-impl<T> SerializationResult<T> {
-    pub fn unwrap(self) -> T {
-        if let Some(err) = self.format_err() {
-            panic!("{}", err);
-        }
-
-        self.result
-    }
-
-    pub fn format_err(&self) -> Option<String> {
-        if self.err.is_empty() {
-            return None;
-        }
-
-        let mut message = String::new();
-
-        for err in &self.err {
-            writeln!(&mut message, "{}", err).unwrap();
-        }
-
-        Some(message)
-    }
-
-    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> SerializationResult<U> {
-        SerializationResult {
-            result: f(self.result),
-            err: self.err,
-        }
-    }
-
-    pub fn unwrap_and_store(self, error: &mut FfiVec<SerializationError>) -> T {
-        error.extend_from_slice(&self.err);
-        self.result
-    }
-}
-
-impl<T> SerializationResult<Option<T>> {
-    pub fn into_result(self) -> Result<SerializationResult<T>, FfiVec<SerializationError>> {
-        match self.result {
-            Some(result) => Ok(SerializationResult {
-                result,
-                err: self.err,
-            }),
-            None => Err(self.err),
-        }
-    }
-
-    pub fn from_result(result: Result<SerializationResult<T>, FfiVec<SerializationError>>) -> Self {
-        match result {
-            Ok(result) => SerializationResult {
-                result: Some(result.result),
-                err: result.err,
-            },
-            Err(error) => SerializationResult {
-                result: None,
-                err: error,
-            },
-        }
-    }
-}
-
-impl<T: Debug> Debug for SerializationResult<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SerializationResult")
-            .field("result", &self.result)
-            .field("err", &self.err)
-            .finish()
-    }
-}
 
 pub trait TransSerializable: Sized + 'static {
-    fn serialize(&self, ctx: &SerializerCtx) -> SerializationResult<SerializedValue>;
-    fn deserialize(ctx: &SerializerCtx, value: &SerializedValue) -> SerializationResult<Option<Self>>;
+    fn serialize(&self, ctx: SerializerCtx) -> SerializedValue;
+    fn deserialize(ctx: SerializerCtx, value: &SerializedValue) -> Option<Self>;
 }
 
-// todo: ffi
+#[repr(C)]
 #[derive(Clone)]
 pub enum SerializationError {
-    MissingSerializer { type_name: Cow<'static, str> },
-    InvalidInput { message: String },
+    MissingSerializer { type_name: FfiString },
+    InvalidInput { message: FfiString },
 }
 impl Display for SerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingSerializer { type_name } => {
-                write!(f, "failed to deserialize {} - serializer for the type is not registered", type_name)
+                write!(f, "missing serializer for type {}", type_name)
             }
-            Self::InvalidInput { message } => write!(f, "failed to deserialize - invalid deserialization input: {}", message),
+            Self::InvalidInput { message } => write!(f, "invalid serialization input: {}", message),
         }
     }
 }
@@ -112,220 +36,250 @@ impl Debug for SerializationError {
     }
 }
 impl Error for SerializationError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
 }
 
-pub struct SerializerCtx<'brw, 'local: 'brw> {
-    registry_global: &'brw SerializerRegistry<'static>,
-    registry_local: Option<&'brw SerializerRegistry<'local>>,
+// todo: ctx wraps wider ctx for scoping
+// mod sealed {
+//     pub trait Sealed {}
+// }
+// pub trait SerializerCtxTrait : sealed::Sealed {
+//     type WiderCtx;
+// }
+// impl<'a, 'l: 'a> sealed::Sealed for SerializerCtx<'a, 'l> {
+// }
+
+#[repr(C)]
+pub struct SerializerCtx<'a, 'l: 'a> {
+    registry_global: &'a SerializerRegistry<'static>,
+    registry_local: FfiOption<&'a SerializerRegistry<'l>>,
+    err_handler: FfiFnMutMut<'a, SerializationError, ()>,
 }
-impl<'brw, 'local: 'brw> SerializerCtx<'brw, 'local> {
+impl<'a, 'l: 'a> SerializerCtx<'a, 'l> {
     pub fn new(
-        registry_global: &'brw SerializerRegistry<'static>,
-        registry_local: Option<&'brw SerializerRegistry<'local>>,
+        registry_global: &'a SerializerRegistry<'static>,
+        registry_local: Option<&'a SerializerRegistry<'l>>,
+        err_handler: FfiFnMutMut<'a, SerializationError, ()>,
     ) -> Self {
         Self {
             registry_global,
-            registry_local,
+            registry_local: registry_local.into(),
+            err_handler,
         }
     }
 
-    fn clone(&self) -> Self {
-        Self {
+    pub fn as_mut<'r>(&'r mut self) -> SerializerCtx<'r, 'l>
+        where 'a: 'r
+    {
+        SerializerCtx {
             registry_global: self.registry_global,
             registry_local: self.registry_local,
+            err_handler: self.err_handler.as_mut(),
         }
+    }
+
+    pub fn as_pure<'r>(&'r mut self) -> PureSerializerCtx<'r>
+        where 'a: 'r
+    {
+        PureSerializerCtx::new(self.err_handler.as_mut())
+    }
+    // todo
+    // fn clone(&self) -> Self {
+    //     Self {
+    //         registry_global: self.registry_global,
+    //         registry_local: self.registry_local,
+    //     }
+    // }
+
+    pub fn report_err(&mut self, err: SerializationError) {
+        self.err_handler.execute(err);
     }
 
     pub fn deserialize_map<T: 'static>(
-        &self,
+        &mut self,
         value: &SerializedValue,
-        f: impl FnOnce(&mut MapDeserializerCtx) -> Option<T>,
-    ) -> SerializationResult<Option<T>> {
-        let mut ctx = MapDeserializerCtx::new(
-            self.clone(),
+        f: impl FnOnce(MapDeserializerCtx) -> Option<T>,
+    ) -> Option<T> {
+        f(MapDeserializerCtx::new(
+            self.as_mut(),
             value,
-        );
-
-        SerializationResult {
-            result: f(&mut ctx),
-            err: ctx.error,
-        }
+        ))
     }
     pub fn deserialize_list<T: 'static>(
-        &self,
+        &mut self,
         value: &SerializedValue,
-        f: impl FnOnce(&mut ListDeserializerCtx) -> Option<T>,
-    ) -> SerializationResult<Option<T>> {
-        let mut ctx = ListDeserializerCtx::new(
-            self.clone(),
+        f: impl FnOnce(ListDeserializerCtx) -> Option<T>,
+    ) -> Option<T> {
+        f(ListDeserializerCtx::new(
+            self.as_mut(),
             value,
-        );
-
-        SerializationResult {
-            result: f(&mut ctx),
-            err: ctx.error,
-        }
+        ))
     }
-    pub fn deserialize_enum<T>(&self) -> EnumDeserializerCtx<'brw, 'local, T> {
-        EnumDeserializerCtx::new(self.clone())
+    pub fn deserialize_enum<'r, T>(&'r mut self) -> EnumDeserializerCtx<'r, 'l, T>
+        where 'a: 'r
+    {
+        EnumDeserializerCtx::<T>::new(self.as_mut())
     }
 
-    pub fn serialize_map(&self) -> MapSerializerCtx<'brw, 'local> {
+    pub fn serialize_map<'r>(&'r mut self) -> MapSerializerCtx<'r, 'l>
+        where 'a: 'r
+    {
         MapSerializerCtx {
-            ctx: self.clone(),
+            ctx: self.as_mut(),
             fields: FfiIndexMap::new(),
-            error: FfiVec::new(),
         }
     }
-    pub fn serialize_list(&self) -> ListSerializerCtx<'brw, 'local> {
+    pub fn serialize_list<'r>(&'r mut self) -> ListSerializerCtx<'r, 'l>
+        where 'a: 'r
+    {
         ListSerializerCtx {
-            ctx: self.clone(),
+            ctx: self.as_mut(),
             elements: FfiVec::new(),
-            error: FfiVec::new(),
         }
     }
 
-    pub fn get_field<'a, T: 'static>(&self, value: &'a FfiIndexMap<String, SerializedValue>, name: &str) -> SerializationResult<Option<T>> {
+    pub fn get_field<T: 'static>(&mut self, value: &FfiIndexMap<String, SerializedValue>, name: &str) -> Option<T> {
         let serialized_value = value.get(name).unwrap_or_else(|| &SerializedValue::Null);
 
         self.deserialize(serialized_value)
     }
-    pub fn get_element<'a, T: 'static>(&self, value: &'a FfiVec<SerializedValue>, idx: usize) -> SerializationResult<Option<T>> {
+    pub fn get_element<T: 'static>(&mut self, value: &FfiVec<SerializedValue>, idx: usize) -> Option<T> {
         let serialized_value = value.get(idx as u64).unwrap_or_else(|| &SerializedValue::Null);
 
         self.deserialize(serialized_value)
     }
 
-    pub fn serialize<T: 'static>(&self, value: &T) -> SerializationResult<SerializedValue> {
-        if let Some(registry_local) = &self.registry_local {
-            if let Some(serializer) = registry_local.get() {
-                return serializer.serialize(self, value);
-            }
+    pub fn serialize<T: 'static>(&mut self, value: &T) -> SerializedValue {
+        if let Some(serializer) = self.registry_local.as_option().map(|r| r.get()).flatten() {
+            let ctx = SerializerCtx {
+                registry_global: self.registry_global,
+                registry_local: self.registry_local,
+                err_handler: self.err_handler.as_mut(),
+            };
+            return serializer.serialize(ctx, value);
         }
-
         if let Some(serializer) = self.registry_global.get() {
-            return serializer.serialize(self, value);
+            return serializer.serialize(self.as_mut(), value);
         }
 
-        SerializationResult {
-            result: SerializedValue::Null,
-            err: vec![SerializationError::MissingSerializer {
-                type_name: std::any::type_name::<T>().into(),
-            }].into(),
-        }
+        self.report_err(SerializationError::MissingSerializer { type_name: std::any::type_name::<T>().into() });
+        SerializedValue::Null
     }
-    pub fn deserialize<T: 'static>(&self, data: &SerializedValue) -> SerializationResult<Option<T>> {
-        if let Some(registry_local) = &self.registry_local {
-            if let Some(serializer) = registry_local.get() {
-                return serializer.deserialize(self, data);
+
+    pub fn serialize_any(&mut self, value: FfiAnyRef) -> SerializedValue {
+        let type_name = value.type_info().short().name();
+       
+        unsafe {
+            if let Some(serializer) = self.registry_local.as_option().map(|r| r.get_virtual(type_name)).flatten() {
+                let ctx = SerializerCtx {
+                    registry_global: self.registry_global,
+                    registry_local: self.registry_local,
+                    err_handler: self.err_handler.as_mut(),
+                };
+                return serializer.serialize_any(ctx, value);
+            }
+            if let Some(serializer) = self.registry_global.get_virtual(type_name) {
+                return serializer.serialize_any(self.as_mut(), value);
             }
         }
 
+        self.report_err(SerializationError::MissingSerializer { type_name: type_name.into() });
+        SerializedValue::Null
+    }
+    pub fn deserialize<T: 'static>(&mut self, data: &SerializedValue) -> Option<T> {
+        if let Some(serializer) = self.registry_local.as_option().map(|r| r.get()).flatten() {
+            let ctx = SerializerCtx {
+                registry_global: self.registry_global,
+                registry_local: self.registry_local,
+                err_handler: self.err_handler.as_mut(),
+            };
+            return serializer.deserialize(ctx, data);
+        }
         if let Some(serializer) = self.registry_global.get() {
-            return serializer.deserialize(self, data);
+            return serializer.deserialize(self.as_mut(), data);
         }
 
-        SerializationResult {
-            result: None,
-            err: vec![SerializationError::MissingSerializer {
-                type_name: std::any::type_name::<T>().into(),
-            }].into(),
-        }
+        self.report_err(SerializationError::MissingSerializer { type_name: std::any::type_name::<T>().into() });
+        None
     }
-    pub fn deserialize_any(&self, id: &str, data: &SerializedValue) -> SerializationResult<Option<FfiAny>> {
-        if let Some(registry_local) = self.registry_local {
-            if let Some(serializer) = registry_local.get_virtual(id) {
-                return serializer.deserialize_any(self, data);
-            }
+    pub fn deserialize_any(&mut self, id: &str, data: &SerializedValue) -> Option<FfiAny> {
+        if let Some(serializer) = self.registry_local.as_option().map(|r| r.get_virtual(id)).flatten() {
+            let ctx = SerializerCtx {
+                registry_global: self.registry_global,
+                registry_local: self.registry_local,
+                err_handler: self.err_handler.as_mut(),
+            };
+            return serializer.deserialize_any(ctx, data);
         }
-
         if let Some(serializer) = self.registry_global.get_virtual(id) {
-            return serializer.deserialize_any(self, data);
+            return serializer.deserialize_any(self.as_mut(), data);
         }
 
-        SerializationResult {
-            result: None,
-            err: vec![SerializationError::MissingSerializer {
-                type_name: id.to_string().into(),
-            }].into(),
-        }
+        self.report_err(SerializationError::MissingSerializer { type_name: id.to_string().into() });
+        None
     }
 }
 
-pub struct MapSerializerCtx<'brw, 'local: 'brw> {
-    ctx: SerializerCtx<'brw, 'local>,
+pub struct MapSerializerCtx<'a, 'l: 'a> {
+    ctx: SerializerCtx<'a, 'l>,
     fields: FfiIndexMap<FfiString, SerializedValue>,
-    error: FfiVec<SerializationError>,
 }
 
-impl<'brw, 'local: 'brw> MapSerializerCtx<'brw, 'local> {
+impl<'a, 'l: 'a> MapSerializerCtx<'a, 'l> {
     pub fn with_field<T: 'static>(mut self, name: impl Into<FfiString>, value: &T) -> Self {
         let result = self.ctx.serialize(value);
 
-        self.error.extend_from_slice(&result.err);
-        self.fields.insert(name.into(), result.result);
+        self.fields.insert(name.into(), result);
 
         self
     }
 
-    pub fn finish_as_map(self, is_rigid: bool) -> SerializationResult<SerializedValue> {
-        SerializationResult {
-            err: self.error,
-            result: SerializedValue::Composite(SerializedComposite {
-                values: SerializedCompositeValues::Map(SerializedMap {
-                    values: self.fields,
-                    enum_metadata: None.into(),
-                }),
-                is_rigid,
-            })
-        }
+    pub fn finish_as_map(self, is_rigid: bool) -> SerializedValue {
+        SerializedValue::Composite(SerializedComposite {
+            values: SerializedCompositeValues::Map(SerializedMap {
+                values: self.fields,
+                enum_metadata: None.into(),
+            }),
+            is_rigid,
+        })
     }
 
-    pub fn finish_as_enum(self, is_rigid: bool, variant: impl Into<FfiString>, variants: FfiVec<FfiString>) -> SerializationResult<SerializedValue> {
-        SerializationResult {
-            err: self.error,
-            result: SerializedValue::Composite(SerializedComposite {
-                values: SerializedCompositeValues::Map(SerializedMap {
-                    values: self.fields,
-                    enum_metadata: SerializedEnumMetadata {
-                        variant: variant.into(),
-                        variants,
-                    }.into(),
-                }),
-                is_rigid,
-            })
-        }
+    pub fn finish_as_enum(self, is_rigid: bool, variant: impl Into<FfiString>, variants: FfiVec<FfiString>) -> SerializedValue {
+        SerializedValue::Composite(SerializedComposite {
+            values: SerializedCompositeValues::Map(SerializedMap {
+                values: self.fields,
+                enum_metadata: SerializedEnumMetadata {
+                    variant: variant.into(),
+                    variants,
+                }.into(),
+            }),
+            is_rigid,
+        })
     }
 }
 
 // todo: ffi
-pub struct ListSerializerCtx<'brw, 'local: 'brw> {
-    ctx: SerializerCtx<'brw, 'local>,
+pub struct ListSerializerCtx<'a, 'l: 'a> {
+    ctx: SerializerCtx<'a, 'l>,
     elements: FfiVec<SerializedValue>,
-    error: FfiVec<SerializationError>,
 }
 
-impl<'brw, 'local: 'brw> ListSerializerCtx<'brw, 'local> {
+impl<'a, 'l: 'a> ListSerializerCtx<'a, 'l> {
     pub fn with_element<T: 'static>(mut self, value: &T) -> Self {
         let result = self.ctx.serialize(value);
 
-        self.error.extend_from_slice(&result.err);
-        self.elements.push(result.result);
+        self.with_serialized_element::<T>(result)
+    }
+    pub fn with_serialized_element<T: 'static>(mut self, result: SerializedValue) -> Self {
+        self.elements.push(result);
 
         self
     }
 
-    pub fn finish_as_list(self, is_rigid: bool) -> SerializationResult<SerializedValue> {
-        SerializationResult {
-            err: self.error,
-            result: SerializedValue::Composite(SerializedComposite {
-                values: SerializedCompositeValues::List(self.elements),
-                is_rigid,
-            })
-        }
+    pub fn finish_as_list(self, is_rigid: bool) -> SerializedValue {
+        SerializedValue::Composite(SerializedComposite {
+            values: SerializedCompositeValues::List(self.elements),
+            is_rigid,
+        })
     }
 }
 
@@ -334,14 +288,13 @@ impl<'brw, 'local: 'brw> ListSerializerCtx<'brw, 'local> {
 
 
 // todo: ffi
-pub struct MapDeserializerCtx<'brw, 'local: 'brw> {
-    ctx: SerializerCtx<'brw, 'local>,
+pub struct MapDeserializerCtx<'a, 'l: 'a> {
+    ctx: SerializerCtx<'a, 'l>,
     fields: FfiIndexMap<FfiString, SerializedValue>,
-    error: FfiVec<SerializationError>,
 }
 
-impl<'brw, 'local: 'brw> MapDeserializerCtx<'brw, 'local> {
-    pub fn new(ctx: SerializerCtx<'brw, 'local>, value: &SerializedValue) -> Self {
+impl<'a, 'l: 'a> MapDeserializerCtx<'a, 'l> {
+    pub fn new(ctx: SerializerCtx<'a, 'l>, value: &SerializedValue) -> Self {
         let fields = match value {
             SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::Map(value), .. }) => value.values.clone(),
             _ => FfiIndexMap::new()
@@ -350,28 +303,24 @@ impl<'brw, 'local: 'brw> MapDeserializerCtx<'brw, 'local> {
         Self {
             ctx,
             fields,
-            error: FfiVec::new(),
         }
     }
 
-    pub fn get_field<'a, T: 'static>(&mut self, name: &str) -> Option<T> {
+    pub fn get_field<T: 'static>(&mut self, name: &str) -> Option<T> {
         let serialized_value = self.fields.get(name).unwrap_or_else(|| &SerializedValue::Null);
 
-        let result = self.ctx.deserialize(serialized_value);
-        self.error.extend_from_slice(&result.err);
-        result.result
+        self.ctx.deserialize(serialized_value)
     }
 }
 
 // todo: ffi
-pub struct ListDeserializerCtx<'brw, 'local: 'brw> {
-    ctx: SerializerCtx<'brw, 'local>,
+pub struct ListDeserializerCtx<'a, 'l: 'a> {
+    ctx: SerializerCtx<'a, 'l>,
     elements: FfiVec<SerializedValue>,
-    error: FfiVec<SerializationError>,
 }
 
-impl<'brw, 'local: 'brw> ListDeserializerCtx<'brw, 'local> {
-    pub fn new(ctx: SerializerCtx<'brw, 'local>, value: &SerializedValue) -> Self {
+impl<'a, 'l: 'a> ListDeserializerCtx<'a, 'l> {
+    pub fn new(ctx: SerializerCtx<'a, 'l>, value: &SerializedValue) -> Self {
         let elements = match value {
             SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::List(value), .. }) => value.clone(),
             _ => FfiVec::new()
@@ -380,75 +329,59 @@ impl<'brw, 'local: 'brw> ListDeserializerCtx<'brw, 'local> {
         Self {
             ctx,
             elements,
-            error: FfiVec::new(),
         }
     }
 
-    pub fn get_element<'a, T: 'static>(&mut self, idx: usize) -> Option<T> {
+    pub fn get_element<T: 'static>(&mut self, idx: usize) -> Option<T> {
         let serialized_value = self.elements.get(idx as u64).unwrap_or_else(|| &SerializedValue::Null);
 
-        let result = self.ctx.deserialize(serialized_value);
-        self.error.extend_from_slice(&result.err);
-        result.result
+        self.ctx.deserialize(serialized_value)
+    }
+
+    pub fn get_serialized_element<T: 'static>(&mut self, idx: usize) -> &SerializedValue {
+        self.elements.get(idx as u64).unwrap_or_else(|| &SerializedValue::Null)
     }
 }
 
 // todo: ffi
-pub struct EnumDeserializerCtx<'brw, 'local: 'brw, T> {
-    ctx: SerializerCtx<'brw, 'local>,
-    variants: FfiVec<(FfiString, Box<dyn FnMut(SerializerCtx<'brw, 'local>, &SerializedValue) -> SerializationResult<Option<T>>>)>,
+pub struct EnumDeserializerCtx<'a, 'l: 'a, T> {
+    ctx: SerializerCtx<'a, 'l>,
+    variants: FfiVec<(FfiString, Box<dyn for<'b> FnMut(SerializerCtx<'b, 'l>, &SerializedValue) -> Option<T>>)>,
 }
 
-impl<'brw, 'local: 'brw, T> EnumDeserializerCtx<'brw, 'local, T> {
-    pub fn new(ctx: SerializerCtx<'brw, 'local>) -> Self {
+impl<'a, 'l: 'a, T> EnumDeserializerCtx<'a, 'l, T> {
+    pub fn new(ctx: SerializerCtx<'a, 'l>) -> Self {
         Self {
             ctx,
             variants: FfiVec::new(),
         }
     }
-    pub fn variant(mut self, variant: impl Into<FfiString>, deserializer: impl 'static + FnMut(SerializerCtx<'brw, 'local>, &SerializedValue) -> SerializationResult<Option<T>>) -> Self {
+    pub fn variant(mut self, variant: impl Into<FfiString>, deserializer: impl 'static + for<'b> FnMut(SerializerCtx<'b, 'l>, &SerializedValue) -> Option<T>) -> Self {
         self.variants.push((variant.into(), Box::new(deserializer)));
         self
     }
 
-    pub fn finish(mut self, value: &SerializedValue) -> SerializationResult<Option<T>> {
-        let mut err = FfiVec::new();
-
+    pub fn finish(mut self, value: &SerializedValue) -> Option<T> {
         if let SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::Map(SerializedMap { enum_metadata: FfiOption::Some(enum_metadata), .. }), .. }) = value {
             for (variant, deserializer) in &mut self.variants {
                 if variant == &enum_metadata.variant {
-                    let result = deserializer(self.ctx.clone(), value);
-                    
-                    err.extend_from_slice(&result.err);
-                    if let Some(value) = result.result {
-                        return SerializationResult {
-                            result: Some(value),
-                            err,
-                        };
+                    if let Some(value) = deserializer(self.ctx.as_mut(), value) {
+                        return Some(value);
                     }
                     break;
                 }
             }
         }
 
-        err.push(SerializationError::InvalidInput { message: String::from("Deserializizing enum without a valid variant") });
+        self.ctx.report_err(SerializationError::InvalidInput { message: format!("Deserializing enum {} without a valid variant", std::any::type_name::<T>()).into() });
 
         for (_variant, deserializer) in &mut self.variants {
-            let result = deserializer(self.ctx.clone(), value);
-            err.extend_from_slice(&result.err);
-
-            if let Some(value) = result.result {
-                return SerializationResult {
-                    result: Some(value),
-                    err,
-                };
+            if let Some(value) = deserializer(self.ctx.as_mut(), value) {
+                return Some(value);
             }
         }
 
-        SerializationResult {
-            result: None,
-            err,
-        }
+        None
     }
 }
 

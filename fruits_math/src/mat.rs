@@ -1,13 +1,12 @@
 use std::{marker::PhantomData, mem::ManuallyDrop, ops::{Index, IndexMut, Mul}};
 
-use fruits_serialization::*;
 use fruits_utils::{mem::{AllBitVariationsValid, AllBitsInit}, stack_vec::StackVec};
 use serde::{Deserialize, Serialize, de::Visitor, ser::SerializeSeq};
 
 use crate::{Primitive, num::Number};
 
 /// Column-major
-#[derive(Copy, Clone, Debug, PartialEq, Hash, TransSerializable)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct Mat<const N: usize, T> {
     data: [[T; N]; N],
@@ -285,7 +284,7 @@ impl<'de, const N: usize, T: Deserialize<'de>> Deserialize<'de> for Mat<N, T> {
 
             array_ptr.read()
         };
-    
+   
         Ok(Mat::from_array(array))
     }
 }

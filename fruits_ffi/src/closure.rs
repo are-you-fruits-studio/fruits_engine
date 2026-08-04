@@ -37,8 +37,8 @@ pub struct FfiFnMutMut<'a, I, O> {
     _phantom: PhantomData<&'a mut ()>,
 }
 impl<'a, I, O> FfiFnMutMut<'a, I, O> {
-    pub fn new<F: Fn(I) -> O>(f: &'a mut F) -> Self {
-        unsafe extern "C" fn ffi_execute<I, O, F: Fn(I) -> O>(this: *mut c_void, input: I) -> O {
+    pub fn new<F: FnMut(I) -> O>(f: &'a mut F) -> Self {
+        unsafe extern "C" fn ffi_execute<I, O, F: FnMut(I) -> O>(this: *mut c_void, input: I) -> O {
             unsafe {
                 let this = &mut *(this as *mut F);
 
@@ -50,6 +50,16 @@ impl<'a, I, O> FfiFnMutMut<'a, I, O> {
             data: f as *mut F as *mut c_void,
             fn_execute: ffi_execute::<I, O, F>,
             _phantom: Default::default(),
+        }
+    }
+
+    pub fn as_mut<'r>(&'r mut self) -> FfiFnMutMut<'r, I, O>
+        where 'a: 'r
+    {
+        FfiFnMutMut {
+            data: self.data,
+            fn_execute: self.fn_execute,
+            _phantom: PhantomData,
         }
     }
 

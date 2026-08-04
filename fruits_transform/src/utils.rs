@@ -175,12 +175,12 @@ pub fn destroy_entity_and_children(mut ec: EntitiesHolderMut, ent: EntityId) {
 pub fn destroy_entity_children(mut ec: EntitiesHolderMut, ent: EntityId) {
     let mut check_buffer = Vec::new();
 
-    if let Some(parent) = ec.get_component::<ParentComponent>(ent) {
+    if let Some(parent) = ec.as_mut().get_component::<ParentComponent>(ent) {
         check_buffer.extend(parent.children.iter());
     };
 
     while let Some(ent) = check_buffer.pop() {
-        if let Some(parent) = ec.get_component::<ParentComponent>(ent) {
+        if let Some(parent) = ec.as_mut().get_component::<ParentComponent>(ent) {
             check_buffer.extend(parent.children.iter());
         };
 

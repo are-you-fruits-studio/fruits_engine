@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 fruits_engine = { path = "../../fruits_engine" }
 serde_json = { version = "1", features = ["preserve_order"] }
+libloading = "0.9"

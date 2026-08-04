@@ -5,7 +5,7 @@ use fruits_ecs::{ResMut, Resource, Schedule, WorldBuilderMut};
 // todo: ffi?
 
 pub fn add_module_to(mut world: WorldBuilderMut) {
-    world.data_mut().resources_mut().insert(FpsResource::default()).ok().unwrap();
+    world.data_mut().resources_mut().insert(FpsResource::default());
 
     world.behavior_mut().get_mut(Schedule::Update).insert_system(count_fps_system);
 }

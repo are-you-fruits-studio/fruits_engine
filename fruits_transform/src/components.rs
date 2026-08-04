@@ -43,7 +43,7 @@ impl Default for LocalTransform {
 }
 
 #[repr(C)]
-#[derive(Component, Clone, Debug, PartialEq, Default)]
+#[derive(Component, Clone, Debug, PartialEq, Default, TransSerializable)]
 pub struct ParentComponent {
     pub children: FfiVec<EntityId>,
 }

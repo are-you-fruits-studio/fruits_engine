@@ -1,6 +1,6 @@
 use fruits_ecs::Event;
-use winit::keyboard::SmolStr;
+use fruits_ffi::FfiString;
 
-// todo: ffi
+#[repr(C)]
 #[derive(Event)]
-pub struct TextInputEvent(pub SmolStr);
+pub struct TextInputEvent(pub FfiString);

@@ -51,7 +51,7 @@ struct GizmoComponent {
     pub color: Vec4<f32>,
 }
 
-fn init(mut world: ExclusiveWorldAccess) {
+fn init(mut world: WorldDataMut) {
     let mut ec = world.entities_mut();
 
     let camera = ec.create_entity();

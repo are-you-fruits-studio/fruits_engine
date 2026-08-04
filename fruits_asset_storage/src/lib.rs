@@ -115,7 +115,7 @@ use std::{
 };
 
 use fruits_ecs::Resource;
-use fruits_ffi::{FfiHashMap, FfiString};
+use fruits_ffi::{FfiIndexMap, FfiOption, FfiString};
 use fruits_utils::index_version_collection::{VersionCollection, VersionIndex};
 
 // todo: ffi
@@ -148,10 +148,10 @@ impl AssetsStorageResource {
     }
 }
 
-// todo: ffi
+#[repr(C)]
 pub struct AssetStorageResource<T: 'static> {
-    assets: VersionCollection<(T, Option<FfiString>)>,
-    assets_by_key: FfiHashMap<FfiString, AssetHandle<T>>,
+    assets: VersionCollection<(T, FfiOption<FfiString>)>,
+    assets_by_key: FfiIndexMap<FfiString, AssetHandle<T>>,
 }
 
 // todo: support generics in Resource impl macro
@@ -161,16 +161,30 @@ impl<T: 'static> AssetStorageResource<T> {
     pub fn new() -> Self {
         Self {
             assets: VersionCollection::new(),
-            assets_by_key: FfiHashMap::new(),
+            assets_by_key: FfiIndexMap::new(),
         }
     }
 
     pub fn insert(&mut self, asset: T) -> AssetHandle<T> {
-        AssetHandle::<T>::new(self.assets.insert((asset, None)))
+        AssetHandle::<T>::new(self.assets.insert((asset, None.into())))
+    }
+
+    pub fn insert_and_register(&mut self, asset: T, key: FfiString) -> AssetHandle<T> {
+        let handle = self.insert(asset);
+        self.register(key, handle.clone());
+        handle
     }
 
     pub fn remove(&mut self, handle: &AssetHandle<T>) -> Option<T> {
-        self.assets.remove(handle.index()).map(|a| a.0)
+        let Some((asset, key)) = self.assets.remove(handle.index()) else {
+            return None;
+        };
+
+        if let Some(key) = key.into_option() {
+            self.assets_by_key.remove_swap(key.as_str());
+        }
+
+        Some(asset)
     }
 
     pub fn get(&self, handle: &AssetHandle<T>) -> Option<&T> {
@@ -181,27 +195,43 @@ impl<T: 'static> AssetStorageResource<T> {
         self.assets.get_mut(handle.index()).map(|a| &mut a.0)
     }
 
-    pub fn register(&mut self, key: FfiString, handle: AssetHandle<T>) {
-        // todo: remove panic
-        self.assets.get_mut(handle.index()).unwrap().1 = Some(key.clone());
-        if let Some(removed_handle) = self.assets_by_key.insert(key, handle) {
-            self.assets.get_mut(removed_handle.index()).unwrap().1 = None;
+    pub fn register(&mut self, key: FfiString, handle: AssetHandle<T>) -> bool {
+        let Some(cell) = self.assets.get_mut(handle.index()) else {
+            return false;
         };
+
+        if cell.1.as_ref().map(|s| s.as_str()) == Some(key.as_str()) {
+            return true;
+        }
+
+        cell.1 = FfiOption::Some(key.clone());
+
+        if let Some(removed_handle) = self.assets_by_key.insert(key, handle) {
+            self.assets.get_mut(removed_handle.index()).unwrap().1 = None.into();
+        };
+
+        true
     }
 
-    pub fn unregister(&mut self, key: &str) {
-        // todo: remove panic
-        if let Some(removed_handle) = self.assets_by_key.remove_by_str(key) {
-            self.assets.get_mut(removed_handle.index()).unwrap().1 = None;
+    pub fn unregister(&mut self, key: &str) -> bool {
+        let Some(removed_handle) = self.assets_by_key.remove_swap(key) else {
+            return false;
         };
+
+        self.assets.get_mut(removed_handle.index()).unwrap().1 = None.into();
+        true
     }
 
     pub fn get_registered(&self, key: &str) -> Option<&AssetHandle<T>> {
-        self.assets_by_key.get_by_str(key)
+        self.assets_by_key.get(key)
     }
 
     pub fn get_registration(&self, handle: &AssetHandle<T>) -> Option<&str> {
         self.assets.get(handle.index()).map(|a| a.1.as_ref()).flatten().map(|a| a.as_str())
+    }
+
+    pub fn get_all(&self) -> impl Iterator<Item = (&T, Option<&str>)> {
+        self.assets.iter().map(|(i, r)| (i, r.as_ref().map(|s| s.as_str())))
     }
 }
 
@@ -214,6 +244,16 @@ unsafe impl<T: Sync> Sync for AssetStorageResource<T> {}
 pub struct AssetHandle<T> {
     index: VersionIndex,
     _phantom: PhantomData<Arc<T>>,
+}
+
+impl<T> AssetHandle<T> {
+    pub const EMPTY: Self = Self { index: VersionIndex::EMPTY, _phantom: PhantomData };
+}
+
+impl<T> Default for AssetHandle<T> {
+    fn default() -> Self {
+        Self::EMPTY
+    }
 }
 
 impl<T> Debug for AssetHandle<T> {

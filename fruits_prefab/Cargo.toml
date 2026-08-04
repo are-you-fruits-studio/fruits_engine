@@ -8,6 +8,10 @@ crate-type = ["lib"]
 
 [dependencies]
 fruits_ecs = { path = "../fruits_ecs" }
+fruits_asset_storage = { path = "../fruits_asset_storage" }
+fruits_render_core = { path = "../fruits_render_core" }
+fruits_render = { path = "../fruits_render" }
+fruits_audio = { path = "../fruits_audio" }
 fruits_serialization = { path = "../fruits_serialization" }
 fruits_ffi = { path = "../fruits_ffi" }
 serde = { version = "1", features = ["derive"] }

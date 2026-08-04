@@ -26,13 +26,15 @@ impl EventsHolderNative {
     }
 
     pub fn get_or_create(&self, type_id: u64) -> *mut FfiOpaqueVec {
-        let type_data = self.types.get(type_id).unwrap();
+        let type_info = self.types.get(type_id).unwrap();
 
         let events = &mut *self.events.write().unwrap();
 
         events
             .entry(type_id)
-            .or_insert_with(|| UnsafeCell::new(FfiOpaqueVec::new(type_data.size, type_data.align, type_data.drop_fn)))
+            .or_insert_with(|| UnsafeCell::new(unsafe {
+                FfiOpaqueVec::new(type_info.short().size(), type_info.short().align(), Some(type_info.raw_drop_fn()))
+            }))
             .get()
     }
 

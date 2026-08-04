@@ -1,7 +1,7 @@
 use crate::*;
 
 pub fn register_feature(mut world: WorldBuilderMut) {
-    world.data_mut().resources_mut().insert(SelectedInputFieldResource::default()).ok().unwrap();
+    world.data_mut().resources_mut().insert(SelectedInputFieldResource::default());
 
     let mut behavior = world.behavior_mut();
     let mut update = behavior.get_mut(Schedule::Update);
@@ -84,7 +84,7 @@ pub fn update_selected_input_field_text_system(
     };
 
     for evt in text_input_evt.iter() {
-        if evt.0 == "\u{8}" {
+        if evt.0.as_str() == "\u{8}" {
             let mut text = text_c.text.to_string();
             text.pop();
             text_c.text = text.into();

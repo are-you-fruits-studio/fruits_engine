@@ -21,11 +21,11 @@ use super::{
     resources::SurfaceTextureResource,
 };
 
-pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
-    let render_state = unsafe { world.resources().get::<RenderApiResource>().unwrap().raw() };
+pub fn create_standard_render_resource(mut world: WorldDataMut) {
+    let render_state = unsafe { world.as_ref().resources().get::<RenderApiResource>().unwrap().raw() };
 
-    let depth_tex = world.resources().get::<DepthTextureResource>().unwrap();
-    let transparent_target_tex = world.resources().get::<TransparentTargetTextureResource>().unwrap();
+    let depth_tex = world.as_ref().resources().get::<DepthTextureResource>().unwrap();
+    let transparent_target_tex = world.as_ref().resources().get::<TransparentTargetTextureResource>().unwrap();
 
     let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
         label: Some("Standard Bind Group Layout"),
@@ -79,7 +79,7 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
 
         let color_target_state = match is_transparent {
             false => wgpu::ColorTargetState {
-                format: render_state.surface_config().format,
+                format: render_state.surface_config_format(),
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             },
@@ -166,7 +166,7 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
             module: &render_pipeline_transparent_shader,
             entry_point: Some("fs_main"),
             targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config().format,
+                format: render_state.surface_config_format(),
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::COLOR,
             })],
@@ -209,7 +209,7 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
         contents: fruits_utils::mem::as_bytes_slice(&batched_vertex_cpu_buffer),
     });
 
-    world
+    world.as_mut()
         .resources_mut()
         .insert(StandardRenderResource {
             pipeline_layout: pipeline_layout_standard,
@@ -225,21 +225,17 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
             render_pipeline_transparent_final,
             camera_pos: Vec3::default(),
             camera_proj_matrix: Mat4::IDENTITY,
-        })
-        .ok()
-        .unwrap();
+        });
 
-    world
+    world.as_mut()
         .resources_mut()
-        .insert(BatchedVertexCpuBufferResource(batched_vertex_cpu_buffer))
-        .ok()
-        .unwrap();
+        .insert(BatchedVertexCpuBufferResource(batched_vertex_cpu_buffer));
 
-    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
-    let texture_white = render_api.create_texture(FilterMode::Linear, [2, 2], &[255; 16]);
+    let texture_white = render_api.create_texture(FilterMode::Linear, [2, 2], &[255; 16], None);
 
-    let texture_white = world
+    let texture_white = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardTexture>>()
         .unwrap()
@@ -262,9 +258,7 @@ pub fn create_standard_render_resource(mut world: ExclusiveWorldAccess) {
             font_px_8_8,
             texture_text_px_8_12,
             font_px_8_12,
-        })
-        .ok()
-        .unwrap();
+        });
 }
 
 fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) -> (AssetHandle<StandardTexture>, AssetHandle<Font>) {
@@ -272,9 +266,9 @@ fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) ->
 
     let texture_dimensions: [u32; 2] = image.dimensions().into();
 
-    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
-    let texture = render_api.create_texture(FilterMode::Nearest, texture_dimensions, image.as_bytes());
+    let texture = render_api.create_texture(FilterMode::Nearest, texture_dimensions, image.as_bytes(), None);
 
     let text_chars_count = [16, 8];
     let single_char_uv_size = [1.0 / text_chars_count[0] as f32, 1.0 / text_chars_count[1] as f32];
@@ -293,7 +287,7 @@ fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) ->
         })
         .collect::<HashMap<_, _>>();
 
-    let texture = world
+    let texture = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardTexture>>()
         .unwrap()
@@ -316,8 +310,8 @@ fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) ->
     (texture, font)
 }
 
-pub fn recreate_depth_texture_resource(mut world: ExclusiveWorldAccess) {
-    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+pub fn recreate_depth_texture_resource(world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
     let screen_size = render_api.size();
 
@@ -325,7 +319,7 @@ pub fn recreate_depth_texture_resource(mut world: ExclusiveWorldAccess) {
 
     let mut contains_depth = false;
 
-    if let Some(depth_res) = world.resources().get::<DepthTextureResource>() {
+    if let Some(depth_res) = world.as_ref().resources().get::<DepthTextureResource>() {
         contains_depth = true;
 
         let are_same_size =
@@ -376,12 +370,12 @@ pub fn recreate_depth_texture_resource(mut world: ExclusiveWorldAccess) {
     if contains_depth {
         *world.resources_mut().get_mut().unwrap() = depth_res;
     } else {
-        world.resources_mut().insert(depth_res).ok().unwrap();
+        world.resources_mut().insert(depth_res);
     }
 }
 
-pub fn recreate_transparent_target_resource(mut world: ExclusiveWorldAccess) {
-    let render_api = world.resources().get::<RenderApiResource>().unwrap();
+pub fn recreate_transparent_target_resource(mut world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
     let screen_size = render_api.size();
 
@@ -389,7 +383,7 @@ pub fn recreate_transparent_target_resource(mut world: ExclusiveWorldAccess) {
 
     let mut contains_transparent_target = false;
 
-    if let Some(transparent_target_res) = world.resources().get::<TransparentTargetTextureResource>() {
+    if let Some(transparent_target_res) = world.as_ref().resources().get::<TransparentTargetTextureResource>() {
         contains_transparent_target = true;
 
         let are_same_size = {
@@ -481,12 +475,12 @@ pub fn recreate_transparent_target_resource(mut world: ExclusiveWorldAccess) {
     if contains_transparent_target {
         *world.resources_mut().get_mut().unwrap() = transparent_target_res;
     } else {
-        world.resources_mut().insert(transparent_target_res).ok().unwrap();
+        world.resources_mut().insert(transparent_target_res);
     }
 }
 
-pub fn create_gizmos_render_resource(mut world: ExclusiveWorldAccess) {
-    let render_state = unsafe { world.resources().get::<RenderApiResource>().unwrap().raw() };
+pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
+    let render_state = unsafe { world.as_ref().resources().get::<RenderApiResource>().unwrap().raw() };
 
     let vertices_cpu_buffer = vec![[Vec4::splat(0.0); 2]; GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
     let colors_cpu_buffer = vec![Vec4::splat(0.0); GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
@@ -598,7 +592,7 @@ pub fn create_gizmos_render_resource(mut world: ExclusiveWorldAccess) {
             module: &shader,
             entry_point: Some("fragment_main"),
             targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config().format,
+                format: render_state.surface_config_format(),
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -612,7 +606,7 @@ pub fn create_gizmos_render_resource(mut world: ExclusiveWorldAccess) {
         },
     });
 
-    world
+    world.as_mut()
         .resources_mut()
         .insert(GizmosRenderResource {
             vertex_buffer,
@@ -622,9 +616,7 @@ pub fn create_gizmos_render_resource(mut world: ExclusiveWorldAccess) {
             pipeline,
             vertices_cpu_buffer,
             colors_cpu_buffer,
-        })
-        .ok()
-        .unwrap();
+        });
 }
 
 pub fn update_camera_uniform(
@@ -1095,7 +1087,7 @@ pub fn render_opaque_instanced(
         let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
             material,
             &standard_render_res,
-            render_state,
+            &render_state,
             &textures,
             &standard_render_assets_res,
             window_to_clip_mat,
@@ -1229,7 +1221,7 @@ pub fn render_opaque_batched(
         let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
             material,
             &standard_render_res,
-            render_state,
+            &render_state,
             &textures,
             &standard_render_assets_res,
             window_to_clip_mat,
@@ -1410,7 +1402,7 @@ pub fn render_transparent_instanced(
         let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
             material,
             &standard_render_res,
-            render_state,
+            &render_state,
             &textures,
             &standard_render_assets_res,
             window_to_clip_mat,
@@ -1541,7 +1533,7 @@ pub fn render_transparent_batched(
         let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
             material,
             &standard_render_res,
-            render_state,
+            &render_state,
             &textures,
             &standard_render_assets_res,
             window_to_clip_mat,

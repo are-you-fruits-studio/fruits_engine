@@ -161,21 +161,21 @@ fn cook_torrance_brdf(
     light_color: vec3<f32>
 ) -> vec3<f32> {{
     let h = normalize(v + light_direction);
-    
+   
     let nv = max(dot(n, v), 0.0);
     let nl = max(dot(n, light_direction), 0.0);
-    
+   
     let f0 = mix(vec3<f32>(0.04), albedo, metallic);
     let fresnel = fresnel_schlick(max(dot(h, v), 0.0), f0);
-    
+   
     let d = ggx_distribution(n, h, roughness);
     let g = geometry_schlick_ggx(n, v, roughness) * geometry_schlick_ggx(n, light_direction, roughness);
-    
+   
     let specular = (d * g * fresnel) / max(4.0 * nv * nl, 0.001);
-    
+   
     let k_d = (1.0 - fresnel) * (1.0 - metallic);
     let diffuse = (k_d * albedo) / PI;
-    
+   
     return (diffuse + specular) * light_color * nl;
 }}
 
@@ -199,7 +199,7 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     out.normal_world = (instance.local_to_world * vec4<f32>(vertex.normal, 0.0)).xyz;
     out.position_world = position_world.xyz;
     out.uv = vertex.uv;
-    
+   
     return out;
 }}
     "#
@@ -223,7 +223,7 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     out.position_clip = global_data.matrix_world_to_clip * position_world;
     out.color = vertex.color * global_data.color;
     out.uv = vertex.uv;
-    
+   
     return out;
 }}
     "#

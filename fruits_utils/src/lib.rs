@@ -277,6 +277,7 @@
 mod bit_array;
 pub mod exec_on_drop;
 pub mod graph;
+pub mod tree;
 pub mod index_version_collection;
 pub mod mem;
 pub mod morph_vec;

@@ -3,11 +3,11 @@ use crate::{features::scroll::ScrollHandleAreaComponent, *};
 pub fn project_window(mut world: WorldDataMut) -> EntityId {
     let (res, mut ec, evt) = world.as_tuple_mut();
 
-    let assets_res = res.get::<StandardAssetsResource>().unwrap();
+    let assets_res = res.as_ref().get::<StandardAssetsResource>().unwrap();
 
     let font = assets_res.font.clone();
 
-    let standard_assets_res = res.get::<StandardAssetsResource>().unwrap();
+    let standard_assets_res = res.as_ref().get::<StandardAssetsResource>().unwrap();
 
     let material_panel = standard_assets_res.material_panel.clone();
     let material_text = standard_assets_res.material_text.clone();

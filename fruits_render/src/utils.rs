@@ -55,15 +55,14 @@ pub(crate) fn get_render_data<'a, 'b>(
         fruits_utils::mem::as_bytes(&[uniform]),
     );
 
-    let bind_group_tex = match material.color_tex.as_ref() {
-        Some(color_tex) => unsafe { &textures.get(color_tex).unwrap().native().bind_group },
-        None => {
-            unsafe { &textures
-                .get(&standard_render_assets_res.texture_white)
-                .unwrap()
-                .native()
-                .bind_group }
-        }
+    let bind_group_tex = match textures.get(&material.color_tex) {
+        Some(color_tex) => unsafe { &color_tex.native().bind_group },
+        None => unsafe { &textures
+            .get(&standard_render_assets_res.texture_white)
+            .unwrap()
+            .native()
+            .bind_group
+        },
     };
 
     let render_pipeline = match (material.is_lit, material.alpha_threshold.is_some()) {

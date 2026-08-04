@@ -12,7 +12,7 @@ pub unsafe trait ArchetypeIteratorItem {
 
     unsafe fn prepare_iter_state(layout: &ArchetypeLayout, type_cache: Self::TypeCache) -> Self::IterState;
     unsafe fn next<'w>(item: &ArchetypeUnsafeFfiIteratorItem, iter_state: &mut Self::IterState) -> Self::Item<'w>;
-    fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache);
+    fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache);
 }
 
 unsafe impl<C: Component> ArchetypeIteratorItem for &C {
@@ -36,11 +36,11 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &C {
         }
     }
 
-    fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+    fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache) {
+        usage.add_type(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
-                is_mutable: false,
+                is_mut: false,
                 is_required: true,
             },
         });
@@ -68,11 +68,11 @@ unsafe impl<C: Component> ArchetypeIteratorItem for &mut C {
         }
     }
 
-    fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+    fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache) {
+        usage.add_type(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
-                is_mutable: true,
+                is_mut: true,
                 is_required: true,
             },
         });
@@ -97,11 +97,11 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&C> {
         })
     }
 
-    fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+    fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache) {
+        usage.add_type(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
-                is_mutable: false,
+                is_mut: false,
                 is_required: false,
             },
         });
@@ -126,11 +126,11 @@ unsafe impl<C: Component> ArchetypeIteratorItem for Option<&mut C> {
         })
     }
 
-    fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+    fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache) {
+        usage.add_type(DataUsageEntry {
             type_id: types.get_or_register::<C>(),
             details: DataUsageDetails {
-                is_mutable: true,
+                is_mut: true,
                 is_required: false,
             },
         });
@@ -154,11 +154,11 @@ unsafe impl ArchetypeIteratorItem for EntityId {
         }
     }
 
-    fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
-        usage.add_world(DataUsageEntry {
+    fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache) {
+        usage.add_type(DataUsageEntry {
             type_id: types.get_or_register::<EntityId>(),
             details: DataUsageDetails {
-                is_mutable: false,
+                is_mut: false,
                 is_required: true,
             },
         });
@@ -210,7 +210,7 @@ macro_rules! archetype_iterator_item_impl {
                 }
             }
 
-            fn fill_usage(usage: &mut DataUsageBuilder, types: &TypesRegistryCache) {
+            fn fill_usage(usage: &mut ByTypeWorldPartDataUsageBuilder, types: &TypesRegistryCache) {
                 $($P::fill_usage(usage, types));+;
             }
         }
@@ -343,16 +343,16 @@ impl<'a> ArchetypeUnsafeRef<'a> {
     /// Returns the last entity from src archetype before the movement.
     pub unsafe fn remove_component<C: Component>(src: &mut Self, dst: &mut Self, src_entity_index: u64) -> Option<(EntityId, C)> {
         unsafe {
-            let mut component = MaybeUninit::<C>::uninit();
+            let mut component = Option::<C>::None;
 
             if let Some(entity) = ArchetypeUnsafeFfi::remove_component(
                 &mut *src.archetype,
                 &mut *dst.archetype,
                 src_entity_index,
-                component.as_mut_ptr() as *mut u8,
+                |ptr, _info| component = Some((ptr as *const C).read()),
                 src.types.get_or_register::<C>(),
             ) {
-                Some((entity, component.assume_init()))
+                Some((entity, component.unwrap()))
             } else {
                 None
             }

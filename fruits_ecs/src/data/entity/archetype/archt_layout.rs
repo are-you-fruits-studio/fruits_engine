@@ -1,48 +1,12 @@
-use std::ffi::c_void;
-
-use fruits_ffi::{FfiDroppable, FfiVec};
+use fruits_ffi::{FfiExtendedTypeInfo, FfiVec};
 use fruits_utils::close_int_map::CloseIntMap;
 
 use crate::*;
 
 #[repr(C)]
-struct ArchetypeLayoutItemsMap {
-    data: FfiDroppable,
-    get_fn: unsafe extern "C" fn(*const c_void, u64) -> *const ArchetypeItemLayout,
-}
-
-impl ArchetypeLayoutItemsMap {
-    pub fn new(map: CloseIntMap<ArchetypeItemLayout>) -> Self {
-        unsafe extern "C" fn ffi_get(this: *const c_void, key: u64) -> *const ArchetypeItemLayout {
-            unsafe {
-                match (&*(this as *const CloseIntMap<ArchetypeItemLayout>)).get(key as usize) {
-                    Some(l) => &raw const *l,
-                    None => std::ptr::null_mut(),
-                }
-            }
-        }
-
-        Self {
-            data: FfiDroppable::new(map),
-            get_fn: ffi_get,
-        }
-    }
-
-    pub fn get(&self, key: u64) -> Option<&ArchetypeItemLayout> {
-        unsafe {
-            let ptr = (self.get_fn)(self.data.get(), key);
-
-            if ptr.is_null() { None } else { Some(&*ptr) }
-        }
-    }
-}
-
-//
-
-#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct ArchetypeItemLayout {
-    pub type_data: TypeData,
+    pub type_info: &'static FfiExtendedTypeInfo,
     pub chunk_offset: u64,
     pub order: u64,
 }
@@ -50,7 +14,7 @@ pub struct ArchetypeItemLayout {
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct ArchetypeComponentLayout {
-    pub type_data: StoredTypeData,
+    pub type_info: StoredTypeInfo,
     pub chunk_offset: u64,
     pub order: u64,
 }
@@ -60,7 +24,7 @@ impl ArchetypeComponentLayout {
         ArchetypeItemLayout {
             chunk_offset: self.chunk_offset,
             order: self.order,
-            type_data: self.type_data.data,
+            type_info: self.type_info.data,
         }
     }
 }
@@ -69,27 +33,27 @@ impl ArchetypeComponentLayout {
 pub struct ArchetypeLayout {
     types: TypesRegistryAccessFfi,
     components_list: FfiVec<ArchetypeComponentLayout>,
-    components_map: ArchetypeLayoutItemsMap,
+    components_map: CloseIntMap<ArchetypeItemLayout>,
     components_set: UniqueComponentsSet,
     entities_per_chunk_count: u64,
 }
 
 impl ArchetypeLayout {
     pub fn new(types: TypesRegistryAccessFfi, components_set: UniqueComponentsSet) -> Self {
-        let entity_data = TypeData::of::<EntityId>();
+        let entity_data = &FfiExtendedTypeInfo::of::<EntityId>();
         let entities_per_chunk_count = Self::to_entities_per_chunk_count(&components_set, &types);
 
         let mut components_map = CloseIntMap::new();
         let mut components_list = FfiVec::new();
         let mut offset = 0;
 
-        offset += entity_data.size * entities_per_chunk_count + entity_data.align.max(1) - 1;
+        offset += entity_data.short().size() * entities_per_chunk_count + entity_data.short().align().max(1) - 1;
 
         for (order, &component_id) in components_set.components().iter().enumerate() {
             let component_type = types.get(component_id).unwrap();
 
             let order = order as u64;
-            let align = component_type.align;
+            let align = component_type.short().align();
 
             let overshoot = offset % align;
 
@@ -101,16 +65,16 @@ impl ArchetypeLayout {
             }
 
             components_map.insert(
-                component_id as usize,
+                component_id,
                 ArchetypeItemLayout {
-                    type_data: component_type,
+                    type_info: component_type,
                     chunk_offset: aligned_offset,
                     order: order + 1,
                 },
             );
 
             components_list.push(ArchetypeComponentLayout {
-                type_data: StoredTypeData {
+                type_info: StoredTypeInfo {
                     id: component_id,
                     data: component_type,
                 },
@@ -118,28 +82,28 @@ impl ArchetypeLayout {
                 order: order + 1,
             });
 
-            offset += component_type.size * entities_per_chunk_count + component_type.align.max(1) - 1;
+            offset += component_type.short().size() * entities_per_chunk_count + component_type.short().align().max(1) - 1;
         }
 
         Self {
             types,
             components_list,
-            components_map: ArchetypeLayoutItemsMap::new(components_map),
+            components_map,
             components_set,
             entities_per_chunk_count,
         }
     }
 
     fn to_entities_per_chunk_count(components_set: &UniqueComponentsSet, types: &TypesRegistryAccessFfi) -> u64 {
-        let entity_data = TypeData::of::<EntityId>();
+        let entity_data = &FfiExtendedTypeInfo::of::<EntityId>();
         let components = components_set
             .components()
             .iter()
             .map(|t| types.get(*t).unwrap())
             .chain(std::iter::once(entity_data));
 
-        let padding_sum = components.clone().map(|t| t.align.max(1) - 1).sum::<u64>();
-        let size_sum = components.map(|t| t.size).sum::<u64>();
+        let padding_sum = components.clone().map(|t| t.short().align().max(1) - 1).sum::<u64>();
+        let size_sum = components.map(|t| t.short().size()).sum::<u64>();
 
         (CHUNK_SIZE - padding_sum) / size_sum
     }
@@ -156,7 +120,7 @@ impl ArchetypeLayout {
         ArchetypeItemLayout {
             chunk_offset: 0,
             order: 0,
-            type_data: TypeData::of::<EntityId>(),
+            type_info: &const { FfiExtendedTypeInfo::of::<EntityId>() },
         }
     }
 
@@ -182,7 +146,7 @@ impl ArchetypeLayout {
         }
 
         for without_type in without_component.components() {
-            if with_component.get_component(without_type.type_data.id).is_none() {
+            if with_component.get_component(without_type.type_info.id).is_none() {
                 return false;
             }
         }
@@ -226,7 +190,7 @@ impl ArchetypeLayout {
         item_layout: &ArchetypeItemLayout,
     ) -> ArchetypeItemPhysicalLocation {
         let entity_in_chunk_index = self.entity_in_chunk_index(entity_in_archetype_index);
-        let memory_offset = item_layout.chunk_offset + entity_in_chunk_index * item_layout.type_data.size;
+        let memory_offset = item_layout.chunk_offset + entity_in_chunk_index * item_layout.type_info.short().size();
 
         ArchetypeItemPhysicalLocation {
             chunk_index: self.chunk_index(entity_in_archetype_index),

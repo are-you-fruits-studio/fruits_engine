@@ -1,23 +1,23 @@
-use std::collections::{HashMap, HashSet};
-
-use fruits_ffi::FfiVec;
+use fruits_ffi::{FfiIndexMap, FfiIndexSet, FfiVec};
 
 use crate::*;
 
-pub struct ArchetypesHolderNative {
+// todo: merge with the ffi version (keep it ffi-friendly)
+#[repr(C)]
+pub struct ArchetypesHolderFfi {
     types: TypesRegistryAccessFfi,
-    archetype_id_by_components: HashMap<UniqueComponentsSet, u64>,
-    archetype_ids_by_component: HashMap<u64, (HashSet<u64>, FfiVec<u64>)>,
-    archetypes: Vec<ArchetypeUnsafeFfi>,
+    archetype_id_by_components: FfiIndexMap<UniqueComponentsSet, u64>,
+    archetype_ids_by_component: FfiIndexMap<u64, (FfiIndexSet<u64>, FfiVec<u64>)>,
+    archetypes: FfiVec<ArchetypeUnsafeFfi>,
 }
 
-impl ArchetypesHolderNative {
+impl ArchetypesHolderFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
         Self {
             types,
-            archetype_id_by_components: HashMap::new(),
-            archetype_ids_by_component: HashMap::new(),
-            archetypes: Vec::new(),
+            archetype_id_by_components: Default::default(),
+            archetype_ids_by_component: Default::default(),
+            archetypes: Default::default(),
         }
     }
 
@@ -26,13 +26,13 @@ impl ArchetypesHolderNative {
     }
 
     pub fn by_id_ref(&self, id: u64) -> Option<&ArchetypeUnsafeFfi> {
-        self.archetypes.get(id as usize)
+        self.archetypes.get(id)
     }
     pub fn by_id_mut(&mut self, id: u64) -> Option<&mut ArchetypeUnsafeFfi> {
-        self.archetypes.get_mut(id as usize)
+        self.archetypes.get_mut(id)
     }
     pub fn by_2_ids_ref(&self, mut id: [u64; 2]) -> Option<[&ArchetypeUnsafeFfi; 2]> {
-        if id[0] as usize >= self.archetypes.len() || id[1] as usize >= self.archetypes.len() {
+        if id[0] >= self.archetypes.len() || id[1] >= self.archetypes.len() {
             return None;
         }
 
@@ -51,7 +51,7 @@ impl ArchetypesHolderNative {
         Some([&slices.0[0], &slices.1[0]])
     }
     pub fn by_2_ids_mut(&mut self, mut id: [u64; 2]) -> Option<[&mut ArchetypeUnsafeFfi; 2]> {
-        if id[0] as usize >= self.archetypes.len() || id[1] as usize >= self.archetypes.len() {
+        if id[0] >= self.archetypes.len() || id[1] >= self.archetypes.len() {
             return None;
         }
 
@@ -91,7 +91,12 @@ impl ArchetypesHolderNative {
         let id = self.archetype_id_by_components.len() as u64;
 
         for &component_id in components.components() {
-            let (set, vec) = self.archetype_ids_by_component.entry(component_id).or_default();
+            // todo: optimize with "entry()" api.
+            // let (set, vec) = self.archetype_ids_by_component.entry(component_id).or_default();
+            if !self.archetype_ids_by_component.contains_key(&component_id) {
+                self.archetype_ids_by_component.insert(component_id, Default::default());
+            }
+            let (set, vec) = self.archetype_ids_by_component.get_mut(&component_id).unwrap();
 
             if set.insert(id) {
                 vec.push(id);

@@ -85,99 +85,115 @@
 //! register its own component types before prefab components of those types can be
 //! instantiated. A `// todo: ffi` on the resource marks FFI exposure as still pending.
 
-use std::{collections::HashMap, marker::PhantomData};
-
+use fruits_asset_storage::AssetHandle;
+use fruits_audio::AudioClip;
 use fruits_ecs::*;
 use fruits_ffi::{FfiIndexMap, FfiString, FfiVec};
-use fruits_serialization::{SerializedValue, SerializerCtx};
+use fruits_render::{Font, StandardMaterial};
+use fruits_render_core::{StandardMesh, StandardTexture};
+use fruits_serialization::*;
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Serializable)]
 pub struct PrefabComponent {
     pub component_id: FfiString,
     pub data: SerializedValue,
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
+pub struct PrefabEntities(pub FfiIndexMap<u64, FfiVec<PrefabComponent>>);
+
+#[repr(C)]
+#[derive(Default, Debug, Clone)]
+pub struct PrefabDependencies {
+    pub textures: FfiIndexMap<FfiString, AssetHandle<StandardTexture>>,
+    pub meshes: FfiIndexMap<FfiString, AssetHandle<StandardMesh>>,
+    pub materials: FfiIndexMap<FfiString, AssetHandle<StandardMaterial>>,
+    pub audio_clips: FfiIndexMap<FfiString, AssetHandle<AudioClip>>,
+    pub fonts: FfiIndexMap<FfiString, AssetHandle<Font>>,
+    pub prefabs: FfiIndexMap<FfiString, AssetHandle<Prefab>>,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
 pub struct Prefab {
-    pub entities: FfiIndexMap<usize, FfiVec<PrefabComponent>>,
+    pub entities: PrefabEntities,
+    pub dependencies: PrefabDependencies,
 }
 
 impl Prefab {
     pub fn empty() -> Self {
         Self {
-            entities: FfiIndexMap::new(),
+            entities: Default::default(),
+            dependencies: Default::default(),
         }
     }
 }
 
-#[repr(C)]
-pub struct PrefabComponentDeserializer<C: Component> {
-    _phantom: PhantomData<fn(C) -> C>,
-}
-
-impl<C: Component> Default for PrefabComponentDeserializer<C> {
-    fn default() -> Self {
-        Self { _phantom: PhantomData }
+// todo
+pub fn serialize_prefab_single_entity(
+    entity: EntityId,
+    serializer_ctx: SerializerCtx,
+    entities: EntitiesHolderRef,
+) -> Prefab {
+    Prefab {
+        entities: PrefabEntities([(0, serialize_components(entity, serializer_ctx, entities))].into_iter().collect()),
+        // todo
+        dependencies: PrefabDependencies::default(),
     }
 }
 
-trait AbstractPrefabComponentDeserializer {
-    fn deserialize(
-        &self,
-        data: SerializedValue,
-        entity: EntityId,
-        serializer_ctx: &SerializerCtx,
-        entities: EntitiesHolderMut,
-        res: ResourcesHolderRef,
-    ) -> bool;
-}
-
-impl<C: Component> AbstractPrefabComponentDeserializer for PrefabComponentDeserializer<C> {
-    fn deserialize(
-        &self,
-        data: SerializedValue,
-        entity: EntityId,
-        serializer_ctx: &SerializerCtx,
-        mut entities: EntitiesHolderMut,
-        _res: ResourcesHolderRef,
-    ) -> bool {
-        let Some(component) = serializer_ctx.deserialize::<C>(&data).result else {
-            return false;
-        };
-
-        entities.add_component(entity, component).is_ok()
-    }
-}
-
-// todo: ffi
-#[derive(Resource, Default)]
-pub struct PrefabComponentsDeserializerResource {
-    deserializers: HashMap<String, Box<dyn AbstractPrefabComponentDeserializer + Send + Sync>>,
-}
-
-impl PrefabComponentsDeserializerResource {
-    pub fn register<C: Component>(&mut self) {
-        self.deserializers.insert(
-            std::any::type_name::<C>().to_string(),
-            Box::new(PrefabComponentDeserializer::<C>::default()),
+// todo
+pub fn deserialize_prefab_components(
+    components: &[PrefabComponent],
+    entity: EntityId,
+    mut serializer_ctx: SerializerCtx,
+    mut entities: EntitiesHolderMut,
+) {
+    for component in components {
+        let was_deserialized = deserialize_component(
+            component.component_id.as_str(),
+            &component.data,
+            entity,
+            serializer_ctx.as_mut(),
+            entities.as_mut()
         );
-    }
 
-    pub fn deserialize(
-        &self,
-        id: &str,
-        data: SerializedValue,
-        entity: EntityId,
-        serializer_ctx: &SerializerCtx,
-        entities: EntitiesHolderMut,
-        res: ResourcesHolderRef,
-    ) -> bool {
-        let Some(deserializer) = self.deserializers.get(id) else {
-            return false;
-        };
-
-        deserializer.deserialize(data, entity, serializer_ctx, entities, res)
+        if !was_deserialized {
+            println!("failed to deserialize component: {}", component.component_id);
+        }
     }
+}
+
+pub fn serialize_components(
+    entity: EntityId,
+    mut serializer_ctx: SerializerCtx,
+    entities: EntitiesHolderRef,
+) -> FfiVec<PrefabComponent> {
+    let mut components = Vec::new();
+
+    entities.get_all_components(entity, |component| {
+        components.push(PrefabComponent {
+            component_id: component.type_info().short().name().into(),
+            data: serializer_ctx.serialize_any(component),
+        });
+    });
+
+    components.sort_by(|l, r| l.component_id.cmp(&r.component_id));
+
+    components.into()
+}
+
+pub fn deserialize_component(
+    id: &str,
+    data: &SerializedValue,
+    entity: EntityId,
+    mut serializer_ctx: SerializerCtx,
+    mut entities: EntitiesHolderMut,
+) -> bool {
+    let Some(component) = serializer_ctx.deserialize_any(id, &data) else {
+        return false;
+    };
+    entities.add_component_any(entity, component).is_ok()
 }

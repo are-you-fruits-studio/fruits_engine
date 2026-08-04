@@ -1,4 +1,5 @@
-use fruits_ffi::FfiDroppable;
+use fruits_ffi::{FfiDroppable, FfiOption, FfiString};
+use fruits_serialization::*;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use wgpu::{Buffer, Device, util::DeviceExt};
 
@@ -37,13 +38,32 @@ pub struct StandardMeshNative {
     pub indices_count: usize,
 }
 
-#[repr(transparent)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, TransSerializable)]
+pub enum CoordinateSpaceType {
+    LeftHandZForward,
+    RightHandZBack,
+    RightHandZUp,
+}
+
+#[repr(C)]
+#[derive(TransSerializable, Clone)]
+pub struct StandardMeshAssetMetadata {
+    pub raw_mesh: FfiString,
+    pub coordinate_space: CoordinateSpaceType,
+    pub has_clockwise_winding: bool,
+    pub has_inverted_u: bool,
+    pub has_inverted_v: bool,
+}
+
+#[repr(C)]
 pub struct StandardMesh {
     native: FfiDroppable,
+    meta: FfiOption<StandardMeshAssetMetadata>,
 }
 
 impl StandardMesh {
-    pub(crate) fn new(device: &Device, vertices: &[StandardVertex], indices: &[u16]) -> Self {
+    pub(crate) fn new(device: &Device, vertices: &[StandardVertex], indices: &[u16], meta: Option<StandardMeshAssetMetadata>) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: fruits_utils::mem::as_bytes_slice(vertices),
@@ -62,7 +82,12 @@ impl StandardMesh {
                 vertex_buffer,
                 indices_count: indices.len(),
             }),
+            meta: meta.into(),
         }
+    }
+
+    pub fn meta(&self) -> Option<&StandardMeshAssetMetadata> {
+        self.meta.as_ref()
     }
 
     pub unsafe fn native(&self) -> &StandardMeshNative {

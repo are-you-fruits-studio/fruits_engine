@@ -53,3 +53,6 @@ impl EventsHolderUnsafeFfi {
         unsafe { (self.vtable.clear_fn)(self.data.get()) }
     }
 }
+
+unsafe impl Send for EventsHolderUnsafeFfi { }
+unsafe impl Sync for EventsHolderUnsafeFfi { }

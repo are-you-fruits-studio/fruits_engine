@@ -1,13 +1,15 @@
-use crate::{features::{inspector_window::InspectorWindowComponent, scroll::ScrollHandleAreaComponent}, *};
+use crate::{
+    features::{input_field, inspector_window::{data::{AddComponentInputComponent, InspectorWindowComponent}, utils::entries::{spawn_default_layout_ent, spawn_input_area_ent}}, scroll::ScrollHandleAreaComponent}, *,
+};
 
 pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
-    let (res, mut ec, evt) = world.as_tuple_mut();
+    let (mut res, mut ec, evt) = world.as_tuple_mut();
 
-    let assets_res = res.get::<StandardAssetsResource>().unwrap();
+    let assets_res = res.as_ref().get::<StandardAssetsResource>().unwrap();
 
     let font = assets_res.font.clone();
 
-    let standard_assets_res = res.get::<StandardAssetsResource>().unwrap();
+    let standard_assets_res = res.as_ref().get::<StandardAssetsResource>().unwrap();
 
     let material_panel = standard_assets_res.material_panel.clone();
     let material_text = standard_assets_res.material_text.clone();
@@ -16,6 +18,8 @@ pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
     let ent_bordered_root = ec.create_entity();
     let ent_header = ec.create_entity();
     let ent_header_text = ec.create_entity();
+    let ent_subheader = ec.create_entity();
+    let ent_add_component_variants_container = ec.create_entity();
     let ent_scroll = ec.create_entity();
     let ent_scroll_view = ec.create_entity();
     let ent_scroll_handle_area = ec.create_entity();
@@ -102,10 +106,72 @@ pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
             horizontal_align: HorizontalAlign::Left,
         });
 
+    EntityComponentsBuilder::new(ec.as_mut(), ent_subheader)
+        .add_component(GlobalRectComponent::default())
+        .add_component(LocalRectComponent {
+            anchor: Vec2::new(0.5, 0.0),
+            pivot: Vec2::new(0.5, 0.0),
+            offset: Vec2::new(UiVal::px(0.0), UiVal::px(20.0)),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
+            ..Default::default()
+        })
+        .add_component(ChildComponent {
+            parent: ent_bordered_root,
+        })
+        .add_component(ParentComponent::default())
+        .add_component(BatchedMeshComponent::default())
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
+        .add_component(ImageComponent {
+            color: Vec4::from_array(parse_color_rgba_f32("#929292ff").unwrap()),
+            ..Default::default()
+        });
+
+    let subheader_input_ent = spawn_input_area_ent(
+        ec.as_mut(),
+        ent_subheader,
+        "".into(),
+        material_panel.clone(),
+        material_text.clone(),
+        font.clone(),
+    );
+    ec.add_component(subheader_input_ent, AddComponentInputComponent { variants_container: ent_add_component_variants_container }).ok().unwrap();
+
+    EntityComponentsBuilder::new(ec.as_mut(), ent_add_component_variants_container)
+        .add_component(GlobalRectComponent::default())
+        .add_component(LocalRectComponent {
+            anchor: Vec2::new(0.0, 0.0),
+            pivot: Vec2::new(0.0, 0.0),
+            offset: Vec2::new(UiVal::px(0.0), UiVal::px(20.0)),
+            scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
+            z: -100.0,
+            ..Default::default()
+        })
+        .add_component(ChildComponent { parent: ent_subheader })
+        .add_component(RectChildAlignComponent {
+            anchor: Vec2::new(0.0, 0.0),
+            direction: UiDirection::Vertical,
+            min_gap: UiVal::px(0.0),
+            spacing: UiSpacing::Chunk,
+            ..Default::default()
+        })
+        .add_component(ParentComponent {
+            children: vec![].into(),
+        })
+        .add_component(BatchedMeshComponent::default())
+        .add_component(StandardMaterialComponent {
+            material: material_panel.clone(),
+        })
+        .add_component(ImageComponent {
+            color: Vec4::from_array(parse_color_rgba_f32("#757575ff").unwrap()),
+            ..Default::default()
+        });
+
     EntityComponentsBuilder::new(ec.as_mut(), ent_scroll)
         .add_component(GlobalRectComponent::default())
         .add_component(LocalRectComponent {
-            parent_padding_min: Vec2::new(UiVal::px(0.0), UiVal::px(20.0)),
+            parent_padding_min: Vec2::new(UiVal::px(0.0), UiVal::px(40.0)),
             ..Default::default()
         })
         .add_component(ChildComponent {
@@ -194,7 +260,9 @@ pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
             spacing: UiSpacing::Chunk,
             ..Default::default()
         })
-        .add_component(ParentComponent { children: vec![ent_scroll_content_asset_type, ent_scroll_content_asset_container].into() })
+        .add_component(ParentComponent {
+            children: vec![ent_scroll_content_asset_type, ent_scroll_content_asset_container].into(),
+        })
         .add_component(InspectorWindowComponent {
             asset_type_text: ent_scroll_content_asset_type,
             content_container: ent_scroll_content_asset_container,
@@ -206,7 +274,9 @@ pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
             scale: Vec2::new(UiVal::pd(1.0).into(), UiVal::px(20.0).into()),
             ..Default::default()
         })
-        .add_component(ChildComponent { parent: ent_scroll_content })
+        .add_component(ChildComponent {
+            parent: ent_scroll_content,
+        })
         .add_component(BatchedMeshComponent::default())
         .add_component(StandardMaterialComponent { material: material_text })
         .add_component(TextComponent {
@@ -229,7 +299,9 @@ pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
         })
-        .add_component(ChildComponent { parent: ent_scroll_content })
+        .add_component(ChildComponent {
+            parent: ent_scroll_content,
+        })
         .add_component(RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,

@@ -32,7 +32,7 @@ impl FfiString {
 
     pub const fn as_mut_str(&mut self) -> &mut str {
         // todo
-        unsafe { str::from_utf8_unchecked_mut(self.data.as_slice_mut()) }
+        unsafe { str::from_utf8_unchecked_mut(self.data.as_mut_slice()) }
     }
 
     pub fn to_string(&self) -> String {

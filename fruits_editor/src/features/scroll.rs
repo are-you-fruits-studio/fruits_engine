@@ -8,9 +8,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .resources_mut()
         .insert(ScrollResource {
             active_scroll: EntityId::EMPTY,
-        })
-        .ok()
-        .unwrap();
+        });
 
     let mut behavior = world.behavior_mut();
     let mut update = behavior.get_mut(Schedule::Update);

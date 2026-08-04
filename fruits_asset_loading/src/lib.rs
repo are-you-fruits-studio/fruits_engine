@@ -121,12 +121,24 @@ mod mesh;
 mod texture;
 mod prefab;
 mod audio_clip;
+mod serializers_load;
 
+use std::{ffi::OsStr, path::{Path, PathBuf}};
+
+use fruits_asset_storage::{AssetHandle, AssetStorageResource};
+use fruits_audio::AudioClip;
+use fruits_prefab::Prefab;
+use fruits_render::StandardMaterial;
+use fruits_render_core::{StandardMesh, StandardTexture};
+use fruits_serialization::{SerializedPrimitive, SerializedValue, SerializerCtx};
 pub use material::*;
 pub use mesh::*;
 pub use texture::*;
 pub use prefab::*;
 pub use audio_clip::*;
+pub use serializers_load::*;
+
+use fruits_ecs::{ResourcesHolderMut, Schedule, WorldBuilderMut};
 
 // todo: specify supported file formats.
 
@@ -137,6 +149,194 @@ pub use audio_clip::*;
 // - font
 // +/2 prefab
 // + audio_clip
+
+pub const SYSTEM_GROUP_ASSETS: &'static str = "fruits_assets";
+
+pub fn add_asset_module_to(mut world: WorldBuilderMut) {
+    world.data_mut().resources_mut().insert(AssetStorageResource::<Prefab>::new());
+
+    world.behavior_mut()
+        .get_mut(Schedule::Start)
+        .group(SYSTEM_GROUP_ASSETS)
+        .insert_child_system(load_all_assets_system);
+}
+
+pub fn load_all_assets_system(res: ResourcesHolderMut) {
+    let mut assets_dir_path = PathBuf::new();
+    assets_dir_path.push("assets");
+
+    load_all_assets(res, assets_dir_path);
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AssetType {
+    Texture,
+    Material,
+    Mesh,
+    Font,
+    AudioClip,
+    Prefab,
+}
+
+impl AssetType {
+    pub const fn serialized_str(&self) -> &'static str {
+        match self {
+            AssetType::Texture => "texture",
+            AssetType::Material => "material",
+            AssetType::Mesh => "mesh",
+            AssetType::Font => "font",
+            AssetType::AudioClip => "audio_clip",
+            AssetType::Prefab => "prefab",
+        }
+    }
+
+    pub fn from_serialized_str(serialized_str: &str) -> Option<Self> {
+        match serialized_str {
+            "texture" => Some(AssetType::Texture),
+            "material" => Some(AssetType::Material),
+            "mesh" => Some(AssetType::Mesh),
+            "font" => Some(AssetType::Font),
+            "audio_clip" => Some(AssetType::AudioClip),
+            "prefab" => Some(AssetType::Prefab),
+            _ => None
+        }
+    }
+}
+
+pub trait AssetLoader {
+    type Asset: 'static + Send + Sync;
+    type SelfWithAnotherLifetime<'r>: 'r + AssetLoader<Asset = Self::Asset>;
+
+    fn create_loader<'r>(res: ResourcesHolderMut<'r>) -> Option<Self::SelfWithAnotherLifetime<'r>>;
+
+    fn load_from_serialized(&mut self, ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset>;
+    fn get_related_asset_storage(&mut self) -> &mut AssetStorageResource<Self::Asset>;
+
+    fn get_or_load_from_key(&mut self, ctx: SerializerCtx, key: &str, assets_dir_path: impl AsRef<Path>) -> Option<AssetHandle<Self::Asset>> {
+        let storage = self.get_related_asset_storage();
+
+        if let Some(stored_asset) = storage.get_registered(key) {
+            if storage.get(stored_asset).is_some() {
+                return Some(stored_asset.clone());
+            }
+
+            storage.unregister(key);
+        }
+
+        let mut path = assets_dir_path.as_ref().to_path_buf();
+        path.push(key);
+
+        let raw_asset = match std::fs::read_to_string(path) {
+            Ok(data) => data,
+            Err(_err) => return None,
+        };
+
+        let raw_asset = SerializedValue::from_json(&serde_json::from_str::<serde_json::Value>(&raw_asset).ok()?);
+        let Some(texture) = self.load_from_serialized(ctx, &raw_asset, &assets_dir_path) else {
+            return None;
+        };
+
+        let storage = self.get_related_asset_storage();
+        let asset_handle = storage.insert(texture);
+
+        storage.register(key.into(), asset_handle.clone());
+
+        Some(asset_handle)
+    }
+}
+
+pub fn load_all_assets(mut res: ResourcesHolderMut, assets_dir_path: impl AsRef<Path>) {
+    load_asset_transitively_from_world(
+        res.as_mut(),
+        assets_dir_path.as_ref(),
+        None, 
+        |local_serializer, serializer| {
+            let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
+            let mut serializer_ctx = serializer.to_ctx(Some(&local_serializer), &mut err_handler);
+
+            traverse_files_in_dir_deep(&assets_dir_path, &mut |file_path| {
+                if file_path.extension() != Some(OsStr::new("asset")) {
+                    return;
+                }
+
+                if file_path.to_str().is_none() {
+                    println!("failed to load asset at path {file_path:?}, path is not utf-8 friendly");
+                    return;
+                };
+
+                let asset_key = file_path.components().skip(assets_dir_path.as_ref().components().count()).map(|c| c.as_os_str().to_str().unwrap()).collect::<Vec<_>>().join("/");
+
+                let asset_json = match std::fs::read_to_string(&file_path) {
+                    Ok(data) => data,
+                    Err(err) => {
+                        println!("failed to load asset at path {file_path:?}, file read error: {err}");
+                        return;
+                    },
+                };
+
+                let asset_json = match serde_json::from_str::<serde_json::Value>(&asset_json) {
+                    Ok(data) => data,
+                    Err(err) => {
+                        println!("failed to load asset at path {file_path:?}, invalid json: {err}");
+                        return;
+                    }
+                };
+
+                let serde_json::Value::Object(asset_json_obj) = &asset_json else {
+                    println!("failed to load asset at path {file_path:?}, asset should be a json object");
+                    return;
+                };
+
+                let Some(serde_json::Value::String(asset_type)) = asset_json_obj.get("asset_type") else {
+                    println!("failed to load asset at path {file_path:?}, asset_type is missing");
+                    return;
+                };
+
+                let Some(asset_type) = AssetType::from_serialized_str(&asset_type) else {
+                    println!("failed to load asset at path {file_path:?}, unsupported asset_type: {asset_type}");
+                    return;
+                };
+
+                let serialized_value = SerializedPrimitive::String(asset_key.into()).into();
+
+                match asset_type {
+                    AssetType::Texture => _ = serializer_ctx.deserialize::<AssetHandle<StandardTexture>>(&serialized_value),
+                    AssetType::Material => _ = serializer_ctx.deserialize::<AssetHandle<StandardMaterial>>(&serialized_value),
+                    AssetType::Mesh => _ = serializer_ctx.deserialize::<AssetHandle<StandardMesh>>(&serialized_value),
+                    AssetType::AudioClip => _ = serializer_ctx.deserialize::<AssetHandle<AudioClip>>(&serialized_value),
+                    // todo: font
+                    AssetType::Font => todo!(),
+                    AssetType::Prefab => _ = serializer_ctx.deserialize::<AssetHandle<Prefab>>(&serialized_value),
+                };
+            });
+        },
+    ).unwrap();
+}
+
+fn traverse_files_in_dir_deep(dir_path: impl AsRef<Path>, f: &mut impl FnMut(PathBuf)) {
+    let Ok(dir) = std::fs::read_dir(&dir_path) else {
+        return;
+    };
+
+    for entry in dir {
+        let Ok(entry) = entry else {
+            continue;
+        };
+
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+
+        if file_type.is_file() {
+            f(entry.path());
+        } else if file_type.is_dir() {
+            traverse_files_in_dir_deep(entry.path(), f);
+        }
+    }
+}
+
+//
 
 const _MATERIAL_FILE_EXAMPLE: &str = r##"
 {

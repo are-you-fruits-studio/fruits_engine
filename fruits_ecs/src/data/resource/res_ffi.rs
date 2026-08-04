@@ -1,49 +1,40 @@
-use std::ffi::c_void;
-
-use fruits_ffi::{FfiDroppable, FfiStaticRef};
+use fruits_ffi::{FfiAny, FfiAnyPtr, FfiFnMutMut, FfiIndexMap};
 
 use crate::*;
 
 #[repr(C)]
-struct ResourcesHolderUnsafeFfiVTable {
-    insert_fn: unsafe extern "C" fn(*mut c_void, u64) -> *mut c_void,
-    get_fn: unsafe extern "C" fn(*mut c_void, u64) -> *mut c_void,
-}
-
-#[repr(C)]
 pub struct ResourcesHolderUnsafeFfi {
-    data: FfiDroppable,
-    vtable: FfiStaticRef<ResourcesHolderUnsafeFfiVTable>,
+    types: TypesRegistryAccessFfi,
+    resources: FfiIndexMap<u64, FfiAny>,
 }
-
 impl ResourcesHolderUnsafeFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
-        unsafe extern "C" fn ffi_insert(this_ref_mut: *mut c_void, id: u64) -> *mut c_void {
-            // todo
-            unsafe { (&mut *(this_ref_mut as *mut ResourcesHolderNative)).insert(id) as *mut c_void }
-        }
-
-        unsafe extern "C" fn ffi_get(this_ref: *mut c_void, id: u64) -> *mut c_void {
-            // todo
-            unsafe { (&*(this_ref as *mut ResourcesHolderNative)).get(id) as *mut c_void }
-        }
-
         Self {
-            data: FfiDroppable::new(ResourcesHolderNative::new(types)),
-            vtable: FfiStaticRef::new(&ResourcesHolderUnsafeFfiVTable {
-                get_fn: ffi_get,
-                insert_fn: ffi_insert,
-            }),
+            types,
+            resources: FfiIndexMap::new(),
         }
     }
 
-    pub unsafe fn insert(&mut self, id: u64) -> *mut u8 {
-        // todo
-        unsafe { (self.vtable.insert_fn)(self.data.get(), id) as *mut u8 }
+    pub fn insert(&mut self, id: u64, item: FfiAny) -> Option<FfiAny> {
+        self.resources.insert(id, item)
     }
 
-    pub unsafe fn get(&self, id: u64) -> *mut u8 {
-        // todo
-        unsafe { (self.vtable.get_fn)(self.data.get(), id) as *mut u8 }
+    pub fn remove(&mut self, id: u64) -> Option<FfiAny> {
+        self.resources.remove_swap(&id)
+    }
+
+    pub fn get(&self, id: u64) -> Option<FfiAnyPtr> {
+        self.resources.get(&id).map(|a| a.as_any_ptr())
+    }
+
+    pub fn get_all(&self, mut handler: FfiFnMutMut<FfiAnyPtr, ()>) {
+        for resource in &self.resources {
+            handler.execute(resource.1.as_any_ptr())
+        }
     }
 }
+
+// todo?
+// Safety. It is safe itself. Ptr usage is managed by caller
+unsafe impl Send for ResourcesHolderUnsafeFfi {}
+unsafe impl Sync for ResourcesHolderUnsafeFfi {}

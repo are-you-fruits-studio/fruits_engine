@@ -9,7 +9,7 @@ struct SystemsHolderBuilderFfiVTable {
     insert_system_fn: unsafe extern "C" fn(*mut c_void, system: SystemFfi) -> bool,
     order_fn: unsafe extern "C" fn(*mut c_void, prev: OrderEntry, next: OrderEntry),
     insert_group_child_fn: unsafe extern "C" fn(*mut c_void, group: FfiString, child: OrderEntry),
-    build_fn: unsafe extern "C" fn(*mut c_void) -> SystemsHolderFfi,
+    build_fn: unsafe extern "C-unwind" fn(*mut c_void) -> SystemsHolderFfi,
 }
 
 #[repr(C)]
@@ -41,7 +41,7 @@ impl SystemsHolderBuilderFfi {
                 this.insert_group_child(group, child)
             }
         }
-        unsafe extern "C" fn ffi_build(this: *mut c_void) -> SystemsHolderFfi {
+        unsafe extern "C-unwind" fn ffi_build(this: *mut c_void) -> SystemsHolderFfi {
             unsafe {
                 let this = &mut *(this as *mut SystemsHolderBuilderNative);
 

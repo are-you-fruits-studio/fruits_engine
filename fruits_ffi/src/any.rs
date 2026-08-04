@@ -1,6 +1,21 @@
-use std::{alloc::Layout, ffi::c_void, mem::ManuallyDrop};
+use std::{alloc::Layout, ffi::c_void, marker::PhantomData, mem::ManuallyDrop};
 
-use crate::{FfiBox, FfiStrSliceRef};
+use crate::{FfiBox, FfiBoxVtable, FfiExtendedTypeInfo};
+
+#[repr(C)]
+struct FfiAnyMetadata {
+    pub type_info: FfiExtendedTypeInfo,
+    pub box_vtable: FfiBoxVtable,
+}
+
+impl FfiAnyMetadata {
+    pub const fn new<T: 'static>() -> Self {
+        Self {
+            type_info: FfiExtendedTypeInfo::of::<T>(),
+            box_vtable: FfiBoxVtable::new::<T>(),
+        }
+    }
+}
 
 #[repr(C)]
 pub struct FfiAny {
@@ -9,12 +24,12 @@ pub struct FfiAny {
 }
 
 impl FfiAny {
-    pub fn new<T>(value: T) -> Self {
+    pub fn new<T: 'static>(value: T) -> Self {
         unsafe {
             let ptr = std::alloc::alloc(Layout::new::<T>());
 
             (ptr as *mut T).write(value);
-            
+           
             Self {
                 ptr: ptr as *mut c_void,
                 meta: const { &FfiAnyMetadata::new::<T>() },
@@ -26,24 +41,42 @@ impl FfiAny {
         self.ptr
     }
 
-    pub const fn size(&self) -> u64 {
-        self.meta.size
-    }
-    pub const fn align(&self) -> u64 {
-        self.meta.align
-    }
-    pub fn name(&self) -> &'static str {
-        unsafe { (self.meta.name_fn)().into_slice::<'static>() }
+    pub const fn type_info(&self) -> &'static FfiExtendedTypeInfo {
+        &self.meta.type_info
     }
 
-    pub unsafe fn into_box<T>(self) -> FfiBox<T> {
-        unsafe { FfiBox::from_ffi_any(self) }
+    pub fn as_any_ref<'r>(&'r self) -> FfiAnyRef<'r> {
+        FfiAnyRef {
+            ptr: self.ptr,
+            type_info: &self.meta.type_info,
+            _phantom: PhantomData,
+        }
+    }
+    pub fn as_any_mut<'r>(&'r mut self) -> FfiAnyMut<'r> {
+        FfiAnyMut {
+            ptr: self.ptr,
+            type_info: &self.meta.type_info,
+            _phantom: PhantomData,
+        }
+    }
+    pub fn as_any_ptr(&self) -> FfiAnyPtr {
+        FfiAnyPtr {
+            ptr: self.ptr,
+            type_info: &self.meta.type_info,
+        }
     }
 
-    pub unsafe fn dealloc_without_drop(self) {
-        let this = ManuallyDrop::new(self);
-
-        unsafe { (this.meta.dealloc_fn)(this.ptr) };
+    pub fn downcast<T: 'static>(self) -> Option<FfiBox<T>> {
+        unsafe { self.meta.type_info.short().does_match::<T>().then(|| {
+            let this = ManuallyDrop::new(self);
+            FfiBox::from_raw(this.ptr as *mut T, &this.meta.box_vtable)
+        }) }
+    }
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        unsafe { self.meta.type_info.short().does_match::<T>().then(|| &*(self.ptr as *const T)) }
+    }
+    pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        unsafe { self.meta.type_info.short().does_match::<T>().then(|| &mut *(self.ptr as *mut T)) }
     }
 }
 
@@ -56,7 +89,7 @@ impl Drop for FfiAny {
 
         impl Drop for FfiAnyMemoryToDealloc {
             fn drop(&mut self) {
-                unsafe { (self.meta.dealloc_fn)(self.ptr) };
+                unsafe { (self.meta.box_vtable.dealloc_fn)(self.ptr) };
             }
         }
 
@@ -66,42 +99,136 @@ impl Drop for FfiAny {
                 meta: self.meta,
             };
 
-            (self.meta.drop_in_place_fn)(self.ptr);
+            (self.meta.box_vtable.drop_in_place_fn)(self.ptr);
 
             drop(to_dealloc);
         }
     }
 }
 
-//
-
 #[repr(C)]
-pub struct FfiAnyMetadata {
-    pub size: u64,
-    pub align: u64,
-    pub name_fn: unsafe extern "C" fn() -> FfiStrSliceRef,
-    pub drop_in_place_fn: unsafe extern "C" fn(*mut c_void),
-    pub dealloc_fn: unsafe extern "C" fn(*mut c_void),
+pub struct FfiAnyRef<'a> {
+    ptr: *mut c_void,
+    type_info: &'static FfiExtendedTypeInfo,
+    _phantom: PhantomData<&'a ()>,
 }
 
-impl FfiAnyMetadata {
-    pub const fn new<T>() -> Self {
-        unsafe extern "C" fn ffi_name<T>() -> FfiStrSliceRef {
-            unsafe { FfiStrSliceRef::from_slice(std::any::type_name::<T>()) }
-        }
-        unsafe extern "C" fn ffi_drop_in_place<T>(ptr: *mut c_void) {
-            unsafe { std::ptr::drop_in_place(ptr as *mut T) }
-        }
-        unsafe extern "C" fn ffi_dealloc<T>(ptr: *mut c_void) {
-            unsafe { std::alloc::dealloc(ptr as *mut u8, Layout::new::<T>()) }
-        }
-
+impl<'a> FfiAnyRef<'a> {
+    pub fn new<T: 'static>(value: &'a T) -> Self {
         Self {
-            size: std::mem::size_of::<T>() as u64,
-            align: std::mem::align_of::<T>() as u64,
-            name_fn: ffi_name::<T>,
-            drop_in_place_fn: ffi_drop_in_place::<T>,
-            dealloc_fn: ffi_dealloc::<T>,
+            ptr: value as *const T as *mut c_void,
+            type_info: const { &FfiExtendedTypeInfo::of::<T>() },
+            _phantom: PhantomData,
         }
+    }
+
+    pub const fn ptr(&self) -> *const c_void {
+        self.ptr
+    }
+
+    pub const fn type_info(&self) -> &'static FfiExtendedTypeInfo {
+        self.type_info
+    }
+
+    pub fn as_any_ptr(&self) -> FfiAnyPtr {
+        FfiAnyPtr {
+            ptr: self.ptr,
+            type_info: &self.type_info,
+        }
+    }
+
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        unsafe { self.type_info.short().does_match::<T>().then(|| &*(self.ptr as *const T)) }
+    }
+}
+
+#[repr(C)]
+pub struct FfiAnyMut<'a> {
+    ptr: *mut c_void,
+    type_info: &'static FfiExtendedTypeInfo,
+    _phantom: PhantomData<&'a mut ()>,
+}
+
+impl<'a> FfiAnyMut<'a> {
+    pub fn new<T: 'static>(value: &'a mut T) -> Self {
+        Self {
+            ptr: value as *mut T as *mut c_void,
+            type_info: const { &FfiExtendedTypeInfo::of::<T>() },
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn ptr(&self) -> *const c_void {
+        self.ptr
+    }
+
+    pub const fn type_info(&self) -> &'static FfiExtendedTypeInfo {
+        self.type_info
+    }
+
+    pub fn as_any_ref<'r>(&'r self) -> FfiAnyRef<'r>
+        where 'a: 'r
+    {
+        FfiAnyRef {
+            ptr: self.ptr,
+            type_info: &self.type_info,
+            _phantom: PhantomData,
+        }
+    }
+    pub fn as_any_ptr(&self) -> FfiAnyPtr {
+        FfiAnyPtr {
+            ptr: self.ptr,
+            type_info: &self.type_info,
+        }
+    }
+
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        unsafe { self.type_info.short().does_match::<T>().then(|| &*(self.ptr as *const T)) }
+    }
+    pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        unsafe { self.type_info.short().does_match::<T>().then(|| &mut *(self.ptr as *mut T)) }
+    }
+}
+
+#[repr(C)]
+pub struct FfiAnyPtr {
+    ptr: *mut c_void,
+    type_info: &'static FfiExtendedTypeInfo,
+}
+
+impl FfiAnyPtr {
+    pub fn new<T: 'static>(value: *mut T) -> Self {
+        Self {
+            ptr: value as *mut c_void,
+            type_info: const { &FfiExtendedTypeInfo::of::<T>() },
+        }
+    }
+
+    pub fn ptr(&self) -> *const c_void {
+        self.ptr
+    }
+
+    pub const fn type_info(&self) -> &'static FfiExtendedTypeInfo {
+        self.type_info
+    }
+   
+
+    pub unsafe fn as_any_ref<'r>(&self) -> FfiAnyRef<'r> {
+        FfiAnyRef {
+            ptr: self.ptr,
+            type_info: &self.type_info,
+            _phantom: PhantomData,
+        }
+    }
+    pub unsafe fn as_any_mut<'r>(&self) -> FfiAnyMut<'r> {
+        FfiAnyMut {
+            ptr: self.ptr,
+            type_info: &self.type_info,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn downcast_ptr<T: 'static>(&self) -> Option<*mut T> {
+        self.type_info.short().does_match::<T>().then(|| self.ptr as *mut T)
     }
 }

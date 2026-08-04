@@ -57,18 +57,16 @@ struct TimeResource {
     pub start: Option<Instant>,
 }
 
-fn init(mut world: ExclusiveWorldAccess) {
-    world
+fn init(mut world: WorldDataMut) {
+    world.as_mut()
         .resources_mut()
         .insert(TimeResource {
             time: 0.0_f32,
             frame: 0,
             start: None,
-        })
-        .ok()
-        .unwrap();
+        });
 
-    let standard_render_assets = world.resources().get::<StandardRenderAssetsResource>().unwrap();
+    let standard_render_assets = world.as_ref().resources().get::<StandardRenderAssetsResource>().unwrap();
 
     let texture_text = standard_render_assets.texture_text_px_5_7.clone();
     let font = standard_render_assets.font_px_5_7.clone();
@@ -76,11 +74,11 @@ fn init(mut world: ExclusiveWorldAccess) {
     let material = StandardMaterial {
         is_lit: false,
         space: RenderSpace::World,
-        color_tex: Some(texture_text.clone()).into(),
+        color_tex: texture_text.clone(),
         ..Default::default()
     };
 
-    let material = world
+    let material = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
