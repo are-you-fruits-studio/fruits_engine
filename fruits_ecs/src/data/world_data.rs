@@ -105,22 +105,22 @@ impl<'w> WorldDataMut<'w> {
         Self { world, types }
     }
 
-    pub fn resources(self) -> ResourcesHolderRef<'w> {
+    pub fn into_resources(self) -> ResourcesHolderRef<'w> {
         unsafe { ResourcesHolderRef::new(&raw mut (*self.world).res, self.types) }
     }
-    pub fn resources_mut(self) -> ResourcesHolderMut<'w> {
+    pub fn into_resources_mut(self) -> ResourcesHolderMut<'w> {
         unsafe { ResourcesHolderMut::new(&raw mut (*self.world).res, self.types) }
     }
-    pub fn entities(self) -> EntitiesHolderRef<'w> {
+    pub fn into_entities(self) -> EntitiesHolderRef<'w> {
         unsafe { EntitiesHolderRef::new(&raw mut (*self.world).ent, self.types) }
     }
-    pub fn entities_mut(self) -> EntitiesHolderMut<'w> {
+    pub fn into_entities_mut(self) -> EntitiesHolderMut<'w> {
         unsafe { EntitiesHolderMut::new(&raw mut (*self.world).ent, self.types) }
     }
-    pub fn events(self) -> EventsHolderRef<'w> {
+    pub fn into_events(self) -> EventsHolderRef<'w> {
         unsafe { EventsHolderRef::new(&raw mut (*self.world).evt, self.types) }
     }
-    pub fn events_mut(self) -> EventsHolderMut<'w> {
+    pub fn into_events_mut(self) -> EventsHolderMut<'w> {
         unsafe { EventsHolderMut::new(&raw mut (*self.world).evt, self.types) }
     }
 
@@ -137,21 +137,36 @@ impl<'w> WorldDataMut<'w> {
             )
         }
     }
+}
 
-    pub fn as_mut<'r>(&'r mut self) -> WorldDataMut<'r>
-    where
-        'w: 'r,
-    {
+impl<'w: 'r, 'r> WorldDataMut<'w> {
+    pub fn resources(&'r self) -> ResourcesHolderRef<'r> {
+        self.as_ref().resources()
+    }
+    pub fn resources_mut(&'r mut self) -> ResourcesHolderMut<'r> {
+        self.as_mut().into_resources_mut()
+    }
+    pub fn entities(&'r self) -> EntitiesHolderRef<'r> {
+        self.as_ref().entities()
+    }
+    pub fn entities_mut(&'r mut self) -> EntitiesHolderMut<'r> {
+        self.as_mut().into_entities_mut()
+    }
+    pub fn events(&'r self) -> EventsHolderRef<'r> {
+        self.as_ref().events()
+    }
+    pub fn events_mut(&'r mut self) -> EventsHolderMut<'r> {
+        self.as_mut().into_events_mut()
+    }
+    
+    pub fn as_mut(&'r mut self) -> WorldDataMut<'r> {
         WorldDataMut {
             world: self.world,
             types: self.types,
         }
     }
 
-    pub fn as_ref<'r>(&'r self) -> WorldDataRef<'r>
-    where
-        'w: 'r,
-    {
+    pub fn as_ref(&'r self) -> WorldDataRef<'r> {
         WorldDataRef {
             world: self.world,
             types: self.types,

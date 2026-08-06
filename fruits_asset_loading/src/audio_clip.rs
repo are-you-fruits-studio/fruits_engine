@@ -47,7 +47,7 @@ pub struct AudioClipLoader<'a> {
 impl<'a> AudioClipLoader<'a> {
     pub fn from_world(res: ResourcesHolderMut<'a>) -> Option<Self> {
         Some(Self {
-            audio_state: res.get_mut::<AudioStateResource>()?,
+            audio_state: res.into_get_mut::<AudioStateResource>()?,
         })
     }
     

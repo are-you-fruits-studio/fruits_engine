@@ -194,7 +194,7 @@ pub mod msg_types {
 pub fn generate_response_system(world: WorldDataMut) {
     let (res, ec, _evt) = world.as_tuple_mut();
 
-    let connection_res = res.get_mut::<DebugConnectionResource>().unwrap();
+    let connection_res = res.into_get_mut::<DebugConnectionResource>().unwrap();
 
     let Some(msg) = connection_res.recv_msg_queue.pop_back() else {
         return;

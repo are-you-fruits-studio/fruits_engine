@@ -117,12 +117,12 @@ fn run_editor_app(project_path: &str) {
 fn init_system(mut world: WorldDataMut) {
     let (mut res, ec, evt) = world.as_mut().as_tuple_mut();
 
-    let standard_render_assets_res = res.as_mut().get::<StandardRenderAssetsResource>().unwrap();
+    let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
 
     let font = standard_render_assets_res.font_px_8_12.clone();
     let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
 
-    let materials_res = res.as_mut().get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
+    let materials_res = res.get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
 
     let material_panel = materials_res.insert(StandardMaterial {
         is_lit: false,

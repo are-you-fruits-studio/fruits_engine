@@ -14,7 +14,7 @@ pub fn adjust_component_sets(world: WorldDataMut) {
     // todo: do the same with rects?
     let mut buffer = Vec::new();
 
-    let mut entities_components = world.entities_mut();
+    let mut entities_components = world.into_entities_mut();
 
     // local without global
 

@@ -14,7 +14,7 @@ pub struct MaterialLoader<'a> {
 impl<'a> MaterialLoader<'a> {
     pub fn from_world(res: ResourcesHolderMut<'a>) -> Option<Self> {
         Some(Self {
-            materials: res.get_mut::<AssetStorageResource<StandardMaterial>>()?,
+            materials: res.into_get_mut::<AssetStorageResource<StandardMaterial>>()?,
         })
     }
 }

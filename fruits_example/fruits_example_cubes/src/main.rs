@@ -30,7 +30,7 @@ fn main() {
         .order_group(SYSTEM_GROUP_RENDER)
         .before_system(init_mesh_material);
 
-    let mut ec = world.data_mut().entities_mut();
+    let mut ec = world.data_mut().into_entities_mut();
 
     let entity = ec.create_entity();
 
@@ -206,7 +206,7 @@ fn init_mesh_material(mut world: WorldDataMut) {
 
         parent_transform.scale.x *= 0.7;
 
-        let mut ec = world.as_mut().entities_mut();
+        let mut ec = world.entities_mut();
 
         let parent = ec.create_entity();
         ec.add_component(parent, parent_transform).ok().unwrap();

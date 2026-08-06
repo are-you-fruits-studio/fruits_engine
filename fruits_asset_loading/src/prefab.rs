@@ -16,7 +16,7 @@ pub struct PrefabHandleLoader<'a> {
 impl<'a> PrefabHandleLoader<'a> {
     pub fn from_world(res: ResourcesHolderMut<'a>) -> Option<Self> {
         Some(Self {
-            prefabs: res.get_mut::<AssetStorageResource<Prefab>>()?,
+            prefabs: res.into_get_mut::<AssetStorageResource<Prefab>>()?,
         })
     }
 }

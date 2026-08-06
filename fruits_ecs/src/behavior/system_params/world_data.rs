@@ -37,7 +37,7 @@ unsafe impl<'b> SystemParam for ResourcesHolderMut<'b> {
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         // Safety. Managed by caller
-        Ok(unsafe { input.world_data.into_mut().resources_mut() })
+        Ok(unsafe { input.world_data.into_mut().into_resources_mut() })
     }
 }
 
@@ -63,7 +63,7 @@ unsafe impl<'b> SystemParam for EntitiesHolderMut<'b> {
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         // Safety. Managed by caller
-        Ok(unsafe { input.world_data.into_mut().entities_mut() })
+        Ok(unsafe { input.world_data.into_mut().into_entities_mut() })
     }
 }
 
@@ -89,7 +89,7 @@ unsafe impl<'b> SystemParam for EventsHolderMut<'b> {
 
     unsafe fn new<'a>(input: &'a SystemInput<'a>) -> Result<Self::Item<'a>, &'static str> {
         // Safety. Managed by caller
-        Ok(unsafe { input.world_data.into_mut().events_mut() })
+        Ok(unsafe { input.world_data.into_mut().into_events_mut() })
     }
 }
 

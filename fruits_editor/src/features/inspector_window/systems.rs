@@ -332,7 +332,7 @@ pub fn save_simulated_entities_to_prefab_system(
         return;
     };
 
-    let prefabs = simulated_world.world.data_mut().resources_mut().get_mut::<AssetStorageResource<Prefab>>().unwrap();
+    let prefabs = simulated_world.world.data_mut().into_resources_mut().into_get_mut::<AssetStorageResource<Prefab>>().unwrap();
     let prefab_handle = prefabs.get_registered(inspected_asset.asset_key.as_str()).unwrap().clone();
 
     *prefabs.get_mut(&prefab_handle).unwrap() = prefab;
