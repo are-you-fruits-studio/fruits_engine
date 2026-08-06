@@ -115,7 +115,7 @@ fn run_editor_app(project_path: &str) {
 }
 
 fn init_system(mut world: WorldDataMut) {
-    let (mut res, ec, evt) = world.as_mut().as_tuple_mut();
+    let (mut res, ec, evt) = world.as_tuple_mut();
 
     let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
 

@@ -269,7 +269,7 @@ pub fn apply_inspector_to_simulated_world_system(
 
         return_if!(are_components_slices_similar(&stored_components, &parsed_components));
 
-        let (sim_res, sim_ent, sim_evt) = simulated_world.world.data_mut().as_tuple_mut();
+        let (sim_res, sim_ent, sim_evt) = simulated_world.world.data_mut().into_tuple_mut();
         override_entity_components_from_prefab(
             sim_res.as_ref(),
             sim_ent,
@@ -392,7 +392,7 @@ pub fn spawn_inspected_prefab_system(
 
     return_if_not!(Some(world) = &mut simulated_world.0);
 
-    let (res, mut ent, _evt) = world.world.data_mut().as_tuple_mut();
+    let (res, mut ent, _evt) = world.world.data_mut().into_tuple_mut();
 
     return_if!(get_asset_type(res.as_ref(), selected_file.potential_asset_key.as_str()) != Some(AssetType::Prefab));
 

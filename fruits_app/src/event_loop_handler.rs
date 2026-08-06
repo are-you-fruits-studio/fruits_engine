@@ -104,7 +104,7 @@ impl ApplicationHandler for EventLoopHandler {
         };
 
         let world_data = world.data_mut();
-        let (mut res, _ent, mut evt) = world_data.as_tuple_mut();
+        let (mut res, _ent, mut evt) = world_data.into_tuple_mut();
 
         let render_state = res.get_mut::<RenderApiResource>().unwrap();
 

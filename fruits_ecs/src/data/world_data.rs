@@ -128,7 +128,7 @@ impl<'w> WorldDataMut<'w> {
         self.world
     }
 
-    pub fn as_tuple_mut(self) -> (ResourcesHolderMut<'w>, EntitiesHolderMut<'w>, EventsHolderMut<'w>) {
+    pub fn into_tuple_mut(self) -> (ResourcesHolderMut<'w>, EntitiesHolderMut<'w>, EventsHolderMut<'w>) {
         unsafe {
             (
                 ResourcesHolderMut::new(&raw mut (*self.world).res, self.types),
@@ -157,6 +157,10 @@ impl<'w: 'r, 'r> WorldDataMut<'w> {
     }
     pub fn events_mut(&'r mut self) -> EventsHolderMut<'r> {
         self.as_mut().into_events_mut()
+    }
+
+    pub fn as_tuple_mut(&'r mut self) -> (ResourcesHolderMut<'r>, EntitiesHolderMut<'r>, EventsHolderMut<'r>) {
+        self.as_mut().into_tuple_mut()
     }
     
     pub fn as_mut(&'r mut self) -> WorldDataMut<'r> {
