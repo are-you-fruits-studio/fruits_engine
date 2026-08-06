@@ -81,10 +81,10 @@ pub fn load_asset_transitively<R>(
         assets: textures,
         assets_dir_path,
         deps,
-        loader: |ctx, value, assets_dir_path| {
+        loader: |mut ctx, value, assets_dir_path| {
             TextureLoader {
                 render_api: render_api,
-            }.load_from_serialized(value, assets_dir_path)
+            }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
         },
     });
     serializer_local.register(TransitiveLoadTransSerializer { 
@@ -99,20 +99,20 @@ pub fn load_asset_transitively<R>(
         assets: meshes,
         assets_dir_path,
         deps,
-        loader: |ctx, value, assets_dir_path| {
+        loader: |mut ctx, value, assets_dir_path| {
             MeshLoader {
                 render_api: render_api,
-            }.load_from_serialized(value, assets_dir_path)
+            }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
         },
     });
     serializer_local.register(TransitiveLoadTransSerializer { 
         assets: audio_clips,
         assets_dir_path,
         deps,
-        loader: |ctx, value, assets_dir_path| {
+        loader: |mut ctx, value, assets_dir_path| {
             AudioClipLoader {
                 audio_state: &mut *audio_state.lock().unwrap(),
-            }.load_from_serialized(value, assets_dir_path)
+            }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
         },
     });
     // todo: fonts
@@ -294,10 +294,10 @@ pub fn load_asset_single<R>(
         assets_dir_path,
         asset_key,
         deps,
-        loader: |ctx, value, assets_dir_path| {
+        loader: |mut ctx, value, assets_dir_path| {
             TextureLoader {
                 render_api: render_api,
-            }.load_from_serialized(value, assets_dir_path)
+            }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
         },
     });
     serializer_local.register(SingleDirectLoadTransSerializer { 
@@ -314,10 +314,10 @@ pub fn load_asset_single<R>(
         assets_dir_path,
         asset_key,
         deps,
-        loader: |ctx, value, assets_dir_path| {
+        loader: |mut ctx, value, assets_dir_path| {
             MeshLoader {
                 render_api: render_api,
-            }.load_from_serialized(value, assets_dir_path)
+            }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
         },
     });
     serializer_local.register(SingleDirectLoadTransSerializer { 
@@ -325,10 +325,10 @@ pub fn load_asset_single<R>(
         assets_dir_path,
         asset_key,
         deps,
-        loader: |ctx, value, assets_dir_path| {
+        loader: |mut ctx, value, assets_dir_path| {
             AudioClipLoader {
                 audio_state: &mut *audio_state.lock().unwrap(),
-            }.load_from_serialized(value, assets_dir_path)
+            }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
         },
     });
     // todo: fonts
@@ -479,16 +479,23 @@ impl<'m, 'brw: 'm, T: 'static, F: 'm + Send + Sync + Fn(SerializerCtx, &Serializ
             return Some(AssetHandle::EMPTY);
         };
 
+        if key.as_str().trim().is_empty() {
+            return Some(AssetHandle::EMPTY);
+        }
+
         if let Some(handle) = { get_from_asset_storage_or_unregister_if_missing(&mut self.assets.lock().unwrap(), key) } {
             return Some(handle);
         }
 
-        let value = try_read_serialized_from_file(self.assets_dir_path, key)?;
+        let Some(value) = try_read_serialized_from_file(self.assets_dir_path, key) else {
+            ctx.report_err(SerializationError::InvalidInput { message: format!("AssetHandle failed to be deserialized from key {key}").into() });
+            return Some(AssetHandle::EMPTY);
+        };
 
         let Some(asset) = (self.loader)(ctx.as_mut(), &value, self.assets_dir_path) else {
             return Some(AssetHandle::EMPTY);
         };
-
+        
         Some(self.assets.lock().unwrap().insert_and_register(asset, key.clone()))
     }
 }

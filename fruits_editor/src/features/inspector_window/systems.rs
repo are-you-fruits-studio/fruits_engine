@@ -229,7 +229,7 @@ pub fn apply_inspector_to_simulated_world_system(
     parent_q: WorldQuery<&ParentComponent>,
     text_q: WorldQuery<&TextComponent>,
     serialized_component_q: WorldQuery<&SerializedComponentComponent>,
-    selected_file: Res<SelectedFileResource>,
+    inspected_asset: Res<InspectedAssetResource>,
     inspected_entity: Res<InspectedEntityResource>,
     open_project: Res<OpenProjectResource>,
     mut simulated_world: ResMut<SimulatedWorldResource>,
@@ -241,7 +241,7 @@ pub fn apply_inspector_to_simulated_world_system(
     return_if_not!(Some(parent_c) = parent_q.get(content_container));
     return_if_not!(Some(&content_ent) = parent_c.children.first());
 
-    return_if_not!(Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), selected_file.potential_asset_key.as_str()));
+    return_if_not!(Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()));
 
     if asset_type == AssetType::Prefab {
         let stored_components = record_into_prefab_components(
@@ -286,7 +286,7 @@ pub fn apply_inspector_to_simulated_world_system(
     let serialized_existing = save_asset_from_world_res(
         simulated_world.world.data().resources(),
         simulated_world.world.data().resources().get::<SerializersResource>().unwrap(),
-        selected_file.potential_asset_key.as_str(),
+        inspected_asset.asset_key.as_str(),
     );
 
     let mut serialized_parsed = parse_serialized(ent, content_ent);
@@ -301,7 +301,7 @@ pub fn apply_inspector_to_simulated_world_system(
     // todo
     let did_asset_load = load_asset_to_world_res(
         simulated_world.world.data_mut().resources_mut(),
-        selected_file.potential_asset_key.as_str(),
+        inspected_asset.asset_key.as_str(),
         &serialized_parsed,
         asset_type,
         &(open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH),
@@ -351,7 +351,7 @@ pub fn save_inspected_asset_from_simulated_world_to_file_system(
     let serialized = save_asset_from_world_res(
         simulated_world.world.data().resources(),
         simulated_world.world.data().resources().get::<SerializersResource>().unwrap(),
-        selected_file.potential_asset_key.as_str(),
+        inspected_asset.asset_key.as_str(),
     );
 
     return_if_not!(Some(serialized) = serialized);
@@ -360,8 +360,8 @@ pub fn save_inspected_asset_from_simulated_world_to_file_system(
 
     let json_bytes = json_str.into_bytes();
 
-    if let Err(err) = std::fs::write(&selected_file.path, &json_bytes) {
-        eprintln!("failed to write to {:?}. {}", &selected_file.path, err);
+    if let Err(err) = std::fs::write(&inspected_asset.path, &json_bytes) {
+        eprintln!("failed to write to {:?}. {}", &inspected_asset.path, err);
         return;
     }
 }
@@ -536,6 +536,7 @@ fn spawn_hierarchy_window_entries_recursively(
 pub fn change_inspected_asset_system(selected_file: Res<SelectedFileResource>, mut inspected_asset: ResMut<InspectedAssetResource>) {
     if inspected_asset.asset_key.as_str() != selected_file.potential_asset_key.as_str() {
         inspected_asset.asset_key = selected_file.potential_asset_key.clone();
+        inspected_asset.path = selected_file.path.clone();
     }
 }
 

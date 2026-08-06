@@ -69,13 +69,15 @@
 //! only printed, not exposed to other systems.
 
 use fruits_asset_storage::AssetHandle;
+use fruits_audio::AudioClipAssetMetadata;
 use fruits_ecs::{Component, Schedule, WorldBuilderMut};
 use fruits_ffi::{FfiOption, FfiSmallString, FfiString, FfiVec};
-use fruits_math::{Mat, Quat, Vec4};
+use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
 use fruits_prefab::Prefab;
 use fruits_render::{Font, RenderSpace, StandardMaterial};
-use fruits_render_core::{StandardMesh, StandardTexture};
+use fruits_render_core::{CoordinateSpaceType, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
 use fruits_serialization::*;
+use fruits_transform::{ChildComponent, ParentComponent};
 
 pub mod fps_counter;
 
@@ -119,6 +121,13 @@ pub fn register_common_transserializers(serializer: &mut GlobalSerializer) {
     register_self_and_related_common_transserializers::<bool>(serializer);
     register_self_and_related_common_transserializers::<StandardMaterial>(serializer);
     register_self_and_related_common_transserializers::<RenderSpace>(serializer);
+    register_self_and_related_common_transserializers::<CoordinateSpaceType>(serializer);
+    register_self_and_related_common_transserializers::<StandardMeshAssetMetadata>(serializer);
+    register_self_and_related_common_transserializers::<DebugNameComponent>(serializer);
+    register_self_and_related_common_transserializers::<ParentComponent>(serializer);
+    register_self_and_related_common_transserializers::<ChildComponent>(serializer);
+    register_self_and_related_common_transserializers::<AudioClipAssetMetadata>(serializer);
+    register_self_and_related_common_transserializers::<StandardTextureAssetMetadata>(serializer);
     // todo?
     register_related_common_transserializers::<AssetHandle<StandardMaterial>>(serializer);
     register_related_common_transserializers::<AssetHandle<Font>>(serializer);
@@ -132,6 +141,8 @@ pub fn register_self_and_related_common_transserializers<T: 'static + TransSeria
     register_related_common_transserializers::<T>(serializer)
 }
 pub fn register_related_common_transserializers<T: 'static>(serializer: &mut GlobalSerializer) {
+    serializer.register(StandardTransSerializer::<Vec2<T>>::default());
+    serializer.register(StandardTransSerializer::<Vec3<T>>::default());
     serializer.register(StandardTransSerializer::<Vec4<T>>::default());
     serializer.register(StandardTransSerializer::<Quat<T>>::default());
     serializer.register(StandardTransSerializer::<Mat<0, T>>::default());

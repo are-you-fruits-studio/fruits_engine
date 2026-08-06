@@ -51,7 +51,7 @@ fn enable_dropdown_varints_system(
     }
 }
 
-fn select_dropdown_variant_system(
+pub fn select_dropdown_variant_system(
     click_evt: Evt<ButtonClickEvent>,
     dropdown_entry_q: WorldQuery<&DropdownEntryComponent>,
     dropdown_q: WorldQuery<&DropdownComponent>,
