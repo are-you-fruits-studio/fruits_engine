@@ -310,7 +310,7 @@ fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) ->
     (texture, font)
 }
 
-pub fn recreate_depth_texture_resource(world: WorldDataMut) {
+pub fn recreate_depth_texture_resource(mut world: WorldDataMut) {
     let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
     let screen_size = render_api.size();

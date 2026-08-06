@@ -80,34 +80,44 @@ impl<'r> ResourcesHolderMut<'r> {
         unsafe { resources_holder_get_all(&*self.res, handler) }
     }
 
-    pub fn get<T: Resource>(self) -> Option<&'r T> {
+    pub fn into_get<T: Resource>(self) -> Option<&'r T> {
         unsafe { resources_holder_get::<T>(&*self.res, self.types) }
     }
-    pub fn get_any(self, type_info: &'static FfiExtendedTypeInfo) -> Option<FfiAnyRef<'r>> {
+    pub fn into_get_any(self, type_info: &'static FfiExtendedTypeInfo) -> Option<FfiAnyRef<'r>> {
         unsafe { resources_holder_get_any(&*self.res, self.types, type_info) }
     }
 
-    pub fn get_mut<T: Resource>(self) -> Option<&'r mut T> {
+    pub fn into_get_mut<T: Resource>(self) -> Option<&'r mut T> {
         unsafe { resources_holder_get_mut::<T>(&mut *self.res, self.types) }
     }
-    pub fn get_mut_any(self, type_info: &'static FfiExtendedTypeInfo) -> Option<FfiAnyMut<'r>> {
+    pub fn into_get_mut_any(self, type_info: &'static FfiExtendedTypeInfo) -> Option<FfiAnyMut<'r>> {
         unsafe { resources_holder_get_mut_any(&mut *self.res, self.types, type_info) }
     }
+}
 
-    pub fn as_mut<'p>(&'p mut self) -> ResourcesHolderMut<'p>
-    where
-        'r: 'p,
-    {
+impl<'r: 'p, 'p> ResourcesHolderMut<'r> {
+    pub fn get<T: Resource>(&'p self) -> Option<&'p T> {
+        self.as_ref().get::<T>()
+    }
+    pub fn get_any(&'p self, type_info: &'static FfiExtendedTypeInfo) -> Option<FfiAnyRef<'p>> {
+        self.as_ref().get_any(type_info)
+    }
+
+    pub fn get_mut<T: Resource>(&'p mut self) -> Option<&'p mut T> {
+        self.as_mut().into_get_mut::<T>()
+    }
+    pub fn get_mut_any(&'p mut self, type_info: &'static FfiExtendedTypeInfo) -> Option<FfiAnyMut<'p>> {
+        self.as_mut().into_get_mut_any(type_info)
+    }
+
+    pub fn as_mut(&'p mut self) -> ResourcesHolderMut<'p> {
         ResourcesHolderMut {
             res: self.res,
             types: self.types,
         }
     }
 
-    pub fn as_ref<'p>(&'p self) -> ResourcesHolderRef<'p>
-    where
-        'r: 'p,
-    {
+    pub fn as_ref(&'p self) -> ResourcesHolderRef<'p> {
         ResourcesHolderRef {
             res: self.res,
             types: self.types,

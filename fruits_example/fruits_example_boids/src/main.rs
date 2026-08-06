@@ -123,7 +123,7 @@ fn init(mut world: WorldDataMut) {
         .unwrap()
         .insert(mesh);
 
-    let ec = &mut world.as_mut().entities_mut();
+    let ec = &mut world.entities_mut();
 
     for _ in 0..100 {
         let entity = ec.create_entity();

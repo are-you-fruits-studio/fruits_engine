@@ -39,7 +39,7 @@ pub fn update_project_window_content_system(mut world: WorldDataMut) {
 
     let current_dir = PathBuf::from(open_project.dir_path + PROJECT_ASSETS_SUBPATH);
 
-    let cache = res.as_mut().get_mut::<ProjectWindowCache>().unwrap();
+    let cache = res.get_mut::<ProjectWindowCache>().unwrap();
 
     let entry = ProjectWindowDataEntry::scan(&current_dir);
 
