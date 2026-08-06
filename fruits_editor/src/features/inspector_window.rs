@@ -1,8 +1,10 @@
+use std::ffi::OsString;
+
 use fruits_engine::*;
 
 use crate::{
     features::{
-        input_field::select_input_field_system, inspector_window::{
+        dropdown::select_dropdown_variant_system, input_field::select_input_field_system, inspector_window::{
             data::{InspectedAssetResource, InspectedEntityResource}, systems::{
                 add_component_system, adjust_hierarchy_entries_system, adjust_non_rigid_composite_system, apply_inspector_to_simulated_world_system, change_inspected_asset_system, destroy_non_inspected_entity_system, remove_component_system, save_inspected_asset_from_simulated_world_to_file_system, save_simulated_entities_to_prefab_system, select_entity_system, spawn_inspected_prefab_system, update_add_component_variants_system, update_hierarchy_entries_selection, update_hierarchy_window_system, update_inspector_window_system,
             },
@@ -40,6 +42,7 @@ pub const FIELD_GAP: UiVal = UiVal::px(2.0);
 pub fn register_feature(mut world: WorldBuilderMut) {
     world.data_mut().resources_mut().insert(InspectedAssetResource {
         asset_key: String::new(),
+        path: OsString::new(),
         spawned_prefab: EntityId::EMPTY,
     });
     world.data_mut().resources_mut().insert(InspectedEntityResource::default());
@@ -71,6 +74,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .before_system(remove_component_system)
         .before_system(add_component_system)
         .before_system(update_add_component_variants_system)
+        .before_system(select_dropdown_variant_system)
         .before_system(adjust_hierarchy_entries_system)
         .before_system(apply_inspector_to_simulated_world_system)
         .before_system(save_simulated_entities_to_prefab_system)

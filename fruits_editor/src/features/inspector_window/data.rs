@@ -1,5 +1,5 @@
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::OsString};
 
 use crate::*;
 
@@ -11,6 +11,7 @@ pub struct OpenProjectResource {
 #[derive(Resource)]
 pub struct InspectedAssetResource {
     pub asset_key: String,
+    pub path: OsString,
     pub spawned_prefab: EntityId,
 }
 

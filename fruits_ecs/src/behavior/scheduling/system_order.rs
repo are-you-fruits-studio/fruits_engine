@@ -199,7 +199,14 @@ fn get_systems<'a>(
     single_value_buffer: &'a mut HashSet<FfiString>,
 ) -> &'a HashSet<FfiString> {
     match node.entry_type {
-        OrderEntryType::Group => &flat_groups[&node.id],
+        OrderEntryType::Group => {
+            if let Some(group) = flat_groups.get(&node.id) {
+                group
+            } else {
+                single_value_buffer.clear();
+                single_value_buffer
+            }
+        },
         OrderEntryType::System => {
             single_value_buffer.clear();
             single_value_buffer.insert(node.id.clone());

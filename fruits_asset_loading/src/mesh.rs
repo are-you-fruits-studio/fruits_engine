@@ -2,6 +2,7 @@ use std::path::Path;
 
 use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
+use fruits_ffi::FfiFnMutMut;
 use fruits_render_core::{CoordinateSpaceType, RenderApiResource, StandardMesh, StandardMeshAssetMetadata, StandardVertex};
 use fruits_serialization::*;
 
@@ -32,10 +33,10 @@ impl<'a> AssetLoader for MeshHandleLoader<'a> {
         self.meshes
     }
     
-    fn load_from_serialized(&mut self, ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset> {
+    fn load_from_serialized(&mut self, mut ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset> {
         MeshLoader {
             render_api: self.render_api,
-        }.load_from_serialized(value, assets_dir_path)
+        }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
     }
 }
 
@@ -53,46 +54,8 @@ impl<'a> MeshLoader<'a> {
     }
     
     pub fn load_from_serialized(&mut self, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<StandardMesh> {
-        let SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::Map(SerializedMap { values: value, .. }), .. }) = value else {
-            return None;
-        };
-    
-        let Some(SerializedValue::Primitive(SerializedPrimitive::String(raw_mesh))) = value.get("raw_mesh") else {
-            return None;
-        };
-
-        let coordinate_space = match value.get("coordinate_space") {
-            Some(SerializedValue::Primitive(SerializedPrimitive::String(coordinate_space))) => {
-                match coordinate_space.as_str() {
-                    "RightHandZUp" => CoordinateSpaceType::RightHandZUp,
-                    "RightHandZBack" => CoordinateSpaceType::RightHandZBack,
-                    _ => CoordinateSpaceType::LeftHandZForward,
-                }
-            },
-            _ => CoordinateSpaceType::LeftHandZForward,
-        };
-    
-        let has_clockwise_winding = match value.get("has_clockwise_winding") {
-            Some(SerializedValue::Primitive(SerializedPrimitive::Bool(true))) => true,
-            _ => false,
-        };
-    
-        let has_inverted_u = match value.get("has_inverted_u") {
-            Some(SerializedValue::Primitive(SerializedPrimitive::Bool(true))) => true,
-            _ => false,
-        };
-        let has_inverted_v = match value.get("has_inverted_v") {
-            Some(SerializedValue::Primitive(SerializedPrimitive::Bool(true))) => true,
-            _ => false,
-        };
-
-        let value = StandardMeshAssetMetadata {
-            raw_mesh: raw_mesh.clone(),
-            coordinate_space,
-            has_clockwise_winding,
-            has_inverted_u,
-            has_inverted_v,
-        };
+        let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
+        let value = <StandardMeshAssetMetadata as Serializable>::deserialize(PureSerializerCtx::new(FfiFnMutMut::new(&mut err_handler)), value)?;
 
         self.load_from_deserialized(value, assets_dir_path)
     }

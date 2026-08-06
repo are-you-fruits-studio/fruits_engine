@@ -35,10 +35,10 @@ impl<'a> AssetLoader for TextureHandleLoader<'a> {
         self.textures
     }
     
-    fn load_from_serialized(&mut self, ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset> {
+    fn load_from_serialized(&mut self, mut ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset> {
         TextureLoader {
             render_api: self.render_api,
-        }.load_from_serialized(value, assets_dir_path)
+        }.load_from_deserialized(ctx.deserialize(value)?, assets_dir_path)
     }
 }
 
