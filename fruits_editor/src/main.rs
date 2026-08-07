@@ -28,15 +28,13 @@ const SYSTEM_GROUP: &'static str = "fruits_editor";
 // + basic inspector window interaction (add/remove component)
 // + save prefabs (apply inspector changes to world, then to asset, then to file)
 // + use dynamic INSPECTED_ASSETS_PATH - from command line args
+// + load custom serializers on start
+// + use custom components in prefabs
 //
 // --- DONE ---
-//
-// - (re-)compile and (re-)load scripts on change
-//     - on editor start, try read (log result) the compiled dynamic lib, copy it into temp folder, remove old lib, rename new lib to unique name, run it and collect serializers data.
-// - use custom components in prefabs
-//
 // --- START EDITING EDITOR ASSETS ---
 //
+// - window manager
 // - preview (scene) window
 // - editor-time simulated systems
 //
@@ -48,6 +46,7 @@ const SYSTEM_GROUP: &'static str = "fruits_editor";
 // --- ABILITY TO MAKE NICE EDITOR UI ---
 //
 // - create GUI for selecting INSPECTED_ASSETS_PATH (for opening a project)
+// - recompile project automatically or at least with a button.
 
 // todo: to dynamic (user-selected)
 const PROJECT_ASSETS_SUBPATH: &'static str = "/assets/";
