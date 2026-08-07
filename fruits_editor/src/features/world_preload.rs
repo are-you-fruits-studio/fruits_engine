@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{ffi::OsStr, path::{Path, PathBuf}, sync::{Arc, Mutex}, time::Duration};
 
 use fruits_engine::*;
 use libloading::Library;
@@ -40,17 +40,25 @@ fn preload_assets_into_simulated_world_system(
         return;
     }
 
+    let lib_path = app_building::path_scripts_lib_src(&open_project.dir_path);
+    let lib_path = copy_lib_to_unique(&open_project.dir_path, &lib_path);
+
+    let mut lib = None;
+
     let mut world = WorldBuilder::new();
-    let init_result = unsafe {
-        init_app_dynamically(world.as_mut(), app_building::path_scripts_lib_src(&open_project.dir_path))
-    };
-    let lib = match init_result {
-        Ok(lib) => Some(lib),
-        Err(err) => {
-            println!("failed to load scripts lib: {err}");
-            None
-        },
-    };
+    if let Some(lib_path) = lib_path {
+        let init_result = unsafe {
+            init_app_dynamically(world.as_mut(), lib_path)
+        };
+        match init_result {
+            Ok(loaded_lib) => lib = Some(loaded_lib),
+            Err(err) => {
+                println!("failed to load scripts lib: {err}");
+            },
+        }
+    } else {
+        println!("failed to load scripts lib");
+    }
     let mut world = world.build();
 
     let mut res = world.data_mut().into_resources_mut();
@@ -97,4 +105,37 @@ fn preload_assets_into_simulated_world_system(
     load_all_assets(res.as_mut(), &(open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH));
 
     simulated_world.0 = Some(SimulatedWorld::new(world, lib));
+}
+
+fn copy_lib_to_unique(project_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Option<PathBuf> {
+    // todo: handle std::fs errs.
+    
+    let lib_path = lib_path.as_ref();
+
+    let Ok(true) = std::fs::exists(lib_path) else {
+        return None;
+    };
+
+    let mut project_path = project_path.as_ref().to_owned();
+    project_path.push("tmp");
+    let tmp_dir_path = project_path;
+    _ = std::fs::remove_dir_all(&tmp_dir_path);
+    _ = std::fs::create_dir_all(&tmp_dir_path);
+
+    let lib_ext = lib_path.extension();
+    let lib_stem = lib_path.file_stem();
+
+    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or(Duration::ZERO).as_millis();
+    let mut new_file_name = lib_stem.unwrap_or(OsStr::new("")).to_owned();
+    new_file_name.push(OsStr::new(&timestamp.to_string()));
+    if let Some(lib_ext) = lib_ext {
+        new_file_name.push(OsStr::new("."));
+        new_file_name.push(lib_ext);
+    }
+    let mut new_file_path = tmp_dir_path;
+    new_file_path.push(new_file_name);
+
+    _ = std::fs::copy(lib_path, &new_file_path);
+
+    Some(new_file_path)
 }
