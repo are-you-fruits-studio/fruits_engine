@@ -60,36 +60,52 @@ pub struct CursorComponent {
 fn init(mut world: WorldDataMut) {
     let standard_render_assets = world.as_ref().resources().get::<StandardRenderAssetsResource>().unwrap();
 
-    let texture_text = standard_render_assets.texture_text_px_8_12.clone();
+    let texture_text_handle = standard_render_assets.texture_text_px_8_12.clone();
     let font = standard_render_assets.font_px_8_12.clone();
 
-    let texture_white = standard_render_assets.texture_white.clone();
+    let material_white = world.as_mut()
+        .resources_mut()
+        .get_mut::<RenderApiResource>()
+        .unwrap()
+        .create_material(None, StandardMaterialAssetMetadata {
+            is_lit: false,
+            space: RenderSpace::Window,
+            color_tex: AssetHandle::EMPTY,
+            color: Vec4::splat(1.0),
+            alpha_threshold: Some(0.5).into(),
+            ..Default::default()
+        });
+
+    let texture_text = world.as_ref()
+        .resources()
+        .get::<AssetStorageResource<StandardTexture>>()
+        .unwrap()
+        .get(&texture_text_handle);
+
+    let material_text = world.as_ref()
+        .resources()
+        .get::<RenderApiResource>()
+        .unwrap()
+        .create_material(texture_text, StandardMaterialAssetMetadata {
+            is_lit: false,
+            space: RenderSpace::Window,
+            color_tex: texture_text_handle.clone(),
+            color: Vec4::splat(1.0),
+            alpha_threshold: Some(0.5).into(),
+            ..Default::default()
+        });
 
     let material_white = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
-        .insert(StandardMaterial {
-            is_lit: false,
-            space: RenderSpace::Window,
-            color_tex: texture_white.clone(),
-            color: Vec4::splat(1.0),
-            alpha_threshold: Some(0.5).into(),
-            ..Default::default()
-        });
+        .insert(material_white);
 
     let material_text = world.as_mut()
         .resources_mut()
         .get_mut::<AssetStorageResource<StandardMaterial>>()
         .unwrap()
-        .insert(StandardMaterial {
-            is_lit: false,
-            space: RenderSpace::Window,
-            color_tex: texture_text.clone(),
-            color: Vec4::splat(1.0),
-            alpha_threshold: Some(0.5).into(),
-            ..Default::default()
-        });
+        .insert(material_text);
 
     let mut ec = world.entities_mut();
 

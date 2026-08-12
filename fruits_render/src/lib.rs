@@ -190,39 +190,19 @@ pub use self::{assets::*, components::*, resources::*, systems::*, utils::*};
 
 use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{Schedule, WorldBuilderMut};
-use fruits_render_core::{StandardMesh, StandardTexture};
+use fruits_render_core::{StandardMesh, StandardTexture, StandardMaterial};
 
 pub const SYSTEM_GROUP_RENDER: &'static str = "fruits_render";
 
 pub fn add_render_module_to(mut world: WorldBuilderMut) {
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(SurfaceTextureResource { texture: None });
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(AssetStorageResource::<StandardMaterial>::new());
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(AssetStorageResource::<StandardMesh>::new());
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(AssetStorageResource::<StandardTexture>::new());
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(AssetStorageResource::<Font>::new());
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(GizmosResource::default());
-    world
-        .data_mut()
-        .resources_mut()
-        .insert(ScreenSpaceResource::default());
+    let mut res = world.data_mut().into_resources_mut();
+    res.insert(SurfaceTextureResource { texture: None });
+    res.insert(AssetStorageResource::<StandardMaterial>::new());
+    res.insert(AssetStorageResource::<StandardMesh>::new());
+    res.insert(AssetStorageResource::<StandardTexture>::new());
+    res.insert(AssetStorageResource::<Font>::new());
+    res.insert(GizmosResource::default());
+    res.insert(ScreenSpaceResource::default());
 
     let mut world_behavior = world.behavior_mut();
 
@@ -260,6 +240,8 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(recreate_transparent_target_resource)
         .insert_child_system(clear_depth)
         .insert_child_system(clear_transparent_target)
+        .insert_child_system(update_lights_buffer)
+        .insert_child_system(update_global_uniforms)
         .insert_child_system(render_opaque_instanced)
         .insert_child_system(render_opaque_batched)
         .insert_child_system(render_transparent_instanced)
@@ -273,6 +255,8 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .before_system(clear_depth)
         .before_system(clear_transparent_target)
         .before_system(update_camera_uniform)
+        .before_system(update_lights_buffer)
+        .before_system(update_global_uniforms)
         .before_system(render_opaque_instanced)
         .before_system(render_opaque_batched)
         .before_system(render_transparent_instanced)

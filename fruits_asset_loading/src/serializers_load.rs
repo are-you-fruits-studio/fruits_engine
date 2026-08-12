@@ -5,11 +5,10 @@ use fruits_audio::{AudioClip, AudioClipAssetMetadata, AudioStateResource};
 use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
 use fruits_ffi::FfiString;
 use fruits_prefab::{Prefab, PrefabDependencies};
-use fruits_render::StandardMaterial;
-use fruits_render_core::{CoordinateSpaceType, RenderApiResource, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
+use fruits_render_core::{CoordinateSpaceType, RenderApiResource, StandardMaterial, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
 use fruits_serialization::*;
 
-use crate::{AudioClipLoader, EntityTransSerializer, MeshLoader, PrefabLoader, TextureLoader, serialize_prefab_no_deps};
+use crate::{AudioClipLoader, EntityTransSerializer, MaterialHandleLoader, MaterialLoader, MeshLoader, PrefabLoader, TextureLoader, serialize_prefab_no_deps};
 
 pub fn load_asset_transitively_from_world<R>(
     res: ResourcesHolderMut,
@@ -91,8 +90,11 @@ pub fn load_asset_transitively<R>(
         assets: materials,
         assets_dir_path,
         deps,
-        loader: |ctx, value, assets_dir_path| {
-            StandardMaterial::deserialize(ctx, value)
+        loader: |mut ctx, value, _assets_dir_path| {
+            let asset_metadata = ctx.deserialize(value)?;
+            MaterialLoader {
+                render_api: render_api,
+            }.load_from_deserialized(asset_metadata, &*textures.lock().unwrap())
         },
     });
     serializer_local.register(TransitiveLoadTransSerializer { 
@@ -184,7 +186,7 @@ pub fn save_with_asset_serializers<R>(
     });
     serializer_local.register(DirectAssetSaveTransSerializer {
         assets: materials,
-        extractor: |_, a| a.clone(),
+        extractor: |_, a| a.meta().clone(),
     });
     serializer_local.register(DirectAssetSaveTransSerializer {
         assets: meshes,
@@ -305,8 +307,11 @@ pub fn load_asset_single<R>(
         assets_dir_path,
         asset_key,
         deps,
-        loader: |ctx, value, assets_dir_path| {
-            StandardMaterial::deserialize(ctx, value)
+        loader: |mut ctx, value, _assets_dir_path| {
+            let asset_metadata = ctx.deserialize(value)?;
+            MaterialLoader {
+                render_api: render_api,
+            }.load_from_deserialized(asset_metadata, &*textures.lock().unwrap())
         },
     });
     serializer_local.register(SingleDirectLoadTransSerializer { 

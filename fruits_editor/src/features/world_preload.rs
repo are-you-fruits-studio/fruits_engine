@@ -81,7 +81,7 @@ fn preload_assets_into_simulated_world_system(
     serializer.register(StandardTransSerializer::<FfiOption<f32>>::default());
     serializer.register(StandardTransSerializer::<Option<f32>>::default());
     serializer.register(StandardTransSerializer::<StandardTextureAssetMetadata>::default());
-    serializer.register(StandardTransSerializer::<StandardMaterial>::default());
+    serializer.register(StandardTransSerializer::<StandardMaterialAssetMetadata>::default());
     serializer.register(StandardTransSerializer::<StandardMeshAssetMetadata>::default());
     serializer.register(StandardTransSerializer::<AudioClipAssetMetadata>::default());
     // todo

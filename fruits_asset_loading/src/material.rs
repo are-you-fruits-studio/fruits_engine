@@ -1,36 +1,61 @@
-use std::path::Path;
-
 use fruits_asset_storage::AssetStorageResource;
-use fruits_ecs::ResourcesHolderMut;
-use fruits_render::StandardMaterial;
-use fruits_serialization::{SerializedValue, SerializerCtx, TransSerializable};
+use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
+use fruits_render_core::{RenderApiResource, StandardMaterial, StandardMaterialAssetMetadata, StandardTexture};
+use fruits_serialization::{SerializedValue, SerializerCtx};
 
-use crate::AssetLoader;
-
-pub struct MaterialLoader<'a> {
+pub struct MaterialHandleLoader<'a> {
+    pub render_api: &'a RenderApiResource,
     pub materials: &'a mut AssetStorageResource<StandardMaterial>,
 }
 
-impl<'a> MaterialLoader<'a> {
+impl<'a> MaterialHandleLoader<'a> {
     pub fn from_world(res: ResourcesHolderMut<'a>) -> Option<Self> {
-        Some(Self {
-            materials: res.into_get_mut::<AssetStorageResource<StandardMaterial>>()?,
-        })
+        Some(unsafe { Self {
+            render_api: &*res.get_ptr::<RenderApiResource>()?,
+            materials: &mut *res.get_ptr::<AssetStorageResource<StandardMaterial>>()?,
+        }})
     }
 }
-impl<'a> AssetLoader for MaterialLoader<'a> {
-    type Asset = StandardMaterial;
-    type SelfWithAnotherLifetime<'r> = MaterialLoader<'r>;
 
-    fn create_loader<'r>(res: ResourcesHolderMut<'r>) -> Option<Self::SelfWithAnotherLifetime<'r>> {
-        Self::SelfWithAnotherLifetime::from_world(res)
+//
+
+pub struct MaterialLoader<'a> {
+    pub render_api: &'a RenderApiResource,
+}
+
+impl<'a> MaterialLoader<'a> {
+    pub fn from_world(res: ResourcesHolderRef<'a>) -> Option<Self> {
+        Some(Self {
+            render_api: res.get::<RenderApiResource>()?,
+        })
     }
-    
-    fn get_related_asset_storage(&mut self) -> &mut AssetStorageResource<Self::Asset> {
-        self.materials
+
+    pub fn load_from_serialized(
+        &mut self,
+        mut ctx: SerializerCtx,
+        value: &SerializedValue,
+        textures: &AssetStorageResource<StandardTexture>,
+    ) -> Option<StandardMaterial> {
+        let asset_metadata = ctx.deserialize::<StandardMaterialAssetMetadata>(value)?;
+
+        self.load_from_deserialized(asset_metadata, textures)
     }
-    
-    fn load_from_serialized(&mut self, ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset> {
-        StandardMaterial::deserialize(ctx, value)
+
+    pub fn load_from_deserialized(
+        &mut self,
+        asset_metadata: StandardMaterialAssetMetadata,
+        textures: &AssetStorageResource<StandardTexture>,
+    ) -> Option<StandardMaterial> {
+
+        // todo: read texture's native part to create material
+        // todo: fallback to white texture on fail
+        let color_texture = textures.get(&asset_metadata.color_tex);
+
+        let material = self.render_api.create_material(
+            color_texture,
+            asset_metadata,
+        );
+
+        Some(material)
     }
 }

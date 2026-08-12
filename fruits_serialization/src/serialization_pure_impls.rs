@@ -367,7 +367,7 @@ impl<T: 'static + Serializable> Serializable for FfiVec<T> {
 }
 
 fn serialize_option<T: 'static + Serializable>(option: Option<&T>, mut ctx: PureSerializerCtx) -> SerializedValue {
-    let variants = ["None", "Some"].into_iter().map(FfiString::from).collect();
+    let variants = ["None", "Some"].into_iter().map(|s| s.into()).collect();
 
     match option {   
         None => ctx.serialize_map()

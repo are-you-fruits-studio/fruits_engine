@@ -74,8 +74,8 @@ use fruits_ecs::{Component, Schedule, WorldBuilderMut};
 use fruits_ffi::{FfiOption, FfiSmallString, FfiString, FfiVec};
 use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
 use fruits_prefab::Prefab;
-use fruits_render::{Font, RenderSpace, StandardMaterial};
-use fruits_render_core::{CoordinateSpaceType, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
+use fruits_render::Font;
+use fruits_render_core::{CoordinateSpaceType, RenderSpace, StandardMaterial, StandardMaterialAssetMetadata, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
 use fruits_serialization::*;
 use fruits_transform::{ChildComponent, ParentComponent};
 
@@ -119,15 +119,15 @@ pub fn register_common_transserializers(serializer: &mut GlobalSerializer) {
     register_self_and_related_common_transserializers::<FfiString>(serializer);
     register_self_and_related_common_transserializers::<char>(serializer);
     register_self_and_related_common_transserializers::<bool>(serializer);
-    register_self_and_related_common_transserializers::<StandardMaterial>(serializer);
     register_self_and_related_common_transserializers::<RenderSpace>(serializer);
     register_self_and_related_common_transserializers::<CoordinateSpaceType>(serializer);
     register_self_and_related_common_transserializers::<StandardMeshAssetMetadata>(serializer);
+    register_self_and_related_common_transserializers::<AudioClipAssetMetadata>(serializer);
+    register_self_and_related_common_transserializers::<StandardTextureAssetMetadata>(serializer);
+    register_self_and_related_common_transserializers::<StandardMaterialAssetMetadata>(serializer);
     register_self_and_related_common_transserializers::<DebugNameComponent>(serializer);
     register_self_and_related_common_transserializers::<ParentComponent>(serializer);
     register_self_and_related_common_transserializers::<ChildComponent>(serializer);
-    register_self_and_related_common_transserializers::<AudioClipAssetMetadata>(serializer);
-    register_self_and_related_common_transserializers::<StandardTextureAssetMetadata>(serializer);
     // todo?
     register_related_common_transserializers::<AssetHandle<StandardMaterial>>(serializer);
     register_related_common_transserializers::<AssetHandle<Font>>(serializer);

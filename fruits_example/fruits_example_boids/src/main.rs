@@ -76,10 +76,10 @@ struct BoidSettings {
 fn init(mut world: WorldDataMut) {
     let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
-    let material = StandardMaterial {
+    let material = render_api.create_material(None, StandardMaterialAssetMetadata {
         is_lit: true,
         ..Default::default()
-    };
+    });
 
     let mut vertices = [
         StandardVertex {

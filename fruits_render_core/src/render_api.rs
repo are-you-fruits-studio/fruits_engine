@@ -1,11 +1,11 @@
 use std::{ffi::c_void, sync::{Arc, Mutex}};
 
 use fruits_ecs::Resource;
-use fruits_ffi::{FfiDroppable, FfiOption, FfiSliceRef, FfiStaticRef, FfiString};
+use fruits_ffi::{FfiDroppable, FfiOption, FfiSliceRef, FfiStaticRef};
 use wgpu::*;
 use winit::window::Window;
 
-use crate::{StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata, StandardVertex};
+use crate::{StandardMaterial, StandardMaterialAssetMetadata, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata, StandardVertex};
 
 // todo: ffi?
 
@@ -15,10 +15,10 @@ pub struct SurfaceConfigCache {
 }
 
 pub struct RenderApi {
-    device: Device,
-    queue: Queue,
-    surface: Surface<'static>,
-    window: Arc<Window>,
+    pub device: Device,
+    pub queue: Queue,
+    pub surface: Surface<'static>,
+    pub window: Arc<Window>,
     surface_config: Mutex<SurfaceConfigCache>,
 }
 
@@ -86,19 +86,64 @@ impl RenderApi {
             surface_config,
         }
     }
+
+    pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: Option<StandardTextureAssetMetadata>) -> StandardTexture {
+        StandardTexture::new(self, filter_mode, dimensions, data, meta)
+    }
+
+    pub fn create_mesh(&self, vertices: &[StandardVertex], indices: &[u16], meta: Option<StandardMeshAssetMetadata>) -> StandardMesh {
+        StandardMesh::new(&self.device, vertices, indices, meta)
+    }
 }
 
 pub struct RenderData {
-    pub bind_group_layout_standard_texture: BindGroupLayout,
+    pub bind_group_layout_global: BindGroupLayout,
+    pub bind_group_layout_material: BindGroupLayout,
+    pub texture_white: StandardTexture,
 }
 
 impl RenderData {
     pub fn new(api: &RenderApi) -> Self {
-        let bind_group_layout_standard_texture = api.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Standard Texture Bind Group Layout"),
+        let bind_group_layout_global = api.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("Standard Global Bind Group Layout"),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
+                    count: None,
+                    visibility: ShaderStages::VERTEX_FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    count: None,
+                    visibility: ShaderStages::VERTEX_FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                },
+            ],
+        });
+        let bind_group_layout_material = api.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("Standard Material Bind Group Layout"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    count: None,
+                    visibility: ShaderStages::VERTEX_FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
                     count: None,
                     visibility: ShaderStages::VERTEX_FRAGMENT,
                     ty: BindingType::Texture {
@@ -108,16 +153,20 @@ impl RenderData {
                     },
                 },
                 BindGroupLayoutEntry {
-                    binding: 1,
+                    binding: 2,
                     count: None,
                     visibility: ShaderStages::VERTEX_FRAGMENT,
                     ty: BindingType::Sampler(SamplerBindingType::Filtering),
                 },
             ],
         });
+        
+        let texture_white = api.create_texture(FilterMode::Linear, [2, 2], &[255; 16], None);
 
         Self {
-            bind_group_layout_standard_texture,
+            bind_group_layout_global,
+            bind_group_layout_material,
+            texture_white,
         }
     }
 }
@@ -133,6 +182,10 @@ impl RenderState {
         let render_data = RenderData::new(&api);
 
         Self { api, render_data }
+    }
+
+    pub fn api(&self) -> &RenderApi {
+        &self.api
     }
 
     // todo: expose api as a struct, not deconstruct it.
@@ -182,11 +235,15 @@ impl RenderState {
     }
 
     pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: Option<StandardTextureAssetMetadata>) -> StandardTexture {
-        StandardTexture::new(self, filter_mode, dimensions, data, meta)
+        self.api.create_texture(filter_mode, dimensions, data, meta)
     }
 
     pub fn create_mesh(&self, vertices: &[StandardVertex], indices: &[u16], meta: Option<StandardMeshAssetMetadata>) -> StandardMesh {
-        StandardMesh::new(&self.api.device, vertices, indices, meta)
+        self.api.create_mesh(vertices, indices, meta)
+    }
+
+    pub fn create_material(&self, color_texture: Option<&StandardTexture>, meta: StandardMaterialAssetMetadata) -> StandardMaterial {
+        StandardMaterial::new(self, color_texture.unwrap_or_else(|| &self.render_data.texture_white), meta)
     }
 }
 
@@ -198,6 +255,7 @@ struct RenderApiVTable {
     size_fn: unsafe extern "C" fn(*const c_void, size_dst: *mut u32),
     create_texture_fn: unsafe extern "C" fn(*const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>, meta: FfiOption<StandardTextureAssetMetadata>) -> StandardTexture,
     create_mesh_fn: unsafe extern "C" fn(*const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>, meta: FfiOption<StandardMeshAssetMetadata>) -> StandardMesh,
+    create_material_fn: unsafe extern "C" fn(*const c_void, color_texture: FfiOption<&StandardTexture>, meta: StandardMaterialAssetMetadata) -> StandardMaterial,
     clone_fn: unsafe extern "C" fn(*const c_void) -> FfiDroppable,
 }
 
@@ -256,6 +314,17 @@ impl RenderApiResource {
                 this.create_mesh(vertices, indices, meta.into())
             }
         }
+        unsafe extern "C" fn ffi_create_material(
+            this: *const c_void,
+            color_texture: FfiOption<&StandardTexture>,
+            meta: StandardMaterialAssetMetadata,
+        ) -> StandardMaterial {
+            unsafe {
+                let this = &*(this as *const Arc<RenderState>);
+
+                this.create_material(color_texture.into_option(), meta)
+            }
+        }
         unsafe extern "C" fn ffi_clone(this: *const c_void) -> FfiDroppable {
             unsafe {
                 let this = &*(this as *const Arc<RenderState>);
@@ -271,6 +340,7 @@ impl RenderApiResource {
                 size_fn: ffi_size,
                 create_texture_fn: ffi_create_texture,
                 create_mesh_fn: ffi_create_mesh,
+                create_material_fn: ffi_create_material,
                 clone_fn: ffi_clone,
             }),
         }
@@ -316,6 +386,14 @@ impl RenderApiResource {
             let indices = FfiSliceRef::from_slice(indices);
 
             (self.vtable.create_mesh_fn)(this, vertices, indices, meta.into())
+        }
+    }
+
+    pub fn create_material(&self, color_texture: Option<&StandardTexture>, meta: StandardMaterialAssetMetadata) -> StandardMaterial {
+        unsafe {
+            let this = self.data.get();
+
+            (self.vtable.create_material_fn)(this, color_texture.into(), meta)
         }
     }
 
