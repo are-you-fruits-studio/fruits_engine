@@ -121,25 +121,38 @@ fn init_system(mut world: WorldDataMut) {
     let font = standard_render_assets_res.font_px_8_12.clone();
     let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
 
-    let materials_res = res.get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
-
-    let material_panel = materials_res.insert(StandardMaterial {
+    let material_panel = StandardMaterialAssetMetadata {
         is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
         color_tex: AssetHandle::EMPTY,
         alpha_threshold: Some(0.5).into(),
         ..Default::default()
-    });
+    };
 
-    let material_text = materials_res.insert(StandardMaterial {
+    let material_text = StandardMaterialAssetMetadata {
         is_lit: false,
         space: RenderSpace::Window,
         color: Vec4::splat(1.0),
         color_tex: texture_text,
         alpha_threshold: Some(0.5).into(),
         ..Default::default()
-    });
+    };
+
+    let material_panel = res.as_ref()
+        .get::<RenderApiResource>()
+        .unwrap()
+        .create_material(None, material_panel);
+
+    let material_text = res.as_ref()
+        .get::<RenderApiResource>()
+        .unwrap()
+        .create_material(None, material_text);
+
+    let materials_res = res.get_mut::<AssetStorageResource<StandardMaterial>>().unwrap();
+
+    let material_panel = materials_res.insert(material_panel);
+    let material_text = materials_res.insert(material_text);
 
     res.insert(UiInteractionResource::default());
 

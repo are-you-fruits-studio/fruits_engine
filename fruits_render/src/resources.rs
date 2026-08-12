@@ -1,10 +1,7 @@
-use std::collections::{HashMap, hash_map::IterMut};
-
 use fruits_asset_storage::AssetHandle;
 use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
-use fruits_render_core::{StandardTexture, StandardVertex};
-use fruits_serialization::*;
+use fruits_render_core::{RenderSpace, StandardGenericLight, StandardTexture, StandardVertex};
 use fruits_ffi::*;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
 
@@ -78,13 +75,15 @@ pub struct TransparentTargetTextureResource {
 #[derive(Resource)]
 pub struct StandardRenderResource {
     pub pipeline_layout: PipelineLayout,
+    pub global_bind_group: BindGroup,
+    pub global_uniform_buffer: Buffer,
     pub batched_vertex_buffer: Buffer,
+    pub lights_buffer: Buffer,
+    pub lights_count: u32,
     pub instance_buffer: Buffer,
     pub instance_cpu_buffer: Box<[[[f32; 4]; 4]]>,
     pub camera_pos: Vec3<f32>,
     pub camera_proj_matrix: Mat4<f32>,
-    pub buffer_uniform: Buffer,
-    pub bind_group_uniform: BindGroup,
     pub render_pipeline_opaque_lit: RenderPipeline,
     pub render_pipeline_opaque_unlit: RenderPipeline,
     pub render_pipeline_transparent_lit: RenderPipeline,
@@ -95,6 +94,10 @@ pub struct StandardRenderResource {
 // todo: support ffi
 #[derive(Resource)]
 pub struct BatchedVertexCpuBufferResource(pub Box<[StandardVertex]>);
+
+// todo: support ffi
+#[derive(Resource)]
+pub struct LightsCpuBufferResource(pub Box<[StandardGenericLight]>);
 
 #[repr(C)]
 #[derive(Resource)]
@@ -126,14 +129,6 @@ impl Default for ScreenSpaceResource {
             far: 1_000.0,
         }
     }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, TransSerializable)]
-pub enum RenderSpace {
-    Clip,
-    Window,
-    World,
 }
 
 //

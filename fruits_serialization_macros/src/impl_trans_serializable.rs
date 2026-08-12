@@ -102,7 +102,7 @@ fn serialize_impl(input: &DeriveInput) -> String {
                 variants_line.push('"');
             }
 
-            variants_line.push_str("].into_iter().map(FfiString::from).collect();");
+            variants_line.push_str("].into_iter().map(|s| s.into()).collect();");
 
             //
 

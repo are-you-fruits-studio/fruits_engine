@@ -68,15 +68,27 @@ fn init(mut world: WorldDataMut) {
 
     let standard_render_assets = world.as_ref().resources().get::<StandardRenderAssetsResource>().unwrap();
 
-    let texture_text = standard_render_assets.texture_text_px_5_7.clone();
+    let texture_text_handle = standard_render_assets.texture_text_px_5_7.clone();
     let font = standard_render_assets.font_px_5_7.clone();
 
-    let material = StandardMaterial {
+    let material = StandardMaterialAssetMetadata {
         is_lit: false,
         space: RenderSpace::World,
-        color_tex: texture_text.clone(),
+        color_tex: texture_text_handle.clone(),
         ..Default::default()
     };
+
+    let texture_text = world.as_ref()
+        .resources()
+        .get::<AssetStorageResource<StandardTexture>>()
+        .unwrap()
+        .get(&texture_text_handle);
+
+    let material = world.as_ref()
+        .resources()
+        .get::<RenderApiResource>()
+        .unwrap()
+        .create_material(texture_text, material);
 
     let material = world.as_mut()
         .resources_mut()

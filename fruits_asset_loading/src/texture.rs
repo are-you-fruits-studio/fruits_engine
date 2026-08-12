@@ -4,7 +4,7 @@ use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
 use fruits_render_core::{FilterMode, RenderApiResource, StandardTexture, StandardTextureAssetMetadata};
 
-use fruits_serialization::{SerializedComposite, SerializedCompositeValues, SerializedMap, SerializedPrimitive, SerializedValue, SerializerCtx, TransSerializable};
+use fruits_serialization::{SerializedComposite, SerializedCompositeValues, SerializedMap, SerializedPrimitive, SerializedValue, SerializerCtx};
 use image::GenericImageView;
 
 use crate::AssetLoader;

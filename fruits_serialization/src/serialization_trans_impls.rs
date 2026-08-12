@@ -119,7 +119,7 @@ impl<T: 'static> TransSerializable for FfiVec<T> {
 }
 
 fn serialize_option<T: 'static>(option: Option<&T>, mut ctx: SerializerCtx) -> SerializedValue {
-    let variants = ["None", "Some"].into_iter().map(FfiString::from).collect();
+    let variants = ["None", "Some"].into_iter().map(|s| s.into()).collect();
 
     match option {
         None => ctx.serialize_map().finish_as_enum(true, "None", variants),

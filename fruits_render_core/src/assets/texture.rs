@@ -3,20 +3,17 @@ use std::fmt::Debug;
 use fruits_ffi::{FfiDroppable, FfiOption, FfiString};
 use fruits_serialization::*;
 use wgpu::{
-    AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Extent3d, SamplerDescriptor, Texture,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-    util::{DeviceExt, TextureDataOrder},
-    wgt::TextureViewDescriptor,
+    AddressMode, Extent3d, Sampler, SamplerDescriptor, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, util::{DeviceExt, TextureDataOrder},
 };
 
-use crate::RenderState;
+use crate::RenderApi;
 
 pub use wgpu::FilterMode;
 
 #[derive(Debug)]
 pub struct StandardTextureNative {
     pub texture: Texture,
-    pub bind_group: BindGroup,
+    pub sampler: Sampler,
 }
 
 #[repr(C)]
@@ -33,7 +30,7 @@ pub struct StandardTexture {
 
 impl StandardTexture {
     pub(crate) fn new(
-        render_state: &RenderState,
+        render_api: &RenderApi,
         filter_mode: FilterMode,
         dimensions: [u32; 2],
         data: &[u8],
@@ -60,8 +57,8 @@ impl StandardTexture {
             data = data_vec.as_slice();
         }
 
-        let texture = render_state.device().create_texture_with_data(
-            render_state.queue(),
+        let texture = render_api.device.create_texture_with_data(
+            &render_api.queue,
             &TextureDescriptor {
                 label: None,
                 size: Extent3d {
@@ -83,9 +80,7 @@ impl StandardTexture {
             data,
         );
 
-        let texture_view = texture.create_view(&TextureViewDescriptor::default());
-
-        let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        let sampler = render_api.device.create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -95,23 +90,11 @@ impl StandardTexture {
             ..Default::default()
         });
 
-        let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &render_state.render_data().bind_group_layout_standard_texture,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&texture_view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&sampler),
-                },
-            ],
-        });
-
         Self {
-            native: FfiDroppable::new(StandardTextureNative { texture, bind_group }),
+            native: FfiDroppable::new(StandardTextureNative {
+                texture,
+                sampler,
+            }),
             meta: meta.into(),
         }
     }

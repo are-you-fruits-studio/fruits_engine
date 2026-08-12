@@ -7,19 +7,19 @@ use fruits_math::*;
 use fruits_render_core::*;
 use image::GenericImageView;
 use wgpu::{
-    *,
-    util::{BufferInitDescriptor, DeviceExt},
+    util::{BufferInitDescriptor, DeviceExt}, wgt::TextureViewDescriptor, *,
 };
 
 use fruits_transform::*;
 use crate::{utils::*, *};
 
 use super::{
-    DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, RenderSpace, StandardRenderResource,
-    assets::StandardMaterial,
+    DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, StandardRenderResource,
     components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent},
     resources::SurfaceTextureResource,
 };
+
+// todo: refactor this file's duplications
 
 pub fn create_standard_render_resource(mut world: WorldDataMut) {
     let render_state = unsafe { world.as_ref().resources().get::<RenderApiResource>().unwrap().raw() };
@@ -27,25 +27,11 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
     let depth_tex = world.as_ref().resources().get::<DepthTextureResource>().unwrap();
     let transparent_target_tex = world.as_ref().resources().get::<TransparentTargetTextureResource>().unwrap();
 
-    let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Standard Bind Group Layout"),
-        entries: &[BindGroupLayoutEntry {
-            binding: 0,
-            visibility: ShaderStages::VERTEX_FRAGMENT,
-            ty: BindingType::Buffer {
-                ty: BufferBindingType::Uniform,
-                has_dynamic_offset: false,
-                min_binding_size: None,
-            },
-            count: None,
-        }],
-    });
-
     let pipeline_layout_standard = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Standard Pipeline Layout"),
         bind_group_layouts: &[
-            &bind_group_layout,
-            &render_state.render_data().bind_group_layout_standard_texture,
+            &render_state.render_data().bind_group_layout_global,
+            &render_state.render_data().bind_group_layout_material,
         ],
         push_constant_ranges: &[],
     });
@@ -54,21 +40,6 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
         label: Some("Transparent Final Pipeline Layout"),
         bind_group_layouts: &[&transparent_target_tex.bind_group_layout],
         push_constant_ranges: &[],
-    });
-
-    let standard_uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Lit Uniform Buffer"),
-        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&[StandardUniform::default()]),
-    });
-
-    let standard_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Lit Uniform Bind Group"),
-        layout: &bind_group_layout,
-        entries: &[BindGroupEntry {
-            binding: 0,
-            resource: standard_uniform_buffer.as_entire_binding(),
-        }],
     });
 
     let create_render_pipeline_fn = |is_lit: bool, is_transparent: bool| -> RenderPipeline {
@@ -209,15 +180,47 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
         contents: fruits_utils::mem::as_bytes_slice(&batched_vertex_cpu_buffer),
     });
 
+    let lights_cpu_buffer =
+        vec![StandardGenericLight::default(); LIGHTS_COUNT_MAX].into_boxed_slice();
+
+    let lights_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Lights buffer"),
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes_slice(&lights_cpu_buffer),
+    });
+
+    let global_uniform_buffer = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Standard Global Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&[StandardUniformGlobal::default()]),
+    });
+
+    let global_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Standard Global Bind Group"),
+        layout: &render_state.render_data().bind_group_layout_global,
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: global_uniform_buffer.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: lights_buffer.as_entire_binding(),
+            },
+        ],
+    });
+
     world.as_mut()
         .resources_mut()
         .insert(StandardRenderResource {
             pipeline_layout: pipeline_layout_standard,
+            global_uniform_buffer,
+            global_bind_group,
             instance_cpu_buffer,
             instance_buffer,
             batched_vertex_buffer,
-            buffer_uniform: standard_uniform_buffer,
-            bind_group_uniform: standard_bind_group,
+            lights_buffer,
+            lights_count: 0,
             render_pipeline_opaque_lit,
             render_pipeline_opaque_unlit,
             render_pipeline_transparent_lit,
@@ -230,6 +233,10 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
     world.as_mut()
         .resources_mut()
         .insert(BatchedVertexCpuBufferResource(batched_vertex_cpu_buffer));
+
+    world.as_mut()
+        .resources_mut()
+        .insert(LightsCpuBufferResource(lights_cpu_buffer));
 
     let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
@@ -1011,12 +1018,64 @@ pub fn clear_transparent_target(render_api: Res<RenderApiResource>, transparent_
     render_state.queue().submit(std::iter::once(encoder.finish()));
 }
 
+pub fn update_lights_buffer(
+    light_q: WorldQuery<(
+        Option<&GlobalTransform>,
+        &StandardLightComponent,
+    )>,
+    render_api: Res<RenderApiResource>,
+    mut standard_render_res: ResMut<StandardRenderResource>,
+    mut lights_cpu_buffer: ResMut<LightsCpuBufferResource>,
+) {
+    let render_state = unsafe { render_api.raw() };
+
+    standard_render_res.lights_count = light_q.len().min(LIGHTS_COUNT_MAX as u64) as u32;
+
+    for (i, (light_transform, light_c)) in light_q.iter().take(LIGHTS_COUNT_MAX).enumerate() {
+        let light_transform = light_transform.copied().unwrap_or_default();
+
+        let light = utils::light_from_components(light_c, &light_transform).into();
+
+        lights_cpu_buffer.0[i] = light;
+    }
+
+    let lights_bytes = fruits_utils::mem::as_bytes_slice(&lights_cpu_buffer.0);
+
+    render_state
+        .queue()
+        .write_buffer(&standard_render_res.lights_buffer, 0, lights_bytes);
+
+    render_state.queue().submit([]);
+}
+
+pub fn update_global_uniforms(
+    render_api: Res<RenderApiResource>,
+    standard_render_res: Res<StandardRenderResource>,
+) {
+    let render_state = unsafe { render_api.raw() };
+
+    let uniform = StandardUniformGlobal {
+        lights_count: standard_render_res.lights_count,
+        camera_position_world: standard_render_res.camera_pos,
+    };
+
+    render_state.queue().write_buffer(
+        &standard_render_res.global_uniform_buffer,
+        0,
+        fruits_utils::mem::as_bytes(&[uniform]),
+    );
+}
+
 pub fn render_opaque_instanced(
-    query: WorldQuery<(
+    mesh_q: WorldQuery<(
         Option<&GlobalTransform>,
         &StandardMeshComponent,
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
+    )>,
+    light_q: WorldQuery<(
+        Option<&GlobalTransform>,
+        &StandardLightComponent,
     )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
@@ -1028,7 +1087,7 @@ pub fn render_opaque_instanced(
     materials: Res<AssetStorageResource<StandardMaterial>>,
     textures: Res<AssetStorageResource<StandardTexture>>,
 ) {
-    if query.len() == 0 {
+    if mesh_q.len() == 0 {
         return;
     }
 
@@ -1051,7 +1110,7 @@ pub fn render_opaque_instanced(
 
     let mut instanced_matrices = HashMap::new();
 
-    for (transform, render_mesh, render_material, disableable) in query.iter() {
+    for (transform, render_mesh, render_material, disableable) in mesh_q.iter() {
         if disableable.copied().unwrap_or_default().is_disabled {
             continue;
         }
@@ -1060,7 +1119,7 @@ pub fn render_opaque_instanced(
             continue;
         };
 
-        if material.alpha_threshold.is_none() {
+        if material.meta().alpha_threshold.is_none() {
             continue;
         }
 
@@ -1084,12 +1143,10 @@ pub fn render_opaque_instanced(
 
         let mesh = unsafe { mesh.native() };
 
-        let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
+        let (render_pipeline, bind_group) = crate::utils::get_render_data(
             material,
             &standard_render_res,
             &render_state,
-            &textures,
-            &standard_render_assets_res,
             window_to_clip_mat,
         );
 
@@ -1128,8 +1185,8 @@ pub fn render_opaque_instanced(
                 });
 
                 render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, bind_group, &[]);
-                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group, &[]);
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
@@ -1147,6 +1204,10 @@ pub fn render_opaque_batched(
         &BatchedMeshComponent,
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
+    )>,
+    light_q: WorldQuery<(
+        Option<&GlobalTransform>,
+        &StandardLightComponent,
     )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
@@ -1190,7 +1251,7 @@ pub fn render_opaque_batched(
             continue;
         };
 
-        if material.alpha_threshold.is_none() {
+        if material.meta().alpha_threshold.is_none() {
             continue;
         }
 
@@ -1213,17 +1274,15 @@ pub fn render_opaque_batched(
 
     let batch_cpu_buffer = &mut batched_vertex_cpu_buffer.0;
 
-    for (material, matrices_and_meshes) in batched_meshes_by_material {
+    for (material, matrices_and_meshes) in &batched_meshes_by_material {
         let Some(material) = materials.get(&material) else {
             continue;
         };
 
-        let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
+        let (render_pipeline, bind_group) = crate::utils::get_render_data(
             material,
             &standard_render_res,
             &render_state,
-            &textures,
-            &standard_render_assets_res,
             window_to_clip_mat,
         );
 
@@ -1255,7 +1314,6 @@ pub fn render_opaque_batched(
                     &depth_res,
                     render_pipeline,
                     bind_group,
-                    bind_group_tex,
                 );
             }
         }
@@ -1269,7 +1327,6 @@ pub fn render_opaque_batched(
                 &depth_res,
                 render_pipeline,
                 bind_group,
-                bind_group_tex,
             );
         }
 
@@ -1281,7 +1338,6 @@ pub fn render_opaque_batched(
             depth_res: &DepthTextureResource,
             render_pipeline: &RenderPipeline,
             bind_group: &BindGroup,
-            bind_group_tex: &BindGroup,
         ) {
             render_state.queue().write_buffer(
                 &standard_render_res.batched_vertex_buffer,
@@ -1317,8 +1373,8 @@ pub fn render_opaque_batched(
                 });
 
                 render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, bind_group, &[]);
-                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group, &[]);
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
                 render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
                 render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
@@ -1336,6 +1392,10 @@ pub fn render_transparent_instanced(
         &StandardMeshComponent,
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
+    )>,
+    light_q: WorldQuery<(
+        Option<&GlobalTransform>,
+        &StandardLightComponent,
     )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
@@ -1375,7 +1435,7 @@ pub fn render_transparent_instanced(
             continue;
         };
 
-        if material.alpha_threshold.is_some() {
+        if material.meta().alpha_threshold.is_some() {
             continue;
         }
 
@@ -1399,12 +1459,10 @@ pub fn render_transparent_instanced(
 
         let mesh = unsafe { mesh.native() };
 
-        let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
+        let (render_pipeline, bind_group) = crate::utils::get_render_data(
             material,
             &standard_render_res,
             &render_state,
-            &textures,
-            &standard_render_assets_res,
             window_to_clip_mat,
         );
 
@@ -1443,8 +1501,8 @@ pub fn render_transparent_instanced(
                 });
 
                 render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, bind_group, &[]);
-                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group, &[]);
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint16);
@@ -1463,6 +1521,10 @@ pub fn render_transparent_batched(
         &BatchedMeshComponent,
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
+    )>,
+    light_q: WorldQuery<(
+        Option<&GlobalTransform>,
+        &StandardLightComponent,
     )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
@@ -1502,7 +1564,7 @@ pub fn render_transparent_batched(
             continue;
         };
 
-        if material.alpha_threshold.is_some() {
+        if material.meta().alpha_threshold.is_some() {
             continue;
         }
 
@@ -1525,17 +1587,15 @@ pub fn render_transparent_batched(
 
     let batch_cpu_buffer = &mut batched_vertex_cpu_buffer.0;
 
-    for (material, matrices_and_meshes) in batched_meshes_by_material {
+    for (material, matrices_and_meshes) in &batched_meshes_by_material {
         let Some(material) = materials.get(&material) else {
             continue;
         };
 
-        let (render_pipeline, bind_group, bind_group_tex) = crate::utils::get_render_data(
+        let (render_pipeline, bind_group) = crate::utils::get_render_data(
             material,
             &standard_render_res,
             &render_state,
-            &textures,
-            &standard_render_assets_res,
             window_to_clip_mat,
         );
 
@@ -1566,7 +1626,6 @@ pub fn render_transparent_batched(
                     &depth_res,
                     render_pipeline,
                     bind_group,
-                    bind_group_tex,
                 );
             }
         }
@@ -1580,7 +1639,6 @@ pub fn render_transparent_batched(
                 &depth_res,
                 render_pipeline,
                 bind_group,
-                bind_group_tex,
             );
         }
 
@@ -1592,7 +1650,6 @@ pub fn render_transparent_batched(
             depth_res: &DepthTextureResource,
             render_pipeline: &RenderPipeline,
             bind_group: &BindGroup,
-            bind_group_tex: &BindGroup,
         ) {
             render_state.queue().write_buffer(
                 &standard_render_res.batched_vertex_buffer,
@@ -1628,8 +1685,8 @@ pub fn render_transparent_batched(
                 });
 
                 render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, bind_group, &[]);
-                render_pass.set_bind_group(1, bind_group_tex, &[]);
+                render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group, &[]);
                 render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
                 render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
                 render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);

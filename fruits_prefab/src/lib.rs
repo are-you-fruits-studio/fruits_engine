@@ -89,8 +89,8 @@ use fruits_asset_storage::AssetHandle;
 use fruits_audio::AudioClip;
 use fruits_ecs::*;
 use fruits_ffi::{FfiIndexMap, FfiString, FfiVec};
-use fruits_render::{Font, StandardMaterial};
-use fruits_render_core::{StandardMesh, StandardTexture};
+use fruits_render::Font;
+use fruits_render_core::{StandardMaterial, StandardMesh, StandardTexture};
 use fruits_serialization::*;
 
 #[repr(C)]
