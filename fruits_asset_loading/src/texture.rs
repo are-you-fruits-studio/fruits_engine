@@ -2,9 +2,10 @@ use std::path::Path;
 
 use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
+use fruits_ffi::FfiFnMutMut;
 use fruits_render_core::{FilterMode, RenderApiResource, StandardTexture, StandardTextureAssetMetadata};
 
-use fruits_serialization::{SerializedComposite, SerializedCompositeValues, SerializedMap, SerializedPrimitive, SerializedValue, SerializerCtx};
+use fruits_serialization::{PureSerializerCtx, Serializable, SerializedValue, SerializerCtx};
 use image::GenericImageView;
 
 use crate::AssetLoader;
@@ -56,18 +57,11 @@ impl<'a> TextureLoader<'a> {
     }
 
     pub fn load_from_serialized(&mut self, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<StandardTexture> {
-        let SerializedValue::Composite(SerializedComposite { values: SerializedCompositeValues::Map(SerializedMap { values: value, .. }), .. }) = value else {
-            return None;
-        };
-
-        let Some(SerializedValue::Primitive(SerializedPrimitive::String(raw_texture_asset_key))) = value.get("raw_texture") else {
-            return None;
-        };
+        let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
+        let deserialized = StandardTextureAssetMetadata::deserialize(PureSerializerCtx::new(FfiFnMutMut::new(&mut err_handler)), value)?;
 
         self.load_from_deserialized(
-            StandardTextureAssetMetadata {
-                raw_texture: raw_texture_asset_key.clone(),
-            },
+            deserialized,
             assets_dir_path,
         )
     }

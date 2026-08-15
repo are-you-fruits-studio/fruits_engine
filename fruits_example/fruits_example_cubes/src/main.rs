@@ -103,7 +103,7 @@ fn init_mesh_material(mut world: WorldDataMut) {
         return;
     };
 
-    let material = render_api.create_material(None, StandardMaterialAssetMetadata {
+    let material = render_api.create_material(Default::default(), StandardMaterialAssetMetadata {
         is_lit: true,
         ..Default::default()
     });

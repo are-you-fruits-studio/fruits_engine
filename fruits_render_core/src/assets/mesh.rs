@@ -8,6 +8,7 @@ use wgpu::{Buffer, Device, util::DeviceExt};
 pub struct StandardVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
+    pub tangent: [f32; 4],
     pub color: [f32; 4],
     pub uv: [f32; 2],
 }
@@ -17,17 +18,18 @@ unsafe impl AllBitsInit for StandardVertex {}
 
 impl StandardVertex {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
-        const ATTRIBUTES: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+        const ATTRIBUTES: &[wgpu::VertexAttribute] = &wgpu::vertex_attr_array![
             0 => Float32x3,
             1 => Float32x3,
             2 => Float32x4,
-            3 => Float32x2,
+            3 => Float32x4,
+            4 => Float32x2,
         ];
 
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<StandardVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTRIBUTES,
+            attributes: ATTRIBUTES,
         }
     }
 }

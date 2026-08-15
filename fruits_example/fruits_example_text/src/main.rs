@@ -88,7 +88,13 @@ fn init(mut world: WorldDataMut) {
         .resources()
         .get::<RenderApiResource>()
         .unwrap()
-        .create_material(texture_text, material);
+        .create_material(
+            StandardMaterialAssets {
+                color_texture: texture_text,
+                ..Default::default()
+            },
+            material,
+        );
 
     let material = world.as_mut()
         .resources_mut()

@@ -8,7 +8,7 @@ use fruits_prefab::{Prefab, PrefabDependencies};
 use fruits_render_core::{CoordinateSpaceType, RenderApiResource, StandardMaterial, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
 use fruits_serialization::*;
 
-use crate::{AudioClipLoader, EntityTransSerializer, MaterialHandleLoader, MaterialLoader, MeshLoader, PrefabLoader, TextureLoader, serialize_prefab_no_deps};
+use crate::{AudioClipLoader, EntityTransSerializer, MaterialLoader, MeshLoader, PrefabLoader, TextureLoader, serialize_prefab_no_deps};
 
 pub fn load_asset_transitively_from_world<R>(
     res: ResourcesHolderMut,
@@ -182,6 +182,7 @@ pub fn save_with_asset_serializers<R>(
         assets: textures,
         extractor: |_, a| a.meta().cloned().unwrap_or_else(|| StandardTextureAssetMetadata {
             raw_texture: Default::default(),
+            is_linear: false,
         }),
     });
     serializer_local.register(DirectAssetSaveTransSerializer {

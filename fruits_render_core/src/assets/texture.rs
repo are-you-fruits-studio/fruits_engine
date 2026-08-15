@@ -17,9 +17,10 @@ pub struct StandardTextureNative {
 }
 
 #[repr(C)]
-#[derive(TransSerializable, Clone)]
+#[derive(TransSerializable, Serializable, Clone)]
 pub struct StandardTextureAssetMetadata {
     pub raw_texture: FfiString,
+    pub is_linear: bool,
 }
 
 #[repr(C)]
@@ -57,6 +58,11 @@ impl StandardTexture {
             data = data_vec.as_slice();
         }
 
+        let format = match meta.as_ref().map(|m| m.is_linear).unwrap_or(false) {
+            true => TextureFormat::Rgba8Unorm,
+            false => TextureFormat::Rgba8UnormSrgb,
+        };
+
         let texture = render_api.device.create_texture_with_data(
             &render_api.queue,
             &TextureDescriptor {
@@ -69,12 +75,12 @@ impl StandardTexture {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: format,
                 usage: TextureUsages::COPY_SRC
                     | TextureUsages::COPY_DST
                     | TextureUsages::TEXTURE_BINDING
                     | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[TextureFormat::Rgba8UnormSrgb],
+                view_formats: &[format],
             },
             TextureDataOrder::LayerMajor,
             data,

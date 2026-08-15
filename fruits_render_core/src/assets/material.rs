@@ -3,7 +3,7 @@ use fruits_ffi::{FfiDroppable, FfiOption};
 use fruits_math::{Mat4, Vec3, Vec4};
 use fruits_serialization::*;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
-use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, Buffer, BufferUsages, util::{BufferInitDescriptor, DeviceExt}};
+use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, Buffer, BufferUsages, Sampler, TextureView, util::{BufferInitDescriptor, DeviceExt}};
 
 use crate::{RenderState, StandardTexture};
 
@@ -155,11 +155,16 @@ pub struct StandardMaterialAssetMetadata {
     pub roughness: f32,
     pub alpha_threshold: FfiOption<f32>,
     pub color_tex: AssetHandle<StandardTexture>,
+    pub roughness_tex: AssetHandle<StandardTexture>,
+    pub metallic_tex: AssetHandle<StandardTexture>,
+    pub normal_tex: AssetHandle<StandardTexture>,
+    pub emission_tex: AssetHandle<StandardTexture>,
 }
 
 impl Default for StandardMaterialAssetMetadata {
     fn default() -> Self {
         Self {
+            is_lit: false,
             space: RenderSpace::World,
             color: Vec4::splat(0.5),
             emission_color: Vec4::splat(0.0),
@@ -167,7 +172,32 @@ impl Default for StandardMaterialAssetMetadata {
             roughness: 0.5,
             alpha_threshold: Some(0.5).into(),
             color_tex: AssetHandle::EMPTY,
-            is_lit: false,
+            roughness_tex: AssetHandle::EMPTY,
+            metallic_tex: AssetHandle::EMPTY,
+            normal_tex: AssetHandle::EMPTY,
+            emission_tex: AssetHandle::EMPTY,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+pub struct StandardMaterialAssets<T> {
+    pub color_texture: T,
+    pub roughness_texture: T,
+    pub metallic_texture: T,
+    pub normal_texture: T,
+    pub emission_texture: T,
+}
+
+impl<T> StandardMaterialAssets<T> {
+    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> StandardMaterialAssets<U> {
+        StandardMaterialAssets {
+            color_texture: f(self.color_texture),
+            roughness_texture: f(self.roughness_texture),
+            metallic_texture: f(self.metallic_texture),
+            normal_texture: f(self.normal_texture),
+            emission_texture: f(self.emission_texture),
         }
     }
 }
@@ -181,7 +211,7 @@ pub struct StandardMaterial {
 impl StandardMaterial {
     pub(crate) fn new(
         render_state: &RenderState,
-        color_texture: &StandardTexture,
+        assets: StandardMaterialAssets<&StandardTexture>,
         meta: StandardMaterialAssetMetadata,
     ) -> Self {
         let buffer_uniform = render_state.device().create_buffer_init(&BufferInitDescriptor {
@@ -190,8 +220,11 @@ impl StandardMaterial {
             contents: fruits_utils::mem::as_bytes(&[StandardUniformMaterial::default()]),
         });
 
-        let texture_view_color = unsafe { color_texture.native().texture.create_view(&Default::default()) };
-        let sampler_color = unsafe { &color_texture.native().sampler };
+        let tex_color = unsafe { texture_to_view_and_sampler(assets.color_texture) };
+        let tex_roughness = unsafe { texture_to_view_and_sampler(assets.roughness_texture) };
+        let tex_metallic = unsafe { texture_to_view_and_sampler(assets.metallic_texture) };
+        let tex_normal = unsafe { texture_to_view_and_sampler(assets.normal_texture) };
+        let tex_emission = unsafe { texture_to_view_and_sampler(assets.emission_texture) };
 
         let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
             label: Some("Standard Material Bind Group"),
@@ -203,11 +236,43 @@ impl StandardMaterial {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&texture_view_color),
+                    resource: wgpu::BindingResource::TextureView(&tex_color.0),
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::Sampler(&sampler_color),
+                    resource: wgpu::BindingResource::Sampler(tex_color.1),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&tex_roughness.0),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::Sampler(tex_roughness.1),
+                },
+                BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::TextureView(&tex_metallic.0),
+                },
+                BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::Sampler(tex_metallic.1),
+                },
+                BindGroupEntry {
+                    binding: 7,
+                    resource: wgpu::BindingResource::TextureView(&tex_normal.0),
+                },
+                BindGroupEntry {
+                    binding: 8,
+                    resource: wgpu::BindingResource::Sampler(tex_normal.1),
+                },
+                BindGroupEntry {
+                    binding: 9,
+                    resource: wgpu::BindingResource::TextureView(&tex_emission.0),
+                },
+                BindGroupEntry {
+                    binding: 10,
+                    resource: wgpu::BindingResource::Sampler(tex_emission.1),
                 },
             ],
         });
@@ -232,3 +297,10 @@ impl StandardMaterial {
 
 unsafe impl Send for StandardMaterial where StandardMaterialNative: Send {}
 unsafe impl Sync for StandardMaterial where StandardMaterialNative: Sync {}
+
+unsafe fn texture_to_view_and_sampler(texture: &StandardTexture) -> (TextureView, &Sampler) {
+    let texture_view = unsafe { texture.native().texture.create_view(&Default::default()) };
+    let sampler = unsafe { &texture.native().sampler };
+
+    (texture_view, sampler)
+}
