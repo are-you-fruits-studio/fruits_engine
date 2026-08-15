@@ -1,6 +1,6 @@
 use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
-use fruits_render_core::{RenderApiResource, StandardMaterial, StandardMaterialAssetMetadata, StandardTexture};
+use fruits_render_core::{RenderApiResource, StandardMaterial, StandardMaterialAssetMetadata, StandardMaterialAssets, StandardTexture};
 use fruits_serialization::{SerializedValue, SerializerCtx};
 
 pub struct MaterialHandleLoader<'a> {
@@ -52,7 +52,10 @@ impl<'a> MaterialLoader<'a> {
         let color_texture = textures.get(&asset_metadata.color_tex);
 
         let material = self.render_api.create_material(
-            color_texture,
+            StandardMaterialAssets {
+                color_texture,
+                ..Default::default()
+            },
             asset_metadata,
         );
 

@@ -3,6 +3,7 @@ use std::path::Path;
 use fruits_asset_storage::AssetStorageResource;
 use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
 use fruits_ffi::FfiFnMutMut;
+use fruits_math::{Vec2, Vec3, Vec4};
 use fruits_render_core::{CoordinateSpaceType, RenderApiResource, StandardMesh, StandardMeshAssetMetadata, StandardVertex};
 use fruits_serialization::*;
 
@@ -73,13 +74,34 @@ impl<'a> MeshLoader<'a> {
         let mut vertices = Vec::new();
     
         for face in obj.faces {
+            let face = face.map(|vertex| Some(StandardVertex {
+                position: obj.positions.get(vertex.v).copied()?,
+                color: [1.0; 4],
+                normal: vertex.vn.map(|n| obj.normals.get(n).copied()).flatten()?,
+                // tangent is calculated later inside this function
+                tangent: [0.0; 4],
+                uv: vertex.vt.map(|n| obj.texcoords.get(n).copied()).flatten()?,
+            }));
+            if face.iter().any(|f| f.is_none()) {
+                return None;
+            }
+            let mut face = face.map(|o| o.unwrap());
+
+            let (tangent, bitangent) = calculate_tangent_bitangent(
+                face.map(|f| Vec3::from_array(f.position)),
+                face.map(|f| Vec2::from_array(f.uv)),
+            );
+
+            for vertex in &mut face {
+                vertex.tangent = calculate_tangent_handedness_by_orthogonalizing(
+                    Vec3::from_array(vertex.normal),
+                    tangent,
+                    bitangent,
+                ).into_array();
+            }
+
             for vertex in face {
-                vertices.push(StandardVertex {
-                    position: obj.positions.get(vertex.v).copied()?,
-                    color: [1.0; 4],
-                    normal: vertex.vn.map(|n| obj.normals.get(n).copied()).flatten()?,
-                    uv: vertex.vt.map(|n| obj.texcoords.get(n).copied()).flatten()?,
-                });
+                vertices.push(vertex);
             }
         }
     
@@ -122,4 +144,41 @@ impl<'a> MeshLoader<'a> {
     
         Some(mesh)
     }
+}
+
+fn calculate_tangent_handedness_by_orthogonalizing(
+    normal: Vec3<f32>,
+    tangent: Vec3<f32>,
+    bitangent: Vec3<f32>,
+) -> Vec4<f32> {
+    let tangent = tangent.normalized();
+
+    let tangent = (tangent - normal * normal.dot(tangent)).normalized();
+
+    let handedness = if normal.cross(tangent).dot(bitangent) < 0.0 {
+        -1.0
+    } else {
+        1.0
+    };
+
+    tangent.xyzn(handedness)
+}
+
+fn calculate_tangent_bitangent(
+    pos: [Vec3<f32>; 3],
+    uv: [Vec2<f32>; 3],
+) -> (Vec3<f32>, Vec3<f32>) {
+    let edge1 = pos[1] - pos[0];
+    let edge2 = pos[2] - pos[0];
+
+    let duv1 = uv[1] - uv[0];
+    let duv2 = uv[2] - uv[0];
+
+    let r = 1.0 / (duv1.x * duv2.y - duv1.y * duv2.x);
+
+    let tangent = (edge1 * duv2.y - edge2 * duv1.y) * r;
+
+    let bitangent = (edge2 * duv1.x - edge1 * duv2.x) * r;
+
+    (tangent.normalized(), bitangent.normalized())
 }

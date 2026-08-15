@@ -23,6 +23,14 @@ fn code_shader_inputs() -> String {
 @group(1) @binding(0) var<uniform> material_data: MaterialData;
 @group(1) @binding(1) var color_texture: texture_2d<f32>;
 @group(1) @binding(2) var color_sampler: sampler;
+@group(1) @binding(3) var roughness_texture: texture_2d<f32>;
+@group(1) @binding(4) var roughness_sampler: sampler;
+@group(1) @binding(5) var metallic_texture: texture_2d<f32>;
+@group(1) @binding(6) var metallic_sampler: sampler;
+@group(1) @binding(7) var normal_texture: texture_2d<f32>;
+@group(1) @binding(8) var normal_sampler: sampler;
+@group(1) @binding(9) var emission_texture: texture_2d<f32>;
+@group(1) @binding(10) var emission_sampler: sampler;
     "#)
 }
 
@@ -51,8 +59,9 @@ struct MaterialData {
 struct VertexAttributes {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) color: vec4<f32>,
-    @location(3) uv: vec2<f32>,
+    @location(2) tangent: vec4<f32>,
+    @location(3) color: vec4<f32>,
+    @location(4) uv: vec2<f32>,
 };
 
 struct InstanceRawAttributes {
@@ -159,6 +168,14 @@ fn cook_torrance_brdf(
    
     return (diffuse + specular) * light_color * nl;
 }
+
+fn create_matrix_tbn(normal: vec3<f32>, tangent_handedness: vec4<f32>) -> mat3x3<f32> {
+    let N = normalize(normal);
+    var T = normalize(tangent_handedness.xyz);
+    T = normalize(T - N * dot(N, T));
+    let B = cross(N, T) * tangent_handedness.w;
+    return mat3x3<f32>(T, B, N);
+}
     "#)
 }
 
@@ -196,8 +213,9 @@ struct VertexOutput {
     @builtin(position) position_clip: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) normal_world: vec3<f32>,
-    @location(2) position_world: vec3<f32>,
-    @location(3) uv: vec2<f32>,
+    @location(2) tangent_world: vec4<f32>,
+    @location(3) position_world: vec3<f32>,
+    @location(4) uv: vec2<f32>,
 };
 
 fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> VertexOutput {
@@ -208,6 +226,7 @@ fn customer_vertex(vertex: VertexAttributes, instance: InstanceAttributes) -> Ve
     out.position_clip = material_data.matrix_world_to_clip * position_world;
     out.color = vertex.color * material_data.color;
     out.normal_world = (instance.local_to_world * vec4<f32>(vertex.normal, 0.0)).xyz;
+    out.tangent_world = vec4<f32>((instance.local_to_world * vec4<f32>(vertex.tangent.xyz, 0.0)).xyz, vertex.tangent.w);
     out.position_world = position_world.xyz;
     out.uv = vertex.uv;
    
@@ -266,17 +285,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             r#"
     var diffuse_color = color.xyz;
 
-    color = vec4<f32>(material_data.emission_color.xyz, color.w);
-    
+    var emission = material_data.emission_color.xyz * material_data.emission_color.w * textureSample(emission_texture, emission_sampler, in.uv).xyz;
+
+    color = vec4<f32>(emission, color.w);
+
+    let normal_tangent_space = textureSample(normal_texture, normal_sampler, in.uv).xyz * 2.0 - 1.0;
+    let TBN = create_matrix_tbn(in.normal_world, in.tangent_world);
+    let normal_world = normalize(TBN * normal_tangent_space);
+
+    var view_dir = normalize(global_data.camera_position_world - in.position_world);
+    var metallic = material_data.metallic * textureSample(metallic_texture, metallic_sampler, in.uv).x;
+    var roughness = material_data.roughness * textureSample(roughness_texture, roughness_sampler, in.uv).x;
+
     for (var i: u32 = 0; i < global_data.lights_count; i++) {
         var light = light_generic_to_fragment(lights[i], in.position_world);
 
         var color_lit = cook_torrance_brdf(
-            normalize(in.normal_world),
-            normalize(global_data.camera_position_world - in.position_world),
+            normal_world,
+            view_dir,
             diffuse_color,
-            material_data.metallic,
-            material_data.roughness,
+            metallic,
+            roughness,
             light.direction_src,
             light.color
         );

@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, path::Path};
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
 use fruits_ffi::FfiVec;
-use fruits_prefab::{Prefab, PrefabComponent, PrefabDependencies, PrefabEntities, deserialize_component, deserialize_prefab_components, serialize_components, serialize_prefab_single_entity};
+use fruits_prefab::{Prefab, PrefabComponent, PrefabDependencies, PrefabEntities, deserialize_component, deserialize_prefab_components, serialize_components};
 use fruits_serialization::*;
 use fruits_transform::ParentComponent;
 

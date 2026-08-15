@@ -67,7 +67,7 @@ fn init(mut world: WorldDataMut) {
         .resources_mut()
         .get_mut::<RenderApiResource>()
         .unwrap()
-        .create_material(None, StandardMaterialAssetMetadata {
+        .create_material(Default::default(), StandardMaterialAssetMetadata {
             is_lit: false,
             space: RenderSpace::Window,
             color_tex: AssetHandle::EMPTY,
@@ -86,14 +86,20 @@ fn init(mut world: WorldDataMut) {
         .resources()
         .get::<RenderApiResource>()
         .unwrap()
-        .create_material(texture_text, StandardMaterialAssetMetadata {
-            is_lit: false,
-            space: RenderSpace::Window,
-            color_tex: texture_text_handle.clone(),
-            color: Vec4::splat(1.0),
-            alpha_threshold: Some(0.5).into(),
-            ..Default::default()
-        });
+        .create_material(
+            StandardMaterialAssets {
+                color_texture: texture_text,
+                ..Default::default()
+            },
+            StandardMaterialAssetMetadata {
+                is_lit: false,
+                space: RenderSpace::Window,
+                color_tex: texture_text_handle.clone(),
+                color: Vec4::splat(1.0),
+                alpha_threshold: Some(0.5).into(),
+                ..Default::default()
+            },
+        );
 
     let material_white = world.as_mut()
         .resources_mut()

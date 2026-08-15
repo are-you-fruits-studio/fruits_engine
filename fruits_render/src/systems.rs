@@ -668,11 +668,17 @@ pub fn update_text_batched_mesh(
     let window_size = render_res.size();
     let window_size = Vec2::from_array(window_size.map(|v| v as f32));
 
-    let normal = [0.0, 0.0, -1.0];
-
     for (text_c, mesh_c, rect_c) in q.iter_mut() {
         let color = text_c.color.into_array();
         let font = font_assets.get(&text_c.font).unwrap();
+
+        let create_vertex = |uv, position| StandardVertex {
+            color,
+            normal: [0.0, 0.0, -1.0],
+            tangent: [1.0, 0.0, 0.0, 1.0],
+            uv,
+            position,
+        };
 
         let rect = rect_c.copied().unwrap_or(GlobalRectComponent {
             center: Vec2::splat(0.0),
@@ -727,30 +733,10 @@ pub fn update_text_batched_mesh(
                 start_pos + Vec2::new((i + 1) as f32, 1.0) * quad_scale + Vec2::X * horizontal_spacing * i as f32,
             ];
 
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = StandardVertex {
-                color,
-                normal,
-                uv: [char_uvs[0][0], char_uvs[0][1]],
-                position: [pos[0][0], pos[1][1], rect.z],
-            };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = StandardVertex {
-                color,
-                normal,
-                uv: [char_uvs[1][0], char_uvs[0][1]],
-                position: [pos[1][0], pos[1][1], rect.z],
-            };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = StandardVertex {
-                color,
-                normal,
-                uv: [char_uvs[0][0], char_uvs[1][1]],
-                position: [pos[0][0], pos[0][1], rect.z],
-            };
-            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = StandardVertex {
-                color,
-                normal,
-                uv: [char_uvs[1][0], char_uvs[1][1]],
-                position: [pos[1][0], pos[0][1], rect.z],
-            };
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 0] = create_vertex([char_uvs[0][0], char_uvs[0][1]], [pos[0][0], pos[1][1], rect.z]);
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 1] = create_vertex([char_uvs[1][0], char_uvs[0][1]], [pos[1][0], pos[1][1], rect.z]);
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 2] = create_vertex([char_uvs[0][0], char_uvs[1][1]], [pos[0][0], pos[0][1], rect.z]);
+            mesh_c.vertices[i * VERTICES_PER_CHAR + 3] = create_vertex([char_uvs[1][0], char_uvs[1][1]], [pos[1][0], pos[0][1], rect.z]);
 
             mesh_c.indices[i * INDICES_PER_CHAR + 0] = (i * VERTICES_PER_CHAR + 0) as u16;
             mesh_c.indices[i * INDICES_PER_CHAR + 1] = (i * VERTICES_PER_CHAR + 3) as u16;
@@ -763,10 +749,16 @@ pub fn update_text_batched_mesh(
 }
 
 pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut BatchedMeshComponent, Option<&GlobalRectComponent>)>) {
-    let normal = [0.0, 0.0, -1.0];
-
     for (image_c, mesh_c, rect_c) in q.iter_mut() {
         let color = image_c.color.into_array();
+
+        let create_vertex = |uv, position| StandardVertex {
+            color,
+            normal: [0.0, 0.0, -1.0],
+            tangent: [1.0, 0.0, 0.0, 1.0],
+            uv,
+            position,
+        };
 
         let mut rect = rect_c.copied().unwrap_or(GlobalRectComponent {
             center: Vec2::splat(0.5),
@@ -793,30 +785,10 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
             mesh_c.vertices.resize(4, StandardVertex::default());
             mesh_c.indices.resize(6, 0);
 
-            mesh_c.vertices[0] = StandardVertex {
-                color,
-                normal,
-                uv: [0.0, 0.0],
-                position: [pos[0][0], pos[2][1], rect.z],
-            };
-            mesh_c.vertices[1] = StandardVertex {
-                color,
-                normal,
-                uv: [1.0, 0.0],
-                position: [pos[2][0], pos[2][1], rect.z],
-            };
-            mesh_c.vertices[2] = StandardVertex {
-                color,
-                normal,
-                uv: [0.0, 1.0],
-                position: [pos[0][0], pos[0][1], rect.z],
-            };
-            mesh_c.vertices[3] = StandardVertex {
-                color,
-                normal,
-                uv: [1.0, 1.0],
-                position: [pos[2][0], pos[0][1], rect.z],
-            };
+            mesh_c.vertices[0] = create_vertex([0.0, 0.0], [pos[0][0], pos[2][1], rect.z]);
+            mesh_c.vertices[1] = create_vertex([1.0, 0.0], [pos[2][0], pos[2][1], rect.z]);
+            mesh_c.vertices[2] = create_vertex([0.0, 1.0], [pos[0][0], pos[0][1], rect.z]);
+            mesh_c.vertices[3] = create_vertex([1.0, 1.0], [pos[2][0], pos[0][1], rect.z]);
 
             mesh_c.indices[0] = 0;
             mesh_c.indices[1] = 3;
@@ -862,18 +834,8 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
                 mesh_c.vertices.resize(3 + slices, StandardVertex::default());
                 mesh_c.indices.resize(slices * 3, 0);
 
-                mesh_c.vertices[0] = StandardVertex {
-                    color,
-                    normal,
-                    uv: uvs[0],
-                    position: poss[0],
-                };
-                mesh_c.vertices[1] = StandardVertex {
-                    color,
-                    normal,
-                    uv: uvs[1],
-                    position: poss[1],
-                };
+                mesh_c.vertices[0] = create_vertex(uvs[0], poss[0]);
+                mesh_c.vertices[1] = create_vertex(uvs[1], poss[1]);
 
                 for i in 0..slices {
                     if i + 1 == slices {
@@ -883,19 +845,9 @@ pub fn update_image_batched_mesh(mut q: WorldQuery<(&ImageComponent, &mut Batche
 
                         let last_pos = pos[1].lerp_separately(pos[0], t);
 
-                        mesh_c.vertices[i + 2] = StandardVertex {
-                            color,
-                            normal,
-                            uv: uvs[i as usize + 2],
-                            position: [last_pos[0], last_pos[1], rect.z],
-                        };
+                        mesh_c.vertices[i + 2] = create_vertex(uvs[i as usize + 2], [last_pos[0], last_pos[1], rect.z]);
                     } else {
-                        mesh_c.vertices[i + 2] = StandardVertex {
-                            color,
-                            normal,
-                            uv: uvs[i as usize + 2],
-                            position: poss[i as usize + 2],
-                        };
+                        mesh_c.vertices[i + 2] = create_vertex(uvs[i as usize + 2], poss[i as usize + 2]);
                     }
 
                     mesh_c.indices[i * 3 + 0] = (i + 1) as u16;
@@ -1073,19 +1025,13 @@ pub fn render_opaque_instanced(
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
     )>,
-    light_q: WorldQuery<(
-        Option<&GlobalTransform>,
-        &StandardLightComponent,
-    )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
-    standard_render_assets_res: Res<StandardRenderAssetsResource>,
     depth_res: Res<DepthTextureResource>,
     surface_texture: Res<SurfaceTextureResource>,
     meshes: Res<AssetStorageResource<StandardMesh>>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
-    textures: Res<AssetStorageResource<StandardTexture>>,
 ) {
     if mesh_q.len() == 0 {
         return;
@@ -1205,18 +1151,12 @@ pub fn render_opaque_batched(
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
     )>,
-    light_q: WorldQuery<(
-        Option<&GlobalTransform>,
-        &StandardLightComponent,
-    )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
-    standard_render_assets_res: Res<StandardRenderAssetsResource>,
     depth_res: Res<DepthTextureResource>,
     surface_texture: Res<SurfaceTextureResource>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
-    textures: Res<AssetStorageResource<StandardTexture>>,
     mut batched_vertex_cpu_buffer: ResMut<BatchedVertexCpuBufferResource>,
 ) {
     if query.len() == 0 {
@@ -1393,19 +1333,13 @@ pub fn render_transparent_instanced(
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
     )>,
-    light_q: WorldQuery<(
-        Option<&GlobalTransform>,
-        &StandardLightComponent,
-    )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
-    standard_render_assets_res: Res<StandardRenderAssetsResource>,
     depth_res: Res<DepthTextureResource>,
     transparent_target_res: Res<TransparentTargetTextureResource>,
     meshes: Res<AssetStorageResource<StandardMesh>>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
-    textures: Res<AssetStorageResource<StandardTexture>>,
 ) {
     if query.len() == 0 {
         return;
@@ -1522,18 +1456,12 @@ pub fn render_transparent_batched(
         &StandardMaterialComponent,
         Option<&GlobalDisableableComponent>,
     )>,
-    light_q: WorldQuery<(
-        Option<&GlobalTransform>,
-        &StandardLightComponent,
-    )>,
     render_api: Res<RenderApiResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
-    standard_render_assets_res: Res<StandardRenderAssetsResource>,
     depth_res: Res<DepthTextureResource>,
     transparent_target_res: Res<TransparentTargetTextureResource>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
-    textures: Res<AssetStorageResource<StandardTexture>>,
     mut batched_vertex_cpu_buffer: ResMut<BatchedVertexCpuBufferResource>,
 ) {
     if query.len() == 0 {

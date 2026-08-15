@@ -40,7 +40,8 @@ members = [
     "fruits_json",
     "fruits_serialization_macros",
     "fruits_audio",
-    "fruits_example/fruits_audio_screen_saver"
+    "fruits_example/fruits_audio_screen_saver",
+    "fruits_example/fruits_example_normals"
 ]
 
 [package]
