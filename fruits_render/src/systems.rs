@@ -486,6 +486,109 @@ pub fn recreate_transparent_target_resource(mut world: WorldDataMut) {
     }
 }
 
+pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
+
+    let screen_size = render_api.size();
+
+    let render_state = unsafe { render_api.raw() };
+
+    let mut contains_transparent_target = false;
+
+    if let Some(render_res) = world.as_ref().resources().get::<BloomRenderResource>() {
+        contains_transparent_target = true;
+
+        let are_same_size = {
+            render_res.textures[0].size().width == screen_size[0]
+                && render_res.textures[0].size().height == screen_size[1]
+                && render_res.textures[1].size().width == screen_size[0]
+                && render_res.textures[1].size().height == screen_size[1]
+        };
+
+        if are_same_size {
+            return;
+        }
+    }
+
+    let textures = std::array::from_fn::<_, 2, _>(|i| render_state.device().create_texture(&TextureDescriptor {
+        label: Some(&format!("Bloom Buffer {i}")),
+        size: Extent3d {
+            width: screen_size[0],
+            height: screen_size[1],
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba16Float,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    }));
+
+    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Transparent Target Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: FilterMode::Nearest,
+        compare: None,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    // todo
+    // let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
+    //     label: Some("Transparent Target Bind Group Layout"),
+    //     entries: &[
+    //         BindGroupLayoutEntry {
+    //             binding: 0,
+    //             count: None,
+    //             ty: BindingType::Texture {
+    //                 sample_type: wgpu::TextureSampleType::Float { filterable: false },
+    //                 view_dimension: wgpu::TextureViewDimension::D2,
+    //                 multisampled: false,
+    //             },
+    //             visibility: ShaderStages::VERTEX_FRAGMENT,
+    //         },
+    //         BindGroupLayoutEntry {
+    //             binding: 1,
+    //             count: None,
+    //             ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+    //             visibility: ShaderStages::VERTEX_FRAGMENT,
+    //         },
+    //     ],
+    // });
+
+    // let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+    //     label: Some("Transparent Target Bind Group"),
+    //     layout: &bind_group_layout,
+    //     entries: &[
+    //         BindGroupEntry {
+    //             binding: 0,
+    //             resource: wgpu::BindingResource::TextureView(&texture_view),
+    //         },
+    //         BindGroupEntry {
+    //             binding: 1,
+    //             resource: wgpu::BindingResource::Sampler(&sampler),
+    //         },
+    //     ],
+    // });
+
+    let render_res = BloomRenderResource {
+        textures,
+        sampler,
+    };
+
+    if contains_transparent_target {
+        *world.resources_mut().get_mut().unwrap() = render_res;
+    } else {
+        world.resources_mut().insert(render_res);
+    }
+}
+
 pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
     let render_state = unsafe { world.as_ref().resources().get::<RenderApiResource>().unwrap().raw() };
 
@@ -1228,13 +1331,19 @@ pub fn render_opaque_batched(
 
         let mut batch_buffer_i = 0;
 
+        let srgb_to_linear = |x: f32| x.powf(2.2);
         for (mat, batched_mesh) in matrices_and_meshes {
             for &i in &batched_mesh.indices {
                 let mut vertex = batched_mesh.vertices[i as u64];
 
                 vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
                 vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();
-                vertex.color = vertex.color.map(|x| x.powf(2.2));
+                vertex.color = [
+                    srgb_to_linear(vertex.color[0]),
+                    srgb_to_linear(vertex.color[1]),
+                    srgb_to_linear(vertex.color[2]),
+                    vertex.color[3],
+                ];
 
                 batch_cpu_buffer[batch_buffer_i] = vertex;
 
@@ -1246,7 +1355,7 @@ pub fn render_opaque_batched(
 
                 batch_buffer_i = 0;
 
-                submit_render(
+                submit_render_batched(
                     &render_state,
                     &standard_render_res,
                     &batch_cpu_buffer[..],
@@ -1259,7 +1368,7 @@ pub fn render_opaque_batched(
         }
 
         if batch_buffer_i > 0 {
-            submit_render(
+            submit_render_batched(
                 &render_state,
                 &standard_render_res,
                 &batch_cpu_buffer[..batch_buffer_i],
@@ -1268,59 +1377,6 @@ pub fn render_opaque_batched(
                 render_pipeline,
                 bind_group,
             );
-        }
-
-        fn submit_render(
-            render_state: &RenderState,
-            standard_render_res: &StandardRenderResource,
-            batched_cpu_slice: &[StandardVertex],
-            render_target_view: &TextureView,
-            depth_res: &DepthTextureResource,
-            render_pipeline: &RenderPipeline,
-            bind_group: &BindGroup,
-        ) {
-            render_state.queue().write_buffer(
-                &standard_render_res.batched_vertex_buffer,
-                0,
-                fruits_utils::mem::as_bytes_slice(batched_cpu_slice),
-            );
-
-            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-            {
-                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: render_target_view,
-                        resolve_target: None,
-                        ops: Operations {
-                            load: LoadOp::Load,
-                            store: StoreOp::Store,
-                        },
-                        depth_slice: None,
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &depth_res.texture_view,
-                        depth_ops: Some(Operations {
-                            load: LoadOp::Load,
-                            store: StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    }),
-                    ..Default::default()
-                });
-
-                render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
-                render_pass.set_bind_group(1, bind_group, &[]);
-                render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
-                render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
-                render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
-            }
-
-            render_state.queue().submit(std::iter::once(encoder.finish()));
         }
     }
 }
@@ -1529,12 +1585,19 @@ pub fn render_transparent_batched(
 
         let mut batch_buffer_i = 0;
 
+        let srgb_to_linear = |x: f32| x.powf(2.2);
         for (mat, batched_mesh) in matrices_and_meshes {
             for &i in &batched_mesh.indices {
                 let mut vertex = batched_mesh.vertices[i as u64];
 
                 vertex.position = mat.mul_with_projection(Vec3::from_array(vertex.position)).into_array();
                 vertex.normal = mat.mul_with_projection_as_dir(Vec3::from_array(vertex.normal)).into_array();
+                vertex.color = [
+                    srgb_to_linear(vertex.color[0]),
+                    srgb_to_linear(vertex.color[1]),
+                    srgb_to_linear(vertex.color[2]),
+                    vertex.color[3],
+                ];
 
                 batch_cpu_buffer[batch_buffer_i] = vertex;
 
@@ -1546,7 +1609,7 @@ pub fn render_transparent_batched(
 
                 batch_buffer_i = 0;
 
-                submit_render(
+                submit_render_batched(
                     &render_state,
                     &standard_render_res,
                     &batch_cpu_buffer[..],
@@ -1559,7 +1622,7 @@ pub fn render_transparent_batched(
         }
 
         if batch_buffer_i > 0 {
-            submit_render(
+            submit_render_batched(
                 &render_state,
                 &standard_render_res,
                 &batch_cpu_buffer[..batch_buffer_i],
@@ -1568,59 +1631,6 @@ pub fn render_transparent_batched(
                 render_pipeline,
                 bind_group,
             );
-        }
-
-        fn submit_render(
-            render_state: &RenderState,
-            standard_render_res: &StandardRenderResource,
-            batched_cpu_slice: &[StandardVertex],
-            render_target_view: &TextureView,
-            depth_res: &DepthTextureResource,
-            render_pipeline: &RenderPipeline,
-            bind_group: &BindGroup,
-        ) {
-            render_state.queue().write_buffer(
-                &standard_render_res.batched_vertex_buffer,
-                0,
-                fruits_utils::mem::as_bytes_slice(batched_cpu_slice),
-            );
-
-            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-            {
-                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: render_target_view,
-                        resolve_target: None,
-                        ops: Operations {
-                            load: LoadOp::Load,
-                            store: StoreOp::Store,
-                        },
-                        depth_slice: None,
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &depth_res.texture_view,
-                        depth_ops: Some(Operations {
-                            load: LoadOp::Load,
-                            store: StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    }),
-                    ..Default::default()
-                });
-
-                render_pass.set_pipeline(render_pipeline);
-                render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
-                render_pass.set_bind_group(1, bind_group, &[]);
-                render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
-                render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
-                render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
-            }
-
-            render_state.queue().submit(std::iter::once(encoder.finish()));
         }
     }
 }
@@ -1648,6 +1658,46 @@ pub fn render_transparent_final(
             label: Some("Transparent Final Render Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: &view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Load,
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        render_pass.set_pipeline(&standard_render_res.render_pipeline_transparent_final);
+        render_pass.set_bind_group(0, &transparent_target_res.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
+    }
+
+    render_state.queue().submit(std::iter::once(encoder.finish()));
+}
+
+pub fn render_gather_bloom_threshold(
+    render_api: Res<RenderApiResource>,
+    surface_texture: Res<SurfaceTextureResource>,
+) {
+    let render_state = unsafe { render_api.raw() };
+
+    let Some(surface_texture) = &surface_texture.texture else {
+        return;
+    };
+
+    let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Gather Bloom Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Gather Bloom Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &surface_texture_view,
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Load,
@@ -1782,4 +1832,59 @@ pub fn render_gizmos(
             render_state.queue().submit(std::iter::once(encoder.finish()));
         }
     }
+}
+
+//
+
+fn submit_render_batched(
+    render_state: &RenderState,
+    standard_render_res: &StandardRenderResource,
+    batched_cpu_slice: &[StandardVertex],
+    render_target_view: &TextureView,
+    depth_res: &DepthTextureResource,
+    render_pipeline: &RenderPipeline,
+    bind_group: &BindGroup,
+) {
+    render_state.queue().write_buffer(
+        &standard_render_res.batched_vertex_buffer,
+        0,
+        fruits_utils::mem::as_bytes_slice(batched_cpu_slice),
+    );
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: render_target_view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Load,
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &depth_res.texture_view,
+                depth_ops: Some(Operations {
+                    load: LoadOp::Load,
+                    store: StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            ..Default::default()
+        });
+
+        render_pass.set_pipeline(render_pipeline);
+        render_pass.set_bind_group(0, &standard_render_res.global_bind_group, &[]);
+        render_pass.set_bind_group(1, bind_group, &[]);
+        render_pass.set_vertex_buffer(1, standard_render_res.instance_buffer.slice(..));
+        render_pass.set_vertex_buffer(0, standard_render_res.batched_vertex_buffer.slice(..));
+        render_pass.draw(0..(batched_cpu_slice.len() as u32), 0..1);
+    }
+
+    render_state.queue().submit(std::iter::once(encoder.finish()));
 }

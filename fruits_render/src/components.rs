@@ -54,6 +54,7 @@ pub enum StandardLightComponent {
 #[repr(C)]
 #[derive(Component)]
 pub struct CameraComponent {
+    // todo: orthographic projection
     pub fov: f32,
     pub near: f32,
     pub far: f32,

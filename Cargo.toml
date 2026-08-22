@@ -42,7 +42,7 @@ members = [
     "fruits_audio",
     "fruits_example/fruits_audio_screen_saver",
     "fruits_example/fruits_example_normals"
-]
+, "fruits_example/fruits_example_bloom"]
 
 [package]
 name = "fruits_engine"

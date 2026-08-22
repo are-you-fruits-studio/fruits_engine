@@ -327,6 +327,7 @@ impl RenderState {
         assets: StandardMaterialAssets<Option<&StandardTexture>>,
         meta: StandardMaterialAssetMetadata,
     ) -> StandardMaterial {
+        // todo: use asset-handles as a single source of truth - probably add an is_dirty flag to the material and update the gpu-side data every frame (if dirty)
         let assets = StandardMaterialAssets {
             color_texture: assets.color_texture.unwrap_or_else(|| &self.render_data.texture_white),
             roughness_texture: assets.roughness_texture.unwrap_or_else(|| &self.render_data.texture_white),
