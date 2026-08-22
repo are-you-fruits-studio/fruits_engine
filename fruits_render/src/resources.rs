@@ -73,6 +73,16 @@ pub struct TransparentTargetTextureResource {
 
 // todo: support ffi
 #[derive(Resource)]
+pub struct BloomRenderResource {
+    pub textures: [Texture; 2],
+    pub sampler: Sampler,
+    // todo
+    // pub bind_group_layout: BindGroupLayout,
+    // pub bind_group: BindGroup,
+}
+
+// todo: support ffi
+#[derive(Resource)]
 pub struct StandardRenderResource {
     pub pipeline_layout: PipelineLayout,
     pub global_bind_group: BindGroup,

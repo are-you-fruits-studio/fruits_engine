@@ -213,6 +213,7 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(create_standard_render_resource)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
+        .insert_child_system(recreate_bloom_render_resource)
         .insert_child_system(create_gizmos_render_resource);
 
     start
@@ -220,6 +221,7 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .before_system(create_standard_render_resource);
     start
         .order_system(recreate_transparent_target_resource)
+        .before_system(recreate_bloom_render_resource)
         .before_system(create_standard_render_resource);
 
     let mut update = world_behavior.get_mut(Schedule::Update);
@@ -238,6 +240,7 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(update_masked_batched_mesh)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
+        .insert_child_system(recreate_bloom_render_resource)
         .insert_child_system(clear_depth)
         .insert_child_system(clear_transparent_target)
         .insert_child_system(update_lights_buffer)

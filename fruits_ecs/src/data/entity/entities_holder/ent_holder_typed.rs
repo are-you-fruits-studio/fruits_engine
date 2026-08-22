@@ -217,6 +217,8 @@ impl<'e> EntitiesHolderMut<'e> {
     }
 
     pub fn add_component<C: 'static>(&mut self, entity: EntityId, component: C) -> Result<(), C> {
+        // todo: maybe don't use result and have option instead or/and have different variants for add-or-replace, replace-if-present, trying-to-add, add-only.
+        // todo: maybe an hashmap-like "entry" api
         unsafe { entities_holder_add_component(&mut *self.entities, self.types, entity, component) }
     }
 

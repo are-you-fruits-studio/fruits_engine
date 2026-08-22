@@ -20,6 +20,8 @@ pub const LIGHTS_COUNT_MAX: usize = 1024;
 pub fn create_window_to_clip_matrix(width: f32, height: f32, near: f32, far: f32) -> Mat4<f32> {
     let z_near_to_far_inv = 1.0 / (far - near);
 
+    // todo: make window space bottom-to-top (not inverted like it is right now compared to the clip and world space)
+
     Mat4::from_array([
         [2.0 / width, 0.0, 0.0, 0.0],
         [0.0, -2.0 / height, 0.0, 0.0],
