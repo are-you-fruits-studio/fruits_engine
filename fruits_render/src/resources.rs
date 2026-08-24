@@ -11,8 +11,13 @@ use super::GizmoLine;
 
 // todo: support ffi
 #[derive(Resource)]
-pub struct SurfaceTextureResource {
-    pub texture: Option<SurfaceTexture>,
+pub struct MainRenderTargetResource {
+    pub texture: Texture,
+    pub texture_view: TextureView,
+    pub sampler: Sampler,
+    pub bind_group_layout: BindGroupLayout,
+    pub bind_group: BindGroup,
+    pub render_pipeline: RenderPipeline,
 }
 
 #[repr(C)]

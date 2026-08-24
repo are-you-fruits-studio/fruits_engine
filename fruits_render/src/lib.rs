@@ -196,7 +196,6 @@ pub const SYSTEM_GROUP_RENDER: &'static str = "fruits_render";
 
 pub fn add_render_module_to(mut world: WorldBuilderMut) {
     let mut res = world.data_mut().into_resources_mut();
-    res.insert(SurfaceTextureResource { texture: None });
     res.insert(AssetStorageResource::<StandardMaterial>::new());
     res.insert(AssetStorageResource::<StandardMesh>::new());
     res.insert(AssetStorageResource::<StandardTexture>::new());
@@ -211,16 +210,16 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
     start
         .group(SYSTEM_GROUP_RENDER)
         .insert_child_system(create_standard_render_resource)
+        .insert_child_system(recreate_main_render_target_resource)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
         .insert_child_system(recreate_bloom_render_resource)
         .insert_child_system(create_gizmos_render_resource);
 
     start
-        .order_system(recreate_depth_texture_resource)
-        .before_system(create_standard_render_resource);
-    start
-        .order_system(recreate_transparent_target_resource)
+        .order_system(recreate_main_render_target_resource)
+        .before_system(recreate_depth_texture_resource)
+        .before_system(recreate_transparent_target_resource)
         .before_system(recreate_bloom_render_resource)
         .before_system(create_standard_render_resource);
 
@@ -228,9 +227,8 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
 
     update
         .group(SYSTEM_GROUP_RENDER)
-        .insert_child_system(request_surface_texture)
         .insert_child_group("fruits_render_stuff")
-        .insert_child_system(present_surface);
+        .insert_child_system(render_main_target_to_surface_system);
 
     update
         .group("fruits_render_stuff")
@@ -238,9 +236,11 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(update_text_batched_mesh)
         .insert_child_system(update_image_batched_mesh)
         .insert_child_system(update_masked_batched_mesh)
+        .insert_child_system(recreate_main_render_target_resource)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
         .insert_child_system(recreate_bloom_render_resource)
+        .insert_child_system(clear_main_render_target)
         .insert_child_system(clear_depth)
         .insert_child_system(clear_transparent_target)
         .insert_child_system(update_lights_buffer)
@@ -253,8 +253,10 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(render_gizmos);
 
     update
-        .order_system(recreate_depth_texture_resource)
+        .order_system(recreate_main_render_target_resource)
+        .before_system(recreate_depth_texture_resource)
         .before_system(recreate_transparent_target_resource)
+        .before_system(clear_main_render_target)
         .before_system(clear_depth)
         .before_system(clear_transparent_target)
         .before_system(update_camera_uniform)
@@ -280,8 +282,5 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .order_system(update_masked_batched_mesh)
         .before_system(render_transparent_batched);
 
-    update
-        .order_system(request_surface_texture)
-        .before_group("fruits_render_stuff");
-    update.order_group("fruits_render_stuff").before_system(present_surface);
+    update.order_group("fruits_render_stuff").before_system(render_main_target_to_surface_system);
 }

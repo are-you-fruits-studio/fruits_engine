@@ -16,7 +16,7 @@ use crate::{utils::*, *};
 use super::{
     DepthTextureResource, GizmosRenderResource, GizmosResource, ImageFillSettings, StandardRenderResource,
     components::{CameraComponent, StandardMaterialComponent, StandardMeshComponent},
-    resources::SurfaceTextureResource,
+    resources::MainRenderTargetResource,
 };
 
 // todo: refactor this file's duplications
@@ -26,6 +26,7 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
 
     let depth_tex = world.as_ref().resources().get::<DepthTextureResource>().unwrap();
     let transparent_target_tex = world.as_ref().resources().get::<TransparentTargetTextureResource>().unwrap();
+    let main_render_target_res = world.as_ref().resources().get::<MainRenderTargetResource>().unwrap();
 
     let pipeline_layout_standard = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Standard Pipeline Layout"),
@@ -50,7 +51,7 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
 
         let color_target_state = match is_transparent {
             false => wgpu::ColorTargetState {
-                format: render_state.surface_config_format(),
+                format: main_render_target_res.texture.format(),
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             },
@@ -137,7 +138,7 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
             module: &render_pipeline_transparent_shader,
             entry_point: Some("fs_main"),
             targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config_format(),
+                format: main_render_target_res.texture.format(),
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::COLOR,
             })],
@@ -315,6 +316,160 @@ fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) ->
         .insert(font);
 
     (texture, font)
+}
+
+pub fn recreate_main_render_target_resource(mut world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
+
+    let screen_size = render_api.size();
+
+    let render_state = unsafe { render_api.raw() };
+
+    let mut contains_main_render_target = false;
+
+    if let Some(main_render_target_res) = world.as_ref().resources().get::<MainRenderTargetResource>() {
+        contains_main_render_target = true;
+
+        let are_same_size = {
+            main_render_target_res.texture.size().width == screen_size[0]
+                && main_render_target_res.texture.size().height == screen_size[1]
+        };
+
+        if are_same_size {
+            return;
+        }
+    }
+
+    let texture = render_state.device().create_texture(&TextureDescriptor {
+        label: Some("Main Render Target"),
+        size: Extent3d {
+            width: screen_size[0],
+            height: screen_size[1],
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba16Float,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+
+    let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Render Surface Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Nearest,
+        min_filter: FilterMode::Nearest,
+        mipmap_filter: FilterMode::Nearest,
+        compare: None,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("Render Surface Bind Group Layout"),
+        entries: &[
+            BindGroupLayoutEntry {
+                binding: 0,
+                count: None,
+                ty: BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                visibility: ShaderStages::VERTEX_FRAGMENT,
+            },
+            BindGroupLayoutEntry {
+                binding: 1,
+                count: None,
+                ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                visibility: ShaderStages::VERTEX_FRAGMENT,
+            },
+        ],
+    });
+
+    let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Render Surface Bind Group"),
+        layout: &bind_group_layout,
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&texture_view),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&sampler),
+            },
+        ],
+    });
+
+    let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Render Surface Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    });
+
+    let shader = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_render_surface.wgsl"));
+
+    let render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Surface Render Pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            buffers: &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            targets: &[Some(wgpu::ColorTargetState {
+                format: render_state.surface_config_format(),
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            polygon_mode: wgpu::PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        multiview: None,
+        cache: None,
+    });
+
+    let main_render_target_res = MainRenderTargetResource {
+        texture,
+        texture_view,
+        sampler,
+        bind_group_layout,
+        bind_group,
+        render_pipeline,
+    };
+
+    if contains_main_render_target {
+        *world.resources_mut().get_mut().unwrap() = main_render_target_res;
+    } else {
+        world.resources_mut().insert(main_render_target_res);
+    }
 }
 
 pub fn recreate_depth_texture_resource(mut world: WorldDataMut) {
@@ -591,6 +746,7 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
 
 pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
     let render_state = unsafe { world.as_ref().resources().get::<RenderApiResource>().unwrap().raw() };
+    let main_render_target_res = world.as_ref().resources().get::<MainRenderTargetResource>().unwrap();
 
     let vertices_cpu_buffer = vec![[Vec4::splat(0.0); 2]; GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
     let colors_cpu_buffer = vec![Vec4::splat(0.0); GIZMO_LINES_PER_DRAW_MAX].into_boxed_slice();
@@ -702,7 +858,7 @@ pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
             module: &shader,
             entry_point: Some("fragment_main"),
             targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config_format(),
+                format: main_render_target_res.texture.format(),
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -1010,14 +1166,48 @@ pub fn update_masked_batched_mesh(
     });
 }
 
-pub fn request_surface_texture(render_api: Res<RenderApiResource>, mut surface_texture: ResMut<SurfaceTextureResource>) {
-    surface_texture.texture = unsafe { render_api.raw().surface().get_current_texture().ok() };
-}
+pub fn render_main_target_to_surface_system(
+    render_api: Res<RenderApiResource>,
+    main_render_target: Res<MainRenderTargetResource>
+) {
+    let surface_texture = unsafe { render_api.raw().surface().get_current_texture().ok() };
 
-pub fn present_surface(mut surface_texture: ResMut<SurfaceTextureResource>) {
-    if let Some(texture) = surface_texture.texture.take() {
-        texture.present();
+    let Some(surface_texture) = surface_texture else {
+        return;
+    };
+
+    let render_state = unsafe { render_api.raw() };
+
+    let view = &surface_texture.texture.create_view(&Default::default());
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Surface Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Surface Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Load,
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        render_pass.set_pipeline(&main_render_target.render_pipeline);
+        render_pass.set_bind_group(0, &main_render_target.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
     }
+
+    render_state.queue().submit(std::iter::once(encoder.finish()));
+    
+    surface_texture.present();
 }
 
 pub fn clear_depth(render_api: Res<RenderApiResource>, depth_res: Res<DepthTextureResource>) {
@@ -1039,6 +1229,36 @@ pub fn clear_depth(render_api: Res<RenderApiResource>, depth_res: Res<DepthTextu
                 }),
                 stencil_ops: None,
             }),
+            ..Default::default()
+        });
+    }
+
+    render_state.queue().submit(std::iter::once(encoder.finish()));
+}
+
+pub fn clear_main_render_target(
+    render_api: Res<RenderApiResource>,
+    main_render_res: Res<MainRenderTargetResource>,
+) {
+    let render_state = unsafe { render_api.raw() };
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Clear Main Render Target Encoder"),
+    });
+
+    {
+        let mut _render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Clear Main Render Target Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &main_render_res.texture_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
             ..Default::default()
         });
     }
@@ -1132,7 +1352,7 @@ pub fn render_opaque_instanced(
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     depth_res: Res<DepthTextureResource>,
-    surface_texture: Res<SurfaceTextureResource>,
+    surface_texture: Res<MainRenderTargetResource>,
     meshes: Res<AssetStorageResource<StandardMesh>>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
 ) {
@@ -1142,11 +1362,7 @@ pub fn render_opaque_instanced(
 
     let render_state = unsafe { render_api.raw() };
 
-    let Some(surface_texture) = &surface_texture.texture else {
-        return;
-    };
-
-    let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+    let view = &surface_texture.texture_view;
 
     let window_size = render_state.size();
 
@@ -1214,7 +1430,7 @@ pub fn render_opaque_instanced(
                 let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &view,
+                        view: view,
                         resolve_target: None,
                         ops: Operations {
                             load: LoadOp::Load,
@@ -1258,7 +1474,7 @@ pub fn render_opaque_batched(
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     depth_res: Res<DepthTextureResource>,
-    surface_texture: Res<SurfaceTextureResource>,
+    surface_texture: Res<MainRenderTargetResource>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
     mut batched_vertex_cpu_buffer: ResMut<BatchedVertexCpuBufferResource>,
 ) {
@@ -1268,11 +1484,7 @@ pub fn render_opaque_batched(
 
     let render_state = unsafe { render_api.raw() };
 
-    let Some(surface_texture) = &surface_texture.texture else {
-        return;
-    };
-
-    let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+    let view = &surface_texture.texture_view;
 
     let window_size = render_state.size();
 
@@ -1359,7 +1571,7 @@ pub fn render_opaque_batched(
                     &render_state,
                     &standard_render_res,
                     &batch_cpu_buffer[..],
-                    &view,
+                    view,
                     &depth_res,
                     render_pipeline,
                     bind_group,
@@ -1372,7 +1584,7 @@ pub fn render_opaque_batched(
                 &render_state,
                 &standard_render_res,
                 &batch_cpu_buffer[..batch_buffer_i],
-                &view,
+                view,
                 &depth_res,
                 render_pipeline,
                 bind_group,
@@ -1639,15 +1851,11 @@ pub fn render_transparent_final(
     render_api: Res<RenderApiResource>,
     standard_render_res: Res<StandardRenderResource>,
     transparent_target_res: Res<TransparentTargetTextureResource>,
-    surface_texture: Res<SurfaceTextureResource>,
+    surface_texture: Res<MainRenderTargetResource>,
 ) {
     let render_state = unsafe { render_api.raw() };
 
-    let Some(surface_texture) = &surface_texture.texture else {
-        return;
-    };
-
-    let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+    let view = &surface_texture.texture_view;
 
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Transparent Final Render Encoder"),
@@ -1657,7 +1865,7 @@ pub fn render_transparent_final(
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Transparent Final Render Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: &view,
+                view: view,
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Load,
@@ -1679,15 +1887,14 @@ pub fn render_transparent_final(
 
 pub fn render_gather_bloom_threshold(
     render_api: Res<RenderApiResource>,
-    surface_texture: Res<SurfaceTextureResource>,
+    surface_texture: Res<MainRenderTargetResource>,
 ) {
+    // todo
+    return;
+
     let render_state = unsafe { render_api.raw() };
 
-    let Some(surface_texture) = &surface_texture.texture else {
-        return;
-    };
-
-    let surface_texture_view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+    let view = &surface_texture.texture_view;
 
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Gather Bloom Render Encoder"),
@@ -1697,7 +1904,7 @@ pub fn render_gather_bloom_threshold(
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Gather Bloom Render Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: &surface_texture_view,
+                view: view,
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Load,
@@ -1709,9 +1916,9 @@ pub fn render_gather_bloom_threshold(
             ..Default::default()
         });
 
-        render_pass.set_pipeline(&standard_render_res.render_pipeline_transparent_final);
-        render_pass.set_bind_group(0, &transparent_target_res.bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
+        // render_pass.set_pipeline(&standard_render_res.render_pipeline_transparent_final);
+        // render_pass.set_bind_group(0, &transparent_target_res.bind_group, &[]);
+        // render_pass.draw(0..3, 0..1);
     }
 
     render_state.queue().submit(std::iter::once(encoder.finish()));
@@ -1720,16 +1927,12 @@ pub fn render_gather_bloom_threshold(
 pub fn render_gizmos(
     mut gizmos: ResMut<GizmosResource>,
     mut gizmos_render_res: ResMut<GizmosRenderResource>,
-    surface_texture: Res<SurfaceTextureResource>,
+    surface_texture: Res<MainRenderTargetResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     render_api: Res<RenderApiResource>,
     camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
-    let Some(surface_texture) = &surface_texture.texture else {
-        return;
-    };
-
-    let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+    let view = &surface_texture.texture_view;
 
     let render_state = unsafe { render_api.raw() };
 
