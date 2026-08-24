@@ -146,7 +146,7 @@ impl<'a> MeshLoader<'a> {
     }
 }
 
-fn calculate_tangent_handedness_by_orthogonalizing(
+pub fn calculate_tangent_handedness_by_orthogonalizing(
     normal: Vec3<f32>,
     tangent: Vec3<f32>,
     bitangent: Vec3<f32>,
@@ -164,7 +164,7 @@ fn calculate_tangent_handedness_by_orthogonalizing(
     tangent.xyzn(handedness)
 }
 
-fn calculate_tangent_bitangent(
+pub fn calculate_tangent_bitangent(
     pos: [Vec3<f32>; 3],
     uv: [Vec2<f32>; 3],
 ) -> (Vec3<f32>, Vec3<f32>) {
