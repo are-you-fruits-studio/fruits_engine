@@ -74,7 +74,7 @@ use fruits_ecs::{Component, Schedule, WorldBuilderMut};
 use fruits_ffi::{FfiOption, FfiSmallString, FfiString, FfiVec};
 use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
 use fruits_prefab::Prefab;
-use fruits_render::Font;
+use fruits_ui::Font;
 use fruits_render_core::{CoordinateSpaceType, RenderSpace, StandardMaterial, StandardMaterialAssetMetadata, StandardMesh, StandardMeshAssetMetadata, StandardTexture, StandardTextureAssetMetadata};
 use fruits_serialization::*;
 use fruits_transform::{ChildComponent, ParentComponent};
@@ -84,6 +84,7 @@ pub mod fps_counter;
 pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
     fruits_collision::add_collision_module_to(world.as_mut());
     fruits_transform::add_transform_module_to(world.as_mut());
+    fruits_ui::add_ui_module_to(world.as_mut());
     fruits_render::add_render_module_to(world.as_mut());
     fruits_audio::add_audio_module_to(world.as_mut());
     fruits_asset_loading::add_asset_module_to(world.as_mut());

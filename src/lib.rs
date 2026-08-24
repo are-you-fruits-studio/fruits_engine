@@ -15,6 +15,7 @@ pub use fruits_asset_loading::*;
 pub use fruits_asset_storage::*;
 pub use fruits_transform::*;
 pub use fruits_render::*;
+pub use fruits_ui::*;
 pub use fruits_render_core::*;
 pub use fruits_collision::*;
 pub use fruits_prefab::*;

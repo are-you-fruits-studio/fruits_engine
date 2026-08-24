@@ -8,7 +8,6 @@ crate-type = ["lib"]
 
 [dependencies]
 wgpu = "26"
-image = "0.25"
 fruits_math = { path = "../fruits_math" }
 fruits_ecs = { path = "../fruits_ecs" }
 fruits_utils = { path = "../fruits_utils" }

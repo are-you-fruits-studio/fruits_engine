@@ -116,10 +116,10 @@ fn run_editor_app(project_path: &str) {
 fn init_system(mut world: WorldDataMut) {
     let (mut res, ec, evt) = world.as_tuple_mut();
 
-    let standard_render_assets_res = res.get::<StandardRenderAssetsResource>().unwrap();
+    let standard_ui_assets = res.get::<StandardUiAssetsResource>().unwrap();
 
-    let font = standard_render_assets_res.font_px_8_12.clone();
-    let texture_text = standard_render_assets_res.texture_text_px_8_8.clone();
+    let font = standard_ui_assets.font_px_8_12.clone();
+    let texture_text = standard_ui_assets.texture_text_px_8_8.clone();
 
     let textures_res = res.get::<AssetStorageResource<StandardTexture>>().unwrap();
 

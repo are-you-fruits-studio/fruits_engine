@@ -41,8 +41,10 @@ members = [
     "fruits_serialization_macros",
     "fruits_audio",
     "fruits_example/fruits_audio_screen_saver",
-    "fruits_example/fruits_example_normals"
-, "fruits_example/fruits_example_bloom"]
+    "fruits_example/fruits_example_normals",
+    "fruits_example/fruits_example_bloom",
+    "fruits_ui",
+]
 
 [package]
 name = "fruits_engine"
@@ -76,3 +78,4 @@ fruits_render_core = { path = "./fruits_render_core" }
 fruits_collision = { path = "./fruits_collision" }
 fruits_prefab = { path = "./fruits_prefab" }
 fruits_json = { path = "./fruits_json" }
+fruits_ui = { path = "./fruits_ui" }
