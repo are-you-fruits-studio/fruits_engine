@@ -120,7 +120,7 @@
 //! the long-lived GPU resources once ([`create_standard_render_resource`],
 //! [`create_gizmos_render_resource`], and the depth/transparent targets). Each
 //! [`Schedule::Update`] acquires the surface texture
-//! ([`request_surface_texture`]), runs the inner `fruits_render_stuff` group, then presents it
+//! ([`request_surface_texture`]), runs the inner `SYSTEM_GROUP_RENDER_INTERNAL` group, then presents it
 //! ([`present_surface`]). Inside that group the explicit ordering is: rebuild render targets and
 //! the camera uniform, build text/image/masked mesh data, clear the depth and transparent
 //! targets, draw opaque geometry, draw transparent geometry, composite the transparent target,
@@ -193,13 +193,13 @@ use fruits_ecs::{Schedule, WorldBuilderMut};
 use fruits_render_core::{StandardMesh, StandardTexture, StandardMaterial};
 
 pub const SYSTEM_GROUP_RENDER: &'static str = "fruits_render";
+pub const SYSTEM_GROUP_RENDER_INTERNAL: &'static str = "fruits_render_internal";
 
 pub fn add_render_module_to(mut world: WorldBuilderMut) {
     let mut res = world.data_mut().into_resources_mut();
     res.insert(AssetStorageResource::<StandardMaterial>::new());
     res.insert(AssetStorageResource::<StandardMesh>::new());
     res.insert(AssetStorageResource::<StandardTexture>::new());
-    res.insert(AssetStorageResource::<Font>::new());
     res.insert(GizmosResource::default());
     res.insert(ScreenSpaceResource::default());
 
@@ -227,15 +227,12 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
 
     update
         .group(SYSTEM_GROUP_RENDER)
-        .insert_child_group("fruits_render_stuff")
+        .insert_child_group(SYSTEM_GROUP_RENDER_INTERNAL)
         .insert_child_system(render_main_target_to_surface_system);
 
     update
-        .group("fruits_render_stuff")
+        .group(SYSTEM_GROUP_RENDER_INTERNAL)
         .insert_child_system(update_camera_uniform)
-        .insert_child_system(update_text_batched_mesh)
-        .insert_child_system(update_image_batched_mesh)
-        .insert_child_system(update_masked_batched_mesh)
         .insert_child_system(recreate_main_render_target_resource)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
@@ -269,18 +266,5 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .before_system(render_transparent_final)
         .before_system(render_gizmos);
 
-    update
-        .order_system(update_text_batched_mesh)
-        .before_system(update_masked_batched_mesh);
-    update
-        .order_system(update_image_batched_mesh)
-        .before_system(update_masked_batched_mesh);
-    update
-        .order_system(update_masked_batched_mesh)
-        .before_system(render_opaque_batched);
-    update
-        .order_system(update_masked_batched_mesh)
-        .before_system(render_transparent_batched);
-
-    update.order_group("fruits_render_stuff").before_system(render_main_target_to_surface_system);
+    update.order_group(SYSTEM_GROUP_RENDER_INTERNAL).before_system(render_main_target_to_surface_system);
 }

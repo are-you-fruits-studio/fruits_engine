@@ -66,10 +66,10 @@ fn init(mut world: WorldDataMut) {
             start: None,
         });
 
-    let standard_render_assets = world.as_ref().resources().get::<StandardRenderAssetsResource>().unwrap();
+    let standard_ui_assets = world.as_ref().resources().get::<StandardUiAssetsResource>().unwrap();
 
-    let texture_text_handle = standard_render_assets.texture_text_px_5_7.clone();
-    let font = standard_render_assets.font_px_5_7.clone();
+    let texture_text_handle = standard_ui_assets.texture_text_px_5_7.clone();
+    let font = standard_ui_assets.font_px_5_7.clone();
 
     let material = StandardMaterialAssetMetadata {
         is_lit: false,

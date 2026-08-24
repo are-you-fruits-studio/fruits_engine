@@ -13,6 +13,7 @@ fruits_ecs = { path = "../fruits_ecs" }
 fruits_render = { path = "../fruits_render" }
 fruits_audio = { path = "../fruits_audio" }
 fruits_render_core = { path = "../fruits_render_core" }
+fruits_ui = { path = "../fruits_ui" }
 fruits_transform = { path = "../fruits_transform" }
 fruits_collision = { path = "../fruits_collision" }
 fruits_prefab = { path = "../fruits_prefab" }

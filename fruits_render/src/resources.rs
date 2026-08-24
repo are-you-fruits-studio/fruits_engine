@@ -1,11 +1,8 @@
-use fruits_asset_storage::AssetHandle;
 use fruits_ecs::Resource;
 use fruits_math::{Mat4, Vec3, Vec4};
-use fruits_render_core::{RenderSpace, StandardGenericLight, StandardTexture, StandardVertex};
+use fruits_render_core::{RenderSpace, StandardGenericLight, StandardVertex};
 use fruits_ffi::*;
-use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, SurfaceTexture, Texture, TextureView};
-
-use crate::Font;
+use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, Texture, TextureView};
 
 use super::GizmoLine;
 
@@ -113,18 +110,6 @@ pub struct BatchedVertexCpuBufferResource(pub Box<[StandardVertex]>);
 // todo: support ffi
 #[derive(Resource)]
 pub struct LightsCpuBufferResource(pub Box<[StandardGenericLight]>);
-
-#[repr(C)]
-#[derive(Resource)]
-pub struct StandardRenderAssetsResource {
-    pub texture_white: AssetHandle<StandardTexture>,
-    pub texture_text_px_5_7: AssetHandle<StandardTexture>,
-    pub font_px_5_7: AssetHandle<Font>,
-    pub texture_text_px_8_8: AssetHandle<StandardTexture>,
-    pub font_px_8_8: AssetHandle<Font>,
-    pub texture_text_px_8_12: AssetHandle<StandardTexture>,
-    pub font_px_8_12: AssetHandle<Font>,
-}
 
 pub struct MaterialStandardRenderResourceData {
     pub render_pipeline: RenderPipeline,

@@ -58,10 +58,10 @@ pub struct CursorComponent {
 }
 
 fn init(mut world: WorldDataMut) {
-    let standard_render_assets = world.as_ref().resources().get::<StandardRenderAssetsResource>().unwrap();
+    let standard_ui_assets = world.as_ref().resources().get::<StandardUiAssetsResource>().unwrap();
 
-    let texture_text_handle = standard_render_assets.texture_text_px_8_12.clone();
-    let font = standard_render_assets.font_px_8_12.clone();
+    let texture_text_handle = standard_ui_assets.texture_text_px_8_12.clone();
+    let font = standard_ui_assets.font_px_8_12.clone();
 
     let material_white = world.as_mut()
         .resources_mut()
