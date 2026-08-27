@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["lib"]
 
 [dependencies]
-wgpu = "26"
+wgpu = "27"
 fruits_math = { path = "../fruits_math" }
 fruits_ecs = { path = "../fruits_ecs" }
 fruits_utils = { path = "../fruits_utils" }

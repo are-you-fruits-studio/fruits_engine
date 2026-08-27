@@ -1,7 +1,8 @@
 use fruits_ecs::Resource;
-use fruits_math::{Mat4, Vec3, Vec4};
+use fruits_math::{Mat4, Vec2, Vec3, Vec4};
 use fruits_render_core::{RenderSpace, StandardGenericLight, StandardVertex};
 use fruits_ffi::*;
+use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, PipelineLayout, RenderPipeline, Sampler, Texture, TextureView};
 
 use super::GizmoLine;
@@ -93,15 +94,34 @@ impl Default for BloomResource {
     }
 }
 
+pub const BLUR_LAYERS_COUNT: usize = 4;
+
+#[repr(C)]
+#[derive(Default)]
+pub struct BloomUniform {
+    pub threshold: Vec2<f32>,
+    pub intensity: f32,
+    pub _padding0: f32,
+}
+
+unsafe impl AllBitsInit for BloomUniform {}
+
+#[repr(C)]
+pub struct BloomStorageLayer {
+    pub uv_scale_offset: Vec4<f32>,
+    pub direction: Vec2<f32>,
+    pub intensity: f32,
+    pub _padding0: f32,
+}
+
+unsafe impl AllBitsInit for BloomStorageLayer {}
+
 // todo: support ffi
 #[derive(Resource)]
 pub struct BloomRenderResource {
-    pub buffer_uniform_blur_dir: Buffer,
-    pub buffer_uniform_threshold: Buffer,
-    pub buffer_uniform_uv_scale_offset: Buffer,
-    pub buffer_uniform_intensity: Buffer,
+    pub buffer_storage_layers: Buffer,
+    pub buffer_uniform: Buffer,
     pub textures: [Texture; 3],
-    pub sampler: Sampler,
     pub bind_group_gather: BindGroup,
     pub bind_group_apply_0: BindGroup,
     pub bind_group_apply_1: BindGroup,

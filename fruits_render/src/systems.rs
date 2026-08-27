@@ -479,28 +479,47 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         }
     }
 
-    let buffer_uniform_blur_dir = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Bloom Blur Dir Uniform Buffer"),
-        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&Vec2::splat(0.0_f32)),
+    let mut blur_layers: [f32; BLUR_LAYERS_COUNT] = [
+        1.3,
+        1.2,
+        1.1,
+        1.0,
+    ];
+
+    let layers_intensity_sum = blur_layers.into_iter().sum::<f32>();
+
+    blur_layers.iter_mut().for_each(|i| *i /= layers_intensity_sum);
+
+    let storage_layers = blur_layers.into_iter().enumerate().flat_map(|(blur_layer, blur_intensity)| {
+        let uv_scale = 1.0 / (1 << blur_layer) as f32;
+        let uv_scale_offset = Vec4::<f32>::new(uv_scale, uv_scale, 0.0, 0.0);
+        
+        [
+            BloomStorageLayer {
+                intensity: blur_intensity,
+                uv_scale_offset: uv_scale_offset,
+                direction: Vec2::new(1.0, 0.0),
+                _padding0: 0.0,
+            },
+            BloomStorageLayer {
+                intensity: blur_intensity,
+                uv_scale_offset: uv_scale_offset,
+                direction: Vec2::new(0.0, 1.0),
+                _padding0: 0.0,
+            },
+        ]
+    }).collect::<Vec<_>>();
+
+    let buffer_storage_layers = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Bloom Storage Uniform Buffer"),
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes_slice(&storage_layers),
     });
 
-    let buffer_uniform_uv_scale_offset = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Bloom Blur Uv Uniform Buffer"),
+    let buffer_uniform = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Bloom Uniform Buffer"),
         usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&Vec4::splat(0.0_f32)),
-    });
-
-    let buffer_uniform_threshold = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Bloom Threshold Uniform Buffer"),
-        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&Vec2::<f32>::splat(0.0_f32)),
-    });
-
-    let buffer_uniform_intensity = render_state.device().create_buffer_init(&BufferInitDescriptor {
-        label: Some("Bloom Intensity Uniform Buffer"),
-        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        contents: fruits_utils::mem::as_bytes(&0.0_f32),
+        contents: fruits_utils::mem::as_bytes(&BloomUniform::default()),
     });
 
     let textures = std::array::from_fn::<_, 3, _>(|i| render_state.device().create_texture(&TextureDescriptor {
@@ -553,6 +572,7 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
             CreateBindGroupLayoutEntry::Texture,
             CreateBindGroupLayoutEntry::SamplerNonFiltering,
             CreateBindGroupLayoutEntry::BufferUniform,
+            CreateBindGroupLayoutEntry::BufferStorage,
         ],
     );
 
@@ -563,7 +583,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&main_render_target.texture_view),
             CreateBindGroupEntry::Sampler(&sampler_nearest),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_threshold),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -574,7 +595,7 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
             CreateBindGroupLayoutEntry::Texture,
             CreateBindGroupLayoutEntry::SamplerNonFiltering,
             CreateBindGroupLayoutEntry::BufferUniform,
-            CreateBindGroupLayoutEntry::BufferUniform,
+            CreateBindGroupLayoutEntry::BufferStorage,
         ],
     );
 
@@ -585,8 +606,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[0].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_nearest),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_blur_dir),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -597,8 +618,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[1].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_nearest),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_blur_dir),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -609,8 +630,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[2].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_nearest),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_blur_dir),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -621,6 +642,7 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
             CreateBindGroupLayoutEntry::Texture,
             CreateBindGroupLayoutEntry::SamplerFiltering,
             CreateBindGroupLayoutEntry::BufferUniform,
+            CreateBindGroupLayoutEntry::BufferStorage,
         ],
     );
 
@@ -631,7 +653,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[0].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_linear),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -642,7 +665,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[1].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_linear),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -653,7 +677,7 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
             CreateBindGroupLayoutEntry::Texture,
             CreateBindGroupLayoutEntry::SamplerFiltering,
             CreateBindGroupLayoutEntry::BufferUniform,
-            CreateBindGroupLayoutEntry::BufferUniform,
+            CreateBindGroupLayoutEntry::BufferStorage,
         ],
     );
 
@@ -664,8 +688,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[0].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_linear),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_intensity),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -676,8 +700,8 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         &[
             CreateBindGroupEntry::Texture(&textures[1].create_view(&Default::default())),
             CreateBindGroupEntry::Sampler(&sampler_linear),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
-            CreateBindGroupEntry::Buffer(&buffer_uniform_intensity),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+            CreateBindGroupEntry::Buffer(&buffer_storage_layers),
         ],
     );
 
@@ -797,12 +821,9 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
     );
 
     let render_res = BloomRenderResource {
-        buffer_uniform_blur_dir,
-        buffer_uniform_threshold,
-        buffer_uniform_uv_scale_offset,
-        buffer_uniform_intensity,
+        buffer_storage_layers,
+        buffer_uniform,
         textures,
-        sampler: sampler_linear,
         bind_group_gather,
         bind_group_blur_horiz_0,
         bind_group_blur_horiz_1,
@@ -1673,7 +1694,13 @@ pub fn render_bloom_system(
 
     let screen_size = render_api.size().map(|i| i as f32);
 
-    render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_threshold, 0, fruits_utils::mem::as_bytes(&Vec2::<f32>::new(bloom_res.threshold, bloom_res.threshold_softening)));
+    render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform, 0, fruits_utils::mem::as_bytes(&BloomUniform {
+        _padding0: 0.0,
+        intensity: bloom_res.intensity,
+        threshold: Vec2::<f32>::new(bloom_res.threshold, bloom_res.threshold_softening),
+    }));
+
+    let mut command_buffers = Vec::new();
 
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Gather Bloom Render Encoder"),
@@ -1700,27 +1727,18 @@ pub fn render_bloom_system(
         render_pass.draw(0..3, 0..1);
     }
 
-    render_state.queue().submit(std::iter::once(encoder.finish()));
+    command_buffers.push(encoder.finish());
 
     //
 
-    let mut blur_layers: [f32; _] = [
-        1.3,
-        1.2,
-        1.1,
-        1.0,
-    ];
+    let instance_id_to_range = |i| i..(i + 1);
 
-    let layers_intensity_sum = blur_layers.into_iter().sum::<f32>();
-
-    blur_layers.iter_mut().for_each(|i| *i /= layers_intensity_sum);
-
-    for (blur_layer, blur_layer_intensity) in blur_layers.into_iter().enumerate() {
+    for blur_layer in 0..BLUR_LAYERS_COUNT {
         let downscale_uv_output = 1.0 / (1 << blur_layer) as f32;
 
-        let downscale_uv_scale_offset_output = Vec4::<f32>::new(downscale_uv_output, downscale_uv_output, 0.0, 0.0);
-
         let downscale_viewport_scale = [screen_size[0] * downscale_uv_output, screen_size[1] * downscale_uv_output];
+        
+        let instance_id = blur_layer as u32 * 2;
 
         if blur_layer > 0 {
             let (
@@ -1737,12 +1755,6 @@ pub fn render_bloom_system(
                     &bloom_render_resource.bind_group_downscale_0,
                 )
             };
-
-            let downscale_uv_input = downscale_uv_output * 2.0;
-
-            let downscale_uv_scale_offset_input = Vec4::<f32>::new(downscale_uv_input, downscale_uv_input, 0.0, 0.0);
-
-            render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_uv_scale_offset, 0, fruits_utils::mem::as_bytes(&downscale_uv_scale_offset_input));
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Downscale Bloom Render Encoder"),
@@ -1767,10 +1779,10 @@ pub fn render_bloom_system(
                 render_pass.set_viewport(0.0, 0.0, downscale_viewport_scale[0], downscale_viewport_scale[1], 0.0, 1.0);
                 render_pass.set_pipeline(&bloom_render_resource.render_pipeline_downscale);
                 render_pass.set_bind_group(0, downscale_bind_group, &[]);
-                render_pass.draw(0..3, 0..1);
+                render_pass.draw(0..3, instance_id_to_range(instance_id - 2));
             }
 
-            render_state.queue().submit(std::iter::once(encoder.finish()));
+            command_buffers.push(encoder.finish());
         }
 
         //
@@ -1791,15 +1803,12 @@ pub fn render_bloom_system(
         };
 
         let blur_dir_entries = [
-            (Vec2::<f32>::new(1.0, 0.0), blur_init_bind_group, &bloom_render_resource.textures[2]),
-            (Vec2::<f32>::new(0.0, 1.0), &bloom_render_resource.bind_group_blur_vert, blur_init_texture),
+            (blur_init_bind_group, &bloom_render_resource.textures[2]),
+            (&bloom_render_resource.bind_group_blur_vert, blur_init_texture),
         ];
 
-        for (blur_dir, bind_group, target_tex) in blur_dir_entries {
+        for (dir_i, (bind_group, target_tex)) in blur_dir_entries.into_iter().enumerate() {
             let view = target_tex.create_view(&Default::default());
-
-            render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_blur_dir, 0, fruits_utils::mem::as_bytes(&blur_dir));
-            render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_uv_scale_offset, 0, fruits_utils::mem::as_bytes(&downscale_uv_scale_offset_output));
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Blur Bloom Render Encoder"),
@@ -1824,10 +1833,10 @@ pub fn render_bloom_system(
                 render_pass.set_viewport(0.0, 0.0, downscale_viewport_scale[0], downscale_viewport_scale[1], 0.0, 1.0);
                 render_pass.set_pipeline(&bloom_render_resource.render_pipeline_blur);
                 render_pass.set_bind_group(0, bind_group, &[]);
-                render_pass.draw(0..3, 0..1);
+                render_pass.draw(0..3, instance_id_to_range(instance_id + dir_i as u32));
             }
 
-            render_state.queue().submit(std::iter::once(encoder.finish()));
+            command_buffers.push(encoder.finish());
         }
 
         //
@@ -1837,11 +1846,6 @@ pub fn render_bloom_system(
         } else {
             &bloom_render_resource.bind_group_apply_1
         };
-
-        let intensity = blur_layer_intensity * bloom_res.intensity;
-
-        render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_intensity, 0, fruits_utils::mem::as_bytes(&intensity));
-        render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_uv_scale_offset, 0, fruits_utils::mem::as_bytes(&downscale_uv_scale_offset_output));
 
         let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
             label: Some("Apply Bloom Render Encoder"),
@@ -1865,11 +1869,13 @@ pub fn render_bloom_system(
 
             render_pass.set_pipeline(&bloom_render_resource.render_pipeline_apply);
             render_pass.set_bind_group(0, apply_bind_group, &[]);
-            render_pass.draw(0..3, 0..1);
+            render_pass.draw(0..3, instance_id_to_range(instance_id));
         }
 
-        render_state.queue().submit(std::iter::once(encoder.finish()));
+        command_buffers.push(encoder.finish());
     }
+
+    render_state.queue().submit(command_buffers);
 }
 
 pub fn render_gizmos(

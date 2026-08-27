@@ -256,6 +256,7 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .order_system(recreate_main_render_target_resource)
         .before_system(recreate_depth_texture_resource)
         .before_system(recreate_transparent_target_resource)
+        .before_system(recreate_bloom_render_resource)
         .before_system(clear_main_render_target)
         .before_system(clear_depth)
         .before_system(clear_transparent_target)

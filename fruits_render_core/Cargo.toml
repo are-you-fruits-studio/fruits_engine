@@ -13,6 +13,6 @@ fruits_utils = { path = "../fruits_utils" }
 fruits_serialization = { path = "../fruits_serialization" }
 fruits_math = { path = "../fruits_math" }
 fruits_asset_storage = { path = "../fruits_asset_storage" }
-wgpu = "26"
+wgpu = "27"
 winit = "0.30"
 pollster = "0.4"
