@@ -7,19 +7,19 @@ use crate::{FfiAny, FfiAnyMut, FfiAnyRef, FfiOpaqueMut, FfiOpaqueRef, FfiStrSlic
 pub struct FfiShortTypeInfo {
     size: u64,
     align: u64,
-    fn_name: unsafe extern "C" fn() -> FfiStrSliceRef<'static>,
+    fn_name: unsafe extern "C-unwind" fn() -> FfiStrSliceRef<'static>,
 }
 
 impl FfiShortTypeInfo {
     pub const fn of<T>() -> Self {
-        unsafe extern "C" fn ffi_name<T>() -> FfiStrSliceRef<'static> {
+        unsafe extern "C-unwind" fn ffi_name<T>() -> FfiStrSliceRef<'static> {
             FfiStrSliceRef::from_slice(std::any::type_name::<T>())
         }
-        unsafe extern "C" fn ffi_drop<T>(p: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_drop<T>(p: *mut c_void) {
             unsafe { std::ptr::drop_in_place(p as *mut T) }
         }
 
-        unsafe extern "C" fn ffi_as_any<T: 'static>(r: FfiOpaqueRef) -> FfiAnyRef {
+        unsafe extern "C-unwind" fn ffi_as_any<T: 'static>(r: FfiOpaqueRef) -> FfiAnyRef {
             unsafe { FfiAnyRef::new(r.as_ref::<T>()) }
         }
 
@@ -70,24 +70,24 @@ unsafe impl Sync for FfiShortTypeInfo { }
 #[derive(Copy, Clone)]
 pub struct FfiExtendedTypeInfo {
     short: FfiShortTypeInfo,
-    fn_drop: unsafe extern "C" fn(*mut c_void),
-    fn_as_any: unsafe extern "C" fn(FfiOpaqueRef) -> FfiAnyRef,
-    fn_as_any_mut: unsafe extern "C" fn(FfiOpaqueMut) -> FfiAnyMut,
-    fn_move_to_any: unsafe extern "C" fn(*const c_void) -> FfiAny,
+    fn_drop: unsafe extern "C-unwind" fn(*mut c_void),
+    fn_as_any: unsafe extern "C-unwind" fn(FfiOpaqueRef) -> FfiAnyRef,
+    fn_as_any_mut: unsafe extern "C-unwind" fn(FfiOpaqueMut) -> FfiAnyMut,
+    fn_move_to_any: unsafe extern "C-unwind" fn(*const c_void) -> FfiAny,
 }
 
 impl FfiExtendedTypeInfo {
     pub const fn of<T: 'static>() -> Self {
-        unsafe extern "C" fn ffi_drop<T>(p: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_drop<T>(p: *mut c_void) {
             unsafe { std::ptr::drop_in_place(p as *mut T) }
         }
-        unsafe extern "C" fn ffi_as_any<T: 'static>(r: FfiOpaqueRef) -> FfiAnyRef {
+        unsafe extern "C-unwind" fn ffi_as_any<T: 'static>(r: FfiOpaqueRef) -> FfiAnyRef {
             unsafe { FfiAnyRef::new(r.as_ref::<T>()) }
         }
-        unsafe extern "C" fn ffi_as_any_mut<T: 'static>(r: FfiOpaqueMut) -> FfiAnyMut {
+        unsafe extern "C-unwind" fn ffi_as_any_mut<T: 'static>(r: FfiOpaqueMut) -> FfiAnyMut {
             unsafe { FfiAnyMut::new(r.as_mut::<T>()) }
         }
-        unsafe extern "C" fn ffi_move_to_any<T: 'static>(p: *const c_void) -> FfiAny {
+        unsafe extern "C-unwind" fn ffi_move_to_any<T: 'static>(p: *const c_void) -> FfiAny {
             unsafe { FfiAny::new((p as *const T).read()) }
         }
 
@@ -110,7 +110,7 @@ impl FfiExtendedTypeInfo {
         }
     }
 
-    pub unsafe fn raw_drop_fn(&self) -> unsafe extern "C" fn(*mut c_void) {
+    pub unsafe fn raw_drop_fn(&self) -> unsafe extern "C-unwind" fn(*mut c_void) {
         self.fn_drop
     }
 

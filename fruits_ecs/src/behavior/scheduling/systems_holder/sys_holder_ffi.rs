@@ -7,7 +7,7 @@ use crate::*;
 #[repr(C)]
 pub struct SystemsHolderFfi {
     data: FfiDroppable,
-    execute_iteration_fn: unsafe extern "C" fn(*const c_void, data: *mut WorldDataUnsafeFfi),
+    execute_iteration_fn: unsafe extern "C-unwind" fn(*const c_void, data: *mut WorldDataUnsafeFfi),
 }
 
 impl SystemsHolderFfi {
@@ -16,7 +16,7 @@ impl SystemsHolderFfi {
     }
 
     pub(crate) fn from_native(systems_holder: SystemsHolderNative) -> Self {
-        unsafe extern "C" fn ffi_execute_iteration(this: *const c_void, data: *mut WorldDataUnsafeFfi) {
+        unsafe extern "C-unwind" fn ffi_execute_iteration(this: *const c_void, data: *mut WorldDataUnsafeFfi) {
             unsafe {
                 (&*(this as *const SystemsHolderNative)).execute_iteration(data);
             }

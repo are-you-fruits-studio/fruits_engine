@@ -3,12 +3,12 @@ use std::{ffi::c_void, marker::PhantomData};
 #[repr(C)]
 pub struct FfiFnRef<'a, I, O> {
     data: *const c_void,
-    fn_execute: unsafe extern "C" fn(this: *const c_void, input: I) -> O,
+    fn_execute: unsafe extern "C-unwind" fn(this: *const c_void, input: I) -> O,
     _phantom: PhantomData<&'a ()>,
 }
 impl<'a, I, O> FfiFnRef<'a, I, O> {
     pub fn new<F: Fn(I) -> O>(f: &'a F) -> Self {
-        unsafe extern "C" fn ffi_execute<I, O, F: Fn(I) -> O>(this: *const c_void, input: I) -> O {
+        unsafe extern "C-unwind" fn ffi_execute<I, O, F: Fn(I) -> O>(this: *const c_void, input: I) -> O {
             unsafe {
                 let this = &*(this as *const F);
 
@@ -33,12 +33,12 @@ impl<'a, I, O> FfiFnRef<'a, I, O> {
 #[repr(C)]
 pub struct FfiFnMutMut<'a, I, O> {
     data: *mut c_void,
-    fn_execute: unsafe extern "C" fn(this: *mut c_void, input: I) -> O,
+    fn_execute: unsafe extern "C-unwind" fn(this: *mut c_void, input: I) -> O,
     _phantom: PhantomData<&'a mut ()>,
 }
 impl<'a, I, O> FfiFnMutMut<'a, I, O> {
     pub fn new<F: FnMut(I) -> O>(f: &'a mut F) -> Self {
-        unsafe extern "C" fn ffi_execute<I, O, F: FnMut(I) -> O>(this: *mut c_void, input: I) -> O {
+        unsafe extern "C-unwind" fn ffi_execute<I, O, F: FnMut(I) -> O>(this: *mut c_void, input: I) -> O {
             unsafe {
                 let this = &mut *(this as *mut F);
 

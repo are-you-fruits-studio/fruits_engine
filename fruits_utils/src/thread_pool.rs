@@ -111,7 +111,7 @@ impl ThreadPool {
         let did_panic = self.did_panic.load(std::sync::atomic::Ordering::Relaxed);
 
         if did_panic {
-            panic!("ThreadPool worker thread had pamicked");
+            panic!("ThreadPool worker thread had panicked");
         }
     }
 }

@@ -145,7 +145,7 @@
 //!   [`FfiStrSliceRef`] / [`FfiStrSliceMut`]. These own no heap behavior of their
 //!   own — a slice view is a pointer plus a [`u64`] length, an option is a tagged
 //!   union — so a fixed layout is all they need.
-//! - **Owning types that carry their behavior as embedded `extern "C"` function
+//! - **Owning types that carry their behavior as embedded `extern "C-unwind"` function
 //!   pointers.** [`FfiAny`], [`FfiDroppable`], [`FfiHashMap`], and [`FfiAllocator`]
 //!   store the operations they need (drop, deallocate, insert, look up) as function
 //!   pointers alongside the data, because the consuming side cannot monomorphize
@@ -163,7 +163,7 @@
 //! destructor, so the value is moved rather than dropped.
 //!
 //! [`FfiDroppable`] boxes a value behind a single opaque pointer whose allocation
-//! begins with a metadata header (an `extern "C"` drop function and a pointer to the
+//! begins with a metadata header (an `extern "C-unwind"` drop function and a pointer to the
 //! value); dropping the `FfiDroppable` calls through that header. [`FfiTypedDroppable<T>`]
 //! is the typed wrapper that derefs to the value and forwards the standard traits.
 //! [`FfiStaticRef<T>`] is a `#[repr(transparent)]`, [`Copy`] pointer to a `'static`
@@ -171,7 +171,7 @@
 //!
 //! [`FfiHashMap<K, V>`] composes both ideas: the actual data is a real `std`
 //! [`HashMap`](std::collections::HashMap) held behind an [`FfiDroppable`], and every operation is reached
-//! through an [`FfiStaticRef`] to a per-`(K, V)` vtable of `extern "C"` functions
+//! through an [`FfiStaticRef`] to a per-`(K, V)` vtable of `extern "C-unwind"` functions
 //! that down-cast the opaque pointer and call the matching `HashMap` method. The
 //! `FfiString`-keyed `get_by_str` / `remove_by_str` entries take an
 //! [`FfiStrSliceRef`] so a borrowed `&str` can probe the map without building an
@@ -179,7 +179,7 @@
 //!
 //! #### Allocation across the boundary
 //!
-//! [`FfiAllocator`] is a `#[repr(C)]`, [`Copy`] pair of `extern "C"` alloc/dealloc
+//! [`FfiAllocator`] is a `#[repr(C)]`, [`Copy`] pair of `extern "C-unwind"` alloc/dealloc
 //! function pointers; [`from_global`](FfiAllocator::from_global) routes to the global
 //! allocator and [`from_system`](FfiAllocator::from_system) to [`System`](std::alloc::System).
 //! [`FfiVec`] stores its `FfiAllocator` inline, so a buffer is always freed through

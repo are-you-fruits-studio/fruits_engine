@@ -65,7 +65,7 @@
 //! The crate's public surface is **FFI-stable**, so the engine can call into a dynamically linked
 //! render module across a fixed ABI. [`RenderApiResource`] is the `#[repr(C)]` ECS resource that
 //! actually lives in the world: it holds a type-erased [`fruits_ffi::FfiDroppable`] (the real
-//! [`RenderState`]) plus a static vtable of `extern "C"` functions. Its inherent methods
+//! [`RenderState`]) plus a static vtable of `extern "C-unwind"` functions. Its inherent methods
 //! ([`resize`](RenderApiResource::resize), [`size`](RenderApiResource::size),
 //! [`create_texture`](RenderApiResource::create_texture),
 //! [`create_mesh`](RenderApiResource::create_mesh)) only marshal their arguments through that
@@ -112,3 +112,10 @@ pub use assets::*;
 
 mod render_api;
 pub use render_api::*;
+
+mod utils;
+pub use utils::*;
+
+mod render_graph;
+// todo
+// pub use render_graph::*;

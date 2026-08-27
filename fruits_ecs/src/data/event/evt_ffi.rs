@@ -6,9 +6,9 @@ use crate::*;
 
 #[repr(C)]
 struct EventsHolderUnsafeFfiVTable {
-    get_fn: unsafe extern "C" fn(*const c_void, type_id: u64) -> *mut FfiOpaqueVec,
-    get_or_create_fn: unsafe extern "C" fn(*const c_void, type_id: u64) -> *mut FfiOpaqueVec,
-    clear_fn: unsafe extern "C" fn(*const c_void),
+    get_fn: unsafe extern "C-unwind" fn(*const c_void, type_id: u64) -> *mut FfiOpaqueVec,
+    get_or_create_fn: unsafe extern "C-unwind" fn(*const c_void, type_id: u64) -> *mut FfiOpaqueVec,
+    clear_fn: unsafe extern "C-unwind" fn(*const c_void),
 }
 
 #[repr(C)]
@@ -19,15 +19,15 @@ pub struct EventsHolderUnsafeFfi {
 
 impl EventsHolderUnsafeFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
-        unsafe extern "C" fn ffi_get(this: *const c_void, type_id: u64) -> *mut FfiOpaqueVec {
+        unsafe extern "C-unwind" fn ffi_get(this: *const c_void, type_id: u64) -> *mut FfiOpaqueVec {
             unsafe { (&*(this as *const EventsHolderNative)).get(type_id) }
         }
 
-        unsafe extern "C" fn ffi_get_or_create(this: *const c_void, type_id: u64) -> *mut FfiOpaqueVec {
+        unsafe extern "C-unwind" fn ffi_get_or_create(this: *const c_void, type_id: u64) -> *mut FfiOpaqueVec {
             unsafe { (&*(this as *const EventsHolderNative)).get_or_create(type_id) }
         }
 
-        unsafe extern "C" fn ffi_clear(this: *const c_void) {
+        unsafe extern "C-unwind" fn ffi_clear(this: *const c_void) {
             unsafe { (&*(this as *const EventsHolderNative)).clear() }
         }
 

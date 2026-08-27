@@ -73,14 +73,47 @@ pub struct TransparentTargetTextureResource {
     pub bind_group: BindGroup,
 }
 
+#[repr(C)]
+#[derive(Resource)]
+pub struct BloomResource {
+    pub is_enabled: bool,
+    pub threshold: f32,
+    pub threshold_softening: f32,
+    pub intensity: f32,
+}
+
+impl Default for BloomResource {
+    fn default() -> Self {
+        Self {
+            is_enabled: false,
+            threshold: 1.5,
+            threshold_softening: 0.15,
+            intensity: 2.8,
+        }
+    }
+}
+
 // todo: support ffi
 #[derive(Resource)]
 pub struct BloomRenderResource {
-    pub textures: [Texture; 2],
+    pub buffer_uniform_blur_dir: Buffer,
+    pub buffer_uniform_threshold: Buffer,
+    pub buffer_uniform_uv_scale_offset: Buffer,
+    pub buffer_uniform_intensity: Buffer,
+    pub textures: [Texture; 3],
     pub sampler: Sampler,
-    // todo
-    // pub bind_group_layout: BindGroupLayout,
-    // pub bind_group: BindGroup,
+    pub bind_group_gather: BindGroup,
+    pub bind_group_apply_0: BindGroup,
+    pub bind_group_apply_1: BindGroup,
+    pub bind_group_blur_horiz_0: BindGroup,
+    pub bind_group_blur_horiz_1: BindGroup,
+    pub bind_group_blur_vert: BindGroup,
+    pub bind_group_downscale_0: BindGroup,
+    pub bind_group_downscale_1: BindGroup,
+    pub render_pipeline_gather: RenderPipeline,
+    pub render_pipeline_blur: RenderPipeline,
+    pub render_pipeline_downscale: RenderPipeline,
+    pub render_pipeline_apply: RenderPipeline,
 }
 
 // todo: support ffi

@@ -15,12 +15,12 @@ pub struct StoredTypeInfo {
 
 #[repr(C)]
 struct TypesRegistryAccessVtable {
-    pub clone_fn: unsafe extern "C" fn(*const c_void) -> *mut c_void,
-    pub len_fn: unsafe extern "C" fn(*const c_void) -> u64,
-    pub get_fn: unsafe extern "C" fn(*const c_void, id: u64) -> FfiOption<&'static FfiExtendedTypeInfo>,
-    pub get_by_name_fn: unsafe extern "C" fn(*const c_void, name: FfiStrSliceRef) -> FfiOption<StoredTypeInfo>,
-    pub try_register_fn: unsafe extern "C" fn(*const c_void, data: &'static FfiExtendedTypeInfo) -> FfiOption<u64>,
-    pub drop_fn: unsafe extern "C" fn(*mut c_void),
+    pub clone_fn: unsafe extern "C-unwind" fn(*const c_void) -> *mut c_void,
+    pub len_fn: unsafe extern "C-unwind" fn(*const c_void) -> u64,
+    pub get_fn: unsafe extern "C-unwind" fn(*const c_void, id: u64) -> FfiOption<&'static FfiExtendedTypeInfo>,
+    pub get_by_name_fn: unsafe extern "C-unwind" fn(*const c_void, name: FfiStrSliceRef) -> FfiOption<StoredTypeInfo>,
+    pub try_register_fn: unsafe extern "C-unwind" fn(*const c_void, data: &'static FfiExtendedTypeInfo) -> FfiOption<u64>,
+    pub drop_fn: unsafe extern "C-unwind" fn(*mut c_void),
 }
 
 #[repr(C)]
@@ -91,7 +91,7 @@ impl TypesRegistryAccessFfi {
         self.try_register(data).unwrap()
     }
 
-    unsafe extern "C" fn ffi_clone(this: *const c_void) -> *mut c_void {
+    unsafe extern "C-unwind" fn ffi_clone(this: *const c_void) -> *mut c_void {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
 
@@ -100,7 +100,7 @@ impl TypesRegistryAccessFfi {
             Box::into_raw(Box::new(cloned)) as *mut c_void
         }
     }
-    unsafe extern "C" fn ffi_len(this: *const c_void) -> u64 {
+    unsafe extern "C-unwind" fn ffi_len(this: *const c_void) -> u64 {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
 
@@ -109,7 +109,7 @@ impl TypesRegistryAccessFfi {
             result as u64
         }
     }
-    unsafe extern "C" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<&'static FfiExtendedTypeInfo> {
+    unsafe extern "C-unwind" fn ffi_get(this: *const c_void, id: u64) -> FfiOption<&'static FfiExtendedTypeInfo> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
 
@@ -118,7 +118,7 @@ impl TypesRegistryAccessFfi {
             FfiOption::from_option(result)
         }
     }
-    unsafe extern "C" fn ffi_get_by_name(this: *const c_void, name: FfiStrSliceRef) -> FfiOption<StoredTypeInfo> {
+    unsafe extern "C-unwind" fn ffi_get_by_name(this: *const c_void, name: FfiStrSliceRef) -> FfiOption<StoredTypeInfo> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
             let name = name.into_slice();
@@ -128,7 +128,7 @@ impl TypesRegistryAccessFfi {
             FfiOption::from_option(result)
         }
     }
-    unsafe extern "C" fn ffi_try_register(this: *const c_void, data: &'static FfiExtendedTypeInfo) -> FfiOption<u64> {
+    unsafe extern "C-unwind" fn ffi_try_register(this: *const c_void, data: &'static FfiExtendedTypeInfo) -> FfiOption<u64> {
         unsafe {
             let this = &*(this as *const TypesRegistryAccessNative);
 
@@ -137,7 +137,7 @@ impl TypesRegistryAccessFfi {
             result.into()
         }
     }
-    pub unsafe extern "C" fn ffi_drop(this_ref: *mut c_void) {
+    pub unsafe extern "C-unwind" fn ffi_drop(this_ref: *mut c_void) {
         // todo
         unsafe {
             drop(Box::from_raw(this_ref as *mut TypesRegistryAccessNative));

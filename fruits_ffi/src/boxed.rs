@@ -4,16 +4,16 @@ use std::{
 
 #[repr(C)]
 pub struct FfiBoxVtable {
-    pub drop_in_place_fn: unsafe extern "C" fn(*mut c_void),
-    pub dealloc_fn: unsafe extern "C" fn(*mut c_void),
+    pub drop_in_place_fn: unsafe extern "C-unwind" fn(*mut c_void),
+    pub dealloc_fn: unsafe extern "C-unwind" fn(*mut c_void),
 }
 
 impl FfiBoxVtable {
     pub const fn new<T>() -> Self {
-        unsafe extern "C" fn ffi_drop_in_place<T>(ptr: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_drop_in_place<T>(ptr: *mut c_void) {
             unsafe { std::ptr::drop_in_place(ptr as *mut T) }
         }
-        unsafe extern "C" fn ffi_dealloc<T>(ptr: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_dealloc<T>(ptr: *mut c_void) {
             unsafe { std::alloc::dealloc(ptr as *mut u8, Layout::new::<T>()) }
         }
 

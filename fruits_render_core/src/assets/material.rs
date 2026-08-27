@@ -5,7 +5,7 @@ use fruits_serialization::*;
 use fruits_utils::mem::{AllBitVariationsValid, AllBitsInit};
 use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, Buffer, BufferUsages, Sampler, TextureView, util::{BufferInitDescriptor, DeviceExt}};
 
-use crate::{RenderState, StandardTexture};
+use crate::{CreateBindGroupEntry, RenderState, StandardTexture};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, TransSerializable)]
@@ -226,56 +226,24 @@ impl StandardMaterial {
         let tex_normal = unsafe { texture_to_view_and_sampler(assets.normal_texture) };
         let tex_emission = unsafe { texture_to_view_and_sampler(assets.emission_texture) };
 
-        let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-            label: Some("Standard Material Bind Group"),
-            layout: &render_state.render_data().bind_group_layout_material,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: buffer_uniform.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&tex_color.0),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(tex_color.1),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::TextureView(&tex_roughness.0),
-                },
-                BindGroupEntry {
-                    binding: 4,
-                    resource: wgpu::BindingResource::Sampler(tex_roughness.1),
-                },
-                BindGroupEntry {
-                    binding: 5,
-                    resource: wgpu::BindingResource::TextureView(&tex_metallic.0),
-                },
-                BindGroupEntry {
-                    binding: 6,
-                    resource: wgpu::BindingResource::Sampler(tex_metallic.1),
-                },
-                BindGroupEntry {
-                    binding: 7,
-                    resource: wgpu::BindingResource::TextureView(&tex_normal.0),
-                },
-                BindGroupEntry {
-                    binding: 8,
-                    resource: wgpu::BindingResource::Sampler(tex_normal.1),
-                },
-                BindGroupEntry {
-                    binding: 9,
-                    resource: wgpu::BindingResource::TextureView(&tex_emission.0),
-                },
-                BindGroupEntry {
-                    binding: 10,
-                    resource: wgpu::BindingResource::Sampler(tex_emission.1),
-                },
+        let bind_group = crate::utils::create_bind_group(
+            render_state.device(),
+            Some("Standard Material Bind Group"),
+            &render_state.render_data().bind_group_layout_material,
+            &[
+                CreateBindGroupEntry::Buffer(&buffer_uniform),
+                CreateBindGroupEntry::Texture(&tex_color.0),
+                CreateBindGroupEntry::Sampler(tex_color.1),
+                CreateBindGroupEntry::Texture(&tex_roughness.0),
+                CreateBindGroupEntry::Sampler(tex_roughness.1),
+                CreateBindGroupEntry::Texture(&tex_metallic.0),
+                CreateBindGroupEntry::Sampler(tex_metallic.1),
+                CreateBindGroupEntry::Texture(&tex_normal.0),
+                CreateBindGroupEntry::Sampler(tex_normal.1),
+                CreateBindGroupEntry::Texture(&tex_emission.0),
+                CreateBindGroupEntry::Sampler(tex_emission.1),
             ],
-        });
+        );
 
         Self {
             native: FfiDroppable::new(StandardMaterialNative {

@@ -105,128 +105,38 @@ pub struct RenderData {
 
 impl RenderData {
     pub fn new(api: &RenderApi) -> Self {
-        let bind_group_layout_global = api.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Standard Global Bind Group Layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                },
+        let bind_group_layout_global = crate::create_bind_group_layout(
+            &api.device,
+            Some("Standard Global Bind Group Layout"),
+            &[
+                crate::CreateBindGroupLayoutEntry::BufferUniform,
+                crate::CreateBindGroupLayoutEntry::BufferStorage,
+            ]
+        );
+        let bind_group_layout_material = crate::create_bind_group_layout(
+            &api.device,
+            Some("Standard Material Bind Group Layout"),
+            &[
+                crate::CreateBindGroupLayoutEntry::BufferUniform,
+                crate::CreateBindGroupLayoutEntry::Texture,
+                crate::CreateBindGroupLayoutEntry::SamplerFiltering,
+                crate::CreateBindGroupLayoutEntry::Texture,
+                crate::CreateBindGroupLayoutEntry::SamplerFiltering,
+                crate::CreateBindGroupLayoutEntry::Texture,
+                crate::CreateBindGroupLayoutEntry::SamplerFiltering,
+                crate::CreateBindGroupLayoutEntry::Texture,
+                crate::CreateBindGroupLayoutEntry::SamplerFiltering,
+                crate::CreateBindGroupLayoutEntry::Texture,
+                crate::CreateBindGroupLayoutEntry::SamplerFiltering,
             ],
-        });
-        let bind_group_layout_material = api.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Standard Material Bind Group Layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 4,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                },
-                BindGroupLayoutEntry {
-                    binding: 5,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 6,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                },
-                BindGroupLayoutEntry {
-                    binding: 7,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 8,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                },
-                BindGroupLayoutEntry {
-                    binding: 9,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                },
-                BindGroupLayoutEntry {
-                    binding: 10,
-                    count: None,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                },
-            ],
-        });
+        );
         
-        let texture_white = api.create_texture(FilterMode::Linear, [2, 2], &[255; 16], None);
+        let texture_white = api.create_texture(
+            FilterMode::Linear,
+            [2, 2],
+            &[255; 16],
+            None,
+        );
         let texture_normal_default = api.create_texture(
             FilterMode::Linear,
             [2, 2],
@@ -347,12 +257,12 @@ impl RenderState {
 
 #[repr(C)]
 struct RenderApiVTable {
-    resize_fn: unsafe extern "C" fn(*const c_void, new_size: *const u32),
-    size_fn: unsafe extern "C" fn(*const c_void, size_dst: *mut u32),
-    create_texture_fn: unsafe extern "C" fn(*const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>, meta: FfiOption<StandardTextureAssetMetadata>) -> StandardTexture,
-    create_mesh_fn: unsafe extern "C" fn(*const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>, meta: FfiOption<StandardMeshAssetMetadata>) -> StandardMesh,
-    create_material_fn: unsafe extern "C" fn(*const c_void, StandardMaterialAssets<FfiOption<&StandardTexture>>, meta: StandardMaterialAssetMetadata) -> StandardMaterial,
-    clone_fn: unsafe extern "C" fn(*const c_void) -> FfiDroppable,
+    resize_fn: unsafe extern "C-unwind" fn(*const c_void, new_size: *const u32),
+    size_fn: unsafe extern "C-unwind" fn(*const c_void, size_dst: *mut u32),
+    create_texture_fn: unsafe extern "C-unwind" fn(*const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>, meta: FfiOption<StandardTextureAssetMetadata>) -> StandardTexture,
+    create_mesh_fn: unsafe extern "C-unwind" fn(*const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>, meta: FfiOption<StandardMeshAssetMetadata>) -> StandardMesh,
+    create_material_fn: unsafe extern "C-unwind" fn(*const c_void, StandardMaterialAssets<FfiOption<&StandardTexture>>, meta: StandardMaterialAssetMetadata) -> StandardMaterial,
+    clone_fn: unsafe extern "C-unwind" fn(*const c_void) -> FfiDroppable,
 }
 
 #[derive(Resource)]
@@ -364,7 +274,7 @@ pub struct RenderApiResource {
 
 impl RenderApiResource {
     pub fn new(window: Arc<Window>) -> Self {
-        unsafe extern "C" fn ffi_resize(this: *const c_void, new_size: *const u32) {
+        unsafe extern "C-unwind" fn ffi_resize(this: *const c_void, new_size: *const u32) {
             unsafe {
                 let this = &*(this as *mut Arc<RenderState>);
                 let new_size = (new_size as *const [u32; 2]).read();
@@ -372,7 +282,7 @@ impl RenderApiResource {
                 this.resize(new_size);
             }
         }
-        unsafe extern "C" fn ffi_size(this: *const c_void, size_dst: *mut u32) {
+        unsafe extern "C-unwind" fn ffi_size(this: *const c_void, size_dst: *mut u32) {
             unsafe {
                 let this = &*(this as *const Arc<RenderState>);
 
@@ -381,7 +291,7 @@ impl RenderApiResource {
                 (size_dst as *mut [u32; 2]).write(size);
             }
         }
-        unsafe extern "C" fn ffi_create_texture(
+        unsafe extern "C-unwind" fn ffi_create_texture(
             this: *const c_void,
             filter_mode: FilterMode,
             dimensions: *const u32,
@@ -396,7 +306,7 @@ impl RenderApiResource {
                 this.create_texture(filter_mode, dimensions, data, meta.into())
             }
         }
-        unsafe extern "C" fn ffi_create_mesh(
+        unsafe extern "C-unwind" fn ffi_create_mesh(
             this: *const c_void,
             vertices: FfiSliceRef<StandardVertex>,
             indices: FfiSliceRef<u16>,
@@ -410,7 +320,7 @@ impl RenderApiResource {
                 this.create_mesh(vertices, indices, meta.into())
             }
         }
-        unsafe extern "C" fn ffi_create_material(
+        unsafe extern "C-unwind" fn ffi_create_material(
             this: *const c_void,
             assets: StandardMaterialAssets<FfiOption<&StandardTexture>>,
             meta: StandardMaterialAssetMetadata,
@@ -421,7 +331,7 @@ impl RenderApiResource {
                 this.create_material(assets.map(|o| o.into_option()), meta)
             }
         }
-        unsafe extern "C" fn ffi_clone(this: *const c_void) -> FfiDroppable {
+        unsafe extern "C-unwind" fn ffi_clone(this: *const c_void) -> FfiDroppable {
             unsafe {
                 let this = &*(this as *const Arc<RenderState>);
 

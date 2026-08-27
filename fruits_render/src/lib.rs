@@ -202,6 +202,7 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
     res.insert(AssetStorageResource::<StandardTexture>::new());
     res.insert(GizmosResource::default());
     res.insert(ScreenSpaceResource::default());
+    res.insert(BloomResource::default());
 
     let mut world_behavior = world.behavior_mut();
 
@@ -221,6 +222,7 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .before_system(recreate_depth_texture_resource)
         .before_system(recreate_transparent_target_resource)
         .before_system(recreate_bloom_render_resource)
+        .before_system(create_gizmos_render_resource)
         .before_system(create_standard_render_resource);
 
     let mut update = world_behavior.get_mut(Schedule::Update);
@@ -246,7 +248,8 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(render_opaque_batched)
         .insert_child_system(render_transparent_instanced)
         .insert_child_system(render_transparent_batched)
-        .insert_child_system(render_transparent_final)
+        .insert_child_system(render_transparent_final_system)
+        .insert_child_system(render_bloom_system)
         .insert_child_system(render_gizmos);
 
     update
@@ -263,7 +266,8 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .before_system(render_opaque_batched)
         .before_system(render_transparent_instanced)
         .before_system(render_transparent_batched)
-        .before_system(render_transparent_final)
+        .before_system(render_transparent_final_system)
+        .before_system(render_bloom_system)
         .before_system(render_gizmos);
 
     update.order_group(SYSTEM_GROUP_RENDER_INTERNAL).before_system(render_main_target_to_surface_system);

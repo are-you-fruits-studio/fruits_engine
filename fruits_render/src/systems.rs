@@ -71,45 +71,23 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
             },
         };
 
-        let render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Standard Render Pipeline"),
-            layout: Some(&pipeline_layout_standard),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[StandardVertex::desc(), StandardInstance::desc()],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(color_target_state)],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: Some(DepthStencilState {
+        let render_pipeline = create_render_pipeline(
+            render_state.device(),
+            Some("Standard Render Pipeline"),
+            &pipeline_layout_standard,
+            &shader,
+            &[StandardVertex::desc(), StandardInstance::desc()],
+            color_target_state,
+            Some(DepthStencilState {
                 bias: Default::default(),
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 depth_write_enabled: !is_transparent,
                 format: depth_tex.texture.format(),
                 stencil: Default::default(),
             }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
+            wgpu::PrimitiveTopology::TriangleList,
+            Some(wgpu::Face::Back),
+        );
 
         render_pipeline
     };
@@ -123,43 +101,21 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
         .device()
         .create_shader_module(include_wgsl!("./assets/shader_transparent_final.wgsl"));
 
-    let render_pipeline_transparent_final = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Transparent Final Render Pipeline"),
-        layout: Some(&pipeline_layout_transparent_final),
-        vertex: wgpu::VertexState {
-            module: &render_pipeline_transparent_shader,
-            entry_point: Some("vs_main"),
-            buffers: &[],
-            compilation_options: Default::default(),
+    let render_pipeline_transparent_final = create_render_pipeline(
+        render_state.device(),
+        Some("Transparent Final Render Pipeline"),
+        &pipeline_layout_transparent_final,
+        &render_pipeline_transparent_shader,
+        &[],
+        wgpu::ColorTargetState {
+            format: main_render_target_res.texture.format(),
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            write_mask: wgpu::ColorWrites::COLOR,
         },
-        fragment: Some(wgpu::FragmentState {
-            module: &render_pipeline_transparent_shader,
-            entry_point: Some("fs_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: main_render_target_res.texture.format(),
-                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                write_mask: wgpu::ColorWrites::COLOR,
-            })],
-            compilation_options: Default::default(),
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            polygon_mode: wgpu::PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-        cache: None,
-    });
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
 
     let instance_cpu_buffer =
         vec![Mat4::<f32>::IDENTITY.into_array(); INSTANCES_PER_DRAW_MAX].into_boxed_slice();
@@ -194,20 +150,15 @@ pub fn create_standard_render_resource(mut world: WorldDataMut) {
         contents: fruits_utils::mem::as_bytes(&[StandardUniformGlobal::default()]),
     });
 
-    let global_bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Standard Global Bind Group"),
-        layout: &render_state.render_data().bind_group_layout_global,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: global_uniform_buffer.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: lights_buffer.as_entire_binding(),
-            },
+    let global_bind_group = create_bind_group(
+        render_state.device(),
+        Some("Standard Global Bind Group"),
+        &render_state.render_data().bind_group_layout_global, 
+        &[
+            CreateBindGroupEntry::Buffer(&global_uniform_buffer),
+            CreateBindGroupEntry::Buffer(&lights_buffer),
         ],
-    });
+    );
 
     world.as_mut()
         .resources_mut()
@@ -291,42 +242,24 @@ pub fn recreate_main_render_target_resource(mut world: WorldDataMut) {
         ..Default::default()
     });
 
-    let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Render Surface Bind Group Layout"),
-        entries: &[
-            BindGroupLayoutEntry {
-                binding: 0,
-                count: None,
-                ty: BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-            },
-            BindGroupLayoutEntry {
-                binding: 1,
-                count: None,
-                ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-            },
+    let bind_group_layout = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Render Surface Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerNonFiltering,
         ],
-    });
+    );
 
-    let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Render Surface Bind Group"),
-        layout: &bind_group_layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture_view),
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler),
-            },
+    let bind_group = create_bind_group(
+        render_state.device(),
+        Some("Render Surface Bind Group"),
+        &bind_group_layout,
+        &[
+            CreateBindGroupEntry::Texture(&texture_view),
+            CreateBindGroupEntry::Sampler(&sampler),
         ],
-    });
+    );
 
     let pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Render Surface Pipeline Layout"),
@@ -338,43 +271,21 @@ pub fn recreate_main_render_target_resource(mut world: WorldDataMut) {
         .device()
         .create_shader_module(include_wgsl!("./assets/shader_render_surface.wgsl"));
 
-    let render_pipeline = render_state.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Surface Render Pipeline"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: Some("vs_main"),
-            buffers: &[],
-            compilation_options: Default::default(),
+    let render_pipeline = create_render_pipeline(
+        render_state.device(),
+        Some("Surface Render Pipeline"),
+        &pipeline_layout,
+        &shader,
+        &[],
+        wgpu::ColorTargetState {
+            format: render_state.surface_config_format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
         },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: Some("fs_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: render_state.surface_config_format(),
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-            compilation_options: Default::default(),
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            polygon_mode: wgpu::PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-        cache: None,
-    });
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
 
     let main_render_target_res = MainRenderTargetResource {
         texture,
@@ -509,42 +420,24 @@ pub fn recreate_transparent_target_resource(mut world: WorldDataMut) {
         ..Default::default()
     });
 
-    let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Transparent Target Bind Group Layout"),
-        entries: &[
-            BindGroupLayoutEntry {
-                binding: 0,
-                count: None,
-                ty: BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-            },
-            BindGroupLayoutEntry {
-                binding: 1,
-                count: None,
-                ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-            },
+    let bind_group_layout = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Transparent Target Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerNonFiltering,
         ],
-    });
+    );
 
-    let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Transparent Target Bind Group"),
-        layout: &bind_group_layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture_view),
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler),
-            },
+    let bind_group = create_bind_group(
+        render_state.device(),
+        Some("Transparent Target Bind Group"),
+        &bind_group_layout,
+        &[
+            CreateBindGroupEntry::Texture(&texture_view),
+            CreateBindGroupEntry::Sampler(&sampler),
         ],
-    });
+    );
 
     let transparent_target_res = TransparentTargetTextureResource {
         texture,
@@ -563,6 +456,7 @@ pub fn recreate_transparent_target_resource(mut world: WorldDataMut) {
 
 pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
     let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
+    let main_render_target = world.as_ref().resources().get::<MainRenderTargetResource>().unwrap();
 
     let screen_size = render_api.size();
 
@@ -573,19 +467,43 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
     if let Some(render_res) = world.as_ref().resources().get::<BloomRenderResource>() {
         contains_transparent_target = true;
 
-        let are_same_size = {
-            render_res.textures[0].size().width == screen_size[0]
-                && render_res.textures[0].size().height == screen_size[1]
-                && render_res.textures[1].size().width == screen_size[0]
-                && render_res.textures[1].size().height == screen_size[1]
-        };
+        let mut are_same_size = true;
+
+        for texture in &render_res.textures {
+            are_same_size &= texture.size().width == screen_size[0];
+            are_same_size &= texture.size().height == screen_size[1];
+        }
 
         if are_same_size {
             return;
         }
     }
 
-    let textures = std::array::from_fn::<_, 2, _>(|i| render_state.device().create_texture(&TextureDescriptor {
+    let buffer_uniform_blur_dir = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Bloom Blur Dir Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&Vec2::splat(0.0_f32)),
+    });
+
+    let buffer_uniform_uv_scale_offset = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Bloom Blur Uv Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&Vec4::splat(0.0_f32)),
+    });
+
+    let buffer_uniform_threshold = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Bloom Threshold Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&Vec2::<f32>::splat(0.0_f32)),
+    });
+
+    let buffer_uniform_intensity = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Bloom Intensity Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&0.0_f32),
+    });
+
+    let textures = std::array::from_fn::<_, 3, _>(|i| render_state.device().create_texture(&TextureDescriptor {
         label: Some(&format!("Bloom Buffer {i}")),
         size: Extent3d {
             width: screen_size[0],
@@ -600,13 +518,27 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         view_formats: &[],
     }));
 
-    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
-        label: Some("Transparent Target Sampler"),
+    let sampler_linear = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Bloom Gather Threshold Sampler"),
         address_mode_u: wgpu::AddressMode::ClampToEdge,
         address_mode_v: wgpu::AddressMode::ClampToEdge,
         address_mode_w: wgpu::AddressMode::ClampToEdge,
         mag_filter: FilterMode::Linear,
         min_filter: FilterMode::Linear,
+        mipmap_filter: FilterMode::Linear,
+        compare: None,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    let sampler_nearest = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Bloom Gather Threshold Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Nearest,
+        min_filter: FilterMode::Nearest,
         mipmap_filter: FilterMode::Nearest,
         compare: None,
         lod_min_clamp: 0.0,
@@ -614,47 +546,275 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
         ..Default::default()
     });
 
-    // todo
-    // let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-    //     label: Some("Transparent Target Bind Group Layout"),
-    //     entries: &[
-    //         BindGroupLayoutEntry {
-    //             binding: 0,
-    //             count: None,
-    //             ty: BindingType::Texture {
-    //                 sample_type: wgpu::TextureSampleType::Float { filterable: false },
-    //                 view_dimension: wgpu::TextureViewDimension::D2,
-    //                 multisampled: false,
-    //             },
-    //             visibility: ShaderStages::VERTEX_FRAGMENT,
-    //         },
-    //         BindGroupLayoutEntry {
-    //             binding: 1,
-    //             count: None,
-    //             ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-    //             visibility: ShaderStages::VERTEX_FRAGMENT,
-    //         },
-    //     ],
-    // });
+    let bind_group_layout_gather = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Bloom Gather Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerNonFiltering,
+            CreateBindGroupLayoutEntry::BufferUniform,
+        ],
+    );
 
-    // let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-    //     label: Some("Transparent Target Bind Group"),
-    //     layout: &bind_group_layout,
-    //     entries: &[
-    //         BindGroupEntry {
-    //             binding: 0,
-    //             resource: wgpu::BindingResource::TextureView(&texture_view),
-    //         },
-    //         BindGroupEntry {
-    //             binding: 1,
-    //             resource: wgpu::BindingResource::Sampler(&sampler),
-    //         },
-    //     ],
-    // });
+    let bind_group_gather = create_bind_group(
+        render_state.device(),
+        Some("Bloom Gather Threshold Bind Group"),
+        &bind_group_layout_gather,
+        &[
+            CreateBindGroupEntry::Texture(&main_render_target.texture_view),
+            CreateBindGroupEntry::Sampler(&sampler_nearest),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_threshold),
+        ],
+    );
+
+    let bind_group_layout_blur = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Bloom Blur Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerNonFiltering,
+            CreateBindGroupLayoutEntry::BufferUniform,
+            CreateBindGroupLayoutEntry::BufferUniform,
+        ],
+    );
+
+    let bind_group_blur_horiz_0 = create_bind_group(
+        render_state.device(),
+        Some("Bloom Blur Horiz 0 Bind Group"),
+        &bind_group_layout_blur,
+        &[
+            CreateBindGroupEntry::Texture(&textures[0].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_nearest),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_blur_dir),
+        ],
+    );
+
+    let bind_group_blur_horiz_1 = create_bind_group(
+        render_state.device(),
+        Some("Bloom Blur Horiz 1 Bind Group"),
+        &bind_group_layout_blur,
+        &[
+            CreateBindGroupEntry::Texture(&textures[1].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_nearest),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_blur_dir),
+        ],
+    );
+
+    let bind_group_blur_vert = create_bind_group(
+        render_state.device(),
+        Some("Bloom Blur Vert Bind Group"),
+        &bind_group_layout_blur,
+        &[
+            CreateBindGroupEntry::Texture(&textures[2].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_nearest),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_blur_dir),
+        ],
+    );
+
+    let bind_group_layout_downscale = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Bloom Downscale Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerFiltering,
+            CreateBindGroupLayoutEntry::BufferUniform,
+        ],
+    );
+
+    let bind_group_downscale_0 = create_bind_group(
+        render_state.device(),
+        Some("Bloom Downscale 0 Bind Group"),
+        &bind_group_layout_downscale,
+        &[
+            CreateBindGroupEntry::Texture(&textures[0].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_linear),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+        ],
+    );
+
+    let bind_group_downscale_1 = create_bind_group(
+        render_state.device(),
+        Some("Bloom Downscale 1 Bind Group"),
+        &bind_group_layout_downscale,
+        &[
+            CreateBindGroupEntry::Texture(&textures[1].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_linear),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+        ],
+    );
+
+    let bind_group_layout_apply = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Bloom Apply Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerFiltering,
+            CreateBindGroupLayoutEntry::BufferUniform,
+            CreateBindGroupLayoutEntry::BufferUniform,
+        ],
+    );
+
+    let bind_group_apply_0 = create_bind_group(
+        render_state.device(),
+        Some("Bloom Apply 0 Bind Group"),
+        &bind_group_layout_apply,
+        &[
+            CreateBindGroupEntry::Texture(&textures[0].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_linear),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_intensity),
+        ],
+    );
+
+    let bind_group_apply_1 = create_bind_group(
+        render_state.device(),
+        Some("Bloom Apply 0 Bind Group"),
+        &bind_group_layout_apply,
+        &[
+            CreateBindGroupEntry::Texture(&textures[1].create_view(&Default::default())),
+            CreateBindGroupEntry::Sampler(&sampler_linear),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_uv_scale_offset),
+            CreateBindGroupEntry::Buffer(&buffer_uniform_intensity),
+        ],
+    );
+
+    let render_pipeline_layout_gather = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Bloom Gather Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout_gather],
+        push_constant_ranges: &[],
+    });
+
+    let render_pipeline_layout_blur = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Bloom Blur Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout_blur],
+        push_constant_ranges: &[],
+    });
+
+    let render_pipeline_layout_downscale = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Bloom Downscale Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout_downscale],
+        push_constant_ranges: &[],
+    });
+
+    let render_pipeline_layout_apply = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Bloom Downscale Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout_apply],
+        push_constant_ranges: &[],
+    });
+
+    let shader_gather = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_bloom_gather_threshold.wgsl"));
+
+    let shader_blur = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_bloom_blur.wgsl"));
+
+    let shader_downscale = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_bloom_downscale.wgsl"));
+
+    let shader_apply = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_bloom_apply.wgsl"));
+
+    let render_pipeline_gather = create_render_pipeline(
+        render_state.device(),
+        Some("Bloom Gather Threshold Render Pipeline"),
+        &render_pipeline_layout_gather,
+        &shader_gather,
+        &[],
+        wgpu::ColorTargetState {
+            format: textures[0].format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
+        },
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
+
+    let render_pipeline_blur = create_render_pipeline(
+        render_state.device(),
+        Some("Bloom Blur Horiz 0 Render Pipeline"),
+        &render_pipeline_layout_blur,
+        &shader_blur,
+        &[],
+        wgpu::ColorTargetState {
+            format: textures[0].format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
+        },
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
+
+    let render_pipeline_downscale = create_render_pipeline(
+        render_state.device(),
+        Some("Bloom Downscale Render Pipeline"),
+        &render_pipeline_layout_downscale,
+        &shader_downscale,
+        &[],
+        wgpu::ColorTargetState {
+            format: textures[0].format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
+        },
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
+
+    let render_pipeline_apply = create_render_pipeline(
+        render_state.device(),
+        Some("Bloom Apply Render Pipeline"),
+        &render_pipeline_layout_apply,
+        &shader_apply,
+        &[],
+        wgpu::ColorTargetState {
+            format: main_render_target.texture.format(),
+            blend: Some(wgpu::BlendState {
+                color: BlendComponent {
+                    src_factor: BlendFactor::One,
+                    dst_factor: BlendFactor::One,
+                    operation: BlendOperation::Add,
+                },
+                alpha: BlendComponent {
+                    src_factor: BlendFactor::One,
+                    dst_factor: BlendFactor::One,
+                    operation: BlendOperation::Add,
+                },
+            }),
+            write_mask: wgpu::ColorWrites::ALL,
+        },
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
 
     let render_res = BloomRenderResource {
+        buffer_uniform_blur_dir,
+        buffer_uniform_threshold,
+        buffer_uniform_uv_scale_offset,
+        buffer_uniform_intensity,
         textures,
-        sampler,
+        sampler: sampler_linear,
+        bind_group_gather,
+        bind_group_blur_horiz_0,
+        bind_group_blur_horiz_1,
+        bind_group_blur_vert,
+        bind_group_downscale_0,
+        bind_group_downscale_1,
+        bind_group_apply_0,
+        bind_group_apply_1,
+        render_pipeline_gather,
+        render_pipeline_blur,
+        render_pipeline_downscale,
+        render_pipeline_apply,
     };
 
     if contains_transparent_target {
@@ -689,60 +849,26 @@ pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
         contents: fruits_utils::mem::as_bytes(Mat4::<f32>::IDENTITY.as_array()),
     });
 
-    let bind_group_layout = render_state.device().create_bind_group_layout(&BindGroupLayoutDescriptor {
-        label: Some("Gizmos Bind Group Layout"),
-        entries: &[
-            BindGroupLayoutEntry {
-                binding: 0,
-                count: None,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                visibility: ShaderStages::VERTEX,
-            },
-            BindGroupLayoutEntry {
-                binding: 1,
-                count: None,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                visibility: ShaderStages::VERTEX,
-            },
-            BindGroupLayoutEntry {
-                binding: 2,
-                count: None,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                visibility: ShaderStages::VERTEX,
-            },
+    let bind_group_layout = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Gizmos Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::BufferStorage,
+            CreateBindGroupLayoutEntry::BufferStorage,
+            CreateBindGroupLayoutEntry::BufferUniform,
         ],
-    });
+    );
 
-    let bind_group = render_state.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Gizmos Bind Group"),
-        layout: &bind_group_layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: vertex_buffer.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: color_buffer.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 2,
-                resource: transform_buffer.as_entire_binding(),
-            },
+    let bind_group = create_bind_group(
+        render_state.device(),
+        Some("Gizmos Bind Group"),
+        &bind_group_layout,
+        &[
+            CreateBindGroupEntry::Buffer(&vertex_buffer),
+            CreateBindGroupEntry::Buffer(&color_buffer),
+            CreateBindGroupEntry::Buffer(&transform_buffer),
         ],
-    });
+    );
 
     let pipeline_layout = render_state.device().create_pipeline_layout(&PipelineLayoutDescriptor {
         label: Some("Gizmos Render Pipeline Layout"),
@@ -754,43 +880,21 @@ pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
         .device()
         .create_shader_module(include_wgsl!("./assets/shader_gizmo.wgsl"));
 
-    let pipeline = render_state.device().create_render_pipeline(&RenderPipelineDescriptor {
-        label: Some("Gizmos Render Pipeline"),
-        cache: None,
-        depth_stencil: None,
-        layout: Some(&pipeline_layout),
-        multisample: MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
+    let pipeline = create_render_pipeline(
+        render_state.device(),
+        Some("Gizmos Render Pipeline"),
+        &pipeline_layout,
+        &shader,
+        &[],
+        wgpu::ColorTargetState {
+            format: main_render_target_res.texture.format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
         },
-        multiview: None,
-        primitive: wgpu::PrimitiveState {
-            topology: PrimitiveTopology::LineList,
-            strip_index_format: None,
-            front_face: FrontFace::Ccw,
-            cull_mode: None,
-            unclipped_depth: false,
-            polygon_mode: PolygonMode::Fill,
-            conservative: false,
-        },
-        fragment: Some(FragmentState {
-            module: &shader,
-            entry_point: Some("fragment_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: main_render_target_res.texture.format(),
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-            compilation_options: Default::default(),
-        }),
-        vertex: VertexState {
-            module: &shader,
-            entry_point: Some("vertex_main"),
-            buffers: &[],
-            compilation_options: Default::default(),
-        },
-    });
+        None,
+        PrimitiveTopology::LineList,
+        None,
+    );
 
     world.as_mut()
         .resources_mut()
@@ -1022,7 +1126,7 @@ pub fn render_opaque_instanced(
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     depth_res: Res<DepthTextureResource>,
-    surface_texture: Res<MainRenderTargetResource>,
+    main_render_target: Res<MainRenderTargetResource>,
     meshes: Res<AssetStorageResource<StandardMesh>>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
 ) {
@@ -1032,7 +1136,7 @@ pub fn render_opaque_instanced(
 
     let render_state = unsafe { render_api.raw() };
 
-    let view = &surface_texture.texture_view;
+    let view = &main_render_target.texture_view;
 
     let window_size = render_state.size();
 
@@ -1144,7 +1248,7 @@ pub fn render_opaque_batched(
     screen_space_res: Res<ScreenSpaceResource>,
     standard_render_res: Res<StandardRenderResource>,
     depth_res: Res<DepthTextureResource>,
-    surface_texture: Res<MainRenderTargetResource>,
+    main_render_target: Res<MainRenderTargetResource>,
     materials: Res<AssetStorageResource<StandardMaterial>>,
     mut batched_vertex_cpu_buffer: ResMut<BatchedVertexCpuBufferResource>,
 ) {
@@ -1154,7 +1258,7 @@ pub fn render_opaque_batched(
 
     let render_state = unsafe { render_api.raw() };
 
-    let view = &surface_texture.texture_view;
+    let view = &main_render_target.texture_view;
 
     let window_size = render_state.size();
 
@@ -1517,15 +1621,15 @@ pub fn render_transparent_batched(
     }
 }
 
-pub fn render_transparent_final(
+pub fn render_transparent_final_system(
     render_api: Res<RenderApiResource>,
     standard_render_res: Res<StandardRenderResource>,
     transparent_target_res: Res<TransparentTargetTextureResource>,
-    surface_texture: Res<MainRenderTargetResource>,
+    main_render_target: Res<MainRenderTargetResource>,
 ) {
     let render_state = unsafe { render_api.raw() };
 
-    let view = &surface_texture.texture_view;
+    let view = &main_render_target.texture_view;
 
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Transparent Final Render Encoder"),
@@ -1555,16 +1659,21 @@ pub fn render_transparent_final(
     render_state.queue().submit(std::iter::once(encoder.finish()));
 }
 
-pub fn render_gather_bloom_threshold(
+pub fn render_bloom_system(
     render_api: Res<RenderApiResource>,
-    surface_texture: Res<MainRenderTargetResource>,
+    bloom_res: Res<BloomResource>,
+    bloom_render_resource: Res<BloomRenderResource>,
+    main_render_target: Res<MainRenderTargetResource>,
 ) {
-    // todo
-    return;
+    if !bloom_res.is_enabled {
+        return;
+    }
 
     let render_state = unsafe { render_api.raw() };
 
-    let view = &surface_texture.texture_view;
+    let screen_size = render_api.size().map(|i| i as f32);
+
+    render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_threshold, 0, fruits_utils::mem::as_bytes(&Vec2::<f32>::new(bloom_res.threshold, bloom_res.threshold_softening)));
 
     let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
         label: Some("Gather Bloom Render Encoder"),
@@ -1574,10 +1683,10 @@ pub fn render_gather_bloom_threshold(
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("Gather Bloom Render Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: view,
+                view: &bloom_render_resource.textures[0].create_view(&Default::default()),
                 resolve_target: None,
                 ops: Operations {
-                    load: LoadOp::Load,
+                    load: LoadOp::Clear(Color::BLACK),
                     store: StoreOp::Store,
                 },
                 depth_slice: None,
@@ -1586,23 +1695,192 @@ pub fn render_gather_bloom_threshold(
             ..Default::default()
         });
 
-        // render_pass.set_pipeline(&standard_render_res.render_pipeline_transparent_final);
-        // render_pass.set_bind_group(0, &transparent_target_res.bind_group, &[]);
-        // render_pass.draw(0..3, 0..1);
+        render_pass.set_pipeline(&bloom_render_resource.render_pipeline_gather);
+        render_pass.set_bind_group(0, &bloom_render_resource.bind_group_gather, &[]);
+        render_pass.draw(0..3, 0..1);
     }
 
     render_state.queue().submit(std::iter::once(encoder.finish()));
+
+    //
+
+    let mut blur_layers: [f32; _] = [
+        1.3,
+        1.2,
+        1.1,
+        1.0,
+    ];
+
+    let layers_intensity_sum = blur_layers.into_iter().sum::<f32>();
+
+    blur_layers.iter_mut().for_each(|i| *i /= layers_intensity_sum);
+
+    for (blur_layer, blur_layer_intensity) in blur_layers.into_iter().enumerate() {
+        let downscale_uv_output = 1.0 / (1 << blur_layer) as f32;
+
+        let downscale_uv_scale_offset_output = Vec4::<f32>::new(downscale_uv_output, downscale_uv_output, 0.0, 0.0);
+
+        let downscale_viewport_scale = [screen_size[0] * downscale_uv_output, screen_size[1] * downscale_uv_output];
+
+        if blur_layer > 0 {
+            let (
+                downscale_target_view,
+                downscale_bind_group,
+            ) = if blur_layer % 2 == 0 {
+                (
+                    &bloom_render_resource.textures[0].create_view(&Default::default()),
+                    &bloom_render_resource.bind_group_downscale_1,
+                )
+            } else {
+                (
+                    &bloom_render_resource.textures[1].create_view(&Default::default()),
+                    &bloom_render_resource.bind_group_downscale_0,
+                )
+            };
+
+            let downscale_uv_input = downscale_uv_output * 2.0;
+
+            let downscale_uv_scale_offset_input = Vec4::<f32>::new(downscale_uv_input, downscale_uv_input, 0.0, 0.0);
+
+            render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_uv_scale_offset, 0, fruits_utils::mem::as_bytes(&downscale_uv_scale_offset_input));
+
+            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Downscale Bloom Render Encoder"),
+            });
+
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Downscale Bloom Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &downscale_target_view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: LoadOp::Clear(Color::BLACK),
+                            store: StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: None,
+                    ..Default::default()
+                });
+
+                render_pass.set_viewport(0.0, 0.0, downscale_viewport_scale[0], downscale_viewport_scale[1], 0.0, 1.0);
+                render_pass.set_pipeline(&bloom_render_resource.render_pipeline_downscale);
+                render_pass.set_bind_group(0, downscale_bind_group, &[]);
+                render_pass.draw(0..3, 0..1);
+            }
+
+            render_state.queue().submit(std::iter::once(encoder.finish()));
+        }
+
+        //
+
+        let (
+            blur_init_texture,
+            blur_init_bind_group,
+        ) = if blur_layer % 2 == 0 {
+            (
+                &bloom_render_resource.textures[0],
+                &bloom_render_resource.bind_group_blur_horiz_0,
+            )
+        } else {
+            (
+                &bloom_render_resource.textures[1],
+                &bloom_render_resource.bind_group_blur_horiz_1,
+            )
+        };
+
+        let blur_dir_entries = [
+            (Vec2::<f32>::new(1.0, 0.0), blur_init_bind_group, &bloom_render_resource.textures[2]),
+            (Vec2::<f32>::new(0.0, 1.0), &bloom_render_resource.bind_group_blur_vert, blur_init_texture),
+        ];
+
+        for (blur_dir, bind_group, target_tex) in blur_dir_entries {
+            let view = target_tex.create_view(&Default::default());
+
+            render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_blur_dir, 0, fruits_utils::mem::as_bytes(&blur_dir));
+            render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_uv_scale_offset, 0, fruits_utils::mem::as_bytes(&downscale_uv_scale_offset_output));
+
+            let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Blur Bloom Render Encoder"),
+            });
+
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("Blur Bloom Render Pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: LoadOp::Clear(Color::BLACK),
+                            store: StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: None,
+                    ..Default::default()
+                });
+
+                render_pass.set_viewport(0.0, 0.0, downscale_viewport_scale[0], downscale_viewport_scale[1], 0.0, 1.0);
+                render_pass.set_pipeline(&bloom_render_resource.render_pipeline_blur);
+                render_pass.set_bind_group(0, bind_group, &[]);
+                render_pass.draw(0..3, 0..1);
+            }
+
+            render_state.queue().submit(std::iter::once(encoder.finish()));
+        }
+
+        //
+
+        let apply_bind_group = if blur_layer % 2 == 0 {
+            &bloom_render_resource.bind_group_apply_0
+        } else {
+            &bloom_render_resource.bind_group_apply_1
+        };
+
+        let intensity = blur_layer_intensity * bloom_res.intensity;
+
+        render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_intensity, 0, fruits_utils::mem::as_bytes(&intensity));
+        render_state.queue().write_buffer(&bloom_render_resource.buffer_uniform_uv_scale_offset, 0, fruits_utils::mem::as_bytes(&downscale_uv_scale_offset_output));
+
+        let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("Apply Bloom Render Encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Apply Bloom Render Pass"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &main_render_target.texture_view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Load,
+                        store: StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                ..Default::default()
+            });
+
+            render_pass.set_pipeline(&bloom_render_resource.render_pipeline_apply);
+            render_pass.set_bind_group(0, apply_bind_group, &[]);
+            render_pass.draw(0..3, 0..1);
+        }
+
+        render_state.queue().submit(std::iter::once(encoder.finish()));
+    }
 }
 
 pub fn render_gizmos(
     mut gizmos: ResMut<GizmosResource>,
     mut gizmos_render_res: ResMut<GizmosRenderResource>,
-    surface_texture: Res<MainRenderTargetResource>,
+    main_render_target: Res<MainRenderTargetResource>,
     screen_space_res: Res<ScreenSpaceResource>,
     render_api: Res<RenderApiResource>,
     camera_query: WorldQuery<(&GlobalTransform, &CameraComponent)>,
 ) {
-    let view = &surface_texture.texture_view;
+    let view = &main_render_target.texture_view;
 
     let render_state = unsafe { render_api.raw() };
 

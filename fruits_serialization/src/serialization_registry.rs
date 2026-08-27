@@ -36,9 +36,9 @@ impl<T: TransSerializable> TransSerializer for StandardTransSerializer<T> {
 
 #[repr(C)]
 struct TransSerializerFfiVtable {
-    fn_serialize: unsafe extern "C" fn(*const c_void, ctx: SerializerCtx, value: *const c_void) -> SerializedValue,
-    fn_deserialize: unsafe extern "C" fn(*const c_void, ctx: SerializerCtx, value: &SerializedValue, out: *mut c_void),
-    fn_deserialize_any: unsafe extern "C" fn(*const c_void, ctx: SerializerCtx, value: &SerializedValue) -> FfiOption<FfiAny>,
+    fn_serialize: unsafe extern "C-unwind" fn(*const c_void, ctx: SerializerCtx, value: *const c_void) -> SerializedValue,
+    fn_deserialize: unsafe extern "C-unwind" fn(*const c_void, ctx: SerializerCtx, value: &SerializedValue, out: *mut c_void),
+    fn_deserialize_any: unsafe extern "C-unwind" fn(*const c_void, ctx: SerializerCtx, value: &SerializedValue) -> FfiOption<FfiAny>,
 }
 
 #[repr(C)]
@@ -50,7 +50,7 @@ pub struct TransSerializerFfi<'se> {
 
 impl<'se> TransSerializerFfi<'se> {
     fn new<T: 'static, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(serializer: S) -> Self {
-        unsafe extern "C" fn ffi_serialize<'se, T, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(this: *const c_void, ctx: SerializerCtx, value: *const c_void) -> SerializedValue {
+        unsafe extern "C-unwind" fn ffi_serialize<'se, T, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(this: *const c_void, ctx: SerializerCtx, value: *const c_void) -> SerializedValue {
             unsafe {
                 let serializer = &*(this as *const S);
                 let value = &*(value as *const T);
@@ -58,7 +58,7 @@ impl<'se> TransSerializerFfi<'se> {
                 serializer.serialize(ctx, value)
             }
         }
-        unsafe extern "C" fn ffi_deserialize<'se, T, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(this: *const c_void, ctx: SerializerCtx, value: &SerializedValue, out: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_deserialize<'se, T, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(this: *const c_void, ctx: SerializerCtx, value: &SerializedValue, out: *mut c_void) {
             unsafe {
                 let serializer = &*(this as *const S);
                 let out = out as *mut Option<T>;
@@ -68,7 +68,7 @@ impl<'se> TransSerializerFfi<'se> {
                 out.write(result);
             }
         }
-        unsafe extern "C" fn ffi_deserialize_any<'se, T: 'static, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(this: *const c_void, ctx: SerializerCtx, value: &SerializedValue) -> FfiOption<FfiAny> {
+        unsafe extern "C-unwind" fn ffi_deserialize_any<'se, T: 'static, S: 'se + TransSerializer<Deserialized = T> + Send + Sync>(this: *const c_void, ctx: SerializerCtx, value: &SerializedValue) -> FfiOption<FfiAny> {
             unsafe {
                 let serializer = &*(this as *const S);
 

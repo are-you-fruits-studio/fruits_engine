@@ -6,9 +6,9 @@ use crate::*;
 
 #[repr(C)]
 struct SystemsHolderBuilderFfiVTable {
-    insert_system_fn: unsafe extern "C" fn(*mut c_void, system: SystemFfi) -> bool,
-    order_fn: unsafe extern "C" fn(*mut c_void, prev: OrderEntry, next: OrderEntry),
-    insert_group_child_fn: unsafe extern "C" fn(*mut c_void, group: FfiString, child: OrderEntry),
+    insert_system_fn: unsafe extern "C-unwind" fn(*mut c_void, system: SystemFfi) -> bool,
+    order_fn: unsafe extern "C-unwind" fn(*mut c_void, prev: OrderEntry, next: OrderEntry),
+    insert_group_child_fn: unsafe extern "C-unwind" fn(*mut c_void, group: FfiString, child: OrderEntry),
     build_fn: unsafe extern "C-unwind" fn(*mut c_void) -> SystemsHolderFfi,
 }
 
@@ -20,21 +20,21 @@ pub struct SystemsHolderBuilderFfi {
 
 impl SystemsHolderBuilderFfi {
     pub fn new(types: TypesRegistryAccessFfi) -> Self {
-        unsafe extern "C" fn ffi_insert_system(this: *mut c_void, system: SystemFfi) -> bool {
+        unsafe extern "C-unwind" fn ffi_insert_system(this: *mut c_void, system: SystemFfi) -> bool {
             unsafe {
                 let this = &mut *(this as *mut SystemsHolderBuilderNative);
 
                 this.insert_system(system)
             }
         }
-        unsafe extern "C" fn ffi_order(this: *mut c_void, prev: OrderEntry, next: OrderEntry) {
+        unsafe extern "C-unwind" fn ffi_order(this: *mut c_void, prev: OrderEntry, next: OrderEntry) {
             unsafe {
                 let this = &mut *(this as *mut SystemsHolderBuilderNative);
 
                 this.order(prev, next)
             }
         }
-        unsafe extern "C" fn ffi_insert_group_child(this: *mut c_void, group: FfiString, child: OrderEntry) {
+        unsafe extern "C-unwind" fn ffi_insert_group_child(this: *mut c_void, group: FfiString, child: OrderEntry) {
             unsafe {
                 let this = &mut *(this as *mut SystemsHolderBuilderNative);
 
