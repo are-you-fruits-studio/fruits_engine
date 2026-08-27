@@ -8,7 +8,7 @@ struct VertexOutput {
 };
 
 @vertex
-fn vertex_main(@builtin(vertex_index) index: u32) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) index: u32) -> VertexOutput {
     var out: VertexOutput;
 
     out.pos = transform * vertex[index];
@@ -18,6 +18,6 @@ fn vertex_main(@builtin(vertex_index) index: u32) -> VertexOutput {
 }
 
 @fragment
-fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color;
 }

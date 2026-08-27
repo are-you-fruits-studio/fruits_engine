@@ -109,12 +109,12 @@ pub struct SystemFfi {
     system_name: FfiString,
     data_usage: DataUsage,
     system_native_data: FfiDroppable,
-    execute_fn: unsafe extern "C" fn(*const c_void, SystemCtxFfi),
+    execute_fn: unsafe extern "C-unwind" fn(*const c_void, SystemCtxFfi),
 }
 
 impl SystemFfi {
     pub fn new<S: SystemWithMarker<M>, M: 'static>(system: S, types: TypesRegistryCache) -> Self {
-        unsafe extern "C" fn ffi_execute<S: SystemWithMarker<M>, M: 'static>(system_native_data: *const c_void, ctx: SystemCtxFfi) {
+        unsafe extern "C-unwind" fn ffi_execute<S: SystemWithMarker<M>, M: 'static>(system_native_data: *const c_void, ctx: SystemCtxFfi) {
             unsafe {
                 let system_native_data = &*(system_native_data as *const SystemNativeData<S, M>);
 

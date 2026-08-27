@@ -4,13 +4,13 @@ use crate::{FfiDroppable, FfiOption, FfiStaticRef, FfiStrSliceRef, FfiString};
 
 #[repr(C)]
 struct FfiHashMapVTable<K: 'static + Eq + Hash, V: 'static> {
-    insert_fn: unsafe extern "C" fn(*mut c_void, k: K, v: V) -> FfiOption<V>,
-    remove_fn: unsafe extern "C" fn(*mut c_void, k: *const K) -> FfiOption<V>,
-    get_fn: unsafe extern "C" fn(*const c_void, k: *const K) -> FfiOption<*const V>,
-    get_mut_fn: unsafe extern "C" fn(*mut c_void, k: *const K) -> FfiOption<*mut V>,
-    get_by_str_fn: unsafe extern "C" fn(*const c_void, k: FfiStrSliceRef) -> FfiOption<*const V>,
-    get_by_str_mut_fn: unsafe extern "C" fn(*mut c_void, k: FfiStrSliceRef) -> FfiOption<*mut V>,
-    remove_by_str_fn: unsafe extern "C" fn(*mut c_void, k: FfiStrSliceRef) -> FfiOption<V>,
+    insert_fn: unsafe extern "C-unwind" fn(*mut c_void, k: K, v: V) -> FfiOption<V>,
+    remove_fn: unsafe extern "C-unwind" fn(*mut c_void, k: *const K) -> FfiOption<V>,
+    get_fn: unsafe extern "C-unwind" fn(*const c_void, k: *const K) -> FfiOption<*const V>,
+    get_mut_fn: unsafe extern "C-unwind" fn(*mut c_void, k: *const K) -> FfiOption<*mut V>,
+    get_by_str_fn: unsafe extern "C-unwind" fn(*const c_void, k: FfiStrSliceRef) -> FfiOption<*const V>,
+    get_by_str_mut_fn: unsafe extern "C-unwind" fn(*mut c_void, k: FfiStrSliceRef) -> FfiOption<*mut V>,
+    remove_by_str_fn: unsafe extern "C-unwind" fn(*mut c_void, k: FfiStrSliceRef) -> FfiOption<V>,
 }
 
 #[repr(C)]
@@ -22,7 +22,7 @@ pub struct FfiHashMap<K: 'static + Eq + Hash, V: 'static> {
 unsafe impl<K: Eq + Hash + Send, V: Send> Send for FfiHashMap<K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for FfiHashMap<K, V> {}
 
-unsafe extern "C" fn ffi_insert<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: K, v: V) -> FfiOption<V> {
+unsafe extern "C-unwind" fn ffi_insert<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: K, v: V) -> FfiOption<V> {
     unsafe {
         let this = &mut *(this as *mut HashMap<K, V>);
 
@@ -31,7 +31,7 @@ unsafe extern "C" fn ffi_insert<K: 'static + Eq + Hash, V: 'static>(this: *mut c
         FfiOption::from_option(result)
     }
 }
-unsafe extern "C" fn ffi_remove<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: *const K) -> FfiOption<V> {
+unsafe extern "C-unwind" fn ffi_remove<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: *const K) -> FfiOption<V> {
     unsafe {
         let this = &mut *(this as *mut HashMap<K, V>);
 
@@ -40,7 +40,7 @@ unsafe extern "C" fn ffi_remove<K: 'static + Eq + Hash, V: 'static>(this: *mut c
         FfiOption::from_option(result)
     }
 }
-unsafe extern "C" fn ffi_get<K: 'static + Eq + Hash, V: 'static>(this: *const c_void, k: *const K) -> FfiOption<*const V> {
+unsafe extern "C-unwind" fn ffi_get<K: 'static + Eq + Hash, V: 'static>(this: *const c_void, k: *const K) -> FfiOption<*const V> {
     unsafe {
         let this = &*(this as *const HashMap<K, V>);
 
@@ -49,7 +49,7 @@ unsafe extern "C" fn ffi_get<K: 'static + Eq + Hash, V: 'static>(this: *const c_
         FfiOption::from_option(result.map(|v| &raw const *v))
     }
 }
-unsafe extern "C" fn ffi_get_mut<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: *const K) -> FfiOption<*mut V> {
+unsafe extern "C-unwind" fn ffi_get_mut<K: 'static + Eq + Hash, V: 'static>(this: *mut c_void, k: *const K) -> FfiOption<*mut V> {
     unsafe {
         let this = &mut *(this as *mut HashMap<K, V>);
 
@@ -58,7 +58,7 @@ unsafe extern "C" fn ffi_get_mut<K: 'static + Eq + Hash, V: 'static>(this: *mut 
         FfiOption::from_option(result.map(|v| &raw mut *v))
     }
 }
-unsafe extern "C" fn ffi_get_by_str<V: 'static>(this: *const c_void, k: FfiStrSliceRef) -> FfiOption<*const V> {
+unsafe extern "C-unwind" fn ffi_get_by_str<V: 'static>(this: *const c_void, k: FfiStrSliceRef) -> FfiOption<*const V> {
     unsafe {
         let this = &*(this as *const HashMap<FfiString, V>);
 
@@ -67,7 +67,7 @@ unsafe extern "C" fn ffi_get_by_str<V: 'static>(this: *const c_void, k: FfiStrSl
         FfiOption::from_option(result.map(|v| &raw const *v))
     }
 }
-unsafe extern "C" fn ffi_get_by_str_mut<V: 'static>(this: *mut c_void, k: FfiStrSliceRef) -> FfiOption<*mut V> {
+unsafe extern "C-unwind" fn ffi_get_by_str_mut<V: 'static>(this: *mut c_void, k: FfiStrSliceRef) -> FfiOption<*mut V> {
     unsafe {
         let this = &mut *(this as *mut HashMap<FfiString, V>);
 
@@ -76,7 +76,7 @@ unsafe extern "C" fn ffi_get_by_str_mut<V: 'static>(this: *mut c_void, k: FfiStr
         FfiOption::from_option(result.map(|v| &raw mut *v))
     }
 }
-unsafe extern "C" fn ffi_remove_by_str<V: 'static>(this: *mut c_void, k: FfiStrSliceRef) -> FfiOption<V> {
+unsafe extern "C-unwind" fn ffi_remove_by_str<V: 'static>(this: *mut c_void, k: FfiStrSliceRef) -> FfiOption<V> {
     unsafe {
         let this = &mut *(this as *mut HashMap<FfiString, V>);
 

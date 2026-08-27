@@ -145,11 +145,11 @@ pub struct FfiOpaqueVec {
     vec: FfiRawVecInner,
     element_size: u64,
     element_align: u64,
-    drop_fn: Option<unsafe extern "C" fn(*mut c_void)>,
+    drop_fn: Option<unsafe extern "C-unwind" fn(*mut c_void)>,
 }
 
 impl FfiOpaqueVec {
-    pub const unsafe fn new(element_size: u64, element_align: u64, drop_fn: Option<unsafe extern "C" fn(*mut c_void)>) -> Self {
+    pub const unsafe fn new(element_size: u64, element_align: u64, drop_fn: Option<unsafe extern "C-unwind" fn(*mut c_void)>) -> Self {
         let cap = if element_size == 0 { ZERO_SIZED_CAP } else { 0 };
 
         Self {

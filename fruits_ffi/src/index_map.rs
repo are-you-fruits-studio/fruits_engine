@@ -4,8 +4,8 @@ use crate::{FfiDroppable, FfiFnRef, FfiOption, FfiSliceRef, FfiVec};
 
 #[repr(C)]
 struct VirtualHasherMutVtable {
-    fn_finish: unsafe extern "C" fn(this: *const c_void) -> u64,
-    fn_write: unsafe extern "C" fn(this: *mut c_void, bytes: FfiSliceRef<u8>),
+    fn_finish: unsafe extern "C-unwind" fn(this: *const c_void) -> u64,
+    fn_write: unsafe extern "C-unwind" fn(this: *mut c_void, bytes: FfiSliceRef<u8>),
 }
 #[repr(C)]
 struct VirtualHasherMut {
@@ -14,14 +14,14 @@ struct VirtualHasherMut {
 }
 impl VirtualHasherMut {
     pub fn new<H: std::hash::Hasher>(hasher: &mut H) -> Self {
-        unsafe extern "C" fn ffi_finish<H: std::hash::Hasher>(this: *const c_void) -> u64 {
+        unsafe extern "C-unwind" fn ffi_finish<H: std::hash::Hasher>(this: *const c_void) -> u64 {
             unsafe {
                 let this = &*(this as *const H);
 
                 this.finish()
             }
         }
-        unsafe extern "C" fn ffi_write<H: std::hash::Hasher>(this: *mut c_void, bytes: FfiSliceRef<u8>) {
+        unsafe extern "C-unwind" fn ffi_write<H: std::hash::Hasher>(this: *mut c_void, bytes: FfiSliceRef<u8>) {
             unsafe {
                 let this = &mut *(this as *mut H);
 
@@ -55,11 +55,11 @@ impl std::hash::Hasher for VirtualHasherMut {
 #[repr(C)]
 struct FfiHashState {
     state: FfiDroppable,
-    hash_fn: unsafe extern "C" fn(this: *const c_void, hash: FfiFnRef<VirtualHasherMut, ()>) -> u64,
+    hash_fn: unsafe extern "C-unwind" fn(this: *const c_void, hash: FfiFnRef<VirtualHasherMut, ()>) -> u64,
 }
 impl FfiHashState {
     pub fn new() -> Self {
-        unsafe extern "C" fn ffi_hash(this: *const c_void, hash: FfiFnRef<VirtualHasherMut, ()>) -> u64 {
+        unsafe extern "C-unwind" fn ffi_hash(this: *const c_void, hash: FfiFnRef<VirtualHasherMut, ()>) -> u64 {
             unsafe {
                 let state = &*(this as *const std::hash::RandomState);
 
@@ -89,11 +89,11 @@ impl FfiHashState {
 
 #[repr(C)]
 struct FfiHashTableVtable {
-    ffi_insert_unique: unsafe extern "C" fn(this: *mut c_void, hash: u64, value: u64, hasher: FfiFnRef<u64, u64>),
-    ffi_remove: unsafe extern "C" fn(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64>,
-    ffi_get: unsafe extern "C" fn(this: *const c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64>,
-    ffi_set: unsafe extern "C" fn(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>, value: u64),
-    ffi_clear: unsafe extern "C" fn(this: *mut c_void),
+    ffi_insert_unique: unsafe extern "C-unwind" fn(this: *mut c_void, hash: u64, value: u64, hasher: FfiFnRef<u64, u64>),
+    ffi_remove: unsafe extern "C-unwind" fn(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64>,
+    ffi_get: unsafe extern "C-unwind" fn(this: *const c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64>,
+    ffi_set: unsafe extern "C-unwind" fn(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>, value: u64),
+    ffi_clear: unsafe extern "C-unwind" fn(this: *mut c_void),
 }
 
 #[repr(C)]
@@ -104,14 +104,14 @@ struct FfiHashTable {
 
 impl FfiHashTable {
     pub fn new() -> Self {
-        unsafe extern "C" fn ffi_insert_unique(this: *mut c_void, hash: u64, value: u64, hasher: FfiFnRef<u64, u64>) {
+        unsafe extern "C-unwind" fn ffi_insert_unique(this: *mut c_void, hash: u64, value: u64, hasher: FfiFnRef<u64, u64>) {
             unsafe {
                 let this = &mut *(this as *mut hashbrown::hash_table::HashTable<u64>);
 
                 this.insert_unique(hash, value, |x| hasher.execute(*x));
             }
         }
-        unsafe extern "C" fn ffi_remove(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64> {
+        unsafe extern "C-unwind" fn ffi_remove(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64> {
             unsafe {
                 let this = &mut *(this as *mut hashbrown::hash_table::HashTable<u64>);
                
@@ -123,14 +123,14 @@ impl FfiHashTable {
             }
 
         }
-        unsafe extern "C" fn ffi_get(this: *const c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64> {
+        unsafe extern "C-unwind" fn ffi_get(this: *const c_void, hash: u64, key_eq: FfiFnRef<u64, bool>) -> FfiOption<u64> {
             unsafe {
                 let this = &*(this as *const hashbrown::hash_table::HashTable<u64>);
                
                 this.find(hash, |i| key_eq.execute(*i)).copied().into()
             }
         }
-        unsafe extern "C" fn ffi_set(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>, value: u64) {
+        unsafe extern "C-unwind" fn ffi_set(this: *mut c_void, hash: u64, key_eq: FfiFnRef<u64, bool>, value: u64) {
             unsafe {
                 let this = &mut *(this as *mut hashbrown::hash_table::HashTable<u64>);
 
@@ -139,7 +139,7 @@ impl FfiHashTable {
                 }
             }
         }
-        unsafe extern "C" fn ffi_clear(this: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_clear(this: *mut c_void) {
             unsafe {
                 let this = &mut *(this as *mut hashbrown::hash_table::HashTable<u64>);
 

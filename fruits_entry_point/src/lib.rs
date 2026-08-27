@@ -31,7 +31,7 @@
 //!
 //! The crate is a single function-like procedural macro. It takes the caller's
 //! argument verbatim as the name of the setup function and emits a fixed
-//! `#[unsafe(no_mangle)] pub unsafe extern "C" fn fruits_entry_point` with C ABI.
+//! `#[unsafe(no_mangle)] pub unsafe extern "C-unwind" fn fruits_entry_point` with C ABI.
 //! That exported symbol is the contract with `fruits_app_launcher`, which resolves
 //! it by the literal name `fruits_entry_point` and calls it with an
 //! `AppInitCtxFfi`.
@@ -64,7 +64,7 @@ pub fn fruits_entry_point(item: TokenStream) -> TokenStream {
     format!(
         r#"
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fruits_entry_point(ctx: ::fruits_engine::AppInitCtxFfi) {{
+pub unsafe extern "C-unwind" fn fruits_entry_point(ctx: ::fruits_engine::AppInitCtxFfi) {{
     let world = unsafe {{ &mut *ctx.world_mut }};
     let types_ref = unsafe {{ &*ctx.types_ref }};
 

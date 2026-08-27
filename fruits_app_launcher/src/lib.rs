@@ -66,7 +66,7 @@
 //!
 //! [`launch_app_dynamically`] crosses an FFI boundary. It loads a shared library
 //! named `app_lib` from the process working directory via `libloading`, resolves the
-//! `fruits_entry_point` C symbol (an `unsafe extern "C" fn(AppInitCtxFfi)` that the
+//! `fruits_entry_point` C symbol (an `unsafe extern "C-unwind" fn(AppInitCtxFfi)` that the
 //! game library exports through the `fruits_entry_point!` macro), and exposes the
 //! freshly built world to it. `App::ecs_mut().into_raw_parts()` yields a raw world
 //! pointer plus the type registry; both are packed as raw pointers into an
@@ -112,7 +112,7 @@ pub fn launch_app_dynamically() {
 
 pub unsafe fn init_app_dynamically(mut world: WorldBuilderMut, lib_path: impl AsRef<Path>) -> Result<Library, libloading::Error> {
     let lib = unsafe { libloading::Library::new(lib_path.as_ref())? };
-    let init_app_symbol = unsafe { lib.get::<unsafe extern "C" fn(AppInitCtxFfi)>(b"fruits_entry_point")? };
+    let init_app_symbol = unsafe { lib.get::<unsafe extern "C-unwind" fn(AppInitCtxFfi)>(b"fruits_entry_point")? };
 
     unsafe {
         let (world_builder_ffi, types) = world.into_raw_parts();

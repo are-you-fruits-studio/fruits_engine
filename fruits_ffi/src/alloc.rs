@@ -6,8 +6,8 @@ use std::{
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct FfiAllocator {
-    alloc_fn: unsafe extern "C" fn(u64, u64) -> *mut c_void,
-    dealloc_fn: unsafe extern "C" fn(*mut c_void, u64, u64),
+    alloc_fn: unsafe extern "C-unwind" fn(u64, u64) -> *mut c_void,
+    dealloc_fn: unsafe extern "C-unwind" fn(*mut c_void, u64, u64),
 }
 
 impl FfiAllocator {
@@ -39,7 +39,7 @@ impl FfiAllocator {
         }
     }
 
-    unsafe extern "C" fn c_alloc_system(size: u64, align: u64) -> *mut c_void {
+    unsafe extern "C-unwind" fn c_alloc_system(size: u64, align: u64) -> *mut c_void {
         unsafe {
             let layout = Layout::from_size_align_unchecked(size as usize, align as usize);
 
@@ -47,7 +47,7 @@ impl FfiAllocator {
         }
     }
 
-    unsafe extern "C" fn c_dealloc_system(ptr: *mut c_void, size: u64, align: u64) {
+    unsafe extern "C-unwind" fn c_dealloc_system(ptr: *mut c_void, size: u64, align: u64) {
         unsafe {
             let layout = Layout::from_size_align_unchecked(size as usize, align as usize);
 
@@ -55,7 +55,7 @@ impl FfiAllocator {
         }
     }
 
-    unsafe extern "C" fn c_alloc_global(size: u64, align: u64) -> *mut c_void {
+    unsafe extern "C-unwind" fn c_alloc_global(size: u64, align: u64) -> *mut c_void {
         unsafe {
             let layout = Layout::from_size_align_unchecked(size as usize, align as usize);
 
@@ -67,7 +67,7 @@ impl FfiAllocator {
         }
     }
 
-    unsafe extern "C" fn c_dealloc_global(ptr: *mut c_void, size: u64, align: u64) {
+    unsafe extern "C-unwind" fn c_dealloc_global(ptr: *mut c_void, size: u64, align: u64) {
         unsafe {
             let layout = Layout::from_size_align_unchecked(size as usize, align as usize);
 
@@ -81,12 +81,12 @@ impl FfiAllocator {
 #[repr(C)]
 pub struct FfiTypedMemory<T> {
     data: *mut T,
-    dealloc_fn: unsafe extern "C" fn(*mut c_void),
+    dealloc_fn: unsafe extern "C-unwind" fn(*mut c_void),
 }
 
 impl<T> FfiTypedMemory<T> {
     pub fn new() -> Self {
-        unsafe extern "C" fn ffi_dealloc<D>(data: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_dealloc<D>(data: *mut c_void) {
             unsafe { std::alloc::dealloc(data as *mut u8, Layout::new::<D>()) };
         }
 
@@ -132,7 +132,7 @@ impl<T> Drop for FfiTypedMemory<T> {
 #[repr(C)]
 pub struct FfiOpaqueMemory {
     data: *mut c_void,
-    dealloc_fn: unsafe extern "C" fn(*mut c_void),
+    dealloc_fn: unsafe extern "C-unwind" fn(*mut c_void),
 }
 
 impl FfiOpaqueMemory {

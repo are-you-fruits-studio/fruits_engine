@@ -17,7 +17,7 @@ struct FfiDroppableData<T> {
 
 #[repr(C)]
 struct FfiDroppableMetadata {
-    drop_fn: unsafe extern "C" fn(*mut c_void),
+    drop_fn: unsafe extern "C-unwind" fn(*mut c_void),
     value_ptr: *mut c_void,
 }
 
@@ -28,7 +28,7 @@ pub struct FfiDroppable {
 
 impl FfiDroppable {
     pub fn new<T>(v: T) -> Self {
-        unsafe extern "C" fn ffi_drop<D>(data: *mut c_void) {
+        unsafe extern "C-unwind" fn ffi_drop<D>(data: *mut c_void) {
             unsafe { drop(Box::from_raw(data as *mut FfiDroppableData<D>)) }
         }
 
