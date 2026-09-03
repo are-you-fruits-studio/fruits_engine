@@ -203,6 +203,8 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
     res.insert(GizmosResource::default());
     res.insert(ScreenSpaceResource::default());
     res.insert(BloomResource::default());
+    res.insert(ExposureResource::default());
+    res.insert(ColorGradingResource::default());
 
     let mut world_behavior = world.behavior_mut();
 
@@ -214,14 +216,18 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(recreate_main_render_target_resource)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
+        .insert_child_system(recreate_exposure_render_resource)
         .insert_child_system(recreate_bloom_render_resource)
+        .insert_child_system(recreate_color_grading_render_resource)
         .insert_child_system(create_gizmos_render_resource);
 
     start
         .order_system(recreate_main_render_target_resource)
         .before_system(recreate_depth_texture_resource)
         .before_system(recreate_transparent_target_resource)
+        .before_system(recreate_exposure_render_resource)
         .before_system(recreate_bloom_render_resource)
+        .before_system(recreate_color_grading_render_resource)
         .before_system(create_gizmos_render_resource)
         .before_system(create_standard_render_resource);
 
@@ -238,7 +244,9 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(recreate_main_render_target_resource)
         .insert_child_system(recreate_depth_texture_resource)
         .insert_child_system(recreate_transparent_target_resource)
+        .insert_child_system(recreate_exposure_render_resource)
         .insert_child_system(recreate_bloom_render_resource)
+        .insert_child_system(recreate_color_grading_render_resource)
         .insert_child_system(clear_main_render_target)
         .insert_child_system(clear_depth)
         .insert_child_system(clear_transparent_target)
@@ -249,14 +257,18 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .insert_child_system(render_transparent_instanced)
         .insert_child_system(render_transparent_batched)
         .insert_child_system(render_transparent_final_system)
+        .insert_child_system(render_exposure_system)
         .insert_child_system(render_bloom_system)
+        .insert_child_system(render_color_grading_system)
         .insert_child_system(render_gizmos);
 
     update
         .order_system(recreate_main_render_target_resource)
         .before_system(recreate_depth_texture_resource)
         .before_system(recreate_transparent_target_resource)
+        .before_system(recreate_exposure_render_resource)
         .before_system(recreate_bloom_render_resource)
+        .before_system(recreate_color_grading_render_resource)
         .before_system(clear_main_render_target)
         .before_system(clear_depth)
         .before_system(clear_transparent_target)
@@ -268,7 +280,9 @@ pub fn add_render_module_to(mut world: WorldBuilderMut) {
         .before_system(render_transparent_instanced)
         .before_system(render_transparent_batched)
         .before_system(render_transparent_final_system)
+        .before_system(render_exposure_system)
         .before_system(render_bloom_system)
+        .before_system(render_color_grading_system)
         .before_system(render_gizmos);
 
     update.order_group(SYSTEM_GROUP_RENDER_INTERNAL).before_system(render_main_target_to_surface_system);
