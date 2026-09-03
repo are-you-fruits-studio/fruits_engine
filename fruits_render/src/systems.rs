@@ -603,9 +603,9 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
     }
 
     let mut blur_layers: [f32; BLUR_LAYERS_COUNT] = [
-        1.3,
-        1.2,
-        1.1,
+        8.0,
+        4.0,
+        2.0,
         1.0,
     ];
 
@@ -1996,18 +1996,21 @@ pub fn render_bloom_system(
 
     let instance_id_to_range = |i| i..(i + 1);
 
-    for blur_layer in 0..BLUR_LAYERS_COUNT {
+    let fn_viewport_scale_by_layer = |blur_layer: usize| {
         let downscale_uv_output = 1.0 / (1 << blur_layer) as f32;
+        [screen_size[0] * downscale_uv_output, screen_size[1] * downscale_uv_output]
+    };
 
-        let downscale_viewport_scale = [screen_size[0] * downscale_uv_output, screen_size[1] * downscale_uv_output];
-        
-        let instance_id = blur_layer as u32 * 2;
+    let fn_instance_id_by_layer = |blur_layer: usize| blur_layer as u32 * 2;
 
-        if blur_layer > 0 {
+    for blur_layer in 0..BLUR_LAYERS_COUNT {
+        let next_blur_layer = blur_layer + 1;
+
+        if next_blur_layer < BLUR_LAYERS_COUNT {
             let (
                 downscale_target_view,
                 downscale_bind_group,
-            ) = if blur_layer % 2 == 0 {
+            ) = if next_blur_layer % 2 == 0 {
                 (
                     &bloom_render_resource.textures[0].create_view(&Default::default()),
                     &bloom_render_resource.bind_group_downscale_1,
@@ -2018,6 +2021,9 @@ pub fn render_bloom_system(
                     &bloom_render_resource.bind_group_downscale_0,
                 )
             };
+
+            let downscale_instance_id = fn_instance_id_by_layer(next_blur_layer);
+            let downscale_viewport_scale = fn_viewport_scale_by_layer(next_blur_layer);
 
             let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("Downscale Bloom Render Encoder"),
@@ -2042,7 +2048,7 @@ pub fn render_bloom_system(
                 render_pass.set_viewport(0.0, 0.0, downscale_viewport_scale[0], downscale_viewport_scale[1], 0.0, 1.0);
                 render_pass.set_pipeline(&bloom_render_resource.render_pipeline_downscale);
                 render_pass.set_bind_group(0, downscale_bind_group, &[]);
-                render_pass.draw(0..3, instance_id_to_range(instance_id - 2));
+                render_pass.draw(0..3, instance_id_to_range(downscale_instance_id - 2));
             }
 
             command_buffers.push(encoder.finish());
@@ -2064,6 +2070,9 @@ pub fn render_bloom_system(
                 &bloom_render_resource.bind_group_blur_horiz_1,
             )
         };
+
+        let blur_instance_id = fn_instance_id_by_layer(blur_layer);
+        let blur_viewport_scale = fn_viewport_scale_by_layer(blur_layer);
 
         let blur_dir_entries = [
             (blur_init_bind_group, &bloom_render_resource.textures[2]),
@@ -2093,10 +2102,10 @@ pub fn render_bloom_system(
                     ..Default::default()
                 });
 
-                render_pass.set_viewport(0.0, 0.0, downscale_viewport_scale[0], downscale_viewport_scale[1], 0.0, 1.0);
+                render_pass.set_viewport(0.0, 0.0, blur_viewport_scale[0], blur_viewport_scale[1], 0.0, 1.0);
                 render_pass.set_pipeline(&bloom_render_resource.render_pipeline_blur);
                 render_pass.set_bind_group(0, bind_group, &[]);
-                render_pass.draw(0..3, instance_id_to_range(instance_id + dir_i as u32));
+                render_pass.draw(0..3, instance_id_to_range(blur_instance_id + dir_i as u32));
             }
 
             command_buffers.push(encoder.finish());
@@ -2132,7 +2141,7 @@ pub fn render_bloom_system(
 
             render_pass.set_pipeline(&bloom_render_resource.render_pipeline_apply);
             render_pass.set_bind_group(0, apply_bind_group, &[]);
-            render_pass.draw(0..3, instance_id_to_range(instance_id));
+            render_pass.draw(0..3, instance_id_to_range(blur_instance_id));
         }
 
         command_buffers.push(encoder.finish());
@@ -2147,7 +2156,7 @@ pub fn render_color_grading_system(
     color_grading_render_resource: Res<ColorGradingRenderResource>,
     main_render_target: Res<MainRenderTargetResource>,
 ) {
-    if !color_grading_res.ty.is_none() {
+    if color_grading_res.ty.is_none() {
         return;
     }
 
