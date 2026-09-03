@@ -76,6 +76,34 @@ pub struct TransparentTargetTextureResource {
 
 #[repr(C)]
 #[derive(Resource)]
+pub struct ExposureResource {
+    pub exposure: f32,
+    pub is_enabled: bool,
+}
+
+impl Default for ExposureResource {
+    fn default() -> Self {
+        Self {
+            exposure: 2.2,
+            is_enabled: true,
+        }
+    }
+}
+
+// todo: support ffi
+#[derive(Resource)]
+pub struct ExposureRenderResource {
+    pub buffer_uniform: Buffer,
+    pub texture: Texture,
+    pub texture_view: TextureView,
+    pub sampler: Sampler,
+    pub bind_group_layout: BindGroupLayout,
+    pub bind_group: BindGroup,
+    pub render_pipeline: RenderPipeline,
+}
+
+#[repr(C)]
+#[derive(Resource)]
 pub struct BloomResource {
     pub is_enabled: bool,
     pub threshold: f32,
@@ -134,6 +162,37 @@ pub struct BloomRenderResource {
     pub render_pipeline_blur: RenderPipeline,
     pub render_pipeline_downscale: RenderPipeline,
     pub render_pipeline_apply: RenderPipeline,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub enum ColorGradingType {
+    Aces,
+}
+
+#[repr(C)]
+#[derive(Resource)]
+pub struct ColorGradingResource {
+    pub ty: Option<ColorGradingType>,
+}
+
+impl Default for ColorGradingResource {
+    fn default() -> Self {
+        Self {
+            ty: Some(ColorGradingType::Aces),
+        }
+    }
+}
+
+// todo: support ffi
+#[derive(Resource)]
+pub struct ColorGradingRenderResource {
+    pub texture: Texture,
+    pub texture_view: TextureView,
+    pub sampler: Sampler,
+    pub bind_group_layout: BindGroupLayout,
+    pub bind_group: BindGroup,
+    pub render_pipeline: RenderPipeline,
 }
 
 // todo: support ffi

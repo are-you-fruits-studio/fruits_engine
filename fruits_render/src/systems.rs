@@ -222,7 +222,7 @@ pub fn recreate_main_render_target_resource(mut world: WorldDataMut) {
         sample_count: 1,
         dimension: TextureDimension::D2,
         format: TextureFormat::Rgba16Float,
-        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         view_formats: &[],
     });
 
@@ -451,6 +451,129 @@ pub fn recreate_transparent_target_resource(mut world: WorldDataMut) {
         *world.resources_mut().get_mut().unwrap() = transparent_target_res;
     } else {
         world.resources_mut().insert(transparent_target_res);
+    }
+}
+
+pub fn recreate_exposure_render_resource(mut world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
+    let main_render_target = world.as_ref().resources().get::<MainRenderTargetResource>().unwrap();
+
+    let screen_size = render_api.size();
+
+    let render_state = unsafe { render_api.raw() };
+
+    let mut contains_render_res = false;
+
+    if let Some(render_res) = world.as_ref().resources().get::<ExposureRenderResource>() {
+        contains_render_res = true;
+
+        let are_same_size = true
+            && render_res.texture.size().width == screen_size[0]
+            && render_res.texture.size().height == screen_size[1];
+
+        if are_same_size {
+            return;
+        }
+    }
+
+    let buffer_uniform = render_state.device().create_buffer_init(&BufferInitDescriptor {
+        label: Some("Exposure Uniform Buffer"),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        contents: fruits_utils::mem::as_bytes(&0.0_f32),
+    });
+
+    let texture = render_state.device().create_texture(&TextureDescriptor {
+        label: Some(&format!("Exposure Temp Texture")),
+        size: Extent3d {
+            width: screen_size[0],
+            height: screen_size[1],
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba16Float,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+
+    let texture_view = texture.create_view(&Default::default());
+
+    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Exposure Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Nearest,
+        min_filter: FilterMode::Nearest,
+        mipmap_filter: FilterMode::Nearest,
+        compare: None,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    let bind_group_layout = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Exposure Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerNonFiltering,
+            CreateBindGroupLayoutEntry::BufferUniform,
+        ],
+    );
+
+    let bind_group = create_bind_group(
+        render_state.device(),
+        Some("Exposure Bind Group"),
+        &bind_group_layout,
+        &[
+            CreateBindGroupEntry::Texture(&main_render_target.texture_view),
+            CreateBindGroupEntry::Sampler(&sampler),
+            CreateBindGroupEntry::Buffer(&buffer_uniform),
+        ],
+    );
+
+    let render_pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Exposure Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    });
+
+    let shader = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_exposure.wgsl"));
+
+    let render_pipeline = create_render_pipeline(
+        render_state.device(),
+        Some("Exposure Render Pipeline"),
+        &render_pipeline_layout,
+        &shader,
+        &[],
+        wgpu::ColorTargetState {
+            format: texture.format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
+        },
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
+
+    let render_res = ExposureRenderResource {
+        buffer_uniform,
+        texture,
+        texture_view,
+        sampler,
+        bind_group_layout,
+        bind_group,
+        render_pipeline,
+    };
+
+    if contains_render_res {
+        *world.resources_mut().get_mut().unwrap() = render_res;
+    } else {
+        world.resources_mut().insert(render_res);
     }
 }
 
@@ -845,6 +968,120 @@ pub fn recreate_bloom_render_resource(mut world: WorldDataMut) {
     }
 }
 
+pub fn recreate_color_grading_render_resource(mut world: WorldDataMut) {
+    let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
+    let main_render_target = world.as_ref().resources().get::<MainRenderTargetResource>().unwrap();
+
+    let screen_size = render_api.size();
+
+    let render_state = unsafe { render_api.raw() };
+
+    let mut contains_render_res = false;
+
+    if let Some(render_res) = world.as_ref().resources().get::<ColorGradingRenderResource>() {
+        contains_render_res = true;
+
+        let are_same_size = true
+            && render_res.texture.size().width == screen_size[0]
+            && render_res.texture.size().height == screen_size[1];
+
+        if are_same_size {
+            return;
+        }
+    }
+
+    let texture = render_state.device().create_texture(&TextureDescriptor {
+        label: Some(&format!("Color Grading Temp Texture")),
+        size: Extent3d {
+            width: screen_size[0],
+            height: screen_size[1],
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba16Float,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+
+    let texture_view = texture.create_view(&Default::default());
+
+    let sampler = render_state.device().create_sampler(&SamplerDescriptor {
+        label: Some("Color Grading Sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Nearest,
+        min_filter: FilterMode::Nearest,
+        mipmap_filter: FilterMode::Nearest,
+        compare: None,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 100.0,
+        ..Default::default()
+    });
+
+    let bind_group_layout = fruits_render_core::create_bind_group_layout(
+        render_state.device(),
+        Some("Color Grading Bind Group Layout"),
+        &[
+            CreateBindGroupLayoutEntry::Texture,
+            CreateBindGroupLayoutEntry::SamplerNonFiltering,
+        ],
+    );
+
+    let bind_group = create_bind_group(
+        render_state.device(),
+        Some("Color Grading Bind Group"),
+        &bind_group_layout,
+        &[
+            CreateBindGroupEntry::Texture(&main_render_target.texture_view),
+            CreateBindGroupEntry::Sampler(&sampler),
+        ],
+    );
+
+    let render_pipeline_layout = render_state.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Color Grading Pipeline Layout"),
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    });
+
+    let shader = render_state
+        .device()
+        .create_shader_module(include_wgsl!("./assets/shader_color_grading_aces.wgsl"));
+
+    let render_pipeline = create_render_pipeline(
+        render_state.device(),
+        Some("Color Grading Render Pipeline"),
+        &render_pipeline_layout,
+        &shader,
+        &[],
+        wgpu::ColorTargetState {
+            format: texture.format(),
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
+        },
+        None,
+        wgpu::PrimitiveTopology::TriangleList,
+        Some(wgpu::Face::Back),
+    );
+
+    let render_res = ColorGradingRenderResource {
+        texture,
+        texture_view,
+        sampler,
+        bind_group_layout,
+        bind_group,
+        render_pipeline,
+    };
+
+    if contains_render_res {
+        *world.resources_mut().get_mut().unwrap() = render_res;
+    } else {
+        world.resources_mut().insert(render_res);
+    }
+}
+
 pub fn create_gizmos_render_resource(mut world: WorldDataMut) {
     let render_state = unsafe { world.as_ref().resources().get::<RenderApiResource>().unwrap().raw() };
     let main_render_target_res = world.as_ref().resources().get::<MainRenderTargetResource>().unwrap();
@@ -959,50 +1196,6 @@ pub fn update_camera_uniform(
 
     standard_render_res.camera_proj_matrix = projection_matrix * transform_matrix;
     standard_render_res.camera_pos = transform.position;
-}
-
-pub fn render_main_target_to_surface_system(
-    render_api: Res<RenderApiResource>,
-    main_render_target: Res<MainRenderTargetResource>
-) {
-    let surface_texture = unsafe { render_api.raw().surface().get_current_texture().ok() };
-
-    let Some(surface_texture) = surface_texture else {
-        return;
-    };
-
-    let render_state = unsafe { render_api.raw() };
-
-    let view = &surface_texture.texture.create_view(&Default::default());
-
-    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
-        label: Some("Surface Render Encoder"),
-    });
-
-    {
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Surface Render Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: view,
-                resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Load,
-                    store: StoreOp::Store,
-                },
-                depth_slice: None,
-            })],
-            depth_stencil_attachment: None,
-            ..Default::default()
-        });
-
-        render_pass.set_pipeline(&main_render_target.render_pipeline);
-        render_pass.set_bind_group(0, &main_render_target.bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
-    }
-
-    render_state.queue().submit(std::iter::once(encoder.finish()));
-    
-    surface_texture.present();
 }
 
 pub fn clear_depth(render_api: Res<RenderApiResource>, depth_res: Res<DepthTextureResource>) {
@@ -1680,6 +1873,76 @@ pub fn render_transparent_final_system(
     render_state.queue().submit(std::iter::once(encoder.finish()));
 }
 
+pub fn render_exposure_system(
+    render_api: Res<RenderApiResource>,
+    exposure_res: Res<ExposureResource>,
+    exposure_render_resource: Res<ExposureRenderResource>,
+    main_render_target: Res<MainRenderTargetResource>,
+) {
+    if !exposure_res.is_enabled {
+        return;
+    }
+
+    let render_state = unsafe { render_api.raw() };
+
+    let exposure_multiplier = 2.0_f32.powf(exposure_res.exposure);
+
+    render_state.queue().write_buffer(&exposure_render_resource.buffer_uniform, 0, fruits_utils::mem::as_bytes(&exposure_multiplier));
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Exposure Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Exposure Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &exposure_render_resource.texture.create_view(&Default::default()),
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::BLACK),
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        render_pass.set_pipeline(&exposure_render_resource.render_pipeline);
+        render_pass.set_bind_group(0, &exposure_render_resource.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
+    }
+
+    {
+        encoder.copy_texture_to_texture(
+            TexelCopyTextureInfo {
+                texture: &exposure_render_resource.texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                },
+                aspect: TextureAspect::All,
+            },
+            TexelCopyTextureInfo {
+                texture: &main_render_target.texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                },
+                aspect: TextureAspect::All,
+            },
+            main_render_target.texture.size(),
+        );
+    }
+
+    render_state.queue().submit([encoder.finish()]);
+}
+
 pub fn render_bloom_system(
     render_api: Res<RenderApiResource>,
     bloom_res: Res<BloomResource>,
@@ -1878,6 +2141,72 @@ pub fn render_bloom_system(
     render_state.queue().submit(command_buffers);
 }
 
+pub fn render_color_grading_system(
+    render_api: Res<RenderApiResource>,
+    color_grading_res: Res<ColorGradingResource>,
+    color_grading_render_resource: Res<ColorGradingRenderResource>,
+    main_render_target: Res<MainRenderTargetResource>,
+) {
+    if !color_grading_res.ty.is_none() {
+        return;
+    }
+
+    let render_state = unsafe { render_api.raw() };
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Color Grading Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Color Grading Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &color_grading_render_resource.texture.create_view(&Default::default()),
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::BLACK),
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        render_pass.set_pipeline(&color_grading_render_resource.render_pipeline);
+        render_pass.set_bind_group(0, &color_grading_render_resource.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
+    }
+
+    {
+        encoder.copy_texture_to_texture(
+            TexelCopyTextureInfo {
+                texture: &color_grading_render_resource.texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                },
+                aspect: TextureAspect::All,
+            },
+            TexelCopyTextureInfo {
+                texture: &main_render_target.texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                },
+                aspect: TextureAspect::All,
+            },
+            main_render_target.texture.size(),
+        );
+    }
+
+    render_state.queue().submit([encoder.finish()]);
+}
+
 pub fn render_gizmos(
     mut gizmos: ResMut<GizmosResource>,
     mut gizmos_render_res: ResMut<GizmosRenderResource>,
@@ -1989,6 +2318,50 @@ pub fn render_gizmos(
             render_state.queue().submit(std::iter::once(encoder.finish()));
         }
     }
+}
+
+pub fn render_main_target_to_surface_system(
+    render_api: Res<RenderApiResource>,
+    main_render_target: Res<MainRenderTargetResource>
+) {
+    let surface_texture = unsafe { render_api.raw().surface().get_current_texture().ok() };
+
+    let Some(surface_texture) = surface_texture else {
+        return;
+    };
+
+    let render_state = unsafe { render_api.raw() };
+
+    let view = &surface_texture.texture.create_view(&Default::default());
+
+    let mut encoder = render_state.device().create_command_encoder(&CommandEncoderDescriptor {
+        label: Some("Surface Render Encoder"),
+    });
+
+    {
+        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: Some("Surface Render Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Load,
+                    store: StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        render_pass.set_pipeline(&main_render_target.render_pipeline);
+        render_pass.set_bind_group(0, &main_render_target.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
+    }
+
+    render_state.queue().submit(std::iter::once(encoder.finish()));
+    
+    surface_texture.present();
 }
 
 //
