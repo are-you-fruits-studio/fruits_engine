@@ -56,9 +56,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let offset = texel * layer.direction;
 
     let weights = array<f32, 3>(
-        0.17839992574371122,
-        0.21043088737683882,
-        0.22233837375889995,
+        0.1225813374135857,
+        0.2330624034988859,
+        0.2887125181750568,
     );
 
     var sample = vec3<f32>(0.0);

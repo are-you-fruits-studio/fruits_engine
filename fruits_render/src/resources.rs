@@ -84,8 +84,8 @@ pub struct ExposureResource {
 impl Default for ExposureResource {
     fn default() -> Self {
         Self {
-            exposure: 2.2,
-            is_enabled: true,
+            exposure: 1.5,
+            is_enabled: false,
         }
     }
 }
@@ -115,9 +115,9 @@ impl Default for BloomResource {
     fn default() -> Self {
         Self {
             is_enabled: false,
-            threshold: 1.5,
-            threshold_softening: 0.15,
-            intensity: 2.8,
+            threshold: 3.0,
+            threshold_softening: 2.0,
+            intensity: 0.7,
         }
     }
 }
@@ -179,7 +179,7 @@ pub struct ColorGradingResource {
 impl Default for ColorGradingResource {
     fn default() -> Self {
         Self {
-            ty: Some(ColorGradingType::Aces),
+            ty: None,
         }
     }
 }
