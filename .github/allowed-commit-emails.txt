@@ -1,0 +1,27 @@
+# Identities allowed to appear as author, committer or Co-Authored-By in this
+# repository. Enforced by .github/workflows/commit_authorship.yml.
+#
+# One entry per line:
+#   someone@example.com   an exact address
+#   @example.com          any address on that domain
+# Everything after # is a comment.
+#
+# Adding a contributor is a one-line change in the pull request that first
+# carries their commits. Do NOT add an AI assistant here: strip the attribution
+# instead. Do NOT add a work account: commit from a personal identity.
+
+# GitHub itself, the committer on every squash and merge made through the web UI
+noreply@github.com
+
+# Kusik Ilya
+kusikillya2001@gmail.com
+51415997+IKQR@users.noreply.github.com
+
+# Mobik
+62842262+MobikTech@users.noreply.github.com
+
+# Serhii Ovchynnikov (unknownMusician)
+unknown.musician.t@gmail.com
+
+# Are You Fruits studio account
+are.you.fruits@gmail.com

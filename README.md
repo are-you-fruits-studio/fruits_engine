@@ -32,6 +32,19 @@ GitHub Pages deployment is handled by `.github/workflows/docs.yml`.
 
 ## Contributing
 
+Commits and pull requests must not carry AI-assistant attribution (no `Co-Authored-By` trailer naming
+an assistant, no "Generated with [...]" line in the commit body or PR description) — the person who
+ran the tool is the sole author of the work. Every author, committer and `Co-Authored-By` email is
+also checked against [.github/allowed-commit-emails.txt](.github/allowed-commit-emails.txt); add a
+new contributor's address there in the same pull request that first carries their commits. Both rules
+are enforced in CI by the *Commit Authorship* check
+([.github/workflows/commit_authorship.yml](.github/workflows/commit_authorship.yml)), which you can
+also run locally:
+
+```bash
+bash .github/scripts/check-commit-authorship.sh origin/dev..HEAD
+```
+
 ## Roadmap
 
 ## License

@@ -1,0 +1,34 @@
+name: Commit Authorship
+
+# Deliberately has no `paths:` filter: authorship must be checked on every pull
+# request, not only the ones that touch code.
+on:
+  pull_request:
+    branches: [ "dev" ]
+  workflow_dispatch:
+
+concurrency:
+  group: authorship-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  authorship:
+    name: Check commit authorship
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the base..head range can be resolved.
+          fetch-depth: 0
+
+      - name: Check commit authorship
+        env:
+          # Who may appear as author, committer or co-author lives in
+          # .github/allowed-commit-emails.txt. Set to 'true' to reject every
+          # Co-Authored-By trailer, even an allowlisted one.
+          BLOCK_ALL_CO_AUTHORS: 'false'
+        # Invoked through `bash` on purpose: the executable bit does not survive
+        # checkouts made on Windows, where core.filemode is false.
+        run: |
+          bash .github/scripts/check-commit-authorship.sh \
+            "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
