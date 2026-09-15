@@ -15,7 +15,7 @@ use crate::{ChildrenRectMaskComponent, Font, HorizontalAlign, ImageComponent, Im
 pub fn create_standard_ui_assets_resource(mut world: WorldDataMut) {
     let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
-    let texture_white = render_api.create_texture(FilterMode::Linear, [2, 2], &[255; 16], None);
+    let texture_white = render_api.create_texture(FilterMode::Linear, [2, 2], &[255; 16], Default::default());
 
     let texture_white = world.as_mut()
         .resources_mut()
@@ -52,7 +52,7 @@ fn create_ascii_monospace_font(mut world: WorldDataMut, texture_bytes: &[u8]) ->
 
     let render_api = world.as_ref().resources().get::<RenderApiResource>().unwrap();
 
-    let texture = render_api.create_texture(FilterMode::Nearest, texture_dimensions, image.as_bytes(), None);
+    let texture = render_api.create_texture(FilterMode::Nearest, texture_dimensions, image.as_bytes(), Default::default());
 
     let text_chars_count = [16, 8];
     let single_char_uv_size = [1.0 / text_chars_count[0] as f32, 1.0 / text_chars_count[1] as f32];

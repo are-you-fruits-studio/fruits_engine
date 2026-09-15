@@ -6,3 +6,6 @@ pub use project_window::*;
 
 mod inspector_window;
 pub use inspector_window::*;
+
+mod window;
+pub use window::*;

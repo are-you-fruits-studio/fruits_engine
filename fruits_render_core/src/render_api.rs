@@ -29,7 +29,7 @@ impl RenderApi {
 
         // todo: move wgpu initialization into ecs Start handle?
         let instance = Instance::new(&InstanceDescriptor {
-            backends: Backends::PRIMARY,
+            backends: Backends::DX12,
             ..Default::default()
         });
 
@@ -87,20 +87,58 @@ impl RenderApi {
         }
     }
 
-    pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: Option<StandardTextureAssetMetadata>) -> StandardTexture {
-        StandardTexture::new(self, filter_mode, dimensions, data, meta)
-    }
-
     pub fn create_mesh(&self, vertices: &[StandardVertex], indices: &[u16], meta: Option<StandardMeshAssetMetadata>) -> StandardMesh {
         StandardMesh::new(&self.device, vertices, indices, meta)
+    }
+}
+
+pub struct RenderAssets {
+    pub texture_white: StandardTexture,
+    pub texture_normal_default: StandardTexture,
+}
+
+impl RenderAssets {
+    pub fn new(api: &RenderApi, render_data: &RenderData) -> Self {
+        let texture_white = StandardTexture::new(
+            api,
+            render_data,
+            FilterMode::Linear,
+            [2, 2],
+            &[255; 16],
+            Default::default(),
+        );
+        let texture_normal_default = StandardTexture::new(
+            api,
+            render_data,
+            FilterMode::Linear,
+            [2, 2],
+            &[
+                128, 128, 255, 255,
+                128, 128, 255, 255,
+                128, 128, 255, 255,
+                128, 128, 255, 255,
+            ],
+            StandardTextureAssetMetadata {
+                raw_texture: Default::default(),
+                is_linear: true,
+                should_generate_mipmaps: false,
+            },
+        );
+
+        Self {
+            texture_white,
+            texture_normal_default,
+        }
     }
 }
 
 pub struct RenderData {
     pub bind_group_layout_global: BindGroupLayout,
     pub bind_group_layout_material: BindGroupLayout,
-    pub texture_white: StandardTexture,
-    pub texture_normal_default: StandardTexture,
+    pub mip_fill_bind_group_layout: BindGroupLayout,
+    pub mip_fill_render_pipeline_layout: PipelineLayout,
+    pub mip_fill_sampler: Sampler,
+    pub mip_fill_shader: ShaderModule,
 }
 
 impl RenderData {
@@ -130,33 +168,39 @@ impl RenderData {
                 crate::CreateBindGroupLayoutEntry::SamplerFiltering,
             ],
         );
-        
-        let texture_white = api.create_texture(
-            FilterMode::Linear,
-            [2, 2],
-            &[255; 16],
-            None,
-        );
-        let texture_normal_default = api.create_texture(
-            FilterMode::Linear,
-            [2, 2],
+        let mip_fill_bind_group_layout = crate::create_bind_group_layout(
+            &api.device,
+            Some("Mip Fill Bind Group Layout"),
             &[
-                128, 128, 255, 255,
-                128, 128, 255, 255,
-                128, 128, 255, 255,
-                128, 128, 255, 255,
+                crate::CreateBindGroupLayoutEntry::Texture,
+                crate::CreateBindGroupLayoutEntry::SamplerFiltering,
             ],
-            Some(StandardTextureAssetMetadata {
-                raw_texture: Default::default(),
-                is_linear: true,
-            }),
         );
+        let mip_fill_render_pipeline_layout = api.device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            bind_group_layouts: &[&mip_fill_bind_group_layout],
+            label: Some("Mip Fill Render Pipeline Layout"),
+            push_constant_ranges: &[],
+        });
+        let mip_fill_sampler = api.device.create_sampler(&SamplerDescriptor {
+            label: Some("Mip Fill Sampler"),
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Nearest,
+            ..Default::default()
+        });
+        
+        let mip_fill_shader = api.device.create_shader_module(include_wgsl!("./assets/mip_fill_shader.wgsl"));
 
         Self {
             bind_group_layout_global,
             bind_group_layout_material,
-            texture_white,
-            texture_normal_default,
+            mip_fill_bind_group_layout,
+            mip_fill_render_pipeline_layout,
+            mip_fill_sampler,
+            mip_fill_shader,
         }
     }
 }
@@ -164,14 +208,20 @@ impl RenderData {
 pub struct RenderState {
     api: RenderApi,
     render_data: RenderData,
+    render_assets: RenderAssets,
 }
 
 impl RenderState {
     pub fn new(window: Arc<Window>) -> Self {
         let api = RenderApi::new(window);
         let render_data = RenderData::new(&api);
+        let render_assets = RenderAssets::new(&api, &render_data);
 
-        Self { api, render_data }
+        Self {
+            api,
+            render_data,
+            render_assets,
+        }
     }
 
     pub fn api(&self) -> &RenderApi {
@@ -224,8 +274,8 @@ impl RenderState {
         self.api.surface.configure(&self.api.device, &surface_config_cache.surface_config);
     }
 
-    pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: Option<StandardTextureAssetMetadata>) -> StandardTexture {
-        self.api.create_texture(filter_mode, dimensions, data, meta)
+    pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: StandardTextureAssetMetadata) -> StandardTexture {
+        StandardTexture::new(&self.api, &self.render_data, filter_mode, dimensions, data, meta)
     }
 
     pub fn create_mesh(&self, vertices: &[StandardVertex], indices: &[u16], meta: Option<StandardMeshAssetMetadata>) -> StandardMesh {
@@ -239,11 +289,11 @@ impl RenderState {
     ) -> StandardMaterial {
         // todo: use asset-handles as a single source of truth - probably add an is_dirty flag to the material and update the gpu-side data every frame (if dirty)
         let assets = StandardMaterialAssets {
-            color_texture: assets.color_texture.unwrap_or_else(|| &self.render_data.texture_white),
-            roughness_texture: assets.roughness_texture.unwrap_or_else(|| &self.render_data.texture_white),
-            metallic_texture: assets.metallic_texture.unwrap_or_else(|| &self.render_data.texture_white),
-            normal_texture: assets.normal_texture.unwrap_or_else(|| &self.render_data.texture_normal_default),
-            emission_texture: assets.emission_texture.unwrap_or_else(|| &self.render_data.texture_white),
+            color_texture: assets.color_texture.unwrap_or_else(|| &self.render_assets.texture_white),
+            roughness_texture: assets.roughness_texture.unwrap_or_else(|| &self.render_assets.texture_white),
+            metallic_texture: assets.metallic_texture.unwrap_or_else(|| &self.render_assets.texture_white),
+            normal_texture: assets.normal_texture.unwrap_or_else(|| &self.render_assets.texture_normal_default),
+            emission_texture: assets.emission_texture.unwrap_or_else(|| &self.render_assets.texture_white),
         };
         StandardMaterial::new(
             self,
@@ -259,7 +309,7 @@ impl RenderState {
 struct RenderApiVTable {
     resize_fn: unsafe extern "C-unwind" fn(*const c_void, new_size: *const u32),
     size_fn: unsafe extern "C-unwind" fn(*const c_void, size_dst: *mut u32),
-    create_texture_fn: unsafe extern "C-unwind" fn(*const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>, meta: FfiOption<StandardTextureAssetMetadata>) -> StandardTexture,
+    create_texture_fn: unsafe extern "C-unwind" fn(*const c_void, filter_mode: FilterMode, dimensions: *const u32, data: FfiSliceRef<u8>, meta: StandardTextureAssetMetadata) -> StandardTexture,
     create_mesh_fn: unsafe extern "C-unwind" fn(*const c_void, vertices: FfiSliceRef<StandardVertex>, indices: FfiSliceRef<u16>, meta: FfiOption<StandardMeshAssetMetadata>) -> StandardMesh,
     create_material_fn: unsafe extern "C-unwind" fn(*const c_void, StandardMaterialAssets<FfiOption<&StandardTexture>>, meta: StandardMaterialAssetMetadata) -> StandardMaterial,
     clone_fn: unsafe extern "C-unwind" fn(*const c_void) -> FfiDroppable,
@@ -296,14 +346,14 @@ impl RenderApiResource {
             filter_mode: FilterMode,
             dimensions: *const u32,
             data: FfiSliceRef<u8>,
-            meta: FfiOption<StandardTextureAssetMetadata>,
+            meta: StandardTextureAssetMetadata,
         ) -> StandardTexture {
             unsafe {
                 let this = &*(this as *const Arc<RenderState>);
                 let dimensions = (dimensions as *const [u32; 2]).read();
                 let data = data.into_slice();
 
-                this.create_texture(filter_mode, dimensions, data, meta.into())
+                this.create_texture(filter_mode, dimensions, data, meta)
             }
         }
         unsafe extern "C-unwind" fn ffi_create_mesh(
@@ -373,7 +423,7 @@ impl RenderApiResource {
         }
     }
 
-    pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: Option<StandardTextureAssetMetadata>) -> StandardTexture {
+    pub fn create_texture(&self, filter_mode: FilterMode, dimensions: [u32; 2], data: &[u8], meta: StandardTextureAssetMetadata) -> StandardTexture {
         unsafe {
             let this = self.data.get();
             let dimensions = &raw const dimensions as *const u32;

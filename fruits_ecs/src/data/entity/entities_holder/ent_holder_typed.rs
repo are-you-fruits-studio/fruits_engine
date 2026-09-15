@@ -222,6 +222,19 @@ impl<'e> EntitiesHolderMut<'e> {
         unsafe { entities_holder_add_component(&mut *self.entities, self.types, entity, component) }
     }
 
+    pub fn set_component<C: 'static>(&mut self, entity: EntityId, component: C) -> Option<C> {
+        if let Some(stored_component) = self.get_component_mut::<C>(entity) {
+            return Some(std::mem::replace(stored_component, component));
+        }
+
+        self.add_component(entity, component).ok().unwrap();
+        return None;
+    }
+
+    pub fn set_components<T: ComponentsTuple>(&mut self, entity: EntityId, components: T) -> T::SetComponentsResult {
+        T::set_as_components_into_entities_holder(self.as_mut(), entity, components)
+    }
+
     pub fn add_component_any(&mut self, entity: EntityId, component: FfiAny) -> Result<(), FfiAny> {
         unsafe { entities_holder_add_component_any(&mut *self.entities, self.types, entity, component) }
     }
@@ -328,3 +341,50 @@ impl<'e> EntitiesHolderRef<'e> {
         unsafe { entities_holder_get_all_components(&*self.entities, entity, handler) }
     }
 }
+
+mod sealed {
+    use super::ComponentsTuple;
+    use super::{EntitiesHolderMut, EntityId};
+
+    pub trait Sealed {}
+    
+    macro_rules! components_tuple_impl {
+        ($($t: ident),+) => {
+            impl<$($t: 'static),+> Sealed for ($($t,)+) { }
+
+            impl<$($t: 'static),+> ComponentsTuple for ($($t,)+) {
+                type SetComponentsResult = ($(Option<$t>,)+);
+
+                fn set_as_components_into_entities_holder(mut ec: EntitiesHolderMut, entity: EntityId, components: Self) -> Self::SetComponentsResult {
+                    #[allow(non_snake_case)]
+                    let ($($t,)+) = components;
+                    ($(ec.set_component(entity, $t),)+)
+                }
+            }
+        };
+    }
+
+    components_tuple_impl!(C0);
+    components_tuple_impl!(C0, C1);
+    components_tuple_impl!(C0, C1, C2);
+    components_tuple_impl!(C0, C1, C2, C3);
+    components_tuple_impl!(C0, C1, C2, C3, C4);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13, C14);
+    components_tuple_impl!(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, C13, C14, C15);
+}
+
+pub trait ComponentsTuple: sealed::Sealed {
+    type SetComponentsResult: 'static;
+
+    fn set_as_components_into_entities_holder(ec: EntitiesHolderMut, entity: EntityId, components: Self) -> Self::SetComponentsResult;
+}
+

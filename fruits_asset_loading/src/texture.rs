@@ -74,10 +74,10 @@ impl<'a> TextureLoader<'a> {
 
         let texture_bytes = std::fs::read(path).ok()?;
 
-        self.load_from_bytes(&texture_bytes, Some(deserialized))
+        self.load_from_bytes(&texture_bytes, deserialized)
     }
 
-    pub fn load_from_bytes(&mut self, bytes: &[u8], meta: Option<StandardTextureAssetMetadata>) -> Option<StandardTexture> {
+    pub fn load_from_bytes(&mut self, bytes: &[u8], meta: StandardTextureAssetMetadata) -> Option<StandardTexture> {
         let img = image::load_from_memory(bytes).ok()?;
 
         let texture = self.render_api.create_texture(FilterMode::Nearest, img.dimensions().into(), &img.into_bytes(), meta);

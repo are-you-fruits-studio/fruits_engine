@@ -180,10 +180,7 @@ pub fn save_with_asset_serializers<R>(
 
     serializer_local.register(DirectAssetSaveTransSerializer {
         assets: textures,
-        extractor: |_, a| a.meta().cloned().unwrap_or_else(|| StandardTextureAssetMetadata {
-            raw_texture: Default::default(),
-            is_linear: false,
-        }),
+        extractor: |_, a| a.meta().cloned().unwrap_or_default(),
     });
     serializer_local.register(DirectAssetSaveTransSerializer {
         assets: materials,

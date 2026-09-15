@@ -21,51 +21,53 @@ pub fn spawn_hierarchy_window_entry(
     let ent_name_container = ec.create_entity();
     let ent_name = ec.create_entity();
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_entry)
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_entry, (
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent: parent })
-        .add_component(ParentComponent { children: vec![].into() })
-        .add_component(RectChildAlignComponent {
+        },
+        ChildComponent { parent: parent },
+        ParentComponent { children: vec![].into() },
+        RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
             min_gap: UiVal::px(0.0),
             spacing: UiSpacing::Chunk,
             ..Default::default()
-        });
+        },
+    ));
     ec.get_component_mut::<ParentComponent>(parent).unwrap().children.push(ent_entry);
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_name_container)
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_name_container, (
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent: ent_entry })
-        .add_component(ParentComponent { children: vec![].into() })
-        .add_component(BatchedMeshComponent::default())
-        .add_component(HierarchyWindowEntryComponent { simulated_entity: simulated_ent })
-        .add_component(ButtonComponent)
-        .add_component(StandardMaterialComponent { material: material_panel.clone() })
-        .add_component(ImageComponent {
+        },
+        ChildComponent { parent: ent_entry },
+        ParentComponent { children: vec![].into() },
+        BatchedMeshComponent::default(),
+        HierarchyWindowEntryComponent { simulated_entity: simulated_ent },
+        ButtonComponent,
+        StandardMaterialComponent { material: material_panel.clone() },
+        ImageComponent {
             color: Vec4::splat(0.0),
             ..Default::default()
-        });
+        },
+    ));
     ec.get_component_mut::<ParentComponent>(ent_entry).unwrap().children.push(ent_name_container);
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_name)
-        .add_component(DebugNameComponent("ent_name".into()))
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_name, (
+        DebugNameComponent("ent_name".into()),
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent: ent_name_container })
-        .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent { material: material_text.clone() })
-        .add_component(TextComponent {
+        },
+        ChildComponent { parent: ent_name_container },
+        BatchedMeshComponent::default(),
+        StandardMaterialComponent { material: material_text.clone() },
+        TextComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#000000ff").unwrap()),
             font: font.clone(),
             font_size: UiVal::px(18.0),
@@ -74,7 +76,8 @@ pub fn spawn_hierarchy_window_entry(
             horizontal_spacing: UiVal::px(0.0),
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,
-        });
+        },
+    ));
 }
 
 pub fn parse_serialized(ent: EntitiesHolderRef, ent_target: EntityId) -> SerializedValue {
@@ -660,6 +663,7 @@ pub fn spawn_default_layout_ent(mut ent: EntitiesHolderMut, ent_parent: EntityId
         local_rect.parent_padding_min = Vec2::new(INDENT_WIDTH, UiVal::px(0.0));
     }
 
+    // todo: change all the "add_component" to "set_components" when the entity is created and initialized
     ent.add_component(entity, GlobalRectComponent::default()).ok().unwrap();
     ent.add_component(entity, local_rect).ok().unwrap();
     ent.add_component(entity, ChildComponent { parent: ent_parent }).ok().unwrap();
@@ -1229,59 +1233,61 @@ pub fn spawn_hierarchy_entry(
     let ent_entry = ec.create_entity();
     let ent_entry_name = ec.create_entity();
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_entry_with_children)
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_entry_with_children, (
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent })
-        .add_component(ParentComponent { children: vec![].into() })
-        .add_component(RectChildAlignComponent {
+        },
+        ChildComponent { parent },
+        ParentComponent { children: vec![].into() },
+        RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
             min_gap: UiVal::px(0.0),
             spacing: UiSpacing::Chunk,
             ..Default::default()
-        });
+        },
+    ));
     ec.get_component_mut::<ParentComponent>(parent)
         .unwrap()
         .children
         .push(ent_entry_with_children);
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_entry)
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_entry, (
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), Some(UiVal::px(20.0)).into()),
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent: ent_entry_with_children })
-        .add_component(ParentComponent { children: vec![].into() })
-        .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent {
+        },
+        ChildComponent { parent: ent_entry_with_children },
+        ParentComponent { children: vec![].into() },
+        BatchedMeshComponent::default(),
+        StandardMaterialComponent {
             material: material_panel.clone(),
-        })
-        .add_component(ImageComponent {
+        },
+        ImageComponent {
             color: Vec4::splat(0.0),
             ..Default::default()
-        });
+        },
+    ));
     ec.get_component_mut::<ParentComponent>(ent_entry_with_children)
         .unwrap()
         .children
         .push(ent_entry);
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_entry_name)
-        .add_component(DebugNameComponent("ent_name".into()))
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent { ..Default::default() })
-        .add_component(ChildComponent {
+    ec.as_mut().set_components(ent_entry_name, (
+        DebugNameComponent("ent_name".into()),
+        GlobalRectComponent::default(),
+        LocalRectComponent { ..Default::default() },
+        ChildComponent {
             parent: ent_entry,
-        })
-        .add_component(BatchedMeshComponent::default())
-        .add_component(StandardMaterialComponent {
+        },
+        BatchedMeshComponent::default(),
+        StandardMaterialComponent {
             material: material_text.clone(),
-        })
-        .add_component(TextComponent {
+        },
+        TextComponent {
             color: Vec4::from_array(parse_color_rgba_f32("#000000ff").unwrap()),
             font: font.clone(),
             font_size: UiVal::px(18.0),
@@ -1290,40 +1296,43 @@ pub fn spawn_hierarchy_entry(
             horizontal_spacing: UiVal::px(0.0),
             vertical_align: VerticalAlign::Middle,
             horizontal_align: HorizontalAlign::Left,
-        });
+        },
+    ));
 
     let ent_children = ec.create_entity();
     let ent_children_container = ec.create_entity();
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_children)
-        .add_component(DebugNameComponent("ent_children".into()))
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_children, (
+        DebugNameComponent("ent_children".into()),
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent: ent_entry_with_children });
+        },
+        ChildComponent { parent: ent_entry_with_children },
+    ));
     ec.get_component_mut::<ParentComponent>(ent_entry_with_children)
         .unwrap()
         .children
         .push(ent_children);
 
-    EntityComponentsBuilder::new(ec.as_mut(), ent_children_container)
-        .add_component(GlobalRectComponent::default())
-        .add_component(LocalRectComponent {
+    ec.as_mut().set_components(ent_children_container, (
+        GlobalRectComponent::default(),
+        LocalRectComponent {
             parent_padding_min: Vec2::new(UiVal::px(20.0), UiVal::px(0.0)),
             scale: Vec2::new(Some(UiVal::pd(1.0)).into(), None.into()),
             ..Default::default()
-        })
-        .add_component(ChildComponent { parent: ent_children })
-        .add_component(ParentComponent { children: vec![].into() })
-        .add_component(RectChildAlignComponent {
+        },
+        ChildComponent { parent: ent_children },
+        ParentComponent { children: vec![].into() },
+        RectChildAlignComponent {
             anchor: Vec2::new(0.0, 0.0),
             direction: UiDirection::Vertical,
             min_gap: UiVal::px(0.0),
             spacing: UiSpacing::Chunk,
             ..Default::default()
-        });
+        },
+    ));
 
     SpawnedHierarchyEntry {
         ent_entry_with_children,

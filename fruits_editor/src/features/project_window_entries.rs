@@ -82,10 +82,12 @@ fn spawn_project_window_entries(
         entry.name.clone().into(),
     );
 
-    ec.as_mut().add_component(spawned.ent_entry, ProjectWindowEntryComponent {
-        path: entry.path.clone(),
-    }).ok().unwrap();
-    ec.as_mut().add_component(spawned.ent_entry, ButtonComponent).ok().unwrap();
+    ec.set_components(spawned.ent_entry, (
+        ProjectWindowEntryComponent {
+            path: entry.path.clone(),
+        },
+        ButtonComponent,
+    ));
 
     for entry in &entry.children {
         spawn_project_window_entries(

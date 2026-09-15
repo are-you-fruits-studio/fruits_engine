@@ -25,25 +25,17 @@ fn main() {
     let mut ec = world_data.entities_mut();
 
     let entity = ec.create_entity();
-    ec.add_component(
-        entity,
+    ec.set_components(entity, (
         GlobalTransform {
             scale_rotation: Mat::IDENTITY,
             position: Vec3::new(0.0_f32, 0.0_f32, -1.0f32),
         },
-    )
-    .ok()
-    .unwrap();
-    ec.add_component(
-        entity,
         CameraComponent {
             near: 0.1_f32,
             far: 1_000_f32,
             fov: 90_f32.to_radians(),
         },
-    )
-    .ok()
-    .unwrap();
+    ));
 
     println!("start");
     app.run();

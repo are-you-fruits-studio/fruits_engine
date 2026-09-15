@@ -184,8 +184,10 @@ pub fn update_add_component_variants_system(
             assets.font.clone(),
         );
 
-        ent.add_component(entry_ent, AddComponentVariantComponent { component_id: component_id }).ok().unwrap();
-        ent.add_component(entry_ent, ButtonComponent).ok().unwrap();
+        ent.set_components(entry_ent, (
+            AddComponentVariantComponent { component_id: component_id },
+            ButtonComponent,
+        ));
     }
 }
 
@@ -716,14 +718,16 @@ fn update_prefab_component_ent(
         material_text.clone(),
         font.clone(),
     );
-    ent.add_component(btn_remove, ComponentRemoveButton { component: comp_ent }).ok().unwrap();
-    ent.add_component(btn_remove, ButtonComponent).ok().unwrap();
+    ent.set_components(btn_remove, (
+        ComponentRemoveButton { component: comp_ent },
+        ButtonComponent,
+    ));
     let comp_data_container = spawn_default_layout_ent(ent.as_mut(), comp_ent, false);
 
-    ent.add_component(comp_ent, SerializedComponentComponent {
+    ent.set_component(comp_ent, SerializedComponentComponent {
         component_id_text: componet_id_text_ent,
         component_data_container: comp_data_container,
-    }).ok().unwrap();
+    });
     
     spawn_serialized(
         ent.as_mut(),
