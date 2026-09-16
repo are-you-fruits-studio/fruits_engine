@@ -169,6 +169,7 @@ fn init_system(mut world: WorldDataMut) {
         font,
     });
 
+    prefabs::editor_window(world.as_mut());
     prefabs::project_window(world.as_mut());
     prefabs::hierarhy_window(world.as_mut());
     prefabs::inspector_window(world.as_mut());
