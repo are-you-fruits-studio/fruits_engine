@@ -86,7 +86,7 @@ impl StandardTexture {
         };
 
         let texture = render_api.device.create_texture(&TextureDescriptor {
-            label: None,
+            label: Some(meta.raw_texture.as_str()),
             size: Extent3d {
                 width: dimensions[0],
                 height: dimensions[1],

@@ -6,7 +6,7 @@ use fruits_ffi::FfiFnMutMut;
 use fruits_render_core::{FilterMode, RenderApiResource, StandardTexture, StandardTextureAssetMetadata};
 
 use fruits_serialization::{PureSerializerCtx, Serializable, SerializedValue, SerializerCtx};
-use image::GenericImageView;
+use image::{EncodableLayout, GenericImageView};
 
 use crate::AssetLoader;
 
@@ -78,9 +78,9 @@ impl<'a> TextureLoader<'a> {
     }
 
     pub fn load_from_bytes(&mut self, bytes: &[u8], meta: StandardTextureAssetMetadata) -> Option<StandardTexture> {
-        let img = image::load_from_memory(bytes).ok()?;
+        let img = image::load_from_memory(bytes).ok()?.to_rgba8();
 
-        let texture = self.render_api.create_texture(FilterMode::Nearest, img.dimensions().into(), &img.into_bytes(), meta);
+        let texture = self.render_api.create_texture(FilterMode::Nearest, img.dimensions().into(), &img.as_bytes(), meta);
 
         Some(texture)
     }
