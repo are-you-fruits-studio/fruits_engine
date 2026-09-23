@@ -203,7 +203,7 @@ pub fn inspector_window(mut world: WorldDataMut) -> EntityId {
             color: Vec4::from_array(parse_color_rgba_f32("#686868ff").unwrap()),
             ..Default::default()
         })
-        .add_component(ButtonComponent)
+        .add_component(ButtonComponent::default())
         .add_component(ScrollHandleAreaComponent {
             content: ent_scroll_content,
             handle: ent_scroll_handle,

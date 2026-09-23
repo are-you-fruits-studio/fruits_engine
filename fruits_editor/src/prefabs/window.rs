@@ -151,7 +151,7 @@ pub fn window(mut world: WorldDataMut) -> EntityId {
             color: Vec4::from_array(parse_color_rgba_f32("#686868ff").unwrap()),
             ..Default::default()
         },
-        ButtonComponent,
+        ButtonComponent::default(),
         ScrollHandleAreaComponent {
             content: ent_scroll_content,
             handle: ent_scroll_handle,

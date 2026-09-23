@@ -26,9 +26,12 @@ pub struct UiRaycastResource {
     pub bvh: Bvh<EntityId>,
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct ButtonComponent;
+#[derive(Component, Debug, Clone, Default)]
+pub struct ButtonComponent {
+    pub was_clicked_this_frame: bool,
+}
 
+// Use ButtonComponent.was_clicked_this_frame instead
 #[derive(Event)]
 pub struct ButtonClickEvent {
     pub entity: EntityId,
@@ -65,7 +68,12 @@ pub fn check_button_system(
     input: Res<InputResource>,
     raycast_res: Res<UiRaycastResource>,
     mut click_evt: EvtMut<ButtonClickEvent>,
+    mut button_q: WorldQuery<&mut ButtonComponent>,
 ) {
+    for button_c in button_q.iter_mut() {
+        button_c.was_clicked_this_frame = false;
+    }
+
     let left_just_pressed = input.mouse.is_just_pressed(MouseButton::Left);
     let left_just_released = input.mouse.is_just_released(MouseButton::Left);
 
@@ -105,5 +113,8 @@ pub fn check_button_system(
         return;
     };
 
+    if let Some(buttom_c) = button_q.get_mut(target_ent) {
+        buttom_c.was_clicked_this_frame = true;
+    }
     click_evt.push(ButtonClickEvent { entity: target_ent });
 }

@@ -9,6 +9,20 @@ pub trait Serializable: Sized + 'static {
     fn deserialize(ctx: PureSerializerCtx, value: &SerializedValue) -> Option<Self>;
 }
 
+// todo
+// pub trait SerializableInPlace: 'static {
+//     fn deserialize_in_place(&mut self, value: &SerializedValue);
+//     fn serialize(&self) -> SerializedValue;
+//     fn get_serializable_by_path(&self, path: &str) -> Option<&dyn SerializableInPlace>;
+//     fn get_serializable_by_path_mut(&mut self, path: &str) -> Option<&mut dyn SerializableInPlace>;
+// }
+
+// fn serializable_in_place_use_case(data: &mut dyn SerializableInPlace, new_name: &SerializedValue) {
+//     let name = data.get_serializable_by_path_mut("friends/0/name").unwrap();
+// todo
+//     name.deserialize_in_place(&new_name);
+// }
+
 #[repr(C)]
 pub struct PureSerializerCtx<'a> {
     err_handler: FfiFnMutMut<'a, SerializationError, ()>,

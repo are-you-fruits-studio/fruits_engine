@@ -186,7 +186,7 @@ pub fn update_add_component_variants_system(
 
         ent.set_components(entry_ent, (
             AddComponentVariantComponent { component_id: component_id },
-            ButtonComponent,
+            ButtonComponent::default(),
         ));
     }
 }
@@ -720,7 +720,7 @@ fn update_prefab_component_ent(
     );
     ent.set_components(btn_remove, (
         ComponentRemoveButton { component: comp_ent },
-        ButtonComponent,
+        ButtonComponent::default(),
     ));
     let comp_data_container = spawn_default_layout_ent(ent.as_mut(), comp_ent, false);
 

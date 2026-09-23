@@ -33,25 +33,20 @@ pub struct InputFieldSelectionChangedEvent;
 
 pub fn select_input_field_system(
     input_res: Res<InputResource>,
-    button_click_evt: Evt<ButtonClickEvent>,
     mut selected_input_res: ResMut<SelectedInputFieldResource>,
     mut selected_input_changed_evt: EvtMut<InputFieldSelectionChangedEvent>,
-    input_field_q: WorldQuery<&InputFieldComponent>,
+    input_field_q: WorldQuery<(EntityId, &ButtonComponent), WithFilter<InputFieldComponent>>,
 ) {
     if input_res.mouse.is_just_pressed(MouseButton::Left) && selected_input_res.selected != EntityId::EMPTY {
         selected_input_res.selected = EntityId::EMPTY;
         selected_input_changed_evt.push(InputFieldSelectionChangedEvent);
     }
 
-    let Some(button_click_evt) = button_click_evt.last() else {
+    let Some(input_field_ent) = input_field_q.iter().filter(|(e, b)| b.was_clicked_this_frame).map(|(e, b)| e).next() else {
         return;
     };
 
-    let Some(input_field_c) = input_field_q.get(button_click_evt.entity) else {
-        return;
-    };
-
-    selected_input_res.selected = button_click_evt.entity;
+    selected_input_res.selected = input_field_ent;
     selected_input_changed_evt.push(InputFieldSelectionChangedEvent);
 }
 

@@ -133,7 +133,7 @@ pub fn hierarhy_window(mut world: WorldDataMut) -> EntityId {
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_subheader })
-        .add_component(ButtonComponent)
+        .add_component(ButtonComponent::default())
         .add_component(HierarchyButtonAddComponent)
         .add_component(BatchedMeshComponent::default())
         .add_component(StandardMaterialComponent {
@@ -159,7 +159,7 @@ pub fn hierarhy_window(mut world: WorldDataMut) -> EntityId {
             ..Default::default()
         })
         .add_component(ChildComponent { parent: ent_subheader })
-        .add_component(ButtonComponent)
+        .add_component(ButtonComponent::default())
         .add_component(HierarchyButtonRemoveComponent)
         .add_component(BatchedMeshComponent::default())
         .add_component(StandardMaterialComponent {

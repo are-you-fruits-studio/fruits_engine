@@ -49,7 +49,7 @@ pub fn spawn_hierarchy_window_entry(
         ParentComponent { children: vec![].into() },
         BatchedMeshComponent::default(),
         HierarchyWindowEntryComponent { simulated_entity: simulated_ent },
-        ButtonComponent,
+        ButtonComponent::default(),
         StandardMaterialComponent { material: material_panel.clone() },
         ImageComponent {
             color: Vec4::splat(0.0),
@@ -381,7 +381,7 @@ fn spawn_serialized_composite(
                 rect_c.scale = Vec2::new(UiVal::pw(0.5).into(), FIELD_HEIGHT.into());
             }
             ent.add_component(ent_button, BatchedMeshComponent::default()).ok().unwrap();
-            ent.add_component(ent_button, ButtonComponent).ok().unwrap();
+            ent.add_component(ent_button, ButtonComponent::default()).ok().unwrap();
             ent.add_component(
                 ent_button,
                 StandardMaterialComponent {
@@ -795,7 +795,7 @@ fn spawn_dropdown_ent(
         .ok()
         .unwrap();
     ent.add_component(ent_root, ParentComponent::default()).ok().unwrap();
-    ent.add_component(ent_root, ButtonComponent).ok().unwrap();
+    ent.add_component(ent_root, ButtonComponent::default()).ok().unwrap();
     ent.add_component(ent_root, BatchedMeshComponent::default()).ok().unwrap();
     ent.add_component(
         ent_root,
@@ -968,7 +968,7 @@ fn spawn_dropdown_ent(
         ent.add_component(ent_variant, LocalDisableableComponent::default())
             .ok()
             .unwrap();
-        ent.add_component(ent_variant, ButtonComponent).ok().unwrap();
+        ent.add_component(ent_variant, ButtonComponent::default()).ok().unwrap();
         // ent.add_component(ent_variant, BatchedMeshComponent::default()).ok().unwrap();
         // ent.add_component(ent_variant, StandardMaterialComponent { material: material_panel.clone() }).ok().unwrap();
         // ent.add_component(ent_variant, ImageComponent {
@@ -1090,7 +1090,7 @@ pub fn spawn_input_area_ent(
     .ok()
     .unwrap();
     ent.add_component(ent_root, BatchedMeshComponent::default()).ok().unwrap();
-    ent.add_component(ent_root, ButtonComponent).ok().unwrap();
+    ent.add_component(ent_root, ButtonComponent::default()).ok().unwrap();
     ent.add_component(
         ent_root,
         ImageComponent {

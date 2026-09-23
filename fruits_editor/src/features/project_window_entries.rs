@@ -86,7 +86,7 @@ fn spawn_project_window_entries(
         ProjectWindowEntryComponent {
             path: entry.path.clone(),
         },
-        ButtonComponent,
+        ButtonComponent::default(),
     ));
 
     for entry in &entry.children {
