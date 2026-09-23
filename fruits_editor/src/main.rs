@@ -106,6 +106,7 @@ fn run_editor_app(project_path: &str) {
     features::inspector_window::register_feature(world.as_mut());
     features::input_field::register_feature(world.as_mut());
     features::dropdown::register_feature(world.as_mut());
+    features::generic_dropdown::register_feature(world.as_mut());
     features::serialization::register_feature(world.as_mut());
 
     world.as_mut().data_mut().resources_mut().insert(OpenProjectResource { dir_path: project_path.to_string() });
