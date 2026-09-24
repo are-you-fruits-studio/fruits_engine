@@ -89,6 +89,9 @@ fn run_editor_app(project_path: &str) {
         let mut start = world_behavior.get_mut(Schedule::Start);
 
         start.insert_system(init_system);
+
+        start.order_system(create_standard_ui_assets_resource)
+            .before_system(init_system);
     }
 
     {
@@ -108,6 +111,8 @@ fn run_editor_app(project_path: &str) {
     features::dropdown::register_feature(world.as_mut());
     features::generic_dropdown::register_feature(world.as_mut());
     features::serialization::register_feature(world.as_mut());
+    features::test_window::register_feature(world.as_mut());
+    features::ui_window::register_feature(world.as_mut());
 
     world.as_mut().data_mut().resources_mut().insert(OpenProjectResource { dir_path: project_path.to_string() });
 
@@ -171,8 +176,8 @@ fn init_system(mut world: WorldDataMut) {
     });
 
     prefabs::editor_window(world.as_mut());
-    prefabs::project_window(world.as_mut());
-    prefabs::hierarhy_window(world.as_mut());
-    prefabs::inspector_window(world.as_mut());
+    // prefabs::project_window(world.as_mut());
+    // prefabs::hierarhy_window(world.as_mut());
+    // prefabs::inspector_window(world.as_mut());
 }
 //

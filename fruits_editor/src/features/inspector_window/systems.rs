@@ -9,7 +9,7 @@ use crate::{
                 entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, serialization::{are_components_slices_similar, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
             },
         }, project_window_selection::{FileSelectedEvent, SelectedFileResource}, world_preload::SimulatedWorldResource,
-    }, *,
+    }, prefabs::WindowComponent, *,
 };
 
 pub fn select_entity_system(
@@ -100,7 +100,7 @@ pub fn add_component_system(
     button_click_evt: Evt<ButtonClickEvent>,
     assets: Res<StandardAssetsResource>,
 ) {
-    let Some(inspector_window_c) = ent.as_mut().query::<&InspectorWindowComponent>().iter().next().copied() else {
+    let Some(inspector_window_c) = ent.as_mut().query::<&InspectorWindowContentComponent>().iter().next().copied() else {
         return;
     };
 
@@ -227,7 +227,7 @@ pub fn adjust_hierarchy_entries_system(
 
 pub fn apply_inspector_to_simulated_world_system(
     ent: EntitiesHolderRef,
-    inspector_window_q: WorldQuery<&InspectorWindowComponent>,
+    inspector_window_q: WorldQuery<&InspectorWindowContentComponent>,
     parent_q: WorldQuery<&ParentComponent>,
     text_q: WorldQuery<&TextComponent>,
     serialized_component_q: WorldQuery<&SerializedComponentComponent>,
@@ -443,13 +443,23 @@ pub fn update_hierarchy_window_system(
     //     return;
     // }
 
-    let contents = entities
-        .as_ref()
-        .query_filtered::<EntityId, WithFilter<HierarchyWindowContentComponent>>()
+    let windows = entities
+        .query_filtered::<EntityId, WithFilter<HierarchyWindowComponent>>()
         .iter()
         .collect::<Vec<_>>();
 
-    for content in contents {
+    for ent_window in windows {
+        let hierarchy_win_c = entities.get_component_mut::<HierarchyWindowComponent>(ent_window).unwrap();
+
+        // todo
+        // if !is_cache_old && hierarchy_win_c.is_init {
+        //     continue;
+        // }
+
+        hierarchy_win_c.is_init = true;
+
+        let content = entities.get_component::<WindowComponent>(ent_window).unwrap().content_container;
+
         destroy_entity_children(entities.as_mut(), content);
 
         let mut hierarchy_tree = TreeBuilder::new();
@@ -564,7 +574,7 @@ pub fn update_inspector_window_system(
 
     let ent_selected_input = selected_input_field.selected;
 
-    let container_q = ent.query::<&InspectorWindowComponent>().iter().copied().collect::<Vec<_>>();
+    let container_q = ent.query::<&InspectorWindowContentComponent>().iter().copied().collect::<Vec<_>>();
 
     return_if_not!(Some(simulated_world) = &simulated_world.0);
 

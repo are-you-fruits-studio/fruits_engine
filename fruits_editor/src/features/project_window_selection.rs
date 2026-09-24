@@ -16,7 +16,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .insert_child_system(update_project_entry_selection_system);
 
     update
-        .order_system(check_button_system)
+        .order_system(check_ui_interaction_system)
         .before_system(select_file_system)
         .before_system(update_project_entry_selection_system);
 }

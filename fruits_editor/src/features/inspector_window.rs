@@ -87,7 +87,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .before_system(change_inspected_asset_system)
         .before_system(update_inspector_window_system);
 
-    update.order_system(check_button_system)
+    update.order_system(check_ui_interaction_system)
         .before_system(select_entity_system);
 
     update
@@ -100,7 +100,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
     //     .before_system(update_inspector_window_system);
 
     update
-        .order_system(check_button_system)
+        .order_system(check_ui_interaction_system)
         .before_system(adjust_non_rigid_composite_system);
 
     //

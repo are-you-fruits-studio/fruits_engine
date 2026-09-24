@@ -8,7 +8,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .insert_child_system(enable_dropdown_variants_system)
         .insert_child_system(select_dropdown_variant_system);
 
-    update.order_system(check_button_system)
+    update.order_system(check_ui_interaction_system)
         .before_system(enable_dropdown_variants_system)
         .before_system(select_dropdown_variant_system);
 }

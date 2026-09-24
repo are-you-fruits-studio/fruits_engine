@@ -1,6 +1,8 @@
 use crate::*;
 
 pub fn register_feature(mut world: WorldBuilderMut) {
+    world.data_mut().resources_mut().insert(GenericDropdownResource::default());
+
     let mut behavior = world.behavior_mut();
     let mut update = behavior.get_mut(Schedule::Update);
 
@@ -9,7 +11,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .insert_child_system(spawn_generic_dropdown_system)
         .insert_child_system(select_generic_dropdown_system);
 
-    update.order_system(check_button_system)
+    update.order_system(check_ui_interaction_system)
         .before_system(delete_generic_dropdown_system)
         .before_system(spawn_generic_dropdown_system)
         .before_system(select_generic_dropdown_system);
@@ -34,20 +36,13 @@ pub enum GenericDropdownStateTy {
 }
 
 #[repr(C)]
-#[derive(Resource, Debug, Clone)]
+#[derive(Resource, Debug, Clone, Default)]
 pub struct GenericDropdownResource {
     last_id: u64,
     last_state: GenericDropdownState,
 }
 
 impl GenericDropdownResource {
-    pub fn new() -> Self {
-        Self {
-            last_id: 0,
-            last_state: GenericDropdownState::default(),
-        }
-    }
-
     pub fn request(&mut self, variants: FfiVec<FfiString>) -> u64 {
         self.last_state.variants = variants;
         self.last_state.ty = GenericDropdownStateTy::Waiting;

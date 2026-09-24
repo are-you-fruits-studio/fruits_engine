@@ -11,7 +11,7 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .insert_child_system(highlight_selected_input_field_system)
         .insert_child_system(update_selected_input_field_text_system);
 
-    update.order_system(check_button_system)
+    update.order_system(check_ui_interaction_system)
         .before_system(select_input_field_system)
         .before_system(highlight_selected_input_field_system)
         .before_system(update_selected_input_field_text_system);
