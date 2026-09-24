@@ -1186,7 +1186,7 @@ pub fn update_camera_uniform(
 
     let aspect = window_size[0] as f32 / window_size[1] as f32;
 
-    let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
+    let projection_matrix = camera.projection_matrix(aspect);
 
     let transform_matrix = transform
         .scale_rotation
@@ -2250,7 +2250,7 @@ pub fn render_gizmos(
 
                 let aspect = window_size[0] as f32 / window_size[1] as f32;
 
-                let projection_matrix = fruits_math::perspective_proj_matrix(camera.fov, camera.near, camera.far, aspect);
+                let projection_matrix = camera.projection_matrix(aspect);
 
                 let transform_matrix = transform
                     .scale_rotation
