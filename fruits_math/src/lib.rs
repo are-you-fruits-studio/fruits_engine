@@ -272,6 +272,20 @@ pub fn perspective_proj_matrix(fov: f32, near: f32, far: f32, aspect: f32) -> Ma
     ])
 }
 
+/// `size` is half of the vertical extent of the view volume, in world units
+/// (matching the common "orthographic size" convention).
+pub fn orthographic_proj_matrix(size: f32, near: f32, far: f32, aspect: f32) -> Mat4<f32> {
+    let half_height = size;
+    let half_width = size * aspect;
+
+    Mat4::<f32>::from_array([
+        [(1_f32 / half_width), 0_f32, 0_f32, 0_f32],
+        [0_f32, (1_f32 / half_height), 0_f32, 0_f32],
+        [0_f32, 0_f32, (1_f32 / (far - near)), 0_f32],
+        [0_f32, 0_f32, ((-near) / (far - near)), 1_f32],
+    ])
+}
+
 pub fn lerp<T: Number>(a: T, b: T, t: T) -> T {
     a + (b - a) * t
 }

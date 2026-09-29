@@ -30,7 +30,8 @@
 //! #### Placing the camera
 //!
 //! Give one entity a [`CameraComponent`] and a transform. The camera's transform is the eye
-//! position; its `fov` is in radians:
+//! position. [`CameraProjection`] selects between a perspective camera (`fov` in radians) and
+//! an orthographic one (`size`, the half-height of the view volume in world units):
 //!
 //! ```ignore
 //! use fruits_engine::*;
@@ -43,7 +44,7 @@
 //! ec.add_component(camera, CameraComponent {
 //!     near: 0.1,
 //!     far: 1_000.0,
-//!     fov: 90_f32.to_radians(),
+//!     projection: CameraProjection::Perspective { fov: 90_f32.to_radians() },
 //! }).ok().unwrap();
 //! ```
 //!
