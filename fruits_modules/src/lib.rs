@@ -103,7 +103,7 @@ pub fn add_defult_modules_to(mut world: WorldBuilderMut) {
         .before_group(fruits_render::SYSTEM_GROUP_RENDER);
 }
 
-pub fn register_common_transserializers(serializer: &mut GlobalSerializer) {
+pub fn register_common_transserializers(serializer: &mut TransSerializerRegistry) {
     register_self_and_related_common_transserializers::<i8>(serializer);
     register_self_and_related_common_transserializers::<u8>(serializer);
     register_self_and_related_common_transserializers::<i16>(serializer);
@@ -137,11 +137,11 @@ pub fn register_common_transserializers(serializer: &mut GlobalSerializer) {
     register_related_common_transserializers::<AssetHandle<Prefab>>(serializer);
 }
 
-pub fn register_self_and_related_common_transserializers<T: 'static + TransSerializable>(serializer: &mut GlobalSerializer) {
+pub fn register_self_and_related_common_transserializers<T: 'static + TransSerializable>(serializer: &mut TransSerializerRegistry) {
     serializer.register(StandardTransSerializer::<T>::default());
     register_related_common_transserializers::<T>(serializer)
 }
-pub fn register_related_common_transserializers<T: 'static>(serializer: &mut GlobalSerializer) {
+pub fn register_related_common_transserializers<T: 'static>(serializer: &mut TransSerializerRegistry) {
     serializer.register(StandardTransSerializer::<Vec2<T>>::default());
     serializer.register(StandardTransSerializer::<Vec3<T>>::default());
     serializer.register(StandardTransSerializer::<Vec4<T>>::default());
@@ -162,5 +162,5 @@ pub fn register_related_common_transserializers<T: 'static>(serializer: &mut Glo
 }
 
 #[repr(transparent)]
-#[derive(Component, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default, Serializable, TransSerializable)]
+#[derive(Component, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default, Serializable)]
 pub struct DebugNameComponent(pub FfiSmallString);

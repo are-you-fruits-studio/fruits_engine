@@ -14,7 +14,7 @@ pub fn load_asset_transitively_from_world<R>(
     res: ResourcesHolderMut,
     assets_dir_path: impl AsRef<Path>,
     prefab_dependencies: Option<&mut PrefabDependencies>,
-    f: impl FnOnce(SerializerRegistry, &SerializersResource) -> R,
+    f: impl FnOnce(TransSerializerRegistry, &SerializersResource) -> R,
 ) -> Option<R> {
     Some(unsafe {
         load_asset_transitively::<R>(
@@ -44,7 +44,7 @@ pub fn load_asset_transitively<R>(
     audio_clips: &mut AssetStorageResource<AudioClip>,
     assets_dir_path: impl AsRef<Path>,
     prefab_dependencies: Option<&mut PrefabDependencies>,
-    f: impl FnOnce(SerializerRegistry, &SerializersResource) -> R,
+    f: impl FnOnce(TransSerializerRegistry, &SerializersResource) -> R,
 ) -> R {
     let (
         audio_state,
@@ -69,7 +69,7 @@ pub fn load_asset_transitively<R>(
     let entities_deserialized = HashMap::new();
     let entities_serialized = HashMap::new();
 
-    let mut serializer_local = SerializerRegistry::new();
+    let mut serializer_local = TransSerializerRegistry::new();
 
     // todo: collect deps on serialization as well?
     let deps = deps.as_ref();
@@ -135,7 +135,7 @@ pub fn load_asset_transitively<R>(
 pub fn save_with_asset_serializers_from_world<R>(
     res: ResourcesHolderRef,
     prefab_dependencies: Option<&mut PrefabDependencies>,
-    f: impl FnOnce(SerializerRegistry) -> R,
+    f: impl FnOnce(TransSerializerRegistry) -> R,
 ) -> Option<R> {
     Some(
         save_with_asset_serializers::<R>(
@@ -157,14 +157,14 @@ pub fn save_with_asset_serializers<R>(
     meshes: &AssetStorageResource<StandardMesh>,
     audio_clips: &AssetStorageResource<AudioClip>,
     prefab_dependencies: Option<&mut PrefabDependencies>,
-    f: impl FnOnce(SerializerRegistry) -> R,
+    f: impl FnOnce(TransSerializerRegistry) -> R,
 ) -> R {
     let deps = prefab_dependencies.map(Mutex::new);
 
     let entities_deserialized = HashMap::new();
     let entities_serialized = HashMap::new();
 
-    let mut serializer_local = SerializerRegistry::new();
+    let mut serializer_local = TransSerializerRegistry::new();
 
     // todo: collect deps on serialization as well?
     let deps = deps.as_ref();
@@ -218,7 +218,7 @@ pub fn load_asset_single_from_world<R>(
     assets_dir_path: impl AsRef<Path>,
     asset_key: &str,
     prefab_dependencies: Option<&mut PrefabDependencies>,
-    f: impl FnOnce(SerializerRegistry, &SerializersResource) -> R,
+    f: impl FnOnce(TransSerializerRegistry, &SerializersResource) -> R,
 ) -> Option<R> {
     Some(unsafe {
         load_asset_single::<R>(
@@ -250,7 +250,7 @@ pub fn load_asset_single<R>(
     assets_dir_path: impl AsRef<Path>,
     asset_key: &str,
     prefab_dependencies: Option<&mut PrefabDependencies>,
-    f: impl FnOnce(SerializerRegistry, &SerializersResource) -> R,
+    f: impl FnOnce(TransSerializerRegistry, &SerializersResource) -> R,
 ) -> R {
     let (
         audio_state,
@@ -275,7 +275,7 @@ pub fn load_asset_single<R>(
     let entities_deserialized = HashMap::new();
     let entities_serialized = HashMap::new();
 
-    let mut serializer_local = SerializerRegistry::new();
+    let mut serializer_local = TransSerializerRegistry::new();
 
     // todo: collect deps on serialization as well?
     let deps = deps.as_ref();

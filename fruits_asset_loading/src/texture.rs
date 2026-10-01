@@ -5,7 +5,7 @@ use fruits_ecs::{ResourcesHolderMut, ResourcesHolderRef};
 use fruits_ffi::FfiFnMutMut;
 use fruits_render_core::{FilterMode, RenderApiResource, StandardTexture, StandardTextureAssetMetadata};
 
-use fruits_serialization::{PureSerializerCtx, Serializable, SerializedValue, SerializerCtx};
+use fruits_serialization::{SerializerCtx, Serializable, SerializedValue, SerializerCtx};
 use image::{EncodableLayout, GenericImageView};
 
 use crate::AssetLoader;
@@ -58,7 +58,7 @@ impl<'a> TextureLoader<'a> {
 
     pub fn load_from_serialized(&mut self, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<StandardTexture> {
         let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
-        let deserialized = StandardTextureAssetMetadata::deserialize(PureSerializerCtx::new(FfiFnMutMut::new(&mut err_handler)), value)?;
+        let deserialized = StandardTextureAssetMetadata::deserialize(SerializerCtx::new(FfiFnMutMut::new(&mut err_handler)), value)?;
 
         self.load_from_deserialized(
             deserialized,

@@ -137,7 +137,7 @@ pub fn instantiate_prefab(res: ResourcesHolderRef, mut ent: EntitiesHolderMut, p
 
     let deps = &prefab.dependencies;
 
-    let mut serializer_local = SerializerRegistry::new();
+    let mut serializer_local = TransSerializerRegistry::new();
 
     serializer_local.register(EntityTransSerializer::new(&ctx.entities, &entities_serialized));
     serializer_local.register(PrefabAssetInstantiateTransSerializer::new(deps, |deps, key| deps.textures.get(key).cloned()));
@@ -182,7 +182,7 @@ pub fn record_into_prefab_components(
 
     let entities_deserialized = HashMap::<u64, EntityId>::new();
 
-    let mut local_serializers = SerializerRegistry::new();
+    let mut local_serializers = TransSerializerRegistry::new();
 
     local_serializers.register(EntityTransSerializer {
         entities_deserialized: &entities_deserialized,
@@ -227,7 +227,7 @@ pub fn record_into_prefab(
         }
     }
 
-    let mut local_serializers = SerializerRegistry::new();
+    let mut local_serializers = TransSerializerRegistry::new();
     local_serializers.register(EntityTransSerializer {
         entities_deserialized: &entities_deserialized,
         entities_serialized: &ent_to_id,
@@ -266,7 +266,7 @@ pub fn override_entity_components_from_prefab(
 
     let entities_serialized = HashMap::<EntityId, u64>::new();
 
-    let mut local_serializers = SerializerRegistry::new();
+    let mut local_serializers = TransSerializerRegistry::new();
 
     local_serializers.register(EntityTransSerializer {
         entities_deserialized: id_to_ent,

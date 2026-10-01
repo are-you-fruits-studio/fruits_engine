@@ -64,7 +64,7 @@ fn preload_assets_into_simulated_world_system(
     let mut res = world.data_mut().into_resources_mut();
 
     if res.as_ref().get::<SerializersResource>().is_none() {
-        res.insert(SerializersResource(GlobalSerializer::new()));
+        res.insert(SerializersResource(TransSerializerRegistry::new()));
     }
 
     let serializer = res.get_mut::<SerializersResource>().unwrap();

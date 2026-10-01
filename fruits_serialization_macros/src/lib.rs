@@ -112,6 +112,7 @@ use proc_macro::TokenStream;
 mod impl_trans_serializable;
 mod impl_serializable;
 
+// todo: remove TransSerializable
 #[proc_macro_derive(TransSerializable)]
 pub fn derive_trans_serializable(stream: TokenStream) -> TokenStream {
     impl_trans_serializable::derive(stream)

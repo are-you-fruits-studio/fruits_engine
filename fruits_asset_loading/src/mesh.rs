@@ -56,7 +56,7 @@ impl<'a> MeshLoader<'a> {
     
     pub fn load_from_serialized(&mut self, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<StandardMesh> {
         let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
-        let value = <StandardMeshAssetMetadata as Serializable>::deserialize(PureSerializerCtx::new(FfiFnMutMut::new(&mut err_handler)), value)?;
+        let value = <StandardMeshAssetMetadata as Serializable>::deserialize(SerializerCtx::new(FfiFnMutMut::new(&mut err_handler)), value)?;
 
         self.load_from_deserialized(value, assets_dir_path)
     }

@@ -183,25 +183,29 @@
 mod serialization_transitive;
 mod serialization_pure;
 mod serialization_registry;
-mod serialization_trans_impls;
-mod serialization_pure_impls;
+mod serialization_impls;
 mod serialization_model;
 mod serialization_ecs;
+mod serialization_utils;
+mod serialization_core;
+mod serialization_ctx;
 
 pub use fruits_serialization_macros::*;
 pub use serialization_transitive::*;
 pub use serialization_pure::*;
 pub use serialization_registry::*;
-pub use serialization_trans_impls::*;
-pub use serialization_pure_impls::*;
+pub use serialization_impls::*;
 pub use serialization_model::*;
 pub use serialization_ecs::*;
+pub use serialization_utils::*;
+pub use serialization_core::*;
+pub use serialization_ctx::*;
 
 // todo:
 // + impls for standard types
 // + macros
 // - editor
 // - ffi
-// - names tuple/struct -> list/map
+// + names tuple/struct -> list/map
 // - ecs resource (and other public APIs)
 // - refactor?

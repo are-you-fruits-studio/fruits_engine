@@ -3,7 +3,7 @@ use crate::{
     *,
 };
 
-pub fn save_asset_from_world_res(res: ResourcesHolderRef, serializer: &GlobalSerializer, asset_key: &str) -> Option<SerializedValue> {
+pub fn save_asset_from_world_res(res: ResourcesHolderRef, serializer: &TransSerializerRegistry, asset_key: &str) -> Option<SerializedValue> {
     let asset_type = get_asset_type(res, asset_key)?;
 
     // todo

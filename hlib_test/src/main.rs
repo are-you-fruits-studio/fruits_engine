@@ -22,7 +22,7 @@ fn check_all_assets_deserialization() {
 //
 
 fn check_prefab_serialization() {
-    let mut global_serializer = GlobalSerializer::new();
+    let mut global_serializer = TransSerializerRegistry::new();
 
     global_serializer.register(StandardTransSerializer::<String>::default());
     global_serializer.register(StandardTransSerializer::<u32>::default());
@@ -70,7 +70,7 @@ fn check_prefab_serialization() {
         (EntityId::from_version_index(VersionIndex { index: 1, version: 5 }), 25),
     ].into_iter().collect();
    
-    let mut local_serializer = SerializerRegistry::new();
+    let mut local_serializer = TransSerializerRegistry::new();
 
     local_serializer.register(EntityTransSerializer::new(
         &entities_deserialized,

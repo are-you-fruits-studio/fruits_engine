@@ -252,6 +252,8 @@ pub fn load_all_assets(mut res: ResourcesHolderMut, assets_dir_path: impl AsRef<
         None, 
         |local_serializer, serializer| {
             let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
+            let global_serializer_state = serializer.to_ctx_state();
+            let local_serializer_state = global_serializer_state.wrap_into_local(&local_serializer);
             let mut serializer_ctx = serializer.to_ctx(Some(&local_serializer), &mut err_handler);
 
             traverse_files_in_dir_deep(&assets_dir_path, &mut |file_path| {
