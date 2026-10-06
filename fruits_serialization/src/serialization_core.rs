@@ -248,6 +248,37 @@ enum CoreListDeserializerCtxState<'a> {
     },
 }
 
+pub(crate) fn deserialize_list_inverted(
+    path: Option<(&str, &str)>,
+    serialized: &SerializedValue,
+    mut deserializer: impl FnMut(usize, &str, &SerializedValue),
+) {
+    match path {
+        // root
+        None => {
+            let elements = match serialized {
+                SerializedValue::Composite(SerializedComposite {
+                    values: SerializedCompositeValues::List(list),
+                    ..
+                }) => Some(list),
+                _ => None,
+            };
+            
+            for (slice_idx, serialized) in elements.map(|v| v.as_slice()).unwrap_or(&[]).iter().enumerate() {
+                deserializer(slice_idx, "", serialized);
+            }
+        },
+        // element
+        Some((element_name, element_path)) => {
+            let Ok(element_idx) = element_name.parse::<u64>() else {
+                return;
+            };
+
+            deserializer(element_idx as usize, element_path, serialized);
+        },
+    };
+}
+
 // todo: ffi
 pub struct CoreListDeserializerCtx<'a> {
     state: CoreListDeserializerCtxState<'a>,

@@ -3,7 +3,7 @@ use std::fmt::Write;
 use fruits_ffi::{FfiOption, FfiSmallString, FfiString, FfiVec};
 use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
 
-use crate::{Serializable, SerializableDefault, SerializationError, SerializedComposite, SerializedCompositeValues, SerializedPrimitive, SerializedValue, SerializerCtxState, decompose_serialization_path, normalize_serialization_path, serialization_ctx::SerializerCtx};
+use crate::{Serializable, SerializationError, SerializedComposite, SerializedCompositeValues, SerializedPrimitive, SerializedValue, SerializerCtxState, decompose_serialization_path, normalize_serialization_path, serialization_ctx::SerializerCtx};
 
 // todo: other types
 
@@ -361,7 +361,7 @@ impl<S: Copy> Serializable<S> for char {
     }
 }
 
-fn serialize_slice<T: SerializableDefault, S: SerializerCtxState<T>>(slice: &[T], mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
+fn serialize_slice<T, S: SerializerCtxState<T>>(slice: &[T], mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
     let Some((field_name, field_path)) = decompose_serialization_path(path) else {
         let mut vec = FfiVec::new();
     
@@ -410,7 +410,7 @@ fn pre_deserialize_to_list<'a, S: Copy>(mut ctx: SerializerCtx<S>, value: &'a Se
     }
 }
 
-fn deserialize_slice<T: SerializableDefault, S: SerializerCtxState<T>, C>(
+fn deserialize_slice<T: Default, S: SerializerCtxState<T>, C>(
     len: usize,
     mut ctx: SerializerCtx<S>,
     path: &str,
@@ -438,38 +438,34 @@ fn deserialize_slice<T: SerializableDefault, S: SerializerCtxState<T>, C>(
 
     if idx >= len {
         for _ in 0..=(idx - len) {
-            pusher(slice, T::serializable_default());
+            pusher(slice, T::default());
         }
     }
 
     ctx.deserialize(getter(slice, idx), field_path, serialized);
 }
 
-impl<S: SerializerCtxState<T>, T: SerializableDefault> Serializable<S> for Vec<T> {
+impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for Vec<T> {
     fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         serialize_slice(self.as_slice(), ctx, path)
     }
 
-    fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, value: &SerializedValue) {
-        deserialize_slice(
-            self.len(),
-            ctx,
-            path,
-            value,
-            self,
-            |v, i| &mut v[i],
-            |v, e| v.push(e),
-            |v| v.clear(),
-        );
+    fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, serialized: &SerializedValue) {
+        // todo
+        ctx.deserialize_list_inverted(self, path, serialized, |this, mut ctx, i, path, serialized| {
+            this.resize_with(this.len().max(i), || Default::default());
+            ctx.deserialize(&mut this[i], path, serialized);
+        });
     }
 }
 
-impl<S: SerializerCtxState<T>, T: SerializableDefault> Serializable<S> for FfiVec<T> {
+impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for FfiVec<T> {
     fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         serialize_slice(self.as_slice(), ctx, path)
     }
    
     fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, value: &SerializedValue) {
+        // todo
         deserialize_slice(
             self.len() as usize,
             ctx,
@@ -495,39 +491,37 @@ fn serialize_option<T, S: SerializerCtxState<T>>(option: Option<&T>, mut ctx: Se
     }
 }
 
-impl<S: SerializerCtxState<T>, T: SerializableDefault> Serializable<S> for Option<T> {
-    fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
-        serialize_option(self.as_ref(), ctx, path)
-    }
-
-    fn deserialize(&mut self, mut ctx: SerializerCtx<S>, path: &str, value: &SerializedValue) {
-        ctx.deserialize_enum(path, value)
-            .with_variant("None", || None)
-            .with_variant("Some", || Some(SerializableDefault::serializable_default()))
-            .finish(self, |this, ctx| {
-                match this {
-                    None => {},
-                    Some(v0) => _ = ctx.with_field("0", v0),
-                }
-            })
-    }
-}
-
-impl<S: SerializerCtxState<T>, T: SerializableDefault> Serializable<S> for FfiOption<T> {
-    fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
-        serialize_option(self.as_ref(), ctx, path)
-    }
-
-    fn deserialize(&mut self, mut ctx: SerializerCtx<S>, path: &str, value: &SerializedValue) {
-        ctx.deserialize_enum(path, value)
+macro_rules! deserialize_option_impl {
+    ($option: expr, $ctx: expr, $path: expr, $value: expr) => {
+        $ctx.deserialize_enum($path, $value)
             .with_variant("None", || Self::None)
-            .with_variant("Some", || Self::Some(SerializableDefault::serializable_default()))
-            .finish(self, |this, ctx| {
+            .with_variant("Some", || Self::Some(Default::default()))
+            .finish($option, |this, ctx| {
                 match this {
                     Self::None => {},
                     Self::Some(v0) => _ = ctx.with_field("0", v0),
                 }
             })
+    };
+}
+
+impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for Option<T> {
+    fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
+        serialize_option(self.as_ref(), ctx, path)
+    }
+
+    fn deserialize(&mut self, mut ctx: SerializerCtx<S>, path: &str, value: &SerializedValue) {
+        deserialize_option_impl!(self, ctx, path, value)
+    }
+}
+
+impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for FfiOption<T> {
+    fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
+        serialize_option(self.as_ref(), ctx, path)
+    }
+
+    fn deserialize(&mut self, mut ctx: SerializerCtx<S>, path: &str, value: &SerializedValue) {
+        deserialize_option_impl!(self, ctx, path, value)
     }
 }
 
@@ -541,7 +535,7 @@ impl<S: Copy> Serializable<S> for () {
 }
 
 impl<const N: usize, S: SerializerCtxState<T>, T> Serializable<S> for [T; N]
-    where [T; N]: SerializableDefault
+    where [T; N]: Default
 {
     fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         let mut ctx = ctx.serialize_list(path);
@@ -564,7 +558,7 @@ impl<const N: usize, S: SerializerCtxState<T>, T> Serializable<S> for [T; N]
 
 // todo: Mat, Quat, VecN
 impl<S: SerializerCtxState<T>, T> Serializable<S> for Quat<T>
-    where Self: SerializableDefault
+    where Self: Default
 {
     fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         ctx.serialize_map(path)
@@ -585,7 +579,7 @@ impl<S: SerializerCtxState<T>, T> Serializable<S> for Quat<T>
 }
 
 impl<S: SerializerCtxState<T>, T> Serializable<S> for Vec2<T>
-    where Self: SerializableDefault
+    where Self: Default
 {
     fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         ctx.serialize_map(path)
@@ -602,7 +596,7 @@ impl<S: SerializerCtxState<T>, T> Serializable<S> for Vec2<T>
 }
 
 impl<S: SerializerCtxState<T>, T> Serializable<S> for Vec3<T>
-    where Self: SerializableDefault
+    where Self: Default
 {
     fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         ctx.serialize_map(path)
@@ -621,7 +615,7 @@ impl<S: SerializerCtxState<T>, T> Serializable<S> for Vec3<T>
 }
 
 impl<S: SerializerCtxState<T>, T> Serializable<S> for Vec4<T>
-    where Self: SerializableDefault
+    where Self: Default
 {
     fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         ctx.serialize_map(path)
@@ -643,7 +637,7 @@ impl<S: SerializerCtxState<T>, T> Serializable<S> for Vec4<T>
 
 // todo
 impl<const N: usize, S: SerializerCtxState<T>, T> Serializable<S> for Mat<N, T>
-    where Self: SerializableDefault
+    where Self: Default
 {
     fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
         todo!();

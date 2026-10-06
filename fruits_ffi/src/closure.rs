@@ -106,3 +106,9 @@ impl<'a, I, O> FfiFnMutMut<'a, I, O> {
         }
     }
 }
+
+impl<'a, I, O, F: FnMut(I) -> O> From<&'a mut F> for FfiFnMutMut<'a, I, O> {
+    fn from(value: &'a mut F) -> Self {
+        Self::new(value)
+    }
+}

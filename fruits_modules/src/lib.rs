@@ -137,28 +137,28 @@ pub fn register_common_transserializers(serializer: &mut TransSerializerRegistry
     register_related_common_transserializers::<AssetHandle<Prefab>>(serializer);
 }
 
-pub fn register_self_and_related_common_transserializers<T: 'static + TransSerializable>(serializer: &mut TransSerializerRegistry) {
-    serializer.register(StandardTransSerializer::<T>::default());
+pub fn register_self_and_related_common_transserializers<T: 'static + Default + for<'a> Serializable<TransSerializerCtxState<'a>>>(serializer: &mut TransSerializerRegistry) {
+    serializer.register(StandardSerializer::<T>::default());
     register_related_common_transserializers::<T>(serializer)
 }
-pub fn register_related_common_transserializers<T: 'static>(serializer: &mut TransSerializerRegistry) {
-    serializer.register(StandardTransSerializer::<Vec2<T>>::default());
-    serializer.register(StandardTransSerializer::<Vec3<T>>::default());
-    serializer.register(StandardTransSerializer::<Vec4<T>>::default());
-    serializer.register(StandardTransSerializer::<Quat<T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<0, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<1, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<2, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<3, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<4, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<5, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<6, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<7, T>>::default());
-    serializer.register(StandardTransSerializer::<Mat<8, T>>::default());
-    serializer.register(StandardTransSerializer::<Vec<T>>::default());
-    serializer.register(StandardTransSerializer::<FfiVec<T>>::default());
-    serializer.register(StandardTransSerializer::<Option<T>>::default());
-    serializer.register(StandardTransSerializer::<FfiOption<T>>::default());
+pub fn register_related_common_transserializers<T: 'static + Default>(serializer: &mut TransSerializerRegistry) {
+    serializer.register(StandardSerializer::<Vec2<T>>::default());
+    serializer.register(StandardSerializer::<Vec3<T>>::default());
+    serializer.register(StandardSerializer::<Vec4<T>>::default());
+    serializer.register(StandardSerializer::<Quat<T>>::default());
+    serializer.register(StandardSerializer::<Mat<0, T>>::default());
+    serializer.register(StandardSerializer::<Mat<1, T>>::default());
+    serializer.register(StandardSerializer::<Mat<2, T>>::default());
+    serializer.register(StandardSerializer::<Mat<3, T>>::default());
+    serializer.register(StandardSerializer::<Mat<4, T>>::default());
+    serializer.register(StandardSerializer::<Mat<5, T>>::default());
+    serializer.register(StandardSerializer::<Mat<6, T>>::default());
+    serializer.register(StandardSerializer::<Mat<7, T>>::default());
+    serializer.register(StandardSerializer::<Mat<8, T>>::default());
+    serializer.register(StandardSerializer::<Vec<T>>::default());
+    serializer.register(StandardSerializer::<FfiVec<T>>::default());
+    serializer.register(StandardSerializer::<Option<T>>::default());
+    serializer.register(StandardSerializer::<FfiOption<T>>::default());
 }
 
 #[repr(transparent)]

@@ -161,7 +161,7 @@ pub fn update_add_component_variants_system(
 
     let searched_text = text_c.text.clone();
 
-    let mut keys = serializers.0.registry().keys().map(FfiString::from).collect::<Vec<_>>();
+    let mut keys = serializers.0.keys().map(FfiString::from).collect::<Vec<_>>();
     keys.sort();
     
     for component_id in keys {
@@ -621,9 +621,13 @@ pub fn update_inspector_window_system(
             continue;
         }
 
-        let serialized = save_with_asset_serializers_from_world(simulated_world.world.data().resources(), None, |local_registry| {
-            let serializers = simulated_world.world.data().resources().get::<SerializersResource>().unwrap();
-            let serializer_ctx = serializers.0.to_ctx(Some(&local_registry), &mut err_handler);
+        let serialized = save_with_asset_serializers_from_world(simulated_world.world.data().resources(), None, |serializers_local| {
+            let serializers_global = simulated_world.world.data().resources().get::<SerializersResource>().unwrap();
+            
+            let serializer_ctx_state = serializers_global.to_ctx_state();
+            let mut serializer_ctx = serializer_ctx_state.wrap_with_local(&serializers_local)
+                .into_ctx(&mut err_handler);
+
             inspected_asset.to_serialized(serializer_ctx)
         })
         .unwrap();

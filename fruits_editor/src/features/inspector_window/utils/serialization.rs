@@ -3,7 +3,7 @@ use crate::{
     *,
 };
 
-pub fn save_asset_from_world_res(res: ResourcesHolderRef, serializer: &TransSerializerRegistry, asset_key: &str) -> Option<SerializedValue> {
+pub fn save_asset_from_world_res(res: ResourcesHolderRef, serializers_global: &TransSerializerRegistry, asset_key: &str) -> Option<SerializedValue> {
     let asset_type = get_asset_type(res, asset_key)?;
 
     // todo
@@ -15,8 +15,12 @@ pub fn save_asset_from_world_res(res: ResourcesHolderRef, serializer: &TransSeri
         asset_type,
     };
 
-    save_with_asset_serializers_from_world(res, None, |local_serializer| {
-        inspected_asset.to_serialized(serializer.to_ctx(Some(&local_serializer), &mut err_handler))
+    save_with_asset_serializers_from_world(res, None, |serializers_local| {
+        let serializer_ctx_state = serializers_global.to_ctx_state();
+        let mut serializer_ctx = serializer_ctx_state.wrap_with_local(&serializers_local)
+            .into_ctx(&mut err_handler);
+
+        inspected_asset.to_serialized(serializer_ctx)
     })
 }
 
@@ -32,16 +36,19 @@ pub fn load_asset_to_world_res(
         assets_dir_path,
         asset_key,
         None,
-        |local_serializer, serializer| {
+        |serializers_local, serializers_global| {
             let mut err_handler = |err| println!("{err}");
-            let mut serializer_ctx = serializer.to_ctx(Some(&local_serializer), &mut err_handler);
+            let serializer_ctx_state = serializers_global.to_ctx_state();
+            let mut serializer_ctx = serializer_ctx_state.wrap_with_local(&serializers_local)
+                .into_ctx(&mut err_handler);
+
             match asset_type {
-                AssetType::Texture => serializer_ctx.deserialize::<DirectDeserializedAsset<StandardTexture>>(value).map(|_| ()),
-                AssetType::Material => serializer_ctx.deserialize::<DirectDeserializedAsset<StandardMaterial>>(value).map(|_| ()),
-                AssetType::Mesh => serializer_ctx.deserialize::<DirectDeserializedAsset<StandardMesh>>(value).map(|_| ()),
-                AssetType::Font => serializer_ctx.deserialize::<DirectDeserializedAsset<Font>>(value).map(|_| ()),
-                AssetType::AudioClip => serializer_ctx.deserialize::<DirectDeserializedAsset<AudioClip>>(value).map(|_| ()),
-                AssetType::Prefab => serializer_ctx.deserialize::<DirectDeserializedAsset<Prefab>>(value).map(|_| ()),
+                AssetType::Texture => _ = serializer_ctx.deserialize_default::<DirectDeserializedAsset<StandardTexture>>("", value),
+                AssetType::Material => _ = serializer_ctx.deserialize_default::<DirectDeserializedAsset<StandardMaterial>>("", value),
+                AssetType::Mesh => _ = serializer_ctx.deserialize_default::<DirectDeserializedAsset<StandardMesh>>("", value),
+                AssetType::Font => _ = serializer_ctx.deserialize_default::<DirectDeserializedAsset<Font>>("", value),
+                AssetType::AudioClip => _ = serializer_ctx.deserialize_default::<DirectDeserializedAsset<AudioClip>>("", value),
+                AssetType::Prefab => _ = serializer_ctx.deserialize_default::<DirectDeserializedAsset<Prefab>>("", value),
             };
         },
     ).is_some()

@@ -94,7 +94,7 @@ use fruits_render_core::{StandardMaterial, StandardMesh, StandardTexture};
 use fruits_serialization::*;
 
 #[repr(C)]
-#[derive(Debug, Clone, Serializable)]
+#[derive(Debug, Clone, Serializable, Default)]
 pub struct PrefabComponent {
     pub component_id: FfiString,
     pub data: SerializedValue,
@@ -134,7 +134,7 @@ impl Prefab {
 // todo
 pub fn serialize_prefab_single_entity(
     entity: EntityId,
-    serializer_ctx: SerializerCtx,
+    serializer_ctx: SerializerCtx<TransSerializerCtxState>,
     entities: EntitiesHolderRef,
 ) -> Prefab {
     Prefab {
@@ -148,7 +148,7 @@ pub fn serialize_prefab_single_entity(
 pub fn deserialize_prefab_components(
     components: &[PrefabComponent],
     entity: EntityId,
-    mut serializer_ctx: SerializerCtx,
+    mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
     mut entities: EntitiesHolderMut,
 ) {
     for component in components {
@@ -168,7 +168,7 @@ pub fn deserialize_prefab_components(
 
 pub fn serialize_components(
     entity: EntityId,
-    mut serializer_ctx: SerializerCtx,
+    mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
     entities: EntitiesHolderRef,
 ) -> FfiVec<PrefabComponent> {
     let mut components = Vec::new();
@@ -176,7 +176,7 @@ pub fn serialize_components(
     entities.get_all_components(entity, |component| {
         components.push(PrefabComponent {
             component_id: component.type_info().short().name().into(),
-            data: serializer_ctx.serialize_any(component),
+            data: serializer_ctx.serialize_any(component, ""),
         });
     });
 
@@ -189,10 +189,10 @@ pub fn deserialize_component(
     id: &str,
     data: &SerializedValue,
     entity: EntityId,
-    mut serializer_ctx: SerializerCtx,
+    mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
     mut entities: EntitiesHolderMut,
 ) -> bool {
-    let Some(component) = serializer_ctx.deserialize_any(id, &data) else {
+    let Some(component) = serializer_ctx.deserialize_default_any(id, "", &data) else {
         return false;
     };
     entities.add_component_any(entity, component).is_ok()

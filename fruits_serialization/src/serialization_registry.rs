@@ -1,9 +1,9 @@
 use std::{ffi::c_void, marker::PhantomData, mem::MaybeUninit};
 
-use fruits_ffi::{FfiAnyMut, FfiAnyRef, FfiDroppable, FfiFnMutMut, FfiIndexMap, FfiStrSliceRef, FfiString};
+use fruits_ffi::{FfiAny, FfiAnyMut, FfiAnyRef, FfiDroppable, FfiIndexMap, FfiStrSliceRef, FfiString};
 
 use crate::{
-    Serializable, SerializableDefault, SerializationError, SerializedValue, SerializerCtx, TransSerializerCtxState,
+    Serializable, SerializationError, SerializedValue, SerializerCtx, TransSerializerCtxState,
 };
 
 // todo: the order of arguments in all of the serialization: self, ctx, Deserialized, path, serialized
@@ -19,19 +19,29 @@ pub trait Serializer<S: Copy> {
 #[repr(C)]
 pub struct StandardSerializer<T> {
     _phantom: PhantomData<fn(T) -> T>,
+    fn_default: fn() -> T,
 }
 
-impl<T> Default for StandardSerializer<T> {
-    fn default() -> Self {
-        Self { _phantom: PhantomData }
+impl<T> StandardSerializer<T> {
+    pub fn new(fn_default: fn() -> T) -> Self {
+        Self {
+            fn_default,
+            _phantom: Default::default(),
+        }
     }
 }
 
-impl<S: Copy, T: SerializableDefault + Serializable<S>> Serializer<S> for StandardSerializer<T> {
+impl<T: Default> Default for StandardSerializer<T> {
+    fn default() -> Self {
+        Self::new(|| Default::default())
+    }
+}
+
+impl<S: Copy, T: Serializable<S>> Serializer<S> for StandardSerializer<T> {
     type Deserialized = T;
 
     fn serializable_default(&self) -> Self::Deserialized {
-        T::serializable_default()
+        (self.fn_default)()
     }
 
     fn serialize(&self, value: &Self::Deserialized, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
@@ -48,6 +58,7 @@ impl<S: Copy, T: SerializableDefault + Serializable<S>> Serializer<S> for Standa
 #[repr(C)]
 struct TransSerializerFfiVtable {
     fn_serializable_default: unsafe extern "C-unwind" fn(*const c_void, out: *mut c_void),
+    fn_serializable_default_any: unsafe extern "C-unwind" fn(*const c_void) -> FfiAny,
     fn_serialize: unsafe extern "C-unwind" fn(
         *const c_void,
         value: *const c_void,
@@ -85,6 +96,17 @@ impl<'se> TransSerializerFfi<'se> {
                 out.write(result);
             }
         }
+        unsafe extern "C-unwind" fn ffi_serializable_default_any<'se, T: 'static, S: 'se + for<'ctx> Serializer<TransSerializerCtxState<'ctx>, Deserialized = T> + Send + Sync>(
+            this: *const c_void,
+        ) -> FfiAny {
+            unsafe {
+                let serializer = &*(this as *const S);
+
+                let result = serializer.serializable_default();
+
+                FfiAny::new(result)
+            }
+        }
         unsafe extern "C-unwind" fn ffi_serialize<'se, T, S: 'se + for<'ctx> Serializer<TransSerializerCtxState<'ctx>, Deserialized = T> + Send + Sync>(
             this: *const c_void,
             value: *const c_void,
@@ -119,6 +141,7 @@ impl<'se> TransSerializerFfi<'se> {
             data: FfiDroppable::new(serializer),
             vtable: &TransSerializerFfiVtable {
                 fn_serializable_default: ffi_serializable_default::<T, S>,
+                fn_serializable_default_any: ffi_serializable_default_any::<T, S>,
                 fn_serialize: ffi_serialize::<T, S>,
                 fn_deserialize: ffi_deserialize::<T, S>,
             },
@@ -134,6 +157,12 @@ impl<'se> TransSerializerFfi<'se> {
             (self.vtable.fn_serializable_default)(self.data.get(), out.as_mut_ptr() as *mut c_void);
 
             out.assume_init()
+        }
+    }
+    // todo
+    pub unsafe fn serializable_default_any(&self) -> FfiAny {
+        unsafe {
+            (self.vtable.fn_serializable_default_any)(self.data.get())
         }
     }
     // todo
@@ -252,10 +281,9 @@ impl<'se> TransSerializerRegistry<'se> {
         &'r mut self,
         value: &T,
         path: &str,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
         err_handler: &'r mut impl FnMut(SerializationError),
     ) -> SerializedValue {
-        SerializerCtx::new(&self.to_ctx_state(ctx), FfiFnMutMut::new(err_handler)).serialize(value, path)
+        self.to_ctx(err_handler).serialize(value, path)
     }
 
     pub fn deserialize<'r, T: 'static>(
@@ -263,10 +291,9 @@ impl<'se> TransSerializerRegistry<'se> {
         value: &mut T,
         path: &str,
         serialized: &SerializedValue,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
         err_handler: &'r mut impl FnMut(SerializationError),
     ) {
-        SerializerCtx::new(&self.to_ctx_state(ctx), FfiFnMutMut::new(err_handler)).deserialize(value, path, serialized)
+        self.to_ctx(err_handler).deserialize(value, path, serialized)
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &str> {
@@ -291,93 +318,15 @@ impl<'se> TransSerializerRegistry<'se> {
         self.serializers.get(id)
     }
     
-    pub fn to_ctx_state(&self) -> TransSerializerCtxState {
+    pub fn to_ctx_state<'a>(&'a self) -> TransSerializerCtxState<'a> {
         TransSerializerCtxState::new(self, None)
     }
 
-    pub fn to_ctx_new<'r>(
-        &'r self,
-        err_handler: &'r mut impl FnMut(SerializationError),
-    ) -> SerializerCtx<'r, TransSerializerCtxState<'r>> {
-        SerializerCtx::new(self.to_ctx_state(), FfiFnMutMut::new(err_handler))
-    }
-
     pub fn to_ctx<'r>(
         &'r self,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
         err_handler: &'r mut impl FnMut(SerializationError),
     ) -> SerializerCtx<'r, TransSerializerCtxState<'r>> {
-        let mut state = self.to_ctx_state();
-
-        let Some(ctx) = ctx else {
-            return SerializerCtx::new(state, FfiFnMutMut::new(err_handler));
-        };
-
-        SerializerCtx::new(state.wrap_into_local(ctx), FfiFnMutMut::new(err_handler))
+        SerializerCtx::new(self.to_ctx_state(), err_handler)
     }
 
-}
-
-#[repr(C)]
-#[derive(Default)]
-pub struct GlobalSerializer {
-    serializers: TransSerializerRegistry<'static>,
-}
-
-impl GlobalSerializer {
-    pub fn new() -> Self {
-        Self {
-            serializers: TransSerializerRegistry::new(),
-        }
-    }
-
-    pub fn register<T: 'static>(&mut self, serializer: impl 'static + for<'ctx> Serializer<TransSerializerCtxState<'ctx>, Deserialized = T> + Send + Sync) {
-        self.serializers.register(serializer)
-    }
-
-    pub fn serialize<'r, T: 'static>(
-        &'r mut self,
-        value: &T,
-        path: &str,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
-        err_handler: &'r mut impl FnMut(SerializationError),
-    ) -> SerializedValue {
-        SerializerCtx::new(&self.to_ctx_state(ctx), FfiFnMutMut::new(err_handler)).serialize(value, path)
-    }
-
-    pub fn deserialize<'r, T: 'static>(
-        &'r mut self,
-        value: &mut T,
-        path: &str,
-        serialized: &SerializedValue,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
-        err_handler: &'r mut impl FnMut(SerializationError),
-    ) {
-        SerializerCtx::new(&self.to_ctx_state(ctx), FfiFnMutMut::new(err_handler)).deserialize(value, path, serialized)
-    }
-
-    pub fn to_ctx_state<'r>(
-        &'r self,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
-    ) -> TransSerializerCtxState<'r> {
-        TransSerializerCtxState::new(&self.serializers, ctx)
-    }
-
-    pub fn to_ctx<'r>(
-        &'r self,
-        ctx: Option<&'r TransSerializerRegistry<'r>>,
-        err_handler: &'r mut impl FnMut(SerializationError),
-    ) -> SerializerCtx<'r, TransSerializerCtxState<'r>> {
-        let mut state = self.serializers.to_ctx_state();
-
-        if let Some(ctx) = ctx {
-            state = state.wrap_into_local(ctx);
-        }
-
-        SerializerCtx::new(state, FfiFnMutMut::new(err_handler))
-    }
-
-    pub fn registry(&self) -> &TransSerializerRegistry<'static> {
-        &self.serializers
-    }
 }

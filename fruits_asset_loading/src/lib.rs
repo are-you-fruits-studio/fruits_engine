@@ -203,16 +203,16 @@ impl AssetType {
     }
 }
 
-pub trait AssetLoader {
+pub trait AssetLoader<S: Copy> {
     type Asset: 'static + Send + Sync;
-    type SelfWithAnotherLifetime<'r>: 'r + AssetLoader<Asset = Self::Asset>;
+    type SelfWithAnotherLifetime<'r>: 'r + AssetLoader<S, Asset = Self::Asset>;
 
     fn create_loader<'r>(res: ResourcesHolderMut<'r>) -> Option<Self::SelfWithAnotherLifetime<'r>>;
 
-    fn load_from_serialized(&mut self, ctx: SerializerCtx, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset>;
+    fn load_from_serialized(&mut self, ctx: SerializerCtx<S>, value: &SerializedValue, assets_dir_path: impl AsRef<Path>) -> Option<Self::Asset>;
     fn get_related_asset_storage(&mut self) -> &mut AssetStorageResource<Self::Asset>;
 
-    fn get_or_load_from_key(&mut self, ctx: SerializerCtx, key: &str, assets_dir_path: impl AsRef<Path>) -> Option<AssetHandle<Self::Asset>> {
+    fn get_or_load_from_key(&mut self, ctx: SerializerCtx<S>, key: &str, assets_dir_path: impl AsRef<Path>) -> Option<AssetHandle<Self::Asset>> {
         let storage = self.get_related_asset_storage();
 
         if let Some(stored_asset) = storage.get_registered(key) {
@@ -250,12 +250,11 @@ pub fn load_all_assets(mut res: ResourcesHolderMut, assets_dir_path: impl AsRef<
         res.as_mut(),
         assets_dir_path.as_ref(),
         None, 
-        |local_serializer, serializer| {
+        |serializers_local, serializers_global| {
             let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
-            let global_serializer_state = serializer.to_ctx_state();
-            let local_serializer_state = global_serializer_state.wrap_into_local(&local_serializer);
-            let mut serializer_ctx = serializer.to_ctx(Some(&local_serializer), &mut err_handler);
-
+            let serializer_ctx_state = serializers_global.to_ctx_state();
+            let mut serializer_ctx = serializer_ctx_state.wrap_with_local(&serializers_local).into_ctx(&mut err_handler);
+            
             traverse_files_in_dir_deep(&assets_dir_path, &mut |file_path| {
                 if file_path.extension() != Some(OsStr::new("asset")) {
                     return;
@@ -302,13 +301,13 @@ pub fn load_all_assets(mut res: ResourcesHolderMut, assets_dir_path: impl AsRef<
                 let serialized_value = SerializedPrimitive::String(asset_key.into()).into();
 
                 match asset_type {
-                    AssetType::Texture => _ = serializer_ctx.deserialize::<AssetHandle<StandardTexture>>(&serialized_value),
-                    AssetType::Material => _ = serializer_ctx.deserialize::<AssetHandle<StandardMaterial>>(&serialized_value),
-                    AssetType::Mesh => _ = serializer_ctx.deserialize::<AssetHandle<StandardMesh>>(&serialized_value),
-                    AssetType::AudioClip => _ = serializer_ctx.deserialize::<AssetHandle<AudioClip>>(&serialized_value),
+                    AssetType::Texture => _ = serializer_ctx.deserialize_default::<AssetHandle<StandardTexture>>("", &serialized_value),
+                    AssetType::Material => _ = serializer_ctx.deserialize_default::<AssetHandle<StandardMaterial>>("", &serialized_value),
+                    AssetType::Mesh => _ = serializer_ctx.deserialize_default::<AssetHandle<StandardMesh>>("", &serialized_value),
+                    AssetType::AudioClip => _ = serializer_ctx.deserialize_default::<AssetHandle<AudioClip>>("", &serialized_value),
                     // todo: font
                     AssetType::Font => todo!(),
-                    AssetType::Prefab => _ = serializer_ctx.deserialize::<AssetHandle<Prefab>>(&serialized_value),
+                    AssetType::Prefab => _ = serializer_ctx.deserialize_default::<AssetHandle<Prefab>>("", &serialized_value),
                 };
             });
         },

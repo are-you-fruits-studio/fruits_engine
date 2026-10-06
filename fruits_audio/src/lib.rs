@@ -176,7 +176,7 @@ pub fn add_audio_module_to(mut world: WorldBuilderMut) {
 
 
 #[repr(C)]
-#[derive(TransSerializable, Clone)]
+#[derive(Serializable, Clone, Default)]
 pub struct AudioClipAssetMetadata {
     pub raw_audio: FfiString,
 }

@@ -1,6 +1,6 @@
-use fruits_ffi::{FfiFnMutMut, FfiOption};
+use fruits_ffi::{FfiAny, FfiAnyMut, FfiAnyRef, FfiFnMutMut, FfiOption};
 
-use crate::{SerializationError, SerializedValue, SerializerCtx, SerializerCtxState, TransSerializerRegistry, TransSerializerFfiTypedRef};
+use crate::{SerializationError, SerializedValue, SerializerCtx, SerializerCtxState, TransSerializerFfi, TransSerializerFfiTypedRef, TransSerializerRegistry};
 
 // todo: ffi
 
@@ -35,7 +35,9 @@ impl<'a> TransSerializerCtxState<'a> {
     fn find_serializer<'r, T: 'static>(&'r self) -> Option<TransSerializerFfiTypedRef<'r, 'r, T>>
         where 'a: 'r
     {
-        if let Some(serializer) = self.registry.get() {
+        // todo: recursion to loop
+
+        if let Some(serializer) = self.registry.get::<T>() {
             return Some(serializer);
         }
 
@@ -46,8 +48,28 @@ impl<'a> TransSerializerCtxState<'a> {
         None
     }
 
-    pub fn wrap_into_local<'r>(&'r self, local: &'r TransSerializerRegistry<'r>) -> TransSerializerCtxState<'r> {
+    fn find_serializer_virtual<'r>(&'r self, id: &str) -> Option<&'r TransSerializerFfi<'r>>
+        where 'a: 'r
+    {
+        // todo: recursion to loop
+
+        if let Some(serializer) = self.registry.get_virtual(id) {
+            return Some(serializer);
+        }
+
+        if let Some(wider_ctx) = self.wider_ctx.as_option() {
+            return wider_ctx.find_serializer_virtual(id)
+        }
+
+        None
+    }
+
+    pub fn wrap_with_local(&'a self, local: &'a TransSerializerRegistry<'a>) -> TransSerializerCtxState<'a> {
         TransSerializerCtxState::new(local, Some(self))
+    }
+
+    pub fn into_ctx(self, err_handler: impl Into<FfiFnMutMut<'a, SerializationError, ()>>) -> SerializerCtx<'a, Self> {
+        SerializerCtx::new(self, err_handler)
     }
 }
 impl<'a, T: 'static> SerializerCtxState<T> for TransSerializerCtxState<'a> {
@@ -70,6 +92,48 @@ impl<'a, T: 'static> SerializerCtxState<T> for TransSerializerCtxState<'a> {
 
         err_handler.execute(SerializationError::MissingSerializer { type_name: std::any::type_name::<T>().into() });
     }
+}
+
+impl<'a, 'b> SerializerCtx<'a, TransSerializerCtxState<'b>> {
+    pub fn serialize_any(&mut self, value: FfiAnyRef, path: &str) -> SerializedValue {
+        let type_name = value.type_info().short().name();
+
+        unsafe {
+            if let Some(serializer) = self.state().find_serializer_virtual(type_name) {
+                let ctx = SerializerCtx::new(self.state(), self.err_handler());
+                return serializer.serialize_any(value, ctx, path);
+            }
+        }
+
+        self.report_err(SerializationError::MissingSerializer { type_name: type_name.into() });
+        SerializedValue::Null
+    }
+    pub fn deserialize_any(&mut self, value: FfiAnyMut, path: &str, serialized: &SerializedValue) {
+        unsafe {
+            if let Some(serializer) = self.state().find_serializer_virtual(value.type_info().short().name()) {
+                let ctx = SerializerCtx::new(self.state(), self.err_handler());
+                serializer.deserialize_any(value, ctx, path, serialized);
+                return;
+            }
+        }
+
+        self.report_err(SerializationError::MissingSerializer { type_name: value.type_info().short().name().to_string().into() });
+    }
+
+    pub fn deserialize_default_any(&mut self, id: &str, path: &str, serialized: &SerializedValue) -> Option<FfiAny> {
+        unsafe {
+            if let Some(serializer) = self.state().find_serializer_virtual(id) {
+                let ctx = SerializerCtx::new(self.state(), self.err_handler());
+                let mut value = serializer.serializable_default_any();
+                serializer.deserialize_any(value.as_any_mut(), ctx, path, serialized);
+                return Some(value);
+            }
+        }
+
+        self.report_err(SerializationError::MissingSerializer { type_name: id.to_string().into() });
+        None
+    }
+
 }
 
 // todo: support FfiAny (again)
