@@ -1,89 +1,105 @@
 //! # fruits_prefab
 //!
-//! Defines the engine's in-memory prefab format — a reusable template of entities and
-//! their serialized components — together with the registry that turns those serialized
-//! components back into live ECS components when a prefab is instantiated.
+//! Defines the engine's in-memory prefab format — a reusable template of entities, their
+//! serialized components, and the assets those components reference — together with the
+//! helpers that convert an entity's components to and from that format.
 //!
 //! # How to use
 //!
 //! #### Opting a component into prefabs
 //!
-//! Register a component type so prefab instantiation can reconstruct it. Until a type is
-//! registered, prefab entries naming it are skipped. Components are keyed by their full
-//! Rust type name ([`std::any::type_name`]), so the same string must appear as the
-//! `component_id` in the prefab data.
+//! Prefab components are (de)serialized by type name through the world's
+//! [`SerializersResource`], so a component type only round-trips once a serializer for it is
+//! registered there. Without one, the component is recorded with a `Null` payload (and a
+//! `MissingSerializer` error is reported) and skipped when the prefab is instantiated:
 //!
 //! ```ignore
-//! use fruits_prefab::PrefabComponentsDeserializerResource;
+//! use fruits_engine::*;
 //!
-//! // `deserializers` is the world's `PrefabComponentsDeserializerResource`.
-//! fn register_my_components(deserializers: &mut PrefabComponentsDeserializerResource) {
-//!     deserializers.register::<MyComponent>();
+//! #[derive(Component, Serializable, Default)]
+//! struct Health(f32);
+//!
+//! fn register_serializers(mut world: WorldBuilderMut) {
+//!     let mut data = world.data_mut();
+//!     let mut res = data.resources_mut();
+//!     let serializers = res.get_mut::<SerializersResource>().unwrap();
+//!
+//!     serializers.register(StandardSerializer::<Health>::default());
 //! }
 //! ```
 //!
 //! #### Building a prefab in memory
 //!
-//! Assemble a [`Prefab`] directly — useful for tools and tests that produce prefabs
-//! without reading a file. Each entry maps a prefab-local entity id to the list of
-//! components that entity carries.
+//! Assemble a [`Prefab`] directly — useful for tools and tests that produce prefabs without
+//! reading a file. Each entry maps a prefab-local entity id to the list of components that
+//! entity carries:
 //!
 //! ```
 //! use fruits_prefab::{Prefab, PrefabComponent};
 //! use fruits_serialization::SerializedValue;
 //!
 //! let mut prefab = Prefab::empty();
-//! prefab.entities.insert(0, vec![
+//! prefab.entities.0.insert(1, vec![
 //!     PrefabComponent {
-//!         component_id: "my_crate::MyComponent".to_string(),
+//!         component_id: "my_crate::Health".into(),
 //!         data: SerializedValue::Null,
 //!     },
-//! ]);
+//! ].into());
 //!
-//! assert_eq!(prefab.entities.len(), 1);
+//! assert_eq!(prefab.entities.0.len(), 1);
+//! ```
+//!
+//! #### Recording and restoring an entity's components
+//!
+//! [`serialize_components`] captures every component of an entity as [`PrefabComponent`]s,
+//! and [`deserialize_prefab_components`] adds them to an entity. Both take a registry-backed
+//! [`SerializerCtx`]; loading prefab files, instantiating whole prefabs, and recording
+//! hierarchies live in `fruits_asset_loading`:
+//!
+//! ```ignore
+//! use fruits_engine::*;
+//!
+//! let serializers = res.get::<SerializersResource>().unwrap();
+//! let mut on_err = |err| println!("{err}");
+//! let mut ctx = serializers.to_ctx(&mut on_err);
+//!
+//! let components = serialize_components(source, ctx.as_mut(), ent.as_ref());
+//! deserialize_prefab_components(&components, target, ctx, ent.as_mut());
 //! ```
 //!
 //! # How to maintain
 //!
 //! #### Data model
 //!
-//! A [`Prefab`] is a `HashMap` from a prefab-local entity id (`usize`) to a `Vec` of
-//! [`PrefabComponent`], each pairing a `component_id` string with the component's
-//! [`SerializedValue`] payload. The ids are local
-//! to the prefab: instantiation creates one real [`Entity`] per id
-//! and resolves cross-references (an `Entity`-typed field pointing at another entity in
-//! the same prefab) by mapping those local ids to the freshly created entities.
+//! A [`Prefab`] holds [`PrefabEntities`] — an `FfiIndexMap` from a prefab-local entity id
+//! (`u64`) to an `FfiVec` of [`PrefabComponent`], each pairing a `component_id` string with
+//! the component's [`SerializedValue`] payload — and [`PrefabDependencies`], per-asset-type
+//! maps from asset key to the loaded `AssetHandle` (textures, meshes, materials, audio clips,
+//! fonts, and other prefabs). All of these are `#[repr(C)]`. The ids are local to the prefab:
+//! instantiation creates one real entity per id and resolves entity references inside
+//! component data through those ids. [`PrefabComponent`] derives [`Serializable`], and
+//! `SerializedValue` is serializable as-is, so the component payloads pass through prefab
+//! (de)serialization verbatim.
 //!
 //! #### The component id is the type name
 //!
-//! [`register`](PrefabComponentsDeserializerResource::register) inserts a deserializer
-//! under `std::any::type_name::<C>()`, and
-//! [`deserialize`](PrefabComponentsDeserializerResource::deserialize) looks one up by the
-//! `component_id` carried on a [`PrefabComponent`]. For a prefab entry to resolve, its
-//! `component_id` must equal the component's full type name exactly; an id with no
-//! matching registration makes `deserialize` return `false` and the component is dropped.
-//!
-//! #### Type erasure
-//!
-//! Each registered type gets a [`PrefabComponentDeserializer<C>`], which implements the
-//! private `AbstractPrefabComponentDeserializer` trait so deserializers for unrelated
-//! component types can share one `HashMap` of boxed trait objects. On a hit, `deserialize`
-//! runs the serialized payload through the supplied
-//! [`SerializerCtx`] to produce a `C`, then calls
-//! `add_component` on the entity; it returns `false` if either the deserialization or the
-//! component insertion fails. The [`ResourcesHolderRef`]
-//! parameter is threaded through but currently unused by the concrete implementation.
+//! [`serialize_components`] walks the entity's components with `get_all_components`, stores
+//! each one's type-info name (its `std::any::type_name`) as the `component_id`, serializes it
+//! with [`SerializerCtx::serialize_any`], and sorts the result by `component_id` so the output
+//! is stable. [`deserialize_component`] goes the other way:
+//! [`SerializerCtx::deserialize_default_any`] looks the serializer up by the id, creates the
+//! component from the serializer's default, fills it from the payload, and attaches it with
+//! `add_component_any`. It returns `false` if no serializer matches or the component cannot be
+//! added; [`deserialize_prefab_components`] logs such components and moves on.
 //!
 //! #### Where the rest of the pipeline lives
 //!
-//! This crate only owns the format and the registry. Reading a prefab from JSON on disk
-//! and instantiating one into the world live in `fruits_asset_loading`
-//! (`deserialize_prefab`, `get_or_load_prefab_from_world`, `instantiate_prefab`), and the
-//! [`PrefabComponentsDeserializerResource`] is inserted into the world by
-//! `fruits_modules::add_defult_modules_to`. No engine code calls
-//! [`register`](PrefabComponentsDeserializerResource::register) yet, so an app must
-//! register its own component types before prefab components of those types can be
-//! instantiated. A `// todo: ffi` on the resource marks FFI exposure as still pending.
+//! This crate only owns the format and the per-component conversion. Reading prefab files,
+//! loading their dependencies, instantiating them into the world, and recording entity
+//! hierarchies into prefabs live in `fruits_asset_loading`, and the
+//! `AssetStorageResource<Prefab>` is inserted there by `add_asset_module_to`.
+//! [`serialize_prefab_single_entity`] and [`deserialize_prefab_components`] are marked `todo`:
+//! the former always stores the entity under id `0` and leaves the dependencies empty.
 
 use fruits_asset_storage::AssetHandle;
 use fruits_audio::AudioClip;
