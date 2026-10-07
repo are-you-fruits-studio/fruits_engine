@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, path::Path};
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
 use fruits_ffi::FfiVec;
-use fruits_prefab::{Prefab, PrefabComponent, PrefabDependencies, PrefabEntities, deserialize_component, deserialize_prefab_components, serialize_components};
+use fruits_prefab::{Prefab, PrefabComponent, PrefabDependencies, PrefabEntities, deserialize_add_component, deserialize_component, deserialize_prefab_components, serialize_components};
 use fruits_serialization::*;
 use fruits_transform::ParentComponent;
 
@@ -154,7 +154,7 @@ pub fn instantiate_prefab(res: ResourcesHolderRef, mut ent: EntitiesHolderMut, p
         let entity = *ctx.entities.get(&entity_id).unwrap();
 
         for prefab_component in prefab_components {
-            let did_deserialize_component = deserialize_component(
+            let did_deserialize_component = deserialize_add_component(
                 &prefab_component.component_id,
                 &prefab_component.data,
                 entity,
@@ -283,6 +283,34 @@ pub fn override_entity_components_from_prefab(
     let serializer_ctx = serializer_ctx_state.wrap_with_local(&serializers_local).into_ctx(&mut err_handler);
 
     deserialize_prefab_components(components, entity, serializer_ctx, ent)
+}
+
+pub fn deserialize_entity_component_from_prefab(
+    res: ResourcesHolderRef,
+    ent: EntitiesHolderMut,
+    entity: EntityId,
+    component_id: &str,
+    path: &str,
+    serialized: &SerializedValue,
+    id_to_ent: &HashMap<u64, EntityId>,
+) -> bool {
+    let serializers_global = res.get::<SerializersResource>().unwrap();
+
+    let entities_serialized = HashMap::<EntityId, u64>::new();
+
+    let mut serializers_local = TransSerializerRegistry::new();
+
+    serializers_local.register(EntityTransSerializer {
+        entities_deserialized: id_to_ent,
+        entities_serialized: &entities_serialized,
+    });
+
+    let mut err_handler = |err| println!("[{}:{}] {err}", file!(), line!());
+    
+    let serializer_ctx_state = serializers_global.to_ctx_state();
+    let serializer_ctx = serializer_ctx_state.wrap_with_local(&serializers_local).into_ctx(&mut err_handler);
+
+    deserialize_component(ent, entity, component_id, serializer_ctx, path, serialized)
 }
 
 pub struct EntityTransSerializer<'brw> {

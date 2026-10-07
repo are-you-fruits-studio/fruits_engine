@@ -168,7 +168,7 @@ pub fn deserialize_prefab_components(
     mut entities: EntitiesHolderMut,
 ) {
     for component in components {
-        let was_deserialized = deserialize_component(
+        let was_deserialized = deserialize_add_component(
             component.component_id.as_str(),
             &component.data,
             entity,
@@ -201,7 +201,7 @@ pub fn serialize_components(
     components.into()
 }
 
-pub fn deserialize_component(
+pub fn deserialize_add_component(
     id: &str,
     data: &SerializedValue,
     entity: EntityId,
@@ -212,4 +212,30 @@ pub fn deserialize_component(
         return false;
     };
     entities.add_component_any(entity, component).is_ok()
+}
+
+pub fn deserialize_component(
+    mut entities: EntitiesHolderMut,
+    entity: EntityId,
+    id: &str,
+    mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
+    path: &str,
+    serialized: &SerializedValue,
+) -> bool {
+    let mut component = None;
+
+    entities.get_all_components_mut(entity, |entity_component| {
+        if component.is_some() || entity_component.type_info().short().name() != id {
+            return;
+        }
+
+        component = Some(entity_component);
+    });
+
+    let Some(c) = component else {
+        return false;
+    };
+
+    serializer_ctx.deserialize_any(c, path, serialized);
+    return true;
 }

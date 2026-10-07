@@ -23,10 +23,16 @@ pub struct HierarchyButtonAddComponent;
 #[derive(Component)]
 pub struct HierarchyButtonRemoveComponent;
 
-#[derive(Component, Copy, Clone)]
-pub enum SerializedValueComponent {
+#[derive(Debug, Copy, Clone)]
+pub enum SerializedValueComponentTy {
     Container { ty: SerializedValueContainerType, container_enum_metadata: EntityId, container_fields: EntityId, container_buttons: EntityId },
     Primitive { text: EntityId, ty: SerializedValuePrimitiveType },
+}
+
+#[derive(Component, Clone)]
+pub struct SerializedValueComponent {
+    pub ty: SerializedValueComponentTy,
+    pub path: FfiString,
 }
 
 #[derive(Debug, Copy, Clone)]

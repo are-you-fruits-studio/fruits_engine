@@ -6,7 +6,7 @@ use crate::{
     features::{
         asset_serialization::{InspectedAsset, get_asset_type}, input_field::{InputFieldComponent, InputFieldSelectionChangedEvent, SelectedInputFieldResource}, inspector_window::{
             data::*, utils::{
-                entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, serialization::{are_components_slices_similar, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
+                entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, find_in_parents, serialization::{are_components_slices_similar, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
             },
         }, project_window_selection::{FileSelectedEvent, SelectedFileResource}, world_preload::SimulatedWorldResource,
     }, prefabs::WindowComponent, *,
@@ -39,6 +39,7 @@ pub fn update_hierarchy_entries_selection(
     }
 }
 
+// todo: to new serializer api
 pub fn adjust_non_rigid_composite_system(mut world: WorldDataMut) {
     let (res, mut ent, evt) = world.as_tuple_mut();
 
@@ -47,10 +48,10 @@ pub fn adjust_non_rigid_composite_system(mut world: WorldDataMut) {
 
     for click_evt in evt.get::<ButtonClickEvent>() {
         if let Some(btn_add_c) = ent.get_component::<SerializedCompositeRemoveButton>(click_evt.entity)
-            && let Some(serialized_val_c) = ent.get_component::<SerializedValueComponent>(btn_add_c.composite).copied()
-            && let SerializedValueComponent::Container {
+            && let Some(serialized_val_c) = ent.get_component::<SerializedValueComponent>(btn_add_c.composite).cloned()
+            && let SerializedValueComponent { path, ty: SerializedValueComponentTy::Container {
                 ty, container_fields, ..
-            } = serialized_val_c
+            }} = serialized_val_c
         {
             let parent_c = ent.get_component_mut::<ParentComponent>(container_fields).unwrap();
             if let Some(ent_child) = parent_c.children.pop() {
@@ -58,10 +59,10 @@ pub fn adjust_non_rigid_composite_system(mut world: WorldDataMut) {
             }
         }
         if let Some(btn_add_c) = ent.get_component::<SerializedCompositeAddButton>(click_evt.entity)
-            && let Some(serialized_val_c) = ent.get_component::<SerializedValueComponent>(btn_add_c.composite).copied()
-            && let SerializedValueComponent::Container {
+            && let Some(serialized_val_c) = ent.get_component::<SerializedValueComponent>(btn_add_c.composite).cloned()
+            && let SerializedValueComponent { path, ty: SerializedValueComponentTy::Container {
                 ty, container_fields, ..
-            } = serialized_val_c
+            }} = serialized_val_c
         {
             let i = ent.get_component::<ParentComponent>(container_fields).unwrap().children.len();
             let serialized_key = match ty {
@@ -73,6 +74,7 @@ pub fn adjust_non_rigid_composite_system(mut world: WorldDataMut) {
                 i,
                 serialized_key,
                 container_fields,
+                path,
                 &SerializedValue::Null,
                 ent_selected_input,
                 assets.material_panel.clone(),
@@ -225,6 +227,60 @@ pub fn adjust_hierarchy_entries_system(
     }
 }
 
+pub fn apply_inspector_field_text_change_to_simulated_world_system(
+    text_input_evt: Evt<TextInputEvent>,
+    selected_input_res: Res<SelectedInputFieldResource>,
+    serialized_value_q: WorldQuery<&SerializedValueComponent>,
+    ent: EntitiesHolderRef,
+    mut simulated_world: ResMut<SimulatedWorldResource>,
+    inspected_entity: Res<InspectedEntityResource>,
+) {
+    // todo:
+    // - distinguish between prefabs and other asset types
+    // - save field for the other assets as well (with the new serialization api)
+    // - handle dropdown clicks
+    // - handle non-rigid collections controls ("+", "-")
+    // - save assets to files when they are changed even a bit
+    // - restore the "add-component" functionality (with the new serialization api)
+
+    return_if_not!(Some(simulated_world) = &mut simulated_world.0);
+
+    if text_input_evt.is_empty() {
+        return;
+    }
+
+    let ent_input_field = selected_input_res.selected;
+    let Some(serialized_value_c) = serialized_value_q.get(ent_input_field) else {
+        return;
+    };
+
+    let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_input_field, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
+        return;
+    };
+
+    let Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text) else {
+        return;
+    };
+
+    let inspected_component_type_name = component_id_text_c.text.clone();
+
+    let serialized_value = parse_serialized(ent, ent_input_field);
+
+    let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
+
+    // todo: react to result?
+    _ = deserialize_entity_component_from_prefab(
+        sim_res.as_ref(),
+        sim_ent,
+        inspected_entity.selected_entity,
+        &inspected_component_type_name,
+        &serialized_value_c.path,
+        &serialized_value,
+        &inspected_entity.id_to_ent,
+    );
+}
+
+// todo: rewrite to new serialization api
 pub fn apply_inspector_to_simulated_world_system(
     ent: EntitiesHolderRef,
     inspector_window_q: WorldQuery<&InspectorWindowContentComponent>,
@@ -644,6 +700,7 @@ pub fn update_inspector_window_system(
             ent_last,
             window_c.content_container,
             ent_selected_input,
+            "".into(),
             &serialized,
             assets.material_panel.clone(),
             assets.material_text.clone(),
@@ -706,6 +763,7 @@ fn update_prefab_component_ent(
             data_ent,
             serialized_component_c.component_data_container,
             ent_selected_input,
+            "".into(),
             &component.data,
             material_panel.clone(),
             material_text.clone(),
@@ -748,6 +806,7 @@ fn update_prefab_component_ent(
         EntityId::EMPTY,
         comp_data_container,
         ent_selected_input,
+        "".into(),
         &component.data,
         material_panel.clone(),
         material_text.clone(),
