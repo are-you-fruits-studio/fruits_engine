@@ -171,7 +171,7 @@ mod mesh;
 mod texture;
 mod prefab;
 mod audio_clip;
-mod serializers_load;
+mod serializers;
 
 use std::{ffi::OsStr, path::{Path, PathBuf}};
 
@@ -185,7 +185,7 @@ pub use mesh::*;
 pub use texture::*;
 pub use prefab::*;
 pub use audio_clip::*;
-pub use serializers_load::*;
+pub use serializers::*;
 
 use fruits_ecs::{ResourcesHolderMut, Schedule, WorldBuilderMut};
 

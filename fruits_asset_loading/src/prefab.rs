@@ -2,8 +2,8 @@ use std::{collections::{HashMap, VecDeque}, path::Path};
 
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
-use fruits_ffi::FfiVec;
-use fruits_prefab::{Prefab, PrefabComponent, PrefabDependencies, PrefabEntities, deserialize_add_component, deserialize_component, deserialize_prefab_components, serialize_components};
+use fruits_ffi::{FfiIndexMap, FfiString, FfiVec};
+use fruits_prefab::{Prefab, PrefabDependencies, PrefabEntities, deserialize_add_component, deserialize_component, deserialize_prefab_components, serialize_components};
 use fruits_serialization::*;
 use fruits_transform::ParentComponent;
 
@@ -53,41 +53,20 @@ impl PrefabLoader {
     }
 }
 
-#[derive(Serializable, Default)]
-struct TestSerializedPrefab {
-    entities: FfiVec<SerializedPrefabEntity>,
+pub fn deserialize_prefab_no_deps(mut ctx: SerializerCtx<PureSerializerCtxState>, serialized: &SerializedValue) -> PrefabEntities {
+    let mut deserialized_entities = PrefabEntities::default();
+
+    ctx.deserialize_map_fields("", serialized)
+        .with_field("entities", &mut deserialized_entities);
+
+    deserialized_entities
 }
+pub fn serialize_prefab_no_deps(mut ctx: SerializerCtx<PureSerializerCtxState>, value: &PrefabEntities) -> SerializedValue {
+    let serialized_entities = ctx.serialize(value, "");
 
-#[derive(Serializable, Default)]
-struct SerializedPrefabEntity {
-    entity_id: u64,
-    components: FfiVec<PrefabComponent>,
-}
-
-pub fn deserialize_prefab_no_deps(mut ctx: SerializerCtx<PureSerializerCtxState>, value: &SerializedValue) -> PrefabEntities {
-    // todo: maybe return Option and don't deserialize anything?
-
-    let serialized_prefab = ctx.deserialize_default::<TestSerializedPrefab>("", value);
-
-    PrefabEntities(serialized_prefab.entities.into_iter().map(|e| {
-        (
-            e.entity_id,
-            e.components,
-        )
-    }).collect())
-}
-
-pub fn serialize_prefab_no_deps<S: Copy>(mut ctx: SerializerCtx<S>, value: &PrefabEntities) -> SerializedValue {
-    let ctx = ctx.map_state(|_| PureSerializerCtxState);
-
-    let serialized_prefab = TestSerializedPrefab {
-        entities: value.0.iter().map(|(&entity_id, components)| SerializedPrefabEntity {
-            entity_id,
-            components: components.clone(),
-        }).collect(),
-    };
-
-    serialized_prefab.serialize(ctx, "")
+    ctx.serialize_map("")
+        .with_field("entities", &serialized_entities)
+        .finish_as_map(true)
 }
 
 
@@ -105,8 +84,8 @@ fn load_prefab_dependencies(mut ctx: SerializerCtx<TransSerializerCtxState>, pre
     let mut deps = PrefabDependencies::default();
 
     for prefab_components in prefab.0.values() {
-        for prefab_component in prefab_components {
-            _ = ctx.as_mut().deserialize_default_any(&prefab_component.component_id, "", &prefab_component.data);
+        for (component_id, component_value) in &prefab_components.0 {
+            _ = ctx.as_mut().deserialize_default_any(component_id, "", component_value);
         }
     }
 
@@ -153,17 +132,17 @@ pub fn instantiate_prefab(res: ResourcesHolderRef, mut ent: EntitiesHolderMut, p
     for (&entity_id, prefab_components) in &prefab.entities.0 {
         let entity = *ctx.entities.get(&entity_id).unwrap();
 
-        for prefab_component in prefab_components {
+        for (component_id, component_value) in &prefab_components.0 {
             let did_deserialize_component = deserialize_add_component(
-                &prefab_component.component_id,
-                &prefab_component.data,
+                component_id,
+                component_value,
                 entity,
                 serializer_ctx.as_mut(),
                 ent.as_mut(),
             );
 
             if !did_deserialize_component {
-                println!("failed to deserialize component: {}", prefab_component.component_id);
+                println!("failed to deserialize component: {}", component_id);
             }
         }
     }
@@ -177,7 +156,7 @@ pub fn record_into_prefab_components(
     ent: EntitiesHolderRef,
     entity: EntityId,
     ent_to_id: &HashMap<EntityId, u64>,
-) -> FfiVec<PrefabComponent> {
+) -> FfiIndexMap<FfiString, SerializedValue> {
     let serializers_global = res.get::<SerializersResource>().unwrap();
 
     let entities_deserialized = HashMap::<u64, EntityId>::new();
@@ -246,7 +225,7 @@ pub fn record_into_prefab(
         // todo: asset references
         let components = serialize_components(entity, serializer_ctx.as_mut(), ent);
 
-        prefab.entities.0.insert(id, components);
+        prefab.entities.0.insert(id, components.into());
     }
 
     Some(prefab)
@@ -257,7 +236,7 @@ pub fn override_entity_components_from_prefab(
     res: ResourcesHolderRef,
     mut ent: EntitiesHolderMut,
     entity: EntityId,
-    components: &[PrefabComponent],
+    components: &FfiIndexMap<FfiString, SerializedValue>,
     id_to_ent: &HashMap<u64, EntityId>,
 ) {
     let mut components_to_remove = Vec::new();

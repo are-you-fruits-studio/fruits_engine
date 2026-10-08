@@ -6,7 +6,7 @@ use crate::{
     features::{
         asset_serialization::{InspectedAsset, get_asset_type}, input_field::{InputFieldComponent, InputFieldSelectionChangedEvent, SelectedInputFieldResource}, inspector_window::{
             data::*, utils::{
-                entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, find_in_parents, serialization::{are_components_slices_similar, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
+                entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, find_in_parents, serialization::{are_components_slices_similar, deserialize_asset_to_world_res, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
             },
         }, project_window_selection::{FileSelectedEvent, SelectedFileResource}, world_preload::SimulatedWorldResource,
     }, prefabs::WindowComponent, *,
@@ -120,10 +120,8 @@ pub fn add_component_system(
             EntityId::EMPTY,
             container_ent,
             EntityId::EMPTY,
-            &PrefabComponent {
-                component_id,
-                data: SerializedValue::Null,
-            },
+            &component_id,
+            &SerializedValue::Null,
             assets.material_panel.clone(),
             assets.material_text.clone(),
             assets.font.clone(),
@@ -234,6 +232,9 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
     ent: EntitiesHolderRef,
     mut simulated_world: ResMut<SimulatedWorldResource>,
     inspected_entity: Res<InspectedEntityResource>,
+    inspected_asset: Res<InspectedAssetResource>,
+    open_project: Res<OpenProjectResource>,
+    mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
 ) {
     // todo:
     // - distinguish between prefabs and other asset types
@@ -257,27 +258,48 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
     let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_input_field, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
         return;
     };
-
-    let Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text) else {
-        return;
-    };
-
-    let inspected_component_type_name = component_id_text_c.text.clone();
+    
+    return_if_not!(Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()));
 
     let serialized_value = parse_serialized(ent, ent_input_field);
 
     let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
 
-    // todo: react to result?
-    _ = deserialize_entity_component_from_prefab(
-        sim_res.as_ref(),
-        sim_ent,
-        inspected_entity.selected_entity,
-        &inspected_component_type_name,
-        &serialized_value_c.path,
-        &serialized_value,
-        &inspected_entity.id_to_ent,
-    );
+    if asset_type == AssetType::Prefab {
+        let Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text) else {
+            return;
+        };
+
+        let inspected_component_type_name = component_id_text_c.text.clone();
+        
+        // todo: react to result?
+        let did_asset_load = deserialize_entity_component_from_prefab(
+            sim_res.as_ref(),
+            sim_ent,
+            inspected_entity.selected_entity,
+            &inspected_component_type_name,
+            &serialized_value_c.path,
+            &serialized_value,
+            &inspected_entity.id_to_ent,
+        );
+        
+        if did_asset_load {
+            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
+        };
+    } else {
+        let did_asset_load = deserialize_asset_to_world_res(
+            simulated_world.world.data_mut().resources_mut(),
+            inspected_asset.asset_key.as_str(),
+            &serialized_value_c.path,
+            &serialized_value,
+            asset_type,
+            &(open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH),
+        );
+        
+        if did_asset_load {
+            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
+        };
+    }
 }
 
 // todo: rewrite to new serialization api
@@ -309,7 +331,7 @@ pub fn apply_inspector_to_simulated_world_system(
             &inspected_entity.ent_to_id,
         );
 
-        let mut parsed_components = Vec::new();
+        let mut parsed_components = FfiIndexMap::<FfiString, SerializedValue>::new();
 
         for &child in &parent_c.children {
             continue_if_not!(Some(serialized_component_c) = serialized_component_q.get(child));
@@ -319,10 +341,10 @@ pub fn apply_inspector_to_simulated_world_system(
 
             let serialized_component = parse_serialized(ent, serialized_ent);
 
-            parsed_components.push(PrefabComponent {
-                component_id: text_c.text.clone(),
-                data: serialized_component,
-            });
+            parsed_components.insert(
+                text_c.text.clone(),
+                serialized_component,
+            );
         }
 
         return_if!(are_components_slices_similar(&stored_components, &parsed_components));
@@ -343,7 +365,6 @@ pub fn apply_inspector_to_simulated_world_system(
 
     let serialized_existing = save_asset_from_world_res(
         simulated_world.world.data().resources(),
-        simulated_world.world.data().resources().get::<SerializersResource>().unwrap(),
         inspected_asset.asset_key.as_str(),
     );
 
@@ -408,7 +429,6 @@ pub fn save_inspected_asset_from_simulated_world_to_file_system(
 
     let serialized = save_asset_from_world_res(
         simulated_world.world.data().resources(),
-        simulated_world.world.data().resources().get::<SerializersResource>().unwrap(),
         inspected_asset.asset_key.as_str(),
     );
 
@@ -713,7 +733,7 @@ fn update_prefab_components_ent(
     mut ent: EntitiesHolderMut,
     ent_parent: EntityId,
     ent_selected_input: EntityId,
-    components: &[PrefabComponent],
+    components: &FfiIndexMap<FfiString, SerializedValue>,
     material_panel: AssetHandle<StandardMaterial>,
     material_text: AssetHandle<StandardMaterial>,
     font: AssetHandle<Font>,
@@ -724,7 +744,7 @@ fn update_prefab_components_ent(
             destroy_entity_and_children(ent.as_mut(), popped_ent);
         }
 
-        for i in 0..components.len() {
+        for (i, (component_id, component_value)) in components.iter().enumerate() {
             let ent_last = ent.get_component_mut::<ParentComponent>(ent_parent).unwrap().children.get(i as u64).copied().unwrap_or(EntityId::EMPTY);
 
             update_prefab_component_ent(
@@ -732,7 +752,8 @@ fn update_prefab_components_ent(
                 ent_last,
                 ent_parent,
                 ent_selected_input,
-                &components[i],
+                component_id,
+                component_value,
                 material_panel.clone(),
                 material_text.clone(),
                 font.clone(),
@@ -746,7 +767,8 @@ fn update_prefab_component_ent(
     ent_last: EntityId,
     ent_parent: EntityId,
     ent_selected_input: EntityId,
-    component: &PrefabComponent,
+    component_id: &str,
+    component_value: &SerializedValue,
     material_panel: AssetHandle<StandardMaterial>,
     material_text: AssetHandle<StandardMaterial>,
     font: AssetHandle<Font>,
@@ -756,7 +778,7 @@ fn update_prefab_component_ent(
     && container_parent_c.children.len() == 1
     && let data_ent = container_parent_c.children[0]
     && let Some(text_c) = ent.get_component_mut::<TextComponent>(serialized_component_c.component_id_text) {
-        text_c.text = component.component_id.clone();
+        text_c.text = component_id.into();
         
         spawn_serialized(
             ent.as_mut(),
@@ -764,7 +786,7 @@ fn update_prefab_component_ent(
             serialized_component_c.component_data_container,
             ent_selected_input,
             "".into(),
-            &component.data,
+            component_value,
             material_panel.clone(),
             material_text.clone(),
             font.clone(),
@@ -777,7 +799,7 @@ fn update_prefab_component_ent(
     let (_, componet_id_text_ent) = spawn_text_ent(
         ent.as_mut(),
         comp_ent,
-        component.component_id.clone(),
+        component_id.into(),
         material_panel.clone(),
         material_text.clone(),
         font.clone(),
@@ -807,7 +829,7 @@ fn update_prefab_component_ent(
         comp_data_container,
         ent_selected_input,
         "".into(),
-        &component.data,
+        component_value,
         material_panel.clone(),
         material_text.clone(),
         font.clone(),

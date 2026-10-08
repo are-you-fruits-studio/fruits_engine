@@ -104,21 +104,50 @@
 use fruits_asset_storage::AssetHandle;
 use fruits_audio::AudioClip;
 use fruits_ecs::*;
-use fruits_ffi::{FfiIndexMap, FfiString, FfiVec};
+use fruits_ffi::{FfiIndexMap, FfiString};
 use fruits_ui::Font;
 use fruits_render_core::{StandardMaterial, StandardMesh, StandardTexture};
 use fruits_serialization::*;
 
 #[repr(C)]
-#[derive(Debug, Clone, Serializable, Default)]
-pub struct PrefabComponent {
-    pub component_id: FfiString,
-    pub data: SerializedValue,
+#[derive(Default, Debug, Clone)]
+pub struct PrefabEntityComponents(pub FfiIndexMap<FfiString, SerializedValue>);
+
+impl<S: Copy + SerializerCtxState<SerializedValue>> Serializable<S> for PrefabEntityComponents {
+    fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
+        self.0.serialize(ctx, path)
+    }
+
+    fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, serialized: &SerializedValue) {
+        self.0.deserialize(ctx, path, serialized)
+    }
+}
+
+impl From<FfiIndexMap<FfiString, SerializedValue>> for PrefabEntityComponents {
+    fn from(value: FfiIndexMap<FfiString, SerializedValue>) -> Self {
+        Self(value)
+    }
 }
 
 #[repr(C)]
 #[derive(Default, Debug, Clone)]
-pub struct PrefabEntities(pub FfiIndexMap<u64, FfiVec<PrefabComponent>>);
+pub struct PrefabEntities(pub FfiIndexMap<u64, PrefabEntityComponents>);
+
+impl<S: Copy + SerializerCtxState<PrefabEntityComponents>> Serializable<S> for PrefabEntities {
+    fn serialize(&self, ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
+        self.0.serialize(ctx, path)
+    }
+
+    fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, serialized: &SerializedValue) {
+        self.0.deserialize(ctx, path, serialized)
+    }
+}
+
+impl From<FfiIndexMap<u64, PrefabEntityComponents>> for PrefabEntities {
+    fn from(value: FfiIndexMap<u64, PrefabEntityComponents>) -> Self {
+        Self(value)
+    }
+}
 
 #[repr(C)]
 #[derive(Default, Debug, Clone)]
@@ -154,7 +183,9 @@ pub fn serialize_prefab_single_entity(
     entities: EntitiesHolderRef,
 ) -> Prefab {
     Prefab {
-        entities: PrefabEntities([(0, serialize_components(entity, serializer_ctx, entities))].into_iter().collect()),
+        entities: PrefabEntities([
+            (0, PrefabEntityComponents(serialize_components(entity, serializer_ctx, entities)))
+        ].into_iter().collect()),
         // todo
         dependencies: PrefabDependencies::default(),
     }
@@ -162,22 +193,22 @@ pub fn serialize_prefab_single_entity(
 
 // todo
 pub fn deserialize_prefab_components(
-    components: &[PrefabComponent],
+    components: &FfiIndexMap<FfiString, SerializedValue>,
     entity: EntityId,
     mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
     mut entities: EntitiesHolderMut,
 ) {
-    for component in components {
+    for (component_id, component_value) in components {
         let was_deserialized = deserialize_add_component(
-            component.component_id.as_str(),
-            &component.data,
+            component_id.as_str(),
+            component_value,
             entity,
             serializer_ctx.as_mut(),
             entities.as_mut()
         );
 
         if !was_deserialized {
-            println!("failed to deserialize component: {}", component.component_id);
+            println!("failed to deserialize component: {}", component_id);
         }
     }
 }
@@ -186,19 +217,19 @@ pub fn serialize_components(
     entity: EntityId,
     mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
     entities: EntitiesHolderRef,
-) -> FfiVec<PrefabComponent> {
-    let mut components = Vec::new();
+) -> FfiIndexMap<FfiString, SerializedValue> {
+    let mut components: Vec<(FfiString, SerializedValue)> = Vec::new();
 
     entities.get_all_components(entity, |component| {
-        components.push(PrefabComponent {
-            component_id: component.type_info().short().name().into(),
-            data: serializer_ctx.serialize_any(component, ""),
-        });
+        components.push((
+            component.type_info().short().name().into(),
+            serializer_ctx.serialize_any(component, ""),
+        ));
     });
 
-    components.sort_by(|l, r| l.component_id.cmp(&r.component_id));
-
-    components.into()
+    // todo: implement sorting directly on FfiIndexMap
+    components.sort_by(|l, r| l.0.cmp(&r.0));
+    components.into_iter().collect()
 }
 
 pub fn deserialize_add_component(

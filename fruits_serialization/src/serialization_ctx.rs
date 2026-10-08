@@ -1,7 +1,7 @@
 use fruits_ffi::{FfiFnMutMut, FfiString, FfiVec};
 
 use crate::{
-    CoreEnumDeserializerCtx, CoreListDeserializerCtx, CoreListSerializerCtx, CoreMapDeserializerCtx, CoreMapSerializerCtx, SerializationError, SerializedValue, decompose_serialization_path, deserialize_list_inverted,
+    CoreEnumDeserializerCtx, CoreListDeserializerCtx, CoreListSerializerCtx, CoreMapDeserializerCtx, CoreMapSerializerCtx, SerializationError, SerializedValue, decompose_serialization_path, deserialize_list_inverted, deserialize_map_inverted,
 };
 
 // todo: ffi
@@ -114,6 +114,24 @@ impl<'a, S: Copy> SerializerCtx<'a, S> {
         let path = decompose_serialization_path(path);
 
         MapDeserializerCtx::new(self.as_mut(), path, serialized)
+    }
+
+    pub fn deserialize_map_inverted<T: Default>(
+        mut self,
+        value: &mut T,
+        path: &str,
+        serialized: &SerializedValue,
+        mut fields_handler: impl FnMut(&mut T, SerializerCtx<S>, &str, &str, &SerializedValue),
+    ) {
+        let path = decompose_serialization_path(path);
+
+        if path.is_none() {
+            *value = Default::default();
+        }
+
+        deserialize_map_inverted(path, serialized, |field_name, path, serialized| {
+            fields_handler(value, self.as_mut(), field_name, path, serialized)
+        });
     }
 
     pub fn deserialize_list<'r, T: Default>(

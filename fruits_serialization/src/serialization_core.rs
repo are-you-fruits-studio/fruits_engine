@@ -256,15 +256,13 @@ pub(crate) fn deserialize_list_inverted(
     match path {
         // root
         None => {
-            let elements = match serialized {
-                SerializedValue::Composite(SerializedComposite {
-                    values: SerializedCompositeValues::List(list),
-                    ..
-                }) => Some(list),
-                _ => None,
+            let SerializedValue::Composite(SerializedComposite {
+                values: SerializedCompositeValues::List(list), ..
+            }) = serialized else {
+                return;
             };
-            
-            for (slice_idx, serialized) in elements.map(|v| v.as_slice()).unwrap_or(&[]).iter().enumerate() {
+
+            for (slice_idx, serialized) in list.iter().enumerate() {
                 deserializer(slice_idx, "", serialized);
             }
         },
@@ -275,6 +273,31 @@ pub(crate) fn deserialize_list_inverted(
             };
 
             deserializer(element_idx as usize, element_path, serialized);
+        },
+    };
+}
+
+pub(crate) fn deserialize_map_inverted(
+    path: Option<(&str, &str)>,
+    serialized: &SerializedValue,
+    mut deserializer: impl FnMut(&str, &str, &SerializedValue),
+) {
+    match path {
+        // root
+        None => {
+            let SerializedValue::Composite(SerializedComposite {
+                values: SerializedCompositeValues::Map(SerializedMap { values, .. }), ..
+            }) = serialized else {
+                return;
+            };
+
+            for (field_name, serialized) in values {
+                deserializer(field_name, "", serialized);
+            }
+        },
+        // element
+        Some((element_name, element_path)) => {
+            deserializer(element_name, element_path, serialized);
         },
     };
 }

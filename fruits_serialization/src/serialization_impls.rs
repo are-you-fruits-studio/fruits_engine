@@ -1,6 +1,6 @@
-use std::fmt::Write;
+use std::{borrow::Cow, fmt::Write};
 
-use fruits_ffi::{FfiOption, FfiSmallString, FfiString, FfiVec};
+use fruits_ffi::{FfiIndexMap, FfiOption, FfiSmallString, FfiString, FfiVec};
 use fruits_math::{Mat, Quat, Vec2, Vec3, Vec4};
 
 use crate::{Serializable, SerializationError, SerializedComposite, SerializedCompositeValues, SerializedPrimitive, SerializedValue, SerializerCtxState, decompose_serialization_path, normalize_serialization_path, serialization_ctx::SerializerCtx};
@@ -478,6 +478,58 @@ impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for FfiVec<T> {
         );
     }
 }
+
+macro_rules! impl_serializable_ffimap {
+    ($key_ty: ident, $key_to_str: expr, $str_to_key: expr) => {
+        impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for FfiIndexMap<$key_ty, T> {
+            fn serialize(&self, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
+                let mut ctx = ctx.serialize_map(path);
+
+                let key_to_str: for<'a> fn(&'a $key_ty) -> Cow<'a, str> = ($key_to_str);
+
+                for (key, value) in self {
+                    let key_as_str = key_to_str(key);
+                    ctx = ctx.with_field(&key_as_str, value);
+                }
+            
+                ctx.finish_as_map(false)
+            }
+        
+            fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, serialized: &SerializedValue) {
+                ctx.deserialize_map_inverted(self, path, serialized, |this, mut ctx, field_name, path, serialized| {
+                    let key = ($str_to_key)(field_name);
+                    
+                    if this.get(&key).is_none() {
+                        this.insert(key.clone(), Default::default());
+                    }
+                
+                    let field_value = this.get_mut(&key).unwrap();
+                    ctx.deserialize(field_value, path, serialized);
+                });
+            }
+        }
+    };
+}
+
+macro_rules! impl_serializable_ffi_map_primitive {
+    ($ty: ident, $default: expr) => {
+        impl_serializable_ffimap!($ty, |s: &$ty| Cow::Owned(s.to_string()), |s: &str| s.parse().unwrap_or($default));
+    };
+}
+
+// todo: make it more generic
+impl_serializable_ffimap!(String, |s: &String| Cow::Borrowed(s), |s: &str| String::from(s));
+impl_serializable_ffimap!(FfiString, |s: &FfiString| Cow::Borrowed(s), |s: &str| FfiString::from(s));
+impl_serializable_ffi_map_primitive!(u8, 0);
+impl_serializable_ffi_map_primitive!(i8, 0);
+impl_serializable_ffi_map_primitive!(u16, 0);
+impl_serializable_ffi_map_primitive!(i16, 0);
+impl_serializable_ffi_map_primitive!(u32, 0);
+impl_serializable_ffi_map_primitive!(i32, 0);
+impl_serializable_ffi_map_primitive!(u64, 0);
+impl_serializable_ffi_map_primitive!(i64, 0);
+impl_serializable_ffi_map_primitive!(u128, 0);
+impl_serializable_ffi_map_primitive!(i128, 0);
 
 fn serialize_option<T, S: SerializerCtxState<T>>(option: Option<&T>, mut ctx: SerializerCtx<S>, path: &str) -> SerializedValue {
     let variants = ["None", "Some"].into_iter().map(|s| s.into()).collect();
