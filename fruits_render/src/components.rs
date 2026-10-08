@@ -49,10 +49,25 @@ pub enum StandardLightComponent {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub enum CameraProjection {
+    Perspective { fov: f32 },
+    Orthographic { size: f32 },
+}
+
+#[repr(C)]
 #[derive(Component)]
 pub struct CameraComponent {
-    // todo: orthographic projection
-    pub fov: f32,
+    pub projection: CameraProjection,
     pub near: f32,
     pub far: f32,
+}
+
+impl CameraComponent {
+    pub fn projection_matrix(&self, aspect: f32) -> fruits_math::Mat4<f32> {
+        match self.projection {
+            CameraProjection::Perspective { fov } => fruits_math::perspective_proj_matrix(fov, self.near, self.far, aspect),
+            CameraProjection::Orthographic { size } => fruits_math::orthographic_proj_matrix(size, self.near, self.far, aspect),
+        }
+    }
 }
