@@ -237,8 +237,6 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
     mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
 ) {
     // todo:
-    // - distinguish between prefabs and other asset types
-    // - save field for the other assets as well (with the new serialization api)
     // - handle dropdown clicks
     // - handle non-rigid collections controls ("+", "-")
     // - save assets to files when they are changed even a bit
@@ -255,10 +253,6 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
         return;
     };
 
-    let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_input_field, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
-        return;
-    };
-    
     return_if_not!(Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()));
 
     let serialized_value = parse_serialized(ent, ent_input_field);
@@ -266,6 +260,10 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
     let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
 
     if asset_type == AssetType::Prefab {
+        let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_input_field, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
+            return;
+        };
+    
         let Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text) else {
             return;
         };
