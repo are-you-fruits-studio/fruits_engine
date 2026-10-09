@@ -227,7 +227,6 @@ pub fn apply_inspector_dropdown_change_to_simulated_world_system(
     for click_evt in click_evt.iter() {
         continue_if_not!(Some(dropdown_entry_c) = ent.get_component::<DropdownEntryComponent>(click_evt.entity));
 
-        // the dropdown edits the enum variant, so the whole enum composite owning it is re-applied
         continue_if_not!(Some(ent_composite) = find_in_parents(ent.query::<&ChildComponent>(), dropdown_entry_c.dropdown, |e| {
             ent.get_component::<SerializedValueComponent>(e).map(|_| e)
         }));
@@ -281,7 +280,6 @@ pub fn adjust_non_rigid_composite_system(
         ));
 
         let did_asset_load = if is_add {
-            // writing to a key/index the collection doesn't have yet appends a new element
             let new_key = match &composite.values {
                 SerializedCompositeValues::List(list) => list.len().to_string(),
                 SerializedCompositeValues::Map(map) => (0u64..)
@@ -330,14 +328,11 @@ pub fn adjust_non_rigid_composite_system(
     }
 }
 
-/// What an inspector value belongs to in the simulated world.
 enum InspectedTarget {
     Asset(AssetType),
     PrefabComponent { component_id: FfiString },
 }
 
-/// Resolves what the inspector entity `ent_serialized` edits: the inspected asset itself, or
-/// (for prefabs) the component of the inspected entity that the value is nested in.
 fn get_inspected_target(
     ent: EntitiesHolderRef,
     ent_serialized: EntityId,
@@ -419,8 +414,6 @@ fn deserialize_to_simulated_world(
     }
 }
 
-/// Parses the inspector value of `ent_serialized` (an entity with `SerializedValueComponent`)
-/// and deserializes it into the inspected asset or prefab component at the value's path.
 fn apply_inspector_serialized_value_to_simulated_world(
     ent: EntitiesHolderRef,
     ent_serialized: EntityId,

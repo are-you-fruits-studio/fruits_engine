@@ -99,7 +99,6 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .order_system(update_selected_input_field_text_system)
         .before_system(apply_inspector_field_text_change_to_simulated_world_system);
 
-    // the dropdown text must hold the picked variant before the enum is parsed from it
     update
         .order_system(select_dropdown_variant_system)
         .before_system(apply_inspector_dropdown_change_to_simulated_world_system);

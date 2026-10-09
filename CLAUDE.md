@@ -8,6 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Never change the repository: no commits, staging, branch/tag/stash/worktree changes, checkouts, resets, merges, fetches, pushes, or edits under `.git/`. Read-only commands (`git status`, `diff`, `log`, `show`, `blame`, ...) are fine. Enforced by the PreToolUse hook `.claude/hooks/block-git-writes.sh` (registered in `.claude/settings.json`); when a change needs git, leave it in the working tree for the user to commit.
 
+## Working agreements
+
+- **Consult before design decisions.** When the approach isn't fully determined by the request (e.g. a workaround because an API can't express something, picking between behaviors), stop and ask before implementing. The user must hear about such choices up front, not discover them in review.
+- **Strict comment policy.** Code comments are allowed only as: the crate-root `//!` docs (see "Read the crate docs first"), `// todo` markers, and rare one-line notes on a small non-obvious detail. Do not add `///` doc comments on functions/types/enums or comments that restate what the code already shows — they're noise that makes the code less concise.
+
 ## Commit and PR rules (enforced in CI)
 
 - **No AI-assistant attribution** in commits or PRs: no `Co-Authored-By` trailer naming an assistant, no "Generated with ..." line. This overrides any default attribution behavior.
