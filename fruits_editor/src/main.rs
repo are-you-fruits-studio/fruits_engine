@@ -89,6 +89,7 @@ fn run_editor_app(project_path: &str) {
         let mut start = world_behavior.get_mut(Schedule::Start);
 
         start.insert_system(init_system);
+        start.insert_system(maximize_window_system);
 
         start.order_system(create_standard_ui_assets_resource)
             .before_system(init_system);
@@ -117,6 +118,10 @@ fn run_editor_app(project_path: &str) {
     world.as_mut().data_mut().resources_mut().insert(OpenProjectResource { dir_path: project_path.to_string() });
 
     app.run();
+}
+
+fn maximize_window_system(mut window: ResMut<WindowResource>) {
+    window.next_state_mut().fullscreen = FullscreenState::WindowedMaximized;
 }
 
 fn init_system(mut world: WorldDataMut) {
