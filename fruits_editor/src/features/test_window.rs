@@ -29,32 +29,50 @@ pub struct InspectorWindowButtonComponent;
 #[derive(Component, Default, Debug)]
 pub struct TestWindowComponent;
 
+pub const WINDOW_KIND_TEST: &str = "Test Window";
+pub const WINDOW_KIND_PROJECT: &str = "Project Window";
+pub const WINDOW_KIND_HIERARCHY: &str = "Hierarchy Window";
+pub const WINDOW_KIND_INSPECTOR: &str = "Inspector Window";
+
 pub fn open_windows_system(mut world: WorldDataMut) {
-    open_specific_window_system::<TestWindowButtonComponent, _>(world.as_mut(), "Test Window", TestWindowComponent, |_, _| {});
-    open_specific_window_system::<ProjectWindowButtonComponent, _>(world.as_mut(), "Project Window", ProjectWindowComponent::default(), |_, _| {});
-    open_specific_window_system::<HierarchyWindowButtonComponent, _>(world.as_mut(), "Hierarchy Window", HierarchyWindowComponent::default(), |_, _| {});
-    open_specific_window_system::<InspectorWindowButtonComponent, _>(world.as_mut(), "Inspector Window", InspectorWindowComponent::default(), prefabs::init_window_as_inspector);
+    open_clicked_window::<TestWindowButtonComponent>(world.as_mut(), WINDOW_KIND_TEST);
+    open_clicked_window::<ProjectWindowButtonComponent>(world.as_mut(), WINDOW_KIND_PROJECT);
+    open_clicked_window::<HierarchyWindowButtonComponent>(world.as_mut(), WINDOW_KIND_HIERARCHY);
+    open_clicked_window::<InspectorWindowButtonComponent>(world.as_mut(), WINDOW_KIND_INSPECTOR);
 }
 
-fn open_specific_window_system<
-    SpecButtonComponent: 'static + Component,
-    SpecWindowComponent: 'static + Component,
->(
+fn open_clicked_window<SpecButtonComponent: 'static + Component>(world: WorldDataMut, kind: &str) {
+    let did_click = world
+        .entities()
+        .query_filtered::<&ButtonComponent, WithFilter<SpecButtonComponent>>()
+        .iter()
+        .any(|b| b.was_clicked_this_frame);
+
+    if did_click {
+        open_window_by_kind(world, kind);
+    }
+}
+
+pub fn open_window_by_kind(world: WorldDataMut, kind: &str) -> Option<EntityId> {
+    match kind {
+        WINDOW_KIND_TEST => open_specific_window(world, kind, TestWindowComponent, |_, _| {}),
+        WINDOW_KIND_PROJECT => open_specific_window(world, kind, ProjectWindowComponent::default(), |_, _| {}),
+        WINDOW_KIND_HIERARCHY => open_specific_window(world, kind, HierarchyWindowComponent::default(), |_, _| {}),
+        WINDOW_KIND_INSPECTOR => {
+            open_specific_window(world, kind, InspectorWindowComponent::default(), prefabs::init_window_as_inspector)
+        }
+        _ => None,
+    }
+}
+
+fn open_specific_window<SpecWindowComponent: 'static + Component>(
     mut world: WorldDataMut,
     title: &str,
     component: SpecWindowComponent,
     init: impl FnOnce(WorldDataMut, EntityId),
-) {
-    let ent = world.entities();
-    
-    let did_click = ent.query_filtered::<&ButtonComponent, WithFilter<SpecButtonComponent>>().iter().any(|b| b.was_clicked_this_frame);
-
-    if !did_click {
-        return;
-    }
-
-    if !ent.query::<&SpecWindowComponent>().is_empty() {
-        return;
+) -> Option<EntityId> {
+    if !world.entities().query::<&SpecWindowComponent>().is_empty() {
+        return None;
     }
 
     let ent_window = prefabs::window(world.as_mut());
@@ -70,4 +88,6 @@ fn open_specific_window_system<
     let text_c = ent.get_component_mut::<TextComponent>(window_c.title).unwrap();
     text_c.text.clear();
     text_c.text.push_str(title);
+
+    Some(ent_window)
 }

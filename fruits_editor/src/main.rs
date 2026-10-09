@@ -114,6 +114,7 @@ fn run_editor_app(project_path: &str) {
     features::serialization::register_feature(world.as_mut());
     features::test_window::register_feature(world.as_mut());
     features::ui_window::register_feature(world.as_mut());
+    features::windows_layout::register_feature(world.as_mut());
 
     world.as_mut().data_mut().resources_mut().insert(OpenProjectResource { dir_path: project_path.to_string() });
 
