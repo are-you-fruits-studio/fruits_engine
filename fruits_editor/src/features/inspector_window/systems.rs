@@ -39,52 +39,6 @@ pub fn update_hierarchy_entries_selection(
     }
 }
 
-// todo: to new serializer api
-pub fn adjust_non_rigid_composite_system(mut world: WorldDataMut) {
-    let (res, mut ent, evt) = world.as_tuple_mut();
-
-    let ent_selected_input = res.as_ref().get::<SelectedInputFieldResource>().unwrap().selected;
-    let assets = res.as_ref().get::<StandardAssetsResource>().unwrap().clone();
-
-    for click_evt in evt.get::<ButtonClickEvent>() {
-        if let Some(btn_add_c) = ent.get_component::<SerializedCompositeRemoveButton>(click_evt.entity)
-            && let Some(serialized_val_c) = ent.get_component::<SerializedValueComponent>(btn_add_c.composite).cloned()
-            && let SerializedValueComponent { path, ty: SerializedValueComponentTy::Container {
-                ty, container_fields, ..
-            }} = serialized_val_c
-        {
-            let parent_c = ent.get_component_mut::<ParentComponent>(container_fields).unwrap();
-            if let Some(ent_child) = parent_c.children.pop() {
-                destroy_entity_and_children(ent.as_mut(), ent_child);
-            }
-        }
-        if let Some(btn_add_c) = ent.get_component::<SerializedCompositeAddButton>(click_evt.entity)
-            && let Some(serialized_val_c) = ent.get_component::<SerializedValueComponent>(btn_add_c.composite).cloned()
-            && let SerializedValueComponent { path, ty: SerializedValueComponentTy::Container {
-                ty, container_fields, ..
-            }} = serialized_val_c
-        {
-            let i = ent.get_component::<ParentComponent>(container_fields).unwrap().children.len();
-            let serialized_key = match ty {
-                SerializedValueContainerType::List => FfiString::from(i.to_string()),
-                SerializedValueContainerType::Map => FfiString::from(""),
-            };
-            spawn_serialized_field(
-                ent.as_mut(),
-                i,
-                serialized_key,
-                container_fields,
-                path,
-                &SerializedValue::Null,
-                ent_selected_input,
-                assets.material_panel.clone(),
-                assets.material_text.clone(),
-                assets.font.clone(),
-            );
-        }
-    }
-}
-
 pub fn remove_component_system(
     mut ent: EntitiesHolderMut,
     button_click_evt: Evt<ButtonClickEvent>,
@@ -236,7 +190,6 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
     mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
 ) {
     // todo:
-    // - handle non-rigid collections controls ("+", "-")
     // - save assets to files when they are changed even a bit
     // - restore the "add-component" functionality (with the new serialization api)
 
@@ -294,6 +247,178 @@ pub fn apply_inspector_dropdown_change_to_simulated_world_system(
     }
 }
 
+pub fn adjust_non_rigid_composite_system(
+    click_evt: Evt<ButtonClickEvent>,
+    ent: EntitiesHolderRef,
+    mut simulated_world: ResMut<SimulatedWorldResource>,
+    inspected_entity: Res<InspectedEntityResource>,
+    inspected_asset: Res<InspectedAssetResource>,
+    open_project: Res<OpenProjectResource>,
+    mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
+) {
+    return_if_not!(Some(simulated_world) = &mut simulated_world.0);
+
+    for click_evt in click_evt.iter() {
+        let (ent_composite, is_add) = if let Some(btn_add_c) = ent.get_component::<SerializedCompositeAddButton>(click_evt.entity) {
+            (btn_add_c.composite, true)
+        } else if let Some(btn_remove_c) = ent.get_component::<SerializedCompositeRemoveButton>(click_evt.entity) {
+            (btn_remove_c.composite, false)
+        } else {
+            continue;
+        };
+
+        continue_if_not!(Some(serialized_value_c) = ent.get_component::<SerializedValueComponent>(ent_composite));
+        continue_if_not!(Some(target) = get_inspected_target(ent, ent_composite, simulated_world, &inspected_asset));
+
+        let path = serialized_value_c.path.as_str();
+
+        continue_if_not!(Some(SerializedValue::Composite(mut composite)) = serialize_from_simulated_world(
+            &target,
+            path,
+            simulated_world,
+            &inspected_entity,
+            &inspected_asset,
+        ));
+
+        let did_asset_load = if is_add {
+            // writing to a key/index the collection doesn't have yet appends a new element
+            let new_key = match &composite.values {
+                SerializedCompositeValues::List(list) => list.len().to_string(),
+                SerializedCompositeValues::Map(map) => (0u64..)
+                    .map(|i| i.to_string())
+                    .find(|key| map.values.get(key.as_str()).is_none())
+                    .unwrap(),
+            };
+
+            deserialize_to_simulated_world(
+                &target,
+                &format!("{path}/{new_key}"),
+                &SerializedValue::Null,
+                simulated_world,
+                &inspected_entity,
+                &inspected_asset,
+                &open_project,
+            )
+        } else {
+            // todo: think about changing the serializing api:
+            // path writes can't remove elements, so the whole collection is rewritten without its last one
+            let did_remove = match &mut composite.values {
+                SerializedCompositeValues::List(list) => list.pop().is_some(),
+                SerializedCompositeValues::Map(map) => match map.values.len().checked_sub(1) {
+                    Some(idx_last) => {
+                        let key_last = map.values.get_by_idx(idx_last).unwrap().0.clone();
+                        map.values.remove_shift(&key_last).is_some()
+                    }
+                    None => false,
+                },
+            };
+
+            did_remove && deserialize_to_simulated_world(
+                &target,
+                path,
+                &SerializedValue::Composite(composite),
+                simulated_world,
+                &inspected_entity,
+                &inspected_asset,
+                &open_project,
+            )
+        };
+
+        if did_asset_load {
+            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
+        };
+    }
+}
+
+/// What an inspector value belongs to in the simulated world.
+enum InspectedTarget {
+    Asset(AssetType),
+    PrefabComponent { component_id: FfiString },
+}
+
+/// Resolves what the inspector entity `ent_serialized` edits: the inspected asset itself, or
+/// (for prefabs) the component of the inspected entity that the value is nested in.
+fn get_inspected_target(
+    ent: EntitiesHolderRef,
+    ent_serialized: EntityId,
+    simulated_world: &SimulatedWorld,
+    inspected_asset: &InspectedAssetResource,
+) -> Option<InspectedTarget> {
+    let asset_type = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str())?;
+
+    if asset_type != AssetType::Prefab {
+        return Some(InspectedTarget::Asset(asset_type));
+    }
+
+    let serialized_component_c = find_in_parents(ent.query::<&ChildComponent>(), ent_serialized, |e| {
+        ent.get_component::<SerializedComponentComponent>(e)
+    })?;
+
+    let component_id_text_c = ent.get_component::<TextComponent>(serialized_component_c.component_id_text)?;
+
+    Some(InspectedTarget::PrefabComponent { component_id: component_id_text_c.text.clone() })
+}
+
+fn serialize_from_simulated_world(
+    target: &InspectedTarget,
+    path: &str,
+    simulated_world: &SimulatedWorld,
+    inspected_entity: &InspectedEntityResource,
+    inspected_asset: &InspectedAssetResource,
+) -> Option<SerializedValue> {
+    let res = simulated_world.world.data().resources();
+
+    match target {
+        InspectedTarget::Asset(_) => save_asset_from_world_res(res, inspected_asset.asset_key.as_str())?
+            .get_by_path(path)
+            .cloned(),
+        InspectedTarget::PrefabComponent { component_id } => record_into_prefab_components(
+            res,
+            simulated_world.world.data().entities(),
+            inspected_entity.selected_entity,
+            &inspected_entity.ent_to_id,
+        )
+        .get(component_id)?
+        .get_by_path(path)
+        .cloned(),
+    }
+}
+
+fn deserialize_to_simulated_world(
+    target: &InspectedTarget,
+    path: &str,
+    serialized: &SerializedValue,
+    simulated_world: &mut SimulatedWorld,
+    inspected_entity: &InspectedEntityResource,
+    inspected_asset: &InspectedAssetResource,
+    open_project: &OpenProjectResource,
+) -> bool {
+    match target {
+        InspectedTarget::Asset(asset_type) => deserialize_asset_to_world_res(
+            simulated_world.world.data_mut().resources_mut(),
+            inspected_asset.asset_key.as_str(),
+            path,
+            serialized,
+            *asset_type,
+            &(open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH),
+        ),
+        InspectedTarget::PrefabComponent { component_id } => {
+            let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
+
+            // todo: react to result?
+            deserialize_entity_component_from_prefab(
+                sim_res.as_ref(),
+                sim_ent,
+                inspected_entity.selected_entity,
+                component_id,
+                path,
+                serialized,
+                &inspected_entity.id_to_ent,
+            )
+        }
+    }
+}
+
 /// Parses the inspector value of `ent_serialized` (an entity with `SerializedValueComponent`)
 /// and deserializes it into the inspected asset or prefab component at the value's path.
 fn apply_inspector_serialized_value_to_simulated_world(
@@ -308,45 +433,19 @@ fn apply_inspector_serialized_value_to_simulated_world(
         return false;
     };
 
-    let Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()) else {
+    let Some(target) = get_inspected_target(ent, ent_serialized, simulated_world, inspected_asset) else {
         return false;
     };
 
-    let serialized_value = parse_serialized(ent, ent_serialized);
-
-    if asset_type == AssetType::Prefab {
-        let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_serialized, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
-            return false;
-        };
-
-        let Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text) else {
-            return false;
-        };
-
-        let inspected_component_type_name = component_id_text_c.text.clone();
-
-        let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
-
-        // todo: react to result?
-        deserialize_entity_component_from_prefab(
-            sim_res.as_ref(),
-            sim_ent,
-            inspected_entity.selected_entity,
-            &inspected_component_type_name,
-            &serialized_value_c.path,
-            &serialized_value,
-            &inspected_entity.id_to_ent,
-        )
-    } else {
-        deserialize_asset_to_world_res(
-            simulated_world.world.data_mut().resources_mut(),
-            inspected_asset.asset_key.as_str(),
-            &serialized_value_c.path,
-            &serialized_value,
-            asset_type,
-            &(open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH),
-        )
-    }
+    deserialize_to_simulated_world(
+        &target,
+        &serialized_value_c.path,
+        &parse_serialized(ent, ent_serialized),
+        simulated_world,
+        inspected_entity,
+        inspected_asset,
+        open_project,
+    )
 }
 
 // todo: rewrite to new serialization api

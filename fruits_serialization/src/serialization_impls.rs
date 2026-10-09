@@ -453,7 +453,7 @@ impl<S: SerializerCtxState<T>, T: Default> Serializable<S> for Vec<T> {
     fn deserialize(&mut self, ctx: SerializerCtx<S>, path: &str, serialized: &SerializedValue) {
         // todo
         ctx.deserialize_list_inverted(self, path, serialized, |this, mut ctx, i, path, serialized| {
-            this.resize_with(this.len().max(i), || Default::default());
+            this.resize_with(this.len().max(i + 1), || Default::default());
             ctx.deserialize(&mut this[i], path, serialized);
         });
     }

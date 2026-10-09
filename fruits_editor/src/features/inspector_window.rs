@@ -109,6 +109,11 @@ pub fn register_feature(mut world: WorldBuilderMut) {
         .before_system(save_inspected_asset_from_simulated_world_to_file_system)
         .before_system(update_inspector_window_system);
 
+    update
+        .order_system(adjust_non_rigid_composite_system)
+        .before_system(save_inspected_asset_from_simulated_world_to_file_system)
+        .before_system(update_inspector_window_system);
+
     // todo
     // update
     //     .order_system(parse_selected_file_system)
