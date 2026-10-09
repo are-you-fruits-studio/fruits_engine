@@ -213,6 +213,7 @@ pub fn add_asset_module_to(mut world: WorldBuilderMut) {
 }
 
 pub fn load_all_assets_system(res: ResourcesHolderMut) {
+    // todo: use fruits_file_storage::assets_path() instead of cwd-relative "assets"
     let mut assets_dir_path = PathBuf::new();
     assets_dir_path.push("assets");
 
