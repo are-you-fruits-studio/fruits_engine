@@ -4,11 +4,11 @@ use fruits_engine::tree::{TreeBuilder, TreeNode};
 
 use crate::{
     features::{
-        asset_serialization::{InspectedAsset, get_asset_type}, input_field::{InputFieldComponent, InputFieldSelectionChangedEvent, SelectedInputFieldResource}, inspector_window::{
+        asset_serialization::{InspectedAsset, get_asset_type}, dropdown::DropdownEntryComponent, input_field::{InputFieldComponent, InputFieldSelectionChangedEvent, SelectedInputFieldResource}, inspector_window::{
             data::*, utils::{
                 entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, find_in_parents, serialization::{are_components_slices_similar, deserialize_asset_to_world_res, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
             },
-        }, project_window_selection::{FileSelectedEvent, SelectedFileResource}, world_preload::SimulatedWorldResource,
+        }, project_window_selection::{FileSelectedEvent, SelectedFileResource}, world_preload::{SimulatedWorld, SimulatedWorldResource},
     }, prefabs::WindowComponent, *,
 };
 
@@ -228,7 +228,6 @@ pub fn adjust_hierarchy_entries_system(
 pub fn apply_inspector_field_text_change_to_simulated_world_system(
     text_input_evt: Evt<TextInputEvent>,
     selected_input_res: Res<SelectedInputFieldResource>,
-    serialized_value_q: WorldQuery<&SerializedValueComponent>,
     ent: EntitiesHolderRef,
     mut simulated_world: ResMut<SimulatedWorldResource>,
     inspected_entity: Res<InspectedEntityResource>,
@@ -237,7 +236,6 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
     mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
 ) {
     // todo:
-    // - handle dropdown clicks
     // - handle non-rigid collections controls ("+", "-")
     // - save assets to files when they are changed even a bit
     // - restore the "add-component" functionality (with the new serialization api)
@@ -248,30 +246,89 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
         return;
     }
 
-    let ent_input_field = selected_input_res.selected;
-    let Some(serialized_value_c) = serialized_value_q.get(ent_input_field) else {
-        return;
+    let did_asset_load = apply_inspector_serialized_value_to_simulated_world(
+        ent,
+        selected_input_res.selected,
+        simulated_world,
+        &inspected_entity,
+        &inspected_asset,
+        &open_project,
+    );
+
+    if did_asset_load {
+        inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
+    };
+}
+
+pub fn apply_inspector_dropdown_change_to_simulated_world_system(
+    click_evt: Evt<ButtonClickEvent>,
+    ent: EntitiesHolderRef,
+    mut simulated_world: ResMut<SimulatedWorldResource>,
+    inspected_entity: Res<InspectedEntityResource>,
+    inspected_asset: Res<InspectedAssetResource>,
+    open_project: Res<OpenProjectResource>,
+    mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
+) {
+    return_if_not!(Some(simulated_world) = &mut simulated_world.0);
+
+    for click_evt in click_evt.iter() {
+        continue_if_not!(Some(dropdown_entry_c) = ent.get_component::<DropdownEntryComponent>(click_evt.entity));
+
+        // the dropdown edits the enum variant, so the whole enum composite owning it is re-applied
+        continue_if_not!(Some(ent_composite) = find_in_parents(ent.query::<&ChildComponent>(), dropdown_entry_c.dropdown, |e| {
+            ent.get_component::<SerializedValueComponent>(e).map(|_| e)
+        }));
+
+        let did_asset_load = apply_inspector_serialized_value_to_simulated_world(
+            ent,
+            ent_composite,
+            simulated_world,
+            &inspected_entity,
+            &inspected_asset,
+            &open_project,
+        );
+
+        if did_asset_load {
+            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
+        };
+    }
+}
+
+/// Parses the inspector value of `ent_serialized` (an entity with `SerializedValueComponent`)
+/// and deserializes it into the inspected asset or prefab component at the value's path.
+fn apply_inspector_serialized_value_to_simulated_world(
+    ent: EntitiesHolderRef,
+    ent_serialized: EntityId,
+    simulated_world: &mut SimulatedWorld,
+    inspected_entity: &InspectedEntityResource,
+    inspected_asset: &InspectedAssetResource,
+    open_project: &OpenProjectResource,
+) -> bool {
+    let Some(serialized_value_c) = ent.get_component::<SerializedValueComponent>(ent_serialized) else {
+        return false;
     };
 
-    return_if_not!(Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()));
+    let Some(asset_type) = get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()) else {
+        return false;
+    };
 
-    let serialized_value = parse_serialized(ent, ent_input_field);
-
-    let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
+    let serialized_value = parse_serialized(ent, ent_serialized);
 
     if asset_type == AssetType::Prefab {
-        let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_input_field, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
-            return;
+        let Some(serialized_component_c) = find_in_parents(ent.query::<&ChildComponent>(), ent_serialized, |e| ent.get_component::<SerializedComponentComponent>(e)) else {
+            return false;
         };
-    
+
         let Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text) else {
-            return;
+            return false;
         };
 
         let inspected_component_type_name = component_id_text_c.text.clone();
-        
+
+        let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
+
         // todo: react to result?
-        let did_asset_load = deserialize_entity_component_from_prefab(
+        deserialize_entity_component_from_prefab(
             sim_res.as_ref(),
             sim_ent,
             inspected_entity.selected_entity,
@@ -279,24 +336,16 @@ pub fn apply_inspector_field_text_change_to_simulated_world_system(
             &serialized_value_c.path,
             &serialized_value,
             &inspected_entity.id_to_ent,
-        );
-        
-        if did_asset_load {
-            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
-        };
+        )
     } else {
-        let did_asset_load = deserialize_asset_to_world_res(
+        deserialize_asset_to_world_res(
             simulated_world.world.data_mut().resources_mut(),
             inspected_asset.asset_key.as_str(),
             &serialized_value_c.path,
             &serialized_value,
             asset_type,
             &(open_project.dir_path.to_string() + PROJECT_ASSETS_SUBPATH),
-        );
-        
-        if did_asset_load {
-            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
-        };
+        )
     }
 }
 
