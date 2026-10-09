@@ -161,6 +161,8 @@
 //! each entity the id `index + 1`, and serializes its components with entity references
 //! mapped to those ids; [`override_entity_components_from_prefab`] removes all components of
 //! an entity and deserializes the given ones onto it.
+//! [`deserialize_entity_component_from_prefab`] writes one component at a path with the same
+//! id mapping, adding the component when the entity doesn't have it yet.
 //!
 //! The crate root keeps `todo` notes on the asset formats still to be supported (font import,
 //! and `.obj`/`.fbx` import details), and the `_*_FILE_EXAMPLE` constants are older format

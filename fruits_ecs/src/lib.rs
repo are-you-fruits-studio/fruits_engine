@@ -175,7 +175,12 @@
 //! By default systems in a pass run in any order that respects their data dependencies. Pin a
 //! relative order explicitly with [`order_system`](SystemsHolderBuilderMut::order_system) /
 //! `before_system`, and bundle several systems under a named handle with
-//! [`group`](SystemsHolderBuilderMut::group) so they can be ordered together.
+//! [`group`](SystemsHolderBuilderMut::group) so they can be ordered together. Each
+//! `before_system` / `before_group` call orders the *previous* entry before the new one, so a call
+//! sequence builds a chain, not a fan-out from the first system: to put several systems after the
+//! same one, start a separate `order_system` per edge. Chains from different call sites are merged
+//! into one graph, and conflicting ones panic with a circular-dependency error when the schedule is
+//! built.
 //!
 //! ```rust,no_run
 //! use fruits_ecs::*;

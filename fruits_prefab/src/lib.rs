@@ -86,11 +86,13 @@
 //! [`serialize_components`] walks the entity's components with `get_all_components`, stores
 //! each one's type-info name (its `std::any::type_name`) as the `component_id`, serializes it
 //! with [`SerializerCtx::serialize_any`], and sorts the result by `component_id` so the output
-//! is stable. [`deserialize_component`] goes the other way:
-//! [`SerializerCtx::deserialize_default_any`] looks the serializer up by the id, creates the
-//! component from the serializer's default, fills it from the payload, and attaches it with
-//! `add_component_any`. It returns `false` if no serializer matches or the component cannot be
-//! added; [`deserialize_prefab_components`] logs such components and moves on.
+//! is stable. [`deserialize_component`] goes the other way: if the entity already has a
+//! component with that id, it deserializes the payload into it in place at the given path;
+//! otherwise [`SerializerCtx::deserialize_default_any`] looks the serializer up by the id,
+//! creates the component from the serializer's default, fills it from the payload, and it is
+//! attached with `add_component_any`. It returns `false` if no serializer matches or the
+//! component cannot be added; [`deserialize_prefab_components`] logs such components and
+//! moves on.
 //!
 //! #### Where the rest of the pipeline lives
 //!
@@ -199,12 +201,13 @@ pub fn deserialize_prefab_components(
     mut entities: EntitiesHolderMut,
 ) {
     for (component_id, component_value) in components {
-        let was_deserialized = deserialize_add_component(
-            component_id.as_str(),
-            component_value,
+        let was_deserialized = deserialize_component(
+            entities.as_mut(),
             entity,
+            component_id.as_str(),
             serializer_ctx.as_mut(),
-            entities.as_mut()
+            "",
+            component_value,
         );
 
         if !was_deserialized {
@@ -232,19 +235,6 @@ pub fn serialize_components(
     components.into_iter().collect()
 }
 
-pub fn deserialize_add_component(
-    id: &str,
-    data: &SerializedValue,
-    entity: EntityId,
-    mut serializer_ctx: SerializerCtx<TransSerializerCtxState>,
-    mut entities: EntitiesHolderMut,
-) -> bool {
-    let Some(component) = serializer_ctx.deserialize_default_any(id, "", &data) else {
-        return false;
-    };
-    entities.add_component_any(entity, component).is_ok()
-}
-
 pub fn deserialize_component(
     mut entities: EntitiesHolderMut,
     entity: EntityId,
@@ -263,10 +253,14 @@ pub fn deserialize_component(
         component = Some(entity_component);
     });
 
-    let Some(c) = component else {
+    if let Some(c) = component {
+        serializer_ctx.deserialize_any(c, path, serialized);
+        return true;
+    }
+
+    let Some(component) = serializer_ctx.deserialize_default_any(id, path, serialized) else {
         return false;
     };
 
-    serializer_ctx.deserialize_any(c, path, serialized);
-    return true;
+    entities.add_component_any(entity, component).is_ok()
 }

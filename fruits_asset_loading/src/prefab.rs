@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, path::Path};
 use fruits_asset_storage::{AssetHandle, AssetStorageResource};
 use fruits_ecs::*;
 use fruits_ffi::{FfiIndexMap, FfiString, FfiVec};
-use fruits_prefab::{Prefab, PrefabDependencies, PrefabEntities, deserialize_add_component, deserialize_component, deserialize_prefab_components, serialize_components};
+use fruits_prefab::{Prefab, PrefabDependencies, PrefabEntities, deserialize_component, deserialize_prefab_components, serialize_components};
 use fruits_serialization::*;
 use fruits_transform::ParentComponent;
 
@@ -133,12 +133,13 @@ pub fn instantiate_prefab(res: ResourcesHolderRef, mut ent: EntitiesHolderMut, p
         let entity = *ctx.entities.get(&entity_id).unwrap();
 
         for (component_id, component_value) in &prefab_components.0 {
-            let did_deserialize_component = deserialize_add_component(
-                component_id,
-                component_value,
-                entity,
-                serializer_ctx.as_mut(),
+            let did_deserialize_component = deserialize_component(
                 ent.as_mut(),
+                entity,
+                component_id,
+                serializer_ctx.as_mut(),
+                "",
+                component_value,
             );
 
             if !did_deserialize_component {

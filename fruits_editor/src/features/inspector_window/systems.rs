@@ -6,7 +6,7 @@ use crate::{
     features::{
         asset_serialization::{InspectedAsset, get_asset_type}, dropdown::DropdownEntryComponent, input_field::{InputFieldComponent, InputFieldSelectionChangedEvent, SelectedInputFieldResource}, inspector_window::{
             data::*, utils::{
-                entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_serialized_field, spawn_text_ent}, find_in_parents, serialization::{are_components_slices_similar, deserialize_asset_to_world_res, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
+                entries::{parse_serialized, spawn_default_layout_ent, spawn_hierarchy_window_entry, spawn_serialized, spawn_text_ent}, find_in_parents, serialization::{are_components_slices_similar, deserialize_asset_to_world_res, enrich_serialized_with_asset_type, load_asset_to_world_res, save_asset_from_world_res}, subsequence_match_ignore_case,
             },
         }, project_window_selection::{FileSelectedEvent, SelectedFileResource}, world_preload::{SimulatedWorld, SimulatedWorldResource},
     }, prefabs::WindowComponent, *,
@@ -40,46 +40,69 @@ pub fn update_hierarchy_entries_selection(
 }
 
 pub fn remove_component_system(
-    mut ent: EntitiesHolderMut,
+    ent: EntitiesHolderRef,
     button_click_evt: Evt<ButtonClickEvent>,
+    mut simulated_world: ResMut<SimulatedWorldResource>,
+    inspected_entity: Res<InspectedEntityResource>,
+    inspected_asset: Res<InspectedAssetResource>,
+    mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
 ) {
+    return_if_not!(Some(simulated_world) = &mut simulated_world.0);
+
+    return_if!(
+        get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()) != Some(AssetType::Prefab)
+    );
+
     for button_click_evt in button_click_evt.iter() {
-        
-        if let Some(component_remove_button_c) = ent.get_component::<ComponentRemoveButton>(button_click_evt.entity).copied() {
-            destroy_entity_and_children(ent.as_mut(), component_remove_button_c.component);
+        continue_if_not!(Some(component_remove_button_c) = ent.get_component::<ComponentRemoveButton>(button_click_evt.entity));
+        continue_if_not!(Some(serialized_component_c) = ent.get_component::<SerializedComponentComponent>(component_remove_button_c.component));
+        continue_if_not!(Some(component_id_text_c) = ent.get_component::<TextComponent>(serialized_component_c.component_id_text));
+
+        let component_id = component_id_text_c.text.as_str();
+        let (_, mut sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
+
+        let mut has_component = false;
+        sim_ent.get_all_components(inspected_entity.selected_entity, |c| has_component |= c.type_info().short().name() == component_id);
+        continue_if!(!has_component);
+
+        if sim_ent.remove_component_any(inspected_entity.selected_entity, component_id).is_some() {
+            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
         }
     }
 }
 
 pub fn add_component_system(
-    mut ent: EntitiesHolderMut,
+    ent: EntitiesHolderRef,
     button_click_evt: Evt<ButtonClickEvent>,
-    assets: Res<StandardAssetsResource>,
+    mut simulated_world: ResMut<SimulatedWorldResource>,
+    inspected_entity: Res<InspectedEntityResource>,
+    inspected_asset: Res<InspectedAssetResource>,
+    mut inspected_asset_edited_evt: EvtMut<InspectedAssetEditedEvent>,
 ) {
-    let Some(inspector_window_c) = ent.as_mut().query::<&InspectorWindowContentComponent>().iter().next().copied() else {
-        return;
-    };
+    return_if_not!(Some(simulated_world) = &mut simulated_world.0);
 
-    let container_ent = inspector_window_c.content_container;
+    return_if!(
+        get_asset_type(simulated_world.world.data().resources(), inspected_asset.asset_key.as_str()) != Some(AssetType::Prefab)
+    );
 
     for button_click_evt in button_click_evt.iter() {
-        let Some(add_component_variant_c) = ent.get_component::<AddComponentVariantComponent>(button_click_evt.entity) else {
-            continue;
-        };
+        continue_if_not!(Some(add_component_variant_c) = ent.get_component::<AddComponentVariantComponent>(button_click_evt.entity));
 
-        let component_id = add_component_variant_c.component_id.clone();
+        let (sim_res, sim_ent, _) = simulated_world.world.data_mut().into_tuple_mut();
 
-        update_prefab_component_ent(
-            ent.as_mut(),
-            EntityId::EMPTY,
-            container_ent,
-            EntityId::EMPTY,
-            &component_id,
+        let did_add = deserialize_entity_component_from_prefab(
+            sim_res.as_ref(),
+            sim_ent,
+            inspected_entity.selected_entity,
+            &add_component_variant_c.component_id,
+            "",
             &SerializedValue::Null,
-            assets.material_panel.clone(),
-            assets.material_text.clone(),
-            assets.font.clone(),
-        );        
+            &inspected_entity.id_to_ent,
+        );
+
+        if did_add {
+            inspected_asset_edited_evt.push(InspectedAssetEditedEvent);
+        }
     }
 }
 
