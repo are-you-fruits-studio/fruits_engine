@@ -3,8 +3,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const FILE_NAME_SCRIPTS_LIB_SRC: &str = if cfg!(windows) { "lib_app.dll" } else { "liblib_app.so" };
-pub const FILE_NAME_SCRIPTS_LIB_DST: &str = if cfg!(windows) { "lib_app.dll" } else { "lib_app.so" };
+pub const FILE_NAME_SCRIPTS_LIB_SRC: &str = if cfg!(windows) {
+    "lib_app.dll"
+} else if cfg!(target_os = "macos") {
+    "liblib_app.dylib"
+} else {
+    "liblib_app.so"
+};
+pub const FILE_NAME_SCRIPTS_LIB_DST: &str = if cfg!(windows) {
+    "lib_app.dll"
+} else if cfg!(target_os = "macos") {
+    "lib_app.dylib"
+} else {
+    "lib_app.so"
+};
 
 pub fn path_scripts_lib_src(project_path: &str) -> PathBuf {
     [project_path, "scripts", "target", "release", FILE_NAME_SCRIPTS_LIB_SRC]
